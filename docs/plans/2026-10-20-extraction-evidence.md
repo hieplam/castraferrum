@@ -95,3 +95,25 @@ Source repo PR: https://github.com/hieplam/Cabal/pull/291 (squash-merged as `c3b
   - `scripts/lang-baseline.json`: design, scripts, shared and tests lowered by 1 each (the false positive had inflated them); `.` stays 73; no folder went up.
 - Test counts, T2 -> T15: unit 417/2 -> 418/2 (one new test), contract 114, api 115, e2e 58, uc-coverage 32/32.
 - This repo: `tools/extraction-loop/loop.mjs check` now also runs `node scripts/lang-scan.mjs --check-baseline` in the scanner folder and fails with the scanner's `ABOVE BASELINE` lines when it exits non-zero.
+
+## T3
+
+Source repo PR: https://github.com/hieplam/Cabal/pull/292 (squash-merged as `790764c`).
+
+- Red (before building; only the new UC-18 test written): `npm run build`, then `npx playwright test --grep "@UC-18"` -> `shell.spec.ts:124 expect(locator('html')).toHaveAttribute('lang', 'en')` fails with `unexpected value "vi"`; 1 failed, 1 passed (the untouched light/dark UC-18 test).
+- Green:
+  - `npm run build` ok; `npx playwright test --grep "@UC-18"` -> 2 passed (English default on every screen with `lang="en"`, toggle to the `vi.ts` strings and back, survives a reload; light/dark test).
+  - `npm run verify` exit 0: unit 423 passed / 2 skipped (T15: 418 / 2), contract 114, api 115, e2e + visual `playwright test` 58 passed (chromium 37 + visual 21), `uc-coverage` 32/32, `dependency-cruiser: 0`, `arch-fixtures: 25/25`, `lang-scan --check-baseline: ok`. The first full run had one network flake (`page.goto: net::ERR_NO_BUFFER_SPACE` in UC-17, passed alone); the second full run was clean.
+  - `node scripts/lang-scan.mjs --path shared/domain` -> `vietnamese: 0` (was 300).
+  - Blob check from the git root: `git ls-tree -r HEAD -- loop-console/design/preview/shots loop-console/design/system/shots` gives 184 blob ids (the three `design/system` shots are deleted), `git ls-tree -r aaebf296f69f00a80f86e02ec490f91ac537426b -- loop-console/design` gives 546; `comm -12` of the two sorted lists prints nothing (0 shared).
+  - `npm run design:states` -> `states with shots: 92/92`; visual project at the unchanged `MAX_RATIO` 0.001 (worst region 0.0008).
+- Stub check: put the old (Vietnamese) `list-filter-repo-light.png` back and ran `npx playwright test --project visual --grep "filter by repo"` -> `list-filter-repo-light - top bar: 2.29 % off`, `list pane: 1.45 % off`, `main pane: 1.14 % off` (fails; restored). Appended an old blob id (`c5536b50...`, from the old `en-loop-running-light.png`) to the new id list -> `comm -12` prints it. The Red above is the "no flip" case.
+- Scanner before -> after (`node scripts/lang-scan.mjs --tree --coupling`):
+  - vietnamese (B): 7576 -> 5265 (`.` 73 -> 72, design 3016 -> 2209, scripts 195 -> 146, shared 405 -> 92, tests 1731 -> 604, web 589 -> 578, server 1565 -> 1562 (three repo-missing test lines), pg-init 2)
+  - coupling (C): 688 -> 527 (design 270 -> 160, scripts 9 -> 7, tests 124 -> 75, others unchanged)
+  - `scripts/lang-baseline.json` lowered to these numbers (`--write-baseline`).
+  - Per path: `design/preview` 703 -> 0, `design/system` 104 -> 0, `tests/e2e` 557 -> 0, `tests/visual` 332 -> 0, `shared/domain` 300 -> 0; `design/compare`, `design/directions` and the `design/*.md` and `*.css` files are untouched (T4).
+- Test counts, T15 -> T3: unit 418/2 -> 423/2, contract 114 -> 114, api 115 -> 115, e2e (chromium + visual) 58 -> 58, uc-coverage 32/32 -> 32/32.
+- What changed in the product: default language `en` (`prefs.tsx`, `lang` default of the schedule contract, `web/index.html`, schedule locale defaults), toggle order EN / VI, `MessageKey` derived from `en.ts`, `vi.ts` also holds the Vietnamese schedule texts, the cronstrue phrase overrides and golden tables (`shared/domain` may now import `shared/i18n`; rule and `docs/ARCHITECTURE.md` updated), repo-missing error text is `Repo does not exist: <path>` (old Vietnamese text still recognised), `docs/USE-CASES.md` UC-18 row says English by default.
+- Preview: English and neutral demo data (user `alice`, repos `acme-api`, `notes`...), the six `en-*` states are now `vi-*` (Vietnamese UI states), `messages.js` / `schedule.js` are gitignored build output (`compare-kit.ts` regenerates them), the three `design/system` shots are deleted.
+- Left for later tasks: the server still emits Vietnamese log lines, skip reasons, the `(bản sao)` duplicate suffix and a few API messages (T5; the strings the tests still match are collected in `tests/support/server-text.ts`); `repo.loops.count` has no plural handling ("1 loops"); in the owner-local `.lang-scan.local.json` the pattern `"\bCabal\b"` is read by JSON as backspace characters and never matches (needs `"\bCabal\b"`).
