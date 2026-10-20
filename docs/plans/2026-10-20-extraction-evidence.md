@@ -134,3 +134,23 @@ Source repo PR: https://github.com/hieplam/Cabal/pull/293 (squash-merged as `f46
 - Scanner before -> after (`node scripts/lang-scan.mjs --tree --coupling`): vietnamese 5265 -> 3056 (`design` 2209 -> 0); coupling 527 -> 459 (`design` 160 -> 92); other folders unchanged. `scripts/lang-baseline.json` lowered with `--write-baseline`.
 - Test counts, T3 -> T4: unit 423/2 -> 423/2, contract 114 -> 114, api 115 -> 115, e2e (chromium + visual) 58 -> 58 tests present (57 passed + the flaky live test), uc-coverage 32/32 at T3 (see the note above for T4).
 - What changed: deleted `design/directions/` (10 files) and the tracked `design/compare/` (335 files, generated); `design/compare/` is in `.gitignore`; `design/README.md`, `APPROVED.md`, `STATES.md` rewritten in English (all 92 state ids kept, the `vi-` id prefix kept and explained); comments of `tokens.css` and `components.css` translated (needed for `vietnamese: 0`).
+
+## T16
+
+Root cause (measured, not guessed): the haiku model sometimes skips the tool call the prompt asks for. Load and parallelism are not the cause (`workers: 1`).
+- UC-27 transcripts (2 of 2 clean Red runs): tool_use only `echo one` and `echo two`, the third command `echo $RANDOM$RANDOM` was dropped, so the assertion `tool_use echo $RANDOM$RANDOM` got `undefined`.
+- UC-30 (failed run): the transcript has no tool_use at all, the model answered `STILL WAITING` straight away, so `summary` lacked `ALL DONE`.
+- Fix: both prompts now put the required call first and say that skipping it is a failure. Assertions unchanged. Source PR: https://github.com/hieplam/Cabal/pull/294
+
+Red (3 full `npx playwright test --project chromium` runs on main f46ff21, about 4.7 min each): run 1: 1 failed (UC-27, `Error: tool_use echo $RANDOM$RANDOM`, `Received: undefined`); run 2: same; run 3 was disturbed by my own concurrent invocation (3 failed: UC-30 with `Received string: "STILL WAITING"`, plus two unrelated ENOENT failures caused by the disturbance). UC-27 failed in 2 of 2 clean runs, UC-30 passed in both of those.
+
+Green:
+- `npx playwright test --project chromium --grep UC-30` after the fix: 8 of 8 passed (about 37 s each).
+- `--grep "UC-26|UC-27"`: 6 of 6 passed (2 passed each).
+- 3 consecutive full `npm run verify`: exit 0 each; unit 423 passed / 2 skipped, contract 114, api 115, e2e 58 passed (chromium + visual), uc-coverage output "32/32", no retries.
+
+Stub check: the old prompt yields a transcript without the tool_use and UC-27 goes red on `tool_use echo $RANDOM$RANDOM` (the Red runs above); UC-30 goes red on `ALL DONE` (run 3). Assertions were not touched, so a missing behaviour still fails them. Counts did not decrease (unit 423/2 skipped, contract 114, api 115, e2e 58, uc-coverage 32/32).
+
+Scanner (`node scripts/lang-scan.mjs --tree --coupling`): before vietnamese 3056, coupling 459; after vietnamese 3056, coupling 459 (baseline unchanged).
+
+Honest note: 2 of the 7 full verify runs I made failed on a visual test unrelated to the live-Claude tests (`list-many`, identical pixel counts both times, passes alone and in the next 4 full runs). Filed as https://github.com/hieplam/castraferrum/issues/30; not fixed here.
