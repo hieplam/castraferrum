@@ -34,3 +34,18 @@ Numbers and commands only. Every task of docs/plans/2026-10-20-extraction.md app
 ### Notes
 
 - On 2026-10-20 the container `loop_console_pg` was recreated once by a `docker compose up -d` run from a scratch worktree. The volume `loop_console_pg` was intact. It was recreated again from the main checkout, so the compose `working_dir` label is `C:\Users\lamhi\Downloads\repo\Cabal\loop-console` again. Its `Created` time changed.
+
+## T1 - Language and coupling scanner
+
+Source repo PR: https://github.com/hieplam/Cabal/pull/289 (squash-merged as `d4fa724`).
+
+- Red: `npx vitest run --project unit tests/tools/lang-scan.test.ts` -> `Error: Cannot find module '../../scripts/lang-scan.mjs' imported from .../tests/tools/lang-scan.test.ts`.
+- Green: same command, 35 passed. `node scripts/lang-scan.mjs --tree --coupling` -> `vietnamese: 7799` (B), `coupling: 737` (C), `comment-lines: 2478`.
+- Per folder (vietnamese / coupling / comment-lines): `.` 269/47/29, design 3017/270/182, pg-init 2/0/0, scripts 196/11/145, server 1587/161/746, shared 406/29/183, tests 1733/127/713, web 589/92/480.
+- Coupling by kind: ticket ids 390, issue refs 181, home paths 135, docs refs 27, local patterns 4.
+- Word-list sanity: 281 hashed tokens; 7462 diacritic lines, 369 unaccented-word lines, 30 path names; about 5 in 30 sampled word hits were false positives before tuning (`Minh` in `Asia/Ho_Chi_Minh`, `Thu` as weekday); both tokens were removed. Excluded as English or code words: `than`, `that`, `nut`, `len`, `con`, `can`, `ten`, `the`, `thi`, `lan`, `lang`, `long`, `man`, `mat`, `ban`, `bang`, `tin`, `tim`, `tat`, `tai` and similar short tokens.
+- Scanner source and tests: 0 hits (`--path scripts --list` and `--path tests/tools --list` show no lang-scan file).
+- `npm run verify` exit 0 (rerun after midnight; the first run at 23:52 failed 3 e2e time-label tests, `23:52 -> 00:00` vs `21/10 00:00`, unrelated): unit 417 passed / 2 skipped (T0 382), contract 114, api 115, e2e 58, `uc-coverage` 32/32.
+- Stub check: appended one Vietnamese comment to `server/adapters/active-runs/in-memory-active-runs.ts` -> `ABOVE BASELINE: server vietnamese 1588 > 1587`, `--check-baseline` exit 1; reverted.
+- Baseline file: `scripts/lang-baseline.json` holds the per-folder numbers above. B = 7799, C = 737.
+- Local file `.lang-scan.local.json` (gitignored) created in the main checkout's `loop-console/`.

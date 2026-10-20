@@ -356,7 +356,7 @@ Steps:
     word; `curl -s http://127.0.0.1:7170/ | grep -o "<title>Castraferrum</title>"` prints the title;
   - `npm run verify` exits 0, `uc-coverage` 32/32;
   - `git count-objects -vH` shows `size-pack` under 30 MiB;
-  - `docker inspect loop_console_pg` still shows the owner's container untouched (same `Created` time as before).
+  - `docker inspect loop_console_pg --format '{{.Id}}'` prints the same container id before and after the run, and its `com.docker.compose.project.working_dir` label is unchanged.
   Afterwards remove the scratch container and volume.
 - **Stub check:** a hidden dependency on the source repo fails in a folder that has no source repo next to it;
   compose names that are not overridable would hit `loop_console_pg`.
