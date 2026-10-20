@@ -1,6 +1,6 @@
 # Spec: extracting Loop Console into Castraferrum
 
-- Date: 2026-10-20
+- Date: 2026-10-20 (revision 2, after an adversarial review of revision 1)
 - Status: approved by the owner in conversation; owner reviews this document after merge
 - Plan: [../plans/2026-10-20-extraction.md](../plans/2026-10-20-extraction.md)
 
@@ -27,34 +27,36 @@ Where it lives today, in the source repo:
 
 | | Value |
 |---|---|
-| Tracked files under the two paths | 879, of which 841 contain Vietnamese |
-| Lines with Vietnamese diacritics | about 10 900 (docs 2 255, tests 1 638, server 1 517, shared 868 of which most is `vi.ts`, web 649, design 3 511 in HTML/JS/MD, scripts 187, configs and README the rest) |
-| Lines with unaccented Vietnamese in code | at least 45 (found with a small word list; diacritic search misses them) |
-| Identifiers | English, with a handful of exceptions (a Vietnamese local variable in `shared/i18n/i18n.test.ts`) |
-| File names | Mostly English; some design files under `design/directions/` are unaccented Vietnamese |
-| `design/` | 521 PNG screenshots (about 65 MB) of the Vietnamese UI; 335 of them are compare shots and diffs |
-| UI locales | `shared/i18n/vi.ts` (source of `MessageKey`) and `shared/i18n/en.ts`; default locale is `vi` (`web/prefs/prefs.tsx`) |
-| References into the source repo | about 150 `#NNN` issue refs and 250 `LC-NN` task refs in code; test fixtures with the owner's real home paths and the source repo's name; `scripts/uc-coverage.mjs` and one executor test read `docs/loop-console/SPEC-phase-*.md` |
-| Runtime data | Postgres volume `loop_console_pg` (explicit name, container `loop_console_pg`) holding the owner's loops and ticks |
+| Tracked files | 882 (876 under `loop-console/`, 6 under `docs/loop-console/`); 318 text files contain Vietnamese diacritics, and all 521 PNGs show the Vietnamese UI |
+| Lines with Vietnamese diacritics | about 7 460 under `loop-console/` with `shared/i18n/vi.ts` excluded, plus about 2 390 in `docs/loop-console/` |
+| Vietnamese UI text outside `vi.ts` | `shared/domain/schedule.ts` (a `TEXT.vi` block and a Vietnamese natural-language override for cron descriptions, about 107 lines); generated copies of the locale in `design/preview/messages.js` and `design/preview/schedule.js`; Vietnamese defaults (`.default('vi')` in `shared/contracts/loops.ts`, `locale = 'vi'` defaults in `schedule.ts`, `lang="vi"` in `web/index.html`, `'vi'` fallback in `web/prefs/prefs.tsx`) |
+| Unaccented Vietnamese | at least 45 lines in code comments and strings, plus 19 architecture rule names in `.dependency-cruiser.cjs`, the `// vi-pham:` marker parsed by `scripts/arch-lib.mjs`, and about 25 fixture file names under `tests/arch-fixtures/` |
+| Identifiers | English, except one Vietnamese local variable in `shared/i18n/i18n.test.ts` and the rule names above |
+| Tests that assert Vietnamese text | about 212 assertion lines in 17 e2e and visual files; the existing UC-18 e2e test asserts that the default language is Vietnamese |
+| `design/` | 521 PNGs (64.7 MB): `preview/shots` (184, about 23 MB, the approved reference the visual tests compare against), `compare/` (generated output, about 40 MB, partly tracked), `directions/` (early explorations, unaccented Vietnamese file names), `system/shots` (3, no generator script) |
+| Locale wiring | `MessageKey` is derived from `vi.ts`; default locale is `vi` |
+| References into the source repo | issue refs and `LC-NN` task refs in code; test fixtures with the owner's real home paths and the source repo's name; three readers of files outside the folder: `scripts/uc-coverage.mjs` (use-case table), `tests/api/api-surface.test.ts` (API table), one executor test (a quoted message) - all read `docs/loop-console/SPEC-phase-*.md`; `scripts/restart-console.ps1` hard-codes the owner's path |
+| Use cases | 32 (UC-01 to UC-32); `npm run verify` requires all 32 with green e2e (`--min 32`) |
+| Runtime | compose project `loop-console`, container and volume `loop_console_pg` (hard-coded names), Postgres on 55432, console on 7070, e2e console on 7071; `npm start` serves the UI only when `dist/web` exists; on startup, runs left open are marked interrupted |
 | Git history | 37 commits touching the two paths, all with Vietnamese messages |
 
-These numbers are approximate; the first plan task replaces them with exact numbers from a committed tool.
+The first plan task replaces these numbers with exact output of a committed tool.
 
 ## 2. Decisions
 
 | # | Decision | Why |
 |---|---|---|
-| D1 | **No history is carried over.** The code enters this repository as one snapshot commit, after it has been translated. Development history stays in the source repo. | Every old commit contains Vietnamese (messages and file contents). Rewriting history is expensive and easy to get wrong. |
-| D2 | **Translate in place in the source repo first, extract second.** | The full verification suite (`npm run verify`, 31+ use cases with green e2e tests) keeps running while text changes, so a broken translation shows up immediately. |
-| D3 | **Docs are rewritten short, not translated.** New set: `README.md`, `docs/ARCHITECTURE.md`, `docs/USE-CASES.md`, `CONTRIBUTING.md`, `docs/adr/*`. The phase specs, plan and vision stay in the source repo as history. | Most of the 350 KB is historical planning. Only the knowledge a new contributor needs moves. |
-| D4 | **`vi.ts` stays; English becomes the default locale**, and `MessageKey` is derived from `en.ts`. The language scanner skips `shared/i18n/vi.ts` (and only that file), so the target count is exactly 0. | A translation is a feature. Everything else in the repository is English. |
-| D5 | **Feature freeze** on the console until extraction is done. No new features (including the "stop condition" epic and phase 3). The source repo keeps getting features for its own domain. | A moving target makes translation and parity checks unreliable. |
-| D6 | **Name: Castraferrum.** Repository `hieplam/castraferrum`, package name `castraferrum`; the UI title changes from "Loop Console" to "Castraferrum". No "Claude" in the name. | Owner's choice. npm and GitHub had no project with this name on 2026-10-20. Avoiding vendor trademarks also leaves room for non-Claude executors. |
-| D7 | **Use-case IDs (`UC-NN`) stay**; task IDs (`LC-NN`) and issue refs (`#NNN`) from the source repo are removed from code, tests and docs. | UC IDs are part of the product's test contract (e2e tags, `uc-coverage`). LC and issue numbers point to a tracker the public will never see. |
-| D8 | **Test fixtures use neutral data**: no real home paths, user names or the source repo's name. | The repository will be public. |
-| D9 | **Screenshots are regenerated in English**; stale compare shots and diffs are dropped rather than migrated. | Images cannot be scanned for text cheaply, so the rule is: every PNG in the snapshot comes from a run with the English locale. |
-| D10 | **Runtime data survives the move.** The Postgres volume and container keep working when the console runs from a clone of this repository. | The owner's existing loops and tick history must still be there after cut-over. |
-| D11 | **Guardrails from day one** in this repository: a commit-msg hook, a CI job and `CLAUDE.md` rules that reject Vietnamese outside `vi.ts`, in files, commit messages, branch names and PR titles and bodies. | Agents working for the owner receive instructions in Vietnamese. Without guardrails, Vietnamese drifts back in. |
+| D1 | **No history is carried over.** The code enters this repository as one snapshot commit, after it has been translated. Development history stays in the source repo. | Every old commit contains Vietnamese. Rewriting history is expensive and easy to get wrong. |
+| D2 | **Translate in place in the source repo first, extract second.** | The full verification suite keeps running while text changes, so a broken translation shows up immediately. |
+| D3 | **Docs are rewritten short, not translated.** New set: `README.md`, `CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, `docs/USE-CASES.md`, `docs/API.md`, `docs/adr/*`. The phase specs, plan and vision stay in the source repo as history. | Most of the 350 KB is historical planning. Only the knowledge a new contributor needs moves. |
+| D4 | **`shared/i18n/vi.ts` is the only place Vietnamese may live, and it stays.** Every piece of Vietnamese UI text moves into it (including the schedule texts and the cron-description override now in `schedule.ts`). English becomes the default everywhere; `MessageKey` is derived from `en.ts`. Generated copies of the locale (`design/preview/messages.js`, `schedule.js`) are no longer tracked. The scanner skips exactly that one repo-relative path, so the target count is 0. | A translation is a feature. Everything else in the repository is English, and one file is easy to police. |
+| D5 | **Feature freeze** on the console until extraction is done. The source repo keeps getting features for its own domain. | A moving target makes translation and parity checks unreliable. |
+| D6 | **Name: Castraferrum.** Repository `hieplam/castraferrum`, package name `castraferrum`; the UI title becomes "Castraferrum". No vendor name in the product name. | Owner's choice. npm and GitHub had no project with this name on 2026-10-20. |
+| D7 | **Use-case IDs (`UC-NN`) stay**; task IDs (`LC-NN`) and issue refs from the source repo are removed. | UC IDs are part of the test contract. LC and issue numbers point to a tracker the public will never see. |
+| D8 | **Test fixtures and demo data use neutral values**: no real home paths, user names or the source repo's name. | The repository will be public. |
+| D9 | **Reference screenshots are regenerated in English, once, together with the locale flip.** Exploration folders and generated comparison output are dropped. | The visual tests compare the real app with the reference shots, so the two must change in the same task or the suite stays red. |
+| D10 | **Runtime data survives the move**, and nothing else can touch it by accident. Compose names stay `loop-console` / `loop_console_pg` by default but become overridable through environment variables, so a scratch clone runs against a scratch database. | The owner's loops and tick history must still be there after cut-over, and a test run must not mark the owner's runs interrupted. |
+| D11 | **Guardrails from day one** in this repository: hooks and a CI job reject Vietnamese outside `vi.ts` in file contents, file names, commit messages, branch names and PR titles and bodies. Guardrail tests that need Vietnamese input run in scratch repositories or on synthetic event payloads, never as real commits or PRs here. | Agents working for the owner receive instructions in Vietnamese. GitHub keeps closed PR refs and their commits forever, so a "throwaway" Vietnamese commit would break D1's promise. |
 
 ## 3. Goals
 
@@ -63,54 +65,78 @@ kind as the claim, and it must fail for an empty or stub implementation.
 
 | # | Goal (outcome) | Oracle | Why a stub fails |
 |---|---|---|---|
-| G1 | No Vietnamese text exists anywhere in this repository, in any file at any commit or in any commit message, except `shared/i18n/vi.ts`. | `node scripts/lang-scan.mjs --tree --history` run in this repository prints `vietnamese: 0` and exits 0. The scanner's own tests show that it flags diacritics, unaccented Vietnamese words and file names, and that it skips only `vi.ts`. | A scanner that always reports 0 fails its own unit tests on known Vietnamese samples. Doing nothing leaves about 10 900 hits. |
-| G2 | A first-time visitor sees the whole UI in English; switching the language toggle shows Vietnamese from `vi.ts`. | e2e: a clean browser context (empty storage) opens every screen and asserts English strings from `en.ts`; after the toggle, it asserts the matching `vi.ts` strings. | Today's default is `vi`, so the English assertion is red until the default changes. |
-| G3 | Castraferrum does everything Loop Console did at the freeze point. | `npm run verify` is green in this repository, and `uc-coverage` reports the same `k/N` as the baseline recorded at freeze time in the source repo (N = number of use cases, k = use cases with green e2e tests). | Missing or skipped tests lower k. An empty `USE-CASES.md` gives N = 0, not the baseline N. |
-| G4 | The repository works on its own: a fresh clone needs nothing from the source repo and carries no traces of it. | In a new temp folder: `git clone`, `npm ci`, `npm run verify` green. `node scripts/lang-scan.mjs --coupling` prints `coupling: 0`. Committed generic patterns: absolute home paths whose user segment is not a neutral fixture name, `docs/loop-console`, `LC-\d+`, issue refs `#\d+` (CSS colours excluded). Owner-specific patterns (the source repo's name, bot account names) come from a gitignored local file, so the scanner itself never names them. `docs/specs/` and `docs/plans/` are excluded, because they describe the move. | Today the coupling count is several hundred and two scripts read files outside the folder, so a fresh clone fails. |
-| G5 | A newcomer can understand and run the project from English docs alone. | The README quickstart is executed word for word on a fresh clone and the console answers on `http://127.0.0.1:7070`. `uc-coverage` reads its use-case list from `docs/USE-CASES.md` and finds the baseline N. | Missing docs break the quickstart run and the N check. |
-| G6 | Design reference images show the English UI, and the repository stays small enough to clone quickly. | Side by side: each new English shot next to its old Vietnamese counterpart, judged by the owner. `design/shots-manifest.json` (written by the shot scripts) lists every tracked PNG with `lang: "en"`; a check fails on any PNG missing from it. Packed repository size is under 30 MB (`git count-objects -vH`). | Untouched PNGs are missing from the manifest. Keeping all 521 old PNGs breaks the size budget. |
-| G7 | After import, any attempt to add Vietnamese to this repository is rejected before it reaches `main`. | Red, then green: a commit whose message or content contains Vietnamese is refused by the commit-msg and pre-commit hooks (exit 1, offending line shown). A PR with a Vietnamese title or body, or a Vietnamese line in its diff, fails the CI job `lang-scan`. | Without hooks and CI, the same commit and PR go through. |
-| G8 | The owner keeps working without loss: the console runs from this repository, existing loops and ticks are still there, and the source repo no longer contains the console. | Before cut-over: `GET /api/loops` and the tick count are recorded from the old console. After: the console started from a Castraferrum clone returns the same loops and counts. In the source repo, `loop-console/` and `docs/loop-console/` are gone and its docs point here. | A fresh empty database returns 0 loops. A leftover copy in the source repo is visible in its file listing. |
-| G9 | The owner accepts the result. | The owner looks at the English UI next to the Vietnamese one at the freeze point, and reads the new README and ARCHITECTURE, then signs off on the acceptance issue. | Only the owner can close it. |
+| G1 | No Vietnamese text exists anywhere in this repository - in any file content or file name at any commit, or in any commit message - except the file `shared/i18n/vi.ts`. | `node scripts/lang-scan.mjs --history` in this repository prints `vietnamese: 0`. It scans every blob reachable from any ref (`git rev-list --objects --all`), every path name and every commit message; only blobs at the exact path `shared/i18n/vi.ts` are skipped. The scanner's unit tests show each detection class works and that the skip is exact. | A scanner that always says 0 fails its own unit tests. Doing nothing leaves thousands of hits. |
+| G2 | A first-time visitor sees the whole UI in English, including schedule descriptions; the language toggle switches to Vietnamese from `vi.ts`. | e2e (the rewritten UC-18 test): a clean browser context opens every screen and asserts strings from `en.ts`, and `document.documentElement.lang` is `en`; after the toggle it asserts the matching `vi.ts` strings and `lang` = `vi`. | Today the default is `vi`, so the English assertions are red until the flip. |
+| G3 | Castraferrum does everything Loop Console did at the freeze point. | `npm run verify` is green in a clone of this repository; `uc-coverage` reports `32/32` (the T0 baseline k/N); unit, api and e2e test counts are at least the T0 counts. | Missing or skipped tests lower k or the counts. An empty `USE-CASES.md` gives N = 0. |
+| G4 | The repository works on its own: a fresh clone needs nothing from the source repo and carries no traces of it. | In a new temp folder, with scratch compose names: `git clone`, the README quickstart, `npm run verify` green. `node scripts/lang-scan.mjs --tree --coupling` prints `coupling: 0` (patterns in section 4). | Three scripts read files outside the folder today, and the coupling count is in the hundreds. |
+| G5 | A newcomer can understand and run the project from English docs alone. | The README quickstart, executed word for word in a fresh clone on port 7170, serves the UI: `curl -s http://127.0.0.1:7170/` contains `<title>Castraferrum</title>`. `uc-coverage` reads `docs/USE-CASES.md` and finds 32 use cases; the API surface test reads `docs/API.md`. | Without `npm run build` the server answers JSON but serves no page. A wrong port could hit an old console, so a scratch port and the new title are required. |
+| G6 | Design reference images show the English UI, and the repository is small enough to clone quickly. | Side by side: each new English reference next to its Vietnamese counterpart from the freeze commit, judged by the owner in the acceptance task. Mechanical check: no tracked PNG under `design/` has a blob id that also exists under `design/` at the freeze commit (so every image was regenerated, not relabelled). Size: `git archive HEAD:design \| wc -c` under 25 MB in the source repo; in this repository `git count-objects -vH` reports `size-pack` under 30 MiB right after import. | Untouched PNGs keep their old blob ids. Keeping all 521 PNGs breaks the size budget. |
+| G7 | After import, any attempt to add Vietnamese is rejected before it reaches `main`. | Each check is shown red and then green, on scratch input: the pre-commit hook rejects a staged Vietnamese line and a Vietnamese file name; the commit-msg hook rejects a Vietnamese message; the CI script rejects a synthetic pull-request event whose title, body or branch name is Vietnamese, and a history containing a Vietnamese blob. | Without hooks and the CI job, all the scratch inputs pass. |
+| G8 | The owner keeps working without loss: the console runs from this repository, existing loops and ticks are still there, and the source repo no longer contains the console. | Before cut-over, loop ids and tick counts are recorded from the old console. After: the console started from the Castraferrum clone returns the same ids and counts, and the Postgres container's compose working-dir label points at the new clone. In the source repo, `git ls-files loop-console docs/loop-console` prints nothing. | An empty database returns 0 loops. A container still owned by the old folder shows the old label. |
+| G9 | The owner accepts the result. | The owner looks at the English UI next to the Vietnamese one from the freeze point, reads the new docs, and signs off on the acceptance issue. | Only the owner can close it. |
 
 ## 4. The language scanner (`scripts/lang-scan.mjs`)
 
-The ratchet tool for G1, G4 and G7. Written first, before any translation, so every later task can report
-a number before and after.
+The ratchet tool for G1, G4 and G7. Written first, so every later task reports a number before and after.
 
-- **Hits** are counted per line, in four classes:
-  1. Vietnamese letters with diacritics (Latin Extended Additional block plus the Vietnamese letters in Latin-1
-     and Latin Extended-A, including U+0111 and U+0110).
-  2. Unaccented Vietnamese: a word list of common Vietnamese function words and project vocabulary, matched as
-     whole words in comments, strings and Markdown prose. It is tuned against the current tree so English words
-     with the same spelling do not count; ambiguous words that cannot be tuned out are kept out of the list.
-  3. File and folder names, checked with both classes above.
-  4. With `--message <file>` or `--history`: commit messages, branch names and, in CI, PR titles and bodies.
-- **Skip list**: exactly `shared/i18n/vi.ts`. The skip list is a constant in the scanner, and a unit test pins
-  it to that single entry, so it cannot quietly grow.
-- **Images** are not OCR-scanned. G6 covers them through the shot manifest.
-- **Scanner tests contain no Vietnamese literals.** Samples are built from Unicode escapes (`'\u1ea1'`) and
-  from the word list itself, so the test files pass the scanner.
-- **Output**: `vietnamese: <n>` (and `coupling: <n>` with `--coupling`), a per-folder breakdown, and with
-  `--list` every hit as `path:line`. `--max <n>` exits 1 when the count is above `n`. The baseline lives in a
-  committed file `scripts/lang-baseline.json`, and each translation PR lowers it.
-- **Comment retention**: the scanner also prints the number of comment lines. A translation that deletes
-  comments instead of translating them would lower the Vietnamese count too, so each translation task also
-  shows that its comment-line count stayed at 90 % or more of the count before the task.
+**Detection classes** (counted per line):
+1. Vietnamese letters with diacritics: the Latin Extended Additional block (U+1EA0 to U+1EF9) plus the Vietnamese
+   letters in Latin-1 Supplement, Latin Extended-A and Latin Extended-B (including U+0110, U+0111, U+01A0, U+01A1,
+   U+01AF, U+01B0).
+2. Unaccented Vietnamese: whole-word matches against a word list. The list is **stored as SHA-256 hashes of
+   lower-cased tokens**, so the scanner holds no Vietnamese and does not flag itself. It is tuned against the
+   current tree; words that collide with common English spellings are left out.
+3. Path names (files and folders), with classes 1 and 2.
+4. Commit messages and pull-request metadata, with classes 1 and 2.
+
+**Skip:** exactly the repo-relative path `shared/i18n/vi.ts` (not a suffix match: `tests/arch-fixtures/shared/i18n/vi.ts`
+is scanned). A unit test pins the skip list to that single entry.
+
+**Coupling patterns** (`--coupling`), not applied to `docs/specs/` and `docs/plans/` (they describe the move):
+- absolute home paths (`C:\Users\<x>`, `/Users/<x>`, `/home/<x>`) whose `<x>` is not one of `alice`, `bob`, `user`,
+  `runner`, `Shared`, `Public`, `Default`;
+- `docs/loop-console`, the path-join form `'..', 'docs'`, and `LC-\d+`;
+- issue refs `#\d{3,}`, except inside string literals that carry a `{n}`-style placeholder (UI text such as
+  `Run #{n}`) and except CSS hex colours;
+- owner-specific strings (the source repo's name, bot account names), read from a gitignored
+  `.lang-scan.local.json`, so the committed scanner never names them. CI runs without that file.
+
+**Modes** (every one has unit tests):
+
+| Flag | Scans |
+|---|---|
+| `--tree` (default) | tracked files of the working tree, contents and names |
+| `--path <dir>` | the tracked files under one folder |
+| `--names` | path names only |
+| `--staged` | added lines of the staged diff, and staged path names (pre-commit hook) |
+| `--message <file>` | one commit message (commit-msg hook) |
+| `--history` | every blob and path reachable from any ref, and every commit message |
+| `--pr-event <file>` | a GitHub `pull_request` event payload: title, body, head branch name |
+| `--coupling` | adds the coupling count |
+| `--list` | prints every hit as `path:line` |
+| `--check-baseline` | exits 1 if any folder's count is above `scripts/lang-baseline.json` |
+
+**Output:** `vietnamese: <n>`, `coupling: <n>` (with `--coupling`), `comment-lines: <n>`, and a per-folder breakdown.
+
+**Comment lines** (for the retention check in translation tasks): non-empty comment lines with at least three
+letters, counted per syntax: `//` and `/* ... */` (including JSDoc ` * ` lines) in JS and TS, `#` in PowerShell,
+YAML and shell, `<!-- -->` in HTML and Markdown.
+
+**Scanner tests contain no Vietnamese literals.** Samples are built at run time with `String.fromCodePoint(...)`
+and from the hashed word list's test vectors (the test computes the hash of a token it builds from code points).
 
 ## 5. Out of scope
 
-- New features, bug fixes unrelated to the move, refactors (D5). Bugs found during translation become
-  issues, not part of the translation PRs.
-- Translating the source repo's wiki. The few general findings (Claude Code transcript format, folder browsing
-  rules on Windows and macOS, executor behaviour) are rewritten into `docs/ARCHITECTURE.md` or an ADR.
-- Choosing a license and going public. That is a separate decision once the extraction is done.
-- Moving open issues from the source repo's tracker. The frozen console issues stay there, labelled `frozen`;
-  the owner decides later which ones to recreate here, in English.
+- New features, unrelated bug fixes, refactors (D5). Bugs found during translation become issues.
+- Translating the source repo's wiki. Its general findings are rewritten into `docs/ARCHITECTURE.md` or an ADR.
+- Choosing a license and going public.
+- Moving open issues from the source repo's tracker. The frozen console issues stay there, labelled `frozen`.
 
 ## 6. Open questions (owner decides; none blocks the plan)
 
-1. License before going public (MIT, Apache-2.0, ...).
-2. Whether to rename the Postgres volume and container to `castraferrum_*` (needs a one-time data copy)
-   or keep the `loop_console_*` names forever. The plan keeps the old names, which satisfies D10 at no risk.
-3. Which frozen issues to recreate here after the import.
+1. License before going public.
+2. Whether to rename the Postgres volume and container to `castraferrum_*` (one-time data copy) or keep the
+   default `loop_console_*` names. The plan keeps them; D10's overrides make either choice safe.
+3. Reference screenshots add about 23 MB per full re-shoot to this repository's history once it exists. Before
+   going public: Git LFS, fewer reference shots, or both.
+4. Which frozen issues to recreate here after the import.
