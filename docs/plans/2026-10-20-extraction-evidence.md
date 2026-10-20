@@ -49,3 +49,24 @@ Source repo PR: https://github.com/hieplam/Cabal/pull/289 (squash-merged as `d4f
 - Stub check: appended one Vietnamese comment to `server/adapters/active-runs/in-memory-active-runs.ts` -> `ABOVE BASELINE: server vietnamese 1588 > 1587`, `--check-baseline` exit 1; reverted.
 - Baseline file: `scripts/lang-baseline.json` holds the per-folder numbers above. B = 7799, C = 737.
 - Local file `.lang-scan.local.json` (gitignored) created in the main checkout's `loop-console/`.
+
+## T2 - English docs set
+
+Source repo PR: https://github.com/hieplam/Cabal/pull/290 (squash-merged as `54ad5b9`).
+
+- Red: `git grep -nE "'\.\.', *'docs'|\.\./docs|docs/loop-console" -- scripts server tests web` listed 3 readers (`scripts/uc-coverage.mjs:13`, `server/adapters/executors/claude/claude-agent-executor.test.ts:714`, `tests/api/api-surface.test.ts:14`). `npm run uc-coverage -- --spec docs/USE-CASES.md` -> `Error: ENOENT ... loop-console\docs\USE-CASES.md`.
+- Green:
+  - same `git grep` -> prints nothing (exit 1). The executor test now builds the path from `join(root, 'docs', 'ARCHITECTURE.md')`.
+  - `uc-coverage` -> `UC has e2e green: 32/32` (the script's own wording is still Vietnamese until T8), `--min 32` exit 0.
+  - API surface test (`npx vitest run --project api tests/api/api-surface.test.ts`) -> 30 passed (27 routes read from `docs/API.md`). Executor test file + uc-coverage unit test -> 54 passed, 2 skipped (real-Claude cases).
+  - `node scripts/lang-scan.mjs --path docs` -> `vietnamese: 0`; same for `README.md` and `CONTRIBUTING.md`. All new files are ASCII (`file` says ASCII text).
+  - Quickstart: `npm ci` (done in the worktree), `npm run build`, `LOOPS_PORT=7170 npm start`; `curl -s http://127.0.0.1:7170/ | grep -c "<title>"` -> `1`, `/api/health` -> `{"ok":true,"db":"up"}`. `docker compose up -d` was NOT run from the worktree (it would recreate `loop_console_pg`); Postgres was already up (`loop_console_pg` healthy).
+  - `npm run verify` exit 0: unit 417 passed / 2 skipped (T1: 417 / 2), contract 114, api 115, e2e 58, `uc-coverage` 32/32, `dependency-cruiser: 0`, `arch-fixtures: 25/25`.
+- Stub check (throwaway, reverted): `USE-CASES.md` without UC-30..32 -> `expected ... length 32 but got 29` (2 unit tests fail); `API.md` without the `/health` row -> `expected length 27 but got 26`; `LOOPS_PORT=7171 npm start` with `dist/` moved away -> `grep -c "<title>"` prints `0`.
+- Code change forced by the docs: the Claude executor cleanup message, the over-ceiling error and `formatWait` are English now (`30 minutes`, `1 second`, joined with `, `), because `docs/ARCHITECTURE.md` quotes the message verbatim and the unit test compares it with the code. Tests updated; `executor contract` and unit cases pass.
+- Scanner before -> after (`node scripts/lang-scan.mjs --tree --coupling`):
+  - vietnamese (B): 7799 -> 7580 (`.` 269 -> 73, server 1587 -> 1565, tests 1733 -> 1732)
+  - coupling (C): 737 -> 688 (`.` 47 -> 4, scripts 11 -> 9, server 161 -> 160, tests 127 -> 124)
+  - `scripts/lang-baseline.json` lowered to these numbers.
+- Test counts, T1 -> T2: unit 417/2 -> 417/2, contract 114 -> 114, api 115 -> 115, e2e 58 -> 58, uc-coverage 32/32 -> 32/32.
+- Worktree `Cabal-T2` and branch `feat/castraferrum-T2` removed (local and remote).
