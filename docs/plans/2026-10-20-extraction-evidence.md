@@ -166,3 +166,14 @@ Source repo PR: https://github.com/hieplam/Cabal/pull/295 (squash-merged as `87d
 - Scanner (`node scripts/lang-scan.mjs --tree --coupling`): before vietnamese 3056, coupling 459; after vietnamese 1480, coupling 459 (server 1562 -> 0, tests 604 -> 590, scripts unchanged). Coupling: one new `#255` reference introduced by the translation was removed again.
 - What changed: translated all of `server/`; migration files renamed `0001_luu_tru.sql` -> `0001_storage.sql`, `0003_song_song.sql` -> `0003_parallel.sql` (journal tags updated, `when` unchanged; the trigger message in `0003` is now English); runtime texts (log lines, skip reasons, API error messages) are English and `tests/support/server-text.ts` plus the API/contract tests and `scripts/api-smoke.mjs` that matched old text were updated.
 - Left for later tasks: test names and fixture text in `tests/` (T7); `web/api/fake-loops-api.ts` still names duplicates with the Vietnamese suffix (T6); `tests/support/service-kit.ts` Vietnamese defaults (T7).
+
+## T6
+
+Source repo PR: https://github.com/hieplam/Cabal/pull/296 (squash-merged as `19c67b1`).
+
+- Red (freeze `87deae8`): `node scripts/lang-scan.mjs --path shared` -> `vietnamese: 92`, `comment-lines: 194`; `--path web` -> `vietnamese: 578`, `comment-lines: 481`.
+- Green (merged main `19c67b1`, same commands): `--path shared` -> `vietnamese: 0`, `comment-lines: 194`; `--path web` -> `vietnamese: 0`, `comment-lines: 481` (both at least 0.9 x before); `node scripts/lang-scan.mjs --check-baseline` -> `baseline check: ok`; `lang-baseline.json` no longer has `shared` or `web` under vietnamese.
+- `npm run verify` on the branch: exit 0 on the first full run (no retries, no flake). unit 423 passed / 2 skipped, contract 114, api 115, e2e 58 passed (chromium + visual), uc-coverage `32/32`. Counts equal to T0 or higher (unit 423 vs 382 at T0).
+- Stub check: an untouched tree keeps 92 / 578; comments were rewritten, not deleted (194 and 481 comment lines unchanged); no test was removed (counts above), so deleting tests would fail the count check.
+- Scanner (`node scripts/lang-scan.mjs --tree --coupling`): before vietnamese 1476, coupling 459; after vietnamese 806, coupling 459 (shared 92 -> 0, web 578 -> 0; tests 587, scripts 145, root 72, pg-init 2 unchanged).
+- What changed: 78 files, line-for-line translation of comments, test names and thrown messages. `shared/i18n/vi.ts` untouched. `web/api/fake-loops-api.ts` now names duplicates `(copy)` like the real server (`loop-service.ts`), and its error messages are English. `loop-form.test.ts` evaluates schedules with locale `en` and expects the English sentences; test fixtures with Vietnamese diacritics were replaced by ASCII or `\u` escapes.
