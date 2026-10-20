@@ -16,7 +16,8 @@
 //   2. that PR's body has a "## Verify" section that mentions Red, Green and Stub
 //   3. that PR's title and body contain no Vietnamese letters
 //   4. on main (after pull) the evidence log has a heading "## T<k>" for the task
-//   5. ratchet: the scanner's counts (vietnamese, coupling) are not above the loop-baseline recorded at claim
+//   5. ratchet: the scanner's counts (vietnamese, coupling) are not above the loop-baseline recorded at claim,
+//      and the scanner's own `--check-baseline` (per-folder) exits 0
 //
 // Environment: CF_SOURCE_REPO = absolute path of the source repo checkout (needed while the console still lives
 // there; the scanner is looked up in this repo first, then in <CF_SOURCE_REPO>/loop-console).
@@ -170,6 +171,15 @@ function cmdCheck(n) {
   if (base && now) {
     if (base.vietnamese !== null && now.vietnamese !== null && now.vietnamese > base.vietnamese) fails.push(`vietnamese went up ${base.vietnamese} -> ${now.vietnamese}`);
     if (base.coupling !== null && now.coupling !== null && now.coupling > base.coupling) fails.push(`coupling went up ${base.coupling} -> ${now.coupling}`);
+  }
+  const sc = scanner();
+  if (sc) {
+    try {
+      execFileSync('node', [sc.script, '--check-baseline'], { cwd: sc.cwd, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+    } catch (e) {
+      const why = String(e.stdout || '').split(/\r?\n/).filter((l) => /ABOVE BASELINE|FAILED/.test(l)).join('; ') || String(e.message).split(/\r?\n/)[0];
+      fails.push(`scanner --check-baseline failed: ${why}`);
+    }
   }
   const ratchet = `vietnamese ${base?.vietnamese ?? 'n/a'} -> ${now?.vietnamese ?? 'n/a'}, coupling ${base?.coupling ?? 'n/a'} -> ${now?.coupling ?? 'n/a'}`;
   if (fails.length) {

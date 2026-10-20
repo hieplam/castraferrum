@@ -70,3 +70,28 @@ Source repo PR: https://github.com/hieplam/Cabal/pull/290 (squash-merged as `54a
   - `scripts/lang-baseline.json` lowered to these numbers.
 - Test counts, T1 -> T2: unit 417/2 -> 417/2, contract 114 -> 114, api 115 -> 115, e2e 58 -> 58, uc-coverage 32/32 -> 32/32.
 - Worktree `Cabal-T2` and branch `feat/castraferrum-T2` removed (local and remote).
+
+## T15 - Tool fix: scanner false positive, loop gate runs --check-baseline
+
+Source repo PR: https://github.com/hieplam/Cabal/pull/291 (squash-merged as `c3b7760`). This repo: the PR that adds this section.
+
+- Red (before building, source main `54ad5b9`):
+  - `node scripts/lang-scan.mjs --path docs --list` -> 7 hits, all `[text/word] them` (`docs/ARCHITECTURE.md` x6, `docs/adr/0002-ports-and-adapters.md` x1).
+  - `node scripts/lang-scan.mjs --check-baseline; echo $?` -> `ABOVE BASELINE: . vietnamese 76 > 73`, `ABOVE BASELINE: docs vietnamese 7 > 0`, `baseline check: FAILED`, exit `1` (the gate itself exits non-zero, so no second bug).
+  - `CF_SOURCE_REPO=<source> node tools/extraction-loop/loop.mjs check 7 --dry-run` -> `PASS #7 (T2) ... vietnamese 7799 -> 7590` although the baseline check failed.
+- Green:
+  - `--path docs` -> `vietnamese: 0`.
+  - `--check-baseline; echo $?` -> `baseline check: ok`, exit `0` (also on merged main).
+  - Corpus test passes (`tests/tools/lang-scan.test.ts`, 36 tests).
+  - `npm run verify` exit 0 on the branch (same tree as merged main): unit 418 passed / 2 skipped, contract 114, api 115, e2e 58, `uc-coverage` 32/32, `dependency-cruiser: 0`, `arch-fixtures: 25/25`.
+  - `loop.mjs check 7 --dry-run` on the fixed scanner -> `PASS #7 (T2) via PR #23; vietnamese 7799 -> 7576, coupling 737 -> 688`, exit 0.
+  - Same command with two Vietnamese lines temporarily added to `vite.config.ts` in the scratch worktree -> exit 1: `FAIL #7 (T2)`, `- scanner --check-baseline failed: ABOVE BASELINE: . vietnamese 75 > 73; baseline check: FAILED`. Reverted (`git checkout`).
+- Stub check: the new corpus test run against the old word list failed with `them` found in `CONTRIBUTING.md`, `shared/i18n/en.ts`, `docs/ARCHITECTURE.md` and `docs/adr/0002-ports-and-adapters.md` (first draft of the test also hit `pham`, `khi`, `theo` in a code span and in comments, so the corpus is English prose only: markdown without code spans, string literals of `en.ts`). After removing `them` only, the test passes.
+- Word-list change: one hash removed (`them`). No other token was found to be a word of the English corpus.
+- Extra fix: `CONTRIBUTING.md` quoted the rule marker `vi-pham` literally, which counted as a Vietnamese hit in `.` (74 > 73). The sentence now points to `scripts/arch-lib.mjs` instead, so `.` is 73 again.
+- Scanner before -> after (`node scripts/lang-scan.mjs --tree --coupling`):
+  - vietnamese (B): 7590 -> 7576 (`.` 76 -> 73, design 3017 -> 3016, scripts 196 -> 195, shared 406 -> 405, tests 1732 -> 1731, docs 7 -> 0)
+  - coupling (C): 688 -> 688
+  - `scripts/lang-baseline.json`: design, scripts, shared and tests lowered by 1 each (the false positive had inflated them); `.` stays 73; no folder went up.
+- Test counts, T2 -> T15: unit 417/2 -> 418/2 (one new test), contract 114, api 115, e2e 58, uc-coverage 32/32.
+- This repo: `tools/extraction-loop/loop.mjs check` now also runs `node scripts/lang-scan.mjs --check-baseline` in the scanner folder and fails with the scanner's `ABOVE BASELINE` lines when it exits non-zero.
