@@ -154,3 +154,15 @@ Stub check: the old prompt yields a transcript without the tool_use and UC-27 go
 Scanner (`node scripts/lang-scan.mjs --tree --coupling`): before vietnamese 3056, coupling 459; after vietnamese 3056, coupling 459 (baseline unchanged).
 
 Honest note: 2 of the 7 full verify runs I made failed on a visual test unrelated to the live-Claude tests (`list-many`, identical pixel counts both times, passes alone and in the next 4 full runs). Filed as https://github.com/hieplam/castraferrum/issues/30; not fixed here.
+
+## T5
+
+Source repo PR: https://github.com/hieplam/Cabal/pull/295 (squash-merged as `87deae8`).
+
+- Red (freeze `44b4eef`): `node scripts/lang-scan.mjs --path server` -> `vietnamese: 1562`, `comment-lines: 746`.
+- Green (merged main `87deae8`, same command): `vietnamese: 0`, `comment-lines: 748` (at least 0.9 x 746); `node scripts/lang-scan.mjs --check-baseline` -> `baseline check: ok`; `lang-baseline.json` now has no `server` entry under vietnamese.
+- `npm run verify` on the branch: exit 0 (first full run, no retries). unit 423 passed / 2 skipped, contract 114, api 115, e2e 58 passed (chromium + visual), uc-coverage `32/32`. Counts equal to T4/T0 or higher.
+- Stub check: the untouched tree keeps `vietnamese: 1562`; comments were rewritten, not deleted (748 vs 746); all tests kept (counts above unchanged), so deleting tests would fail the count check.
+- Scanner (`node scripts/lang-scan.mjs --tree --coupling`): before vietnamese 3056, coupling 459; after vietnamese 1480, coupling 459 (server 1562 -> 0, tests 604 -> 590, scripts unchanged). Coupling: one new `#255` reference introduced by the translation was removed again.
+- What changed: translated all of `server/`; migration files renamed `0001_luu_tru.sql` -> `0001_storage.sql`, `0003_song_song.sql` -> `0003_parallel.sql` (journal tags updated, `when` unchanged; the trigger message in `0003` is now English); runtime texts (log lines, skip reasons, API error messages) are English and `tests/support/server-text.ts` plus the API/contract tests and `scripts/api-smoke.mjs` that matched old text were updated.
+- Left for later tasks: test names and fixture text in `tests/` (T7); `web/api/fake-loops-api.ts` still names duplicates with the Vietnamese suffix (T6); `tests/support/service-kit.ts` Vietnamese defaults (T7).
