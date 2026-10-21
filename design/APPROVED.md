@@ -84,3 +84,14 @@ Execution section, for the Claude executor and for Mock, reusing `.field` and `.
 title reads "3 runs in progress" with the round numbers, the sub-line and the Executor cell of the config get "parallel up to N",
 list rows get a count after the round and time, and the Stop confirmation names the runs that will be cancelled. Evidence:
 `tests/visual/form.visual.ts` and e2e `@UC-32`.
+
+## Dark-token hotfix - four empty dark tokens of the classic UI, 2026-10-21
+
+The owner chose "hotfix first" in the brainstorm of the UI uplift on 2026-10-21 (epic #63, spec D18): the classic UI is
+fixed in dark mode before the new design system replaces it. Four declarations in the dark block of [`tokens.css`](tokens.css)
+had no value, and each swallowed the declaration after it. Chosen values, which follow the existing dark palette:
+`--surface: #121410` (between `--bg` and `--surface-2`), `--surface-sunken: #1e221b` (one step lighter),
+`--st-skipped-soft: #161913` (a soft tint near surface) and `--log-bg: #060705` (darker than `--bg`). The swallowed
+`--surface-2`, `--border`, `--st-active` and `--log-text` take their written dark values again. All 92 dark shots
+were re-shot; no light shot changed. Evidence: `npm run design:tokens` reports 0 empty and 0 missing in dark, the
+hovered row (`--text` on `--surface-2`) reads at 12.88:1, and the classic visual tests pass against the new dark shots.

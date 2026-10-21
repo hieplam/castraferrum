@@ -84,9 +84,9 @@
 
   /* ── Colour: dark = terminal ─────────────────────────────── */
   --bg: #0b0c0a;
-  --surface:
+  --surface: #121410;
   --surface-2: #181b16;
-  --surface-sunken:
+  --surface-sunken: #1e221b;
   --border: #262a23; --border-strong: #3a4035;
   --text: #d9e0d2; --text-muted: #8b9483; --text-faint: #5c6457;
   --accent: #f5a524; --accent-hover: #ffbb4d; --accent-fg: #0b0c0a; --accent-soft: #2b2110;
@@ -97,12 +97,12 @@
   --st-timed-out: #ff6b5e;   --st-timed-out-soft: #2d1311;
   --st-interrupted: #c49bff; --st-interrupted-soft: #221a30;
   --st-cancelled: #8b9483;   --st-cancelled-soft: #181b16;
-  --st-skipped: #5c6457;     --st-skipped-soft:
+  --st-skipped: #5c6457;     --st-skipped-soft: #161913;
   --st-active: #7ee26b; --st-stopped: #5c6457; --st-archived: #5c6457;
   --st-server-down: #ff6b5e; --st-server-down-soft: #2d1311;
   --warn: #f5d14a; --warn-soft: #29240c;
 
-  --log-bg: --log-text: #c8d3bf; --log-dim: #5c6457; --log-accent: #f5a524;
+  --log-bg: #060705; --log-text: #c8d3bf; --log-dim: #5c6457; --log-accent: #f5a524;
   --log-err: #ff6b5e; --log-ok: #7ee26b;
 
   --shadow-dialog: 0 18px 48px rgba(0, 0, 0, .7), 0 0 0 1px var(--border-strong);
