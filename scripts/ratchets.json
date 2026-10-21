@@ -1,0 +1,7 @@
+{
+  "tokens": [
+    { "file": "design/tokens.css", "pairs": "design/contrast-pairs-classic.json", "maxEmpty": 4, "maxMissingDark": 8, "maxContrast": 1 }
+  ],
+  "lint": { "maxTitle": 8, "maxUnknown": 0, "maxLiteral": 0 },
+  "e2eExpectsMin": 712
+}
