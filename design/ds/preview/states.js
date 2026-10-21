@@ -10,12 +10,15 @@ window.PV_SCREENS = [
   ['loops', 'Loops page', '/', ['d-loops-light.png', 'm-loops-light.png', 'm-loops-dark.png', 'm-stop-light.png', 'm-stop-dark.png']],
   ['loop', 'Loop page', '/loops/:id, /loops/:id/runs, /loops/:id/settings', ['d-loop-light.png', 'd-loop-dark.png', 'm-loop-light.png', 'm-loop-dark.png', 'm-help-light.png', 'm-help-dark.png', 'm-stop-light.png', 'm-stop-dark.png']],
   ['period', 'Active period page', '/executions/:id', []],
+  ['run', 'Run page', '/runs/:id', ['m-run-light.png', 'm-run-dark.png']],
 ];
 (function () {
-  const PUSHED = ['loop', 'period'];
+  const PUSHED = ['loop', 'period', 'run'];
   const LOOP = ['loop-header', 'now-card', 'loop-figures', 'fig-active', 'fig-runs', 'fig-next', 'fig-typical'];
   const RUNNING = LOOP.concat('live-log', 'recent-runs', 'run-row*4', 'runs-help');
   const PERIOD = ['exec-header', 'back-to-loop', 'period-figures', 'copy-all', 'exec-runs', 'exec-api'];
+  const RUN = ['run-header', 'run-facts', 'run-session', 'run-transcript', 'run-log'];
+  const TX = ['run-transcript', 'run-transcript-scroll', 'tx-entry*11'];
   const OVERVIEW = ['summary', 'stat-active-loops', 'stat-running-runs', 'stat-runs-today', 'stat-errors-24h', 'loop-row*7', 'list-search'];
   const desktop = [
     { id: 'frame-loading', screen: 'frame', title: 'First load: skeleton cells on the Loops page, figures -', requires: ['list-loading', 'summary'] },
@@ -55,9 +58,27 @@ window.PV_SCREENS = [
     { id: 'period-server-down', screen: 'period', title: 'Ended because the server shut down, an interrupted run', requires: PERIOD.concat('run-row*4') },
     { id: 'period-copied', screen: 'period', title: 'Toast after copying every session id', fixed: true, requires: PERIOD.concat('run-row*10') },
     { id: 'period-not-found', screen: 'period', title: 'EXECUTION_NOT_FOUND' },
+    { id: 'run-running', screen: 'run', title: 'Running, live log', requires: ['run-header', 'run-facts', 'run-session', 'run-log', 'run-transcript'] },
+    { id: 'run-succeeded', screen: 'run', title: 'Succeeded: summary, cost, session, resume command; the prompt used differs from the current prompt', requires: RUN.concat('run-summary', 'run-resume', 'run-resume-copy', 'run-prompt') },
+    { id: 'run-failed', screen: 'run', title: 'Failed with a process-level error', requires: RUN.concat('run-banner', 'run-summary', 'run-resume') },
+    { id: 'run-timed-out', screen: 'run', title: 'Timed out', requires: RUN.concat('run-banner', 'run-resume') },
+    { id: 'run-cancelled', screen: 'run', title: 'Cancelled by Stop', requires: RUN.concat('run-banner', 'run-resume') },
+    { id: 'run-interrupted', screen: 'run', title: 'Interrupted by a server shutdown', requires: RUN.concat('run-banner', 'run-resume') },
+    { id: 'run-skipped', screen: 'run', title: 'Skipped: the reason, no session, no log', requires: ['run-header', 'skip-reason', 'run-transcript-note'] },
+    { id: 'run-repo-missing', screen: 'run', title: 'The repo folder is gone: the hint and Open Repos', requires: ['run-header', 'run-repo-missing', 'open-repos', 'run-log', 'run-transcript-note'] },
+    { id: 'run-resume-copied', screen: 'run', title: 'Toast after Copy command', fixed: true, requires: RUN.concat('run-resume') },
+    { id: 'run-not-found', screen: 'run', title: 'RUN_NOT_FOUND' },
+    { id: 'run-loading', screen: 'run', title: 'Skeleton' },
+    { id: 'run-transcript-running', screen: 'run', title: 'The transcript following a live session', requires: TX },
+    { id: 'run-transcript-waiting', screen: 'run', title: 'Waiting for the session file', requires: ['run-header', 'run-transcript-note', 'run-log'] },
+    { id: 'run-transcript-paused', screen: 'run', title: 'Connection lost while following', requires: ['banner-disconnected'].concat(TX) },
+    { id: 'run-transcript-missing', screen: 'run', title: 'The session file is gone', requires: ['run-header', 'run-transcript-note', 'run-log'] },
+    { id: 'run-transcript-no-session', screen: 'run', title: 'A run without a session (no transcript)', requires: ['run-header', 'run-transcript-note'] },
+    { id: 'vi-run-transcript', screen: 'run', title: 'The transcript in Vietnamese', lang: 'vi', requires: ['run-transcript', 'run-transcript-scroll', 'tx-entry*5'] },
   ];
   const PHONE = ['frame-loading', 'frame-disconnected', 'not-found', 'loops-empty', 'loops-overview', 'loops-repo-filter', 'loops-stop-confirm', 'vi-loops-overview',
-    'loop-running', 'loop-last-failed', 'loop-never-run', 'loop-stop-confirm', 'loop-help', 'loop-menu', 'loop-runs', 'loop-settings', 'period-running'];
+    'loop-running', 'loop-last-failed', 'loop-never-run', 'loop-stop-confirm', 'loop-help', 'loop-menu', 'loop-runs', 'loop-settings', 'period-running',
+    'run-running', 'run-succeeded', 'run-transcript-running'];
   const byId = Object.fromEntries(desktop.map((s) => [s.id, s]));
   const phone = PHONE.map((id) => {
     const b = byId[id];

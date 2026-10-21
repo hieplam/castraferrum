@@ -476,6 +476,120 @@
     page: `<div class="cols" aria-busy="true"><div class="cols-main"><span class="skeleton is-line"></span><span class="skeleton is-block"></span><span class="skeleton is-block"></span></div>` +
       `<div class="cols-side"><span class="skeleton is-block"></span><span class="skeleton is-block"></span></div></div>` });
 
+  // ── Run page and transcript ─────────────────────────────────
+  // The run of a state: runs 56 to 59 of "Issue backlog worker" belong to its active period #2; skip = the start of a
+  // skipped run (it has no number).
+  function runOf(key, n, skip) {
+    const pool = key === 'pilot' && n != null && n <= 59 ? D.runs.pilotExec2 : D.runs[key];
+    const r = skip ? pool.find((x) => x.st === 'skipped' && x.start === skip) : pool.find((x) => x.n === n);
+    return { r, k: pool === D.runs.pilotExec2 ? 2 : D.loops[key].exec.k };
+  }
+  const day = (ts) => { const date = split(ts)[0]; return `${t('day.short.' + dow(date))} ${date}`; };
+  // A tool call's subject: the first string field in this order, then any string field (the classic rule, D-UI29).
+  const TX_SUBJECT = ['command', 'file_path', 'pattern', 'description', 'url', 'prompt', 'query'];
+  function txFields(json) {
+    try { const o = JSON.parse(json); return o && typeof o === 'object' && !Array.isArray(o) ? o : null; } catch (err) { return null; }
+  }
+  const firstLine = (s) => s.split('\n').find((x) => x.trim()) || '';
+  const fold = (label) => `<button class="tx-fold" type="button" aria-expanded="false">${icon('chev')}${label}</button>`;
+  const TX_KIND = { user: ['', 'tx.prompt'], thinking: ['k-think', 'tx.thinking'], assistant: ['k-assistant', 'tx.assistant'], tool_use: ['k-tool', 'tx.tool'], tool_result: ['', 'tx.result'], system: ['', 'tx.kind.system'] };
+  // One entry per block (spec 5.5): the time and the kind, then the body; long blocks are folded. The prompt is always
+  // folded (it is shown in full under Prompt used); a tool call shows its subject and folds the rest of its input; a
+  // result longer than two lines shows its first line.
+  function txEntry(e) {
+    const [cls, key] = TX_KIND[e.kind] || TX_KIND.system;
+    let body;
+    if (e.kind === 'user') body = fold(`${esc(firstLine(e.text))} · ${tn('tx.lines', e.text.split('\n').length)}`);
+    else if (e.kind === 'thinking') body = `<div class="tx-body is-think">${e.text.trim() ? esc(e.text) : t('tx.thinking.empty')}</div>`;
+    else if (e.kind === 'tool_use') {
+      const o = txFields(e.text) || {};
+      const sk = TX_SUBJECT.find((x) => typeof o[x] === 'string') || Object.keys(o).find((x) => typeof o[x] === 'string');
+      const rest = Object.keys(o).filter((x) => x !== sk && x !== 'description');
+      const n = Object.entries(o).map(([k, v]) => `${k}:\n${typeof v === 'string' ? v : JSON.stringify(v, null, 2)}`).join('\n').split('\n').length;
+      body = `<div class="tx-body is-code">${esc(sk ? firstLine(o[sk]) : e.text)}</div>${rest.length ? fold(t('tx.input', { n })) : ''}`;
+    } else if (e.kind === 'tool_result') {
+      const lines = e.text.split('\n');
+      body = `<div class="tx-body is-code">${esc(lines.length > 2 ? lines[0] : e.text)}</div>${lines.length > 2 ? fold(tn('tx.more', lines.length - 1)) : ''}`;
+    } else body = `<div class="tx-body">${esc(e.text)}</div>`;
+    const p = e.kind === 'tool_use' ? { name: esc(e.tool) } : undefined;
+    return `<div class="tx-entry${cls ? ' ' + cls : ''}${e.err ? ' is-err' : ''}" data-testid="tx-entry" data-kind="${e.kind}" data-at="${e.at}">` +
+      `<div class="tx-head"><span>${e.at}</span><span class="tx-kind">${t(key, p)}</span></div>${body}</div>`;
+  }
+  // tx = { mode: following | paused | ended | waiting | missing | noSession, data: key of PV.transcripts, page: the last
+  // page loaded (older entries left: "loading older…" at the top) }.
+  function transcript(r, s, tx) {
+    const help = `<button class="help" type="button" aria-label="${t('tx.help')}" aria-haspopup="dialog">${icon('help')}</button>`;
+    const head = `<div class="section-head"><h2 data-testid="run-transcript-title">${t('run.transcript')}</h2>${help}</div>`;
+    const note = { noSession: () => t('tx.noSession'), waiting: () => t('tx.waiting'), missing: () => t('tx.missing', { id: s }) }[tx.mode];
+    if (note) return head + `<p class="note" data-testid="run-transcript-note" data-mode="${tx.mode}">${esc(note())}</p>`;
+    const all = D.transcripts[tx.data], list = tx.page ? all.slice(-tx.page) : all;
+    const live = tx.mode === 'following' || tx.mode === 'paused';
+    const right = live ? t(tx.mode === 'paused' ? 'now.paused' : 'now.following') : t('tx.ended');
+    const top = list.length < all.length ? `<div class="tx-end" data-testid="run-transcript-edge">${t('tx.loadingOlder')}</div>` : '';
+    const end = live
+      ? `<div class="tx-entry" data-cursor="live"><div class="tx-head"><span>${D.now}</span></div><div class="tx-body"><span class="cursor"></span></div></div>`
+      : `<div class="tx-end" data-testid="run-transcript-edge">${t('tx.end', { t: addSec(r.start, r.dur) })}</div>`;
+    return head + `<div class="tx" data-testid="run-transcript" data-paused="${tx.mode === 'paused'}"><div class="tx-bar"><span>${tn('tx.entries', all.length)}</span><span>${right}</span></div>` +
+      `<div data-testid="run-transcript-scroll">${top}${list.map(txEntry).join('')}${end}</div></div>`;
+  }
+
+  // The run page (spec 5.5). Phone: one column in the board's order. From 1024px two columns: summary, transcript and log
+  // on the left; facts, session, resume command and prompt used on the right. o: skip, tx, paused, conn, banner, overlay.
+  function runApp(key, n, o = {}) {
+    const l = D.loops[key], repo = D.repos[l.repo], { r, k } = runOf(key, n, o.skip);
+    const running = r.st === 'running', skipped = r.st === 'skipped';
+    const s = r.n != null && !r.repoGone ? sid(key, r.n) : null;
+    const pill = `<span class="pill ${RUN_PILL[r.st][0]}">${t(RUN_PILL[r.st][1])}</span>`;
+    const title = r.n != null ? t('run.title', { n: r.n }) : t('run.skippedTitle', { t: hm(r.start) });
+    const took = `<span data-testid="run-duration">${r.dur != null ? clock(r.dur) : '-'}</span>`;
+    const end = addSec(r.start, r.dur || 0);
+    const whenLine = skipped ? `${day(r.start)} · ${hm(r.start)}`
+      : running ? `${day(r.start)} · ${t('period.since', { t: hm(r.start) })} · ${took}`
+        : t('run.when', { day: day(r.start), from: hm(r.start), to: end.slice(0, 5), d: took });
+    const header = `<div class="page-head" data-testid="run-header" data-status="${r.st}"><h1 class="page-title">${title}${PHONE ? '' : pill}</h1></div>` +
+      (PHONE ? `<div class="page-meta">${pill}</div>` : '') + `<div class="page-meta">${whenLine}</div>` +
+      `<div class="page-meta" data-testid="run-of">${t('run.of', { loop: esc(l.name), k })}</div>`;
+    // What went wrong: a banner for a run that ended badly, the hint of a missing repo, the reason of a skipped run.
+    const why = {
+      failed: () => t('run.err.failed', { msg: esc(r.repoGone ? 'Repo does not exist: ' + repo.path : r.err) }),
+      timed_out: () => t('run.err.timed_out', { d: dur(l.timeout) }),
+      cancelled: () => t('run.err.cancelled', { t: `${split(r.start)[0]} ${end}`, k }),
+      interrupted: () => t('run.err.interrupted', { t: D.crashAt, r: D.restartedAt }),
+    }[r.st];
+    let alert = why ? `<div class="banner ${r.st === 'cancelled' ? 'is-warn' : 'is-err'}" data-testid="run-banner" role="status">${icon('alert')}<span class="banner-text">${why()}</span></div>` : '';
+    if (r.repoGone) alert += `<div class="card is-pad" data-testid="run-repo-missing"><p class="page-desc">${t('run.repoMissing.hint')}</p><a class="btn" href="#" data-testid="open-repos">${t('run.repoMissing.open')}</a></div>`;
+    if (skipped) alert += `<p class="page-desc" data-testid="skip-reason">${t('run.skip.reason', { reason: t('skip.reason', { n: r.reason }) })}</p>`;
+    const summary = running || skipped ? '' : `<p class="group-cap">${t('run.summary')}</p>` +
+      `<div class="card is-pad" data-testid="run-summary"><p class="page-desc">${r.sum ? esc(r.sum) : t('run.summary.none')}</p></div>`;
+    const fact = (label, value, meta, id) => `<div class="cell"${id ? ` data-testid="${id}"` : ''}><span class="cell-main"><span class="cell-title is-plain">${label}</span>` +
+      `${meta ? `<span class="cell-meta">${meta}</span>` : ''}</span><span class="cell-value">${value}</span></div>`;
+    const facts = `<div class="group" data-testid="run-facts">${fact(t('run.startedBy'), t(r.trig === 'start' ? 'run.byStart' : 'run.bySchedule'))}` +
+      (skipped ? '' : fact(t('run.cost'), `<span data-testid="run-cost">${r.cost != null ? usd(r.cost) : '-'}</span>`, t('run.costNote'))) +
+      (s ? `<div class="cell" data-testid="run-session" data-session-id="${s}"><span class="cell-main"><span class="cell-title is-plain">${t('run.sessionLabel')}</span>` +
+        `<span class="cell-meta is-one-line">${s}</span></span><button class="iconbtn bordered" type="button" aria-label="${t('run.copySession')}">${icon('copy')}</button></div>` : '') + '</div>';
+    // Resume only once the run has ended: resuming a session that is still working would tangle it (D-UI12).
+    const resume = s && !running ? `<p class="group-cap">${t('run.reopen')}</p><div class="cmd" data-testid="run-resume"><code data-testid="run-resume-cmd">claude --resume ${s}</code>` +
+      `<button class="btn plain" type="button" data-testid="run-resume-copy">${t('run.copyCommand')}</button></div>` : '';
+    const tx = transcript(r, s, o.tx || (s ? { mode: running ? 'following' : 'ended', data: key + r.n } : { mode: 'noSession' }));
+    const lines = skipped ? [] : serverLines(key, r);
+    const log = `<div class="section-head"><h2>${t('run.log')}</h2></div>` + (skipped ? `<p class="note">${t('log.empty')}</p>`
+      : logBlock('run-log', lines, running ? { live: true, paused: o.paused, left: t('now.liveOutput'), right: t(o.paused ? 'now.paused' : 'now.following') }
+        : { left: t('log.saved', { n: lines.length }), right: t(RUN_PILL[r.st][1]) }));
+    // Runs of "Issue backlog worker" up to #68 started before its prompt was edited (18/10 13:41:07).
+    const old = key === 'pilot' && r.n != null && r.n <= 68;
+    const prompt = skipped ? '' : PHONE
+      ? `<div class="group"><a class="cell" href="#" data-testid="run-prompt"><span class="cell-main"><span class="cell-title">${t('run.promptUsed')}</span><span class="cell-meta">${t('run.promptUsedSub')}</span></span>${chev}</a></div>`
+      : `<p class="group-cap">${t('run.promptUsed')}</p>${old ? `<p class="note">${t('run.promptChanged', { t: l.updated })}</p>` : ''}` +
+        `<pre class="code" data-testid="run-prompt">${esc(old ? l.promptOld : l.prompt)}</pre>` +
+        `<p class="note" data-testid="run-executor-used">${t('run.executorUsed', { s: `${esc(repo.name)} · ${t('loop.meta.claude', l.claude)}` })}</p>`;
+    const page = PHONE
+      ? header + alert + summary + facts + resume + tx + log + prompt
+      : backlink(l.name, 'back-to-loop') + header + alert +
+        `<div class="cols"><div class="cols-main">${summary}${tx}${log}</div><div class="cols-side">${facts}${resume}${prompt}</div></div>`;
+    const more = `<button class="iconbtn" type="button" aria-label="${t('act.more')}" aria-haspopup="menu">${icon('more')}</button>`;
+    return app({ tab: 'loops', loopCount: D.counts.all, conn: o.conn, banner: o.banner, navbar: navbar(l.name, 'back-to-loop', more), page, overlay: o.overlay });
+  }
+
   // ── states ──────────────────────────────────────────────────
   const R = {
     'frame-loading': () => loops({ loopCount: null, page: loopsPage({ stats: null, toolbar: { off: true }, list: loading() }) }),
@@ -514,6 +628,23 @@
     'period-server-down': () => periodApp('pilot', 2),
     'period-copied': () => periodApp('pilot', 3, { overlay: toast('', tn('period.copied', 10)) }),
     'period-not-found': () => notFoundApp(t('period.notFound')),
+    'run-running': () => runApp('pilot', 69),
+    'run-succeeded': () => runApp('pilot', 68),
+    'run-failed': () => runApp('debt', 104, { tx: { mode: 'ended', data: 'debt104', page: 50 } }),
+    'run-timed-out': () => runApp('oldsched', 4),
+    'run-cancelled': () => runApp('evidence', 4),
+    'run-interrupted': () => runApp('pilot', 59),
+    'run-skipped': () => runApp('debt', null, { skip: '14:00:00' }),
+    'run-repo-missing': () => runApp('crash', 31),
+    'run-resume-copied': () => runApp('pilot', 68, { overlay: toast('', t('toast.copiedResume', { id: sid('pilot', 68) })) }),
+    'run-not-found': () => notFoundApp(t('error.RUN_NOT_FOUND')),
+    'run-loading': () => loadingApp(),
+    'run-transcript-running': () => runApp('pilot', 69),
+    'run-transcript-waiting': () => runApp('pilot', 69, { tx: { mode: 'waiting' } }),
+    'run-transcript-paused': () => runApp('pilot', 69, { paused: true, conn: 'lost', banner: 'lost', tx: { mode: 'paused', data: 'pilot69' } }),
+    'run-transcript-missing': () => runApp('pilot', 68, { tx: { mode: 'missing' } }),
+    'run-transcript-no-session': () => runApp('debt', null, { skip: '14:00:00' }),
+    'vi-run-transcript': () => runApp('pilot', 63),
   };
   R['vi-loops-overview'] = R['loops-overview'];
 

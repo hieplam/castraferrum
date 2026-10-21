@@ -364,6 +364,46 @@
       {"at":"11:00:14","kind":"assistant","text":"Skipping this run: issue #64 (export orders as CSV) is open and labelled `in-progress`, so another session is working on it."},
       {"at":"11:00:14","kind":"system","text":"stop_hook_summary"},
     ],
+    // Added for the run page of the new preview (U7): run 68 (the m-run board, 9 entries), run 59 (interrupted when the
+    // server died at 09:31:05), run 4 of "Old schedule test" (timed out at 60 s) and run 4 of "Clean old artifacts"
+    // (cancelled by Stop at second 12). Thinking blocks stay empty, as above.
+    pilot68: [
+      {"at":"13:30:00","kind":"user","text":PROMPT_PILOT_OLD},
+      {"at":"13:30:04","kind":"thinking","text":""},
+      {"at":"13:30:05","kind":"tool_use","tool":"Bash","text":"{\n  \"command\": \"node scripts/backlog.js next\",\n  \"description\": \"Claim the next open issue\"\n}"},
+      {"at":"13:30:07","kind":"tool_result","text":"#41 password reset email: sender must be verified\nclaimed: label in-progress added\nbrief: docs/briefs/41.md\ndone when: node scripts/backlog.js check is green"},
+      {"at":"13:31:12","kind":"assistant","text":"I'll start with the sender check in auth/reset.ts, then add the 30-minute expiry."},
+      {"at":"13:31:15","kind":"tool_use","tool":"Edit","text":JSON.stringify({ file_path: 'auth/reset.ts',
+        old_string: "export async function sendReset(user) {\n  const token = await createToken(user.id);\n  const link = `${BASE}/reset?t=${token}`;\n  await mail.send(user.email, 'reset', { link });\n}",
+        new_string: "export async function sendReset(user) {\n  if (!(await sender.isVerified(MAIL_FROM))) {\n    throw new ResetError('SENDER_NOT_VERIFIED');\n  }\n  const token = await createToken(user.id, { ttl: 30 * 60 });\n  const link = `${BASE}/reset?t=${token}`;\n  await queue.push('mail', { to: user.email, template: 'reset', link });\n  log.info('reset mail queued', { user: user.id });\n}" }, null, 2)},
+      {"at":"13:52:40","kind":"tool_use","tool":"Bash","text":"{\n  \"command\": \"npm test -- reset\",\n  \"description\": \"Run the reset tests\"\n}"},
+      {"at":"13:52:58","kind":"tool_result","text":["> acme-api@2.4.0 test", "> vitest run reset", ""].concat(
+        ['sends the mail through the worker queue', 'refuses an unverified sender', 'expires the link after 30 minutes', 'keeps one token per user', 'logs the queued mail',
+          'rejects an expired token', 'rejects a reused token', 'accepts a fresh token'].flatMap((x, i) => [` ✓ auth/reset.test.ts > ${x} ${3 + i * 2}ms`]),
+        Array.from({ length: 27 }, (x, i) => ` ✓ auth/token.test.ts > case ${i + 1} ${1 + (i % 4)}ms`),
+        ['', ' Test Files  2 passed (2)', '      Tests  35 passed (35)', '   Duration  1.84s']).join('\n')},
+      {"at":"13:53:02","kind":"assistant","text":"Done with the \"password reset email\" issue: the sender must be verified first, and the reset link now expires after 30 minutes. PR #57 merged."},
+    ],
+    pilot59: [
+      {"at":"09:30:00","kind":"user","text":PROMPT_PILOT_OLD},
+      {"at":"09:30:03","kind":"tool_use","tool":"Bash","text":"{\n  \"command\": \"gh issue list --label in-progress --state open --json number,title\",\n  \"description\": \"Check in-progress issues\"\n}"},
+      {"at":"09:30:09","kind":"tool_result","text":"[]"},
+      {"at":"09:30:12","kind":"thinking","text":""},
+      {"at":"09:30:14","kind":"tool_use","tool":"Bash","text":"{\n  \"command\": \"node scripts/backlog.js next\",\n  \"description\": \"Claim the next open issue\"\n}"},
+    ],
+    oldsched4: [
+      {"at":"09:00:00","kind":"user","text":loops.oldsched.prompt},
+      {"at":"09:00:03","kind":"tool_use","tool":"Bash","text":"{\n  \"command\": \"TZ=Asia/Ho_Chi_Minh date '+%Y-%m-%d %H:%M:%S %z'\",\n  \"description\": \"Print the time in the time zone of the loop\"\n}"},
+      {"at":"09:00:05","kind":"tool_result","text":"2026-10-14 09:00:05 +0700"},
+      {"at":"09:00:08","kind":"thinking","text":""},
+      {"at":"09:00:09","kind":"tool_use","tool":"Bash","text":"{\n  \"command\": \"node scripts/schedule-check.js --watch\",\n  \"description\": \"Watch the next ticks of the schedule\"\n}"},
+    ],
+    evidence4: [
+      {"at":"03:00:00","kind":"user","text":loops.evidence.prompt},
+      {"at":"03:00:03","kind":"thinking","text":""},
+      {"at":"03:00:05","kind":"tool_use","tool":"Bash","text":"{\n  \"command\": \"find artifacts -maxdepth 1 -type d -mtime +14\",\n  \"description\": \"List the artifact folders older than 14 days\"\n}"},
+      {"at":"03:00:09","kind":"tool_result","text":"artifacts/pr-38\nartifacts/pr-41\nartifacts/pr-44"},
+    ],
   };
 
   window.PV = {

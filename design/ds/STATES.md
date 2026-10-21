@@ -93,3 +93,28 @@ separate id `phone-<id>` that draws its base state at 390 by 844. Open a state l
 | `period-server-down` | Ended because the server shut down, an interrupted run | - |
 | `period-copied` | Toast after copying every session id | - |
 | `period-not-found` | `EXECUTION_NOT_FOUND` | - |
+
+## Run page (`run`, route `/runs/:id`)
+
+| id | State | Board |
+|---|---|---|
+| `run-running` | Running, live log | - |
+| `phone-run-running` | `run-running` on the phone | - |
+| `run-succeeded` | Succeeded: summary, cost, session, resume command; the prompt used differs from the current prompt | - |
+| `phone-run-succeeded` | `run-succeeded` on the phone | `m-run-light`, `m-run-dark` |
+| `run-failed` | Failed with a process-level error | - |
+| `run-timed-out` | Timed out | - |
+| `run-cancelled` | Cancelled by Stop | - |
+| `run-interrupted` | Interrupted by a server shutdown | - |
+| `run-skipped` | Skipped: the reason, no session, no log | - |
+| `run-repo-missing` | The repo folder is gone: the hint and Open Repos | - |
+| `run-resume-copied` | Toast after Copy command | - |
+| `run-not-found` | `RUN_NOT_FOUND` | - |
+| `run-loading` | Skeleton | - |
+| `run-transcript-running` | The transcript following a live session | - |
+| `phone-run-transcript-running` | `run-transcript-running` on the phone | - |
+| `run-transcript-waiting` | Waiting for the session file | - |
+| `run-transcript-paused` | Connection lost while following | - |
+| `run-transcript-missing` | The session file is gone | - |
+| `run-transcript-no-session` | A run without a session (no transcript) | - |
+| `vi-run-transcript` | The transcript in Vietnamese | - |

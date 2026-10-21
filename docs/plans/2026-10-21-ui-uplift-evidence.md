@@ -576,3 +576,87 @@ corrected values above.
 - Gaps of the system, in castraferrum#108 (blocks U16, castraferrum#84): a pager, a clamped prompt, the state of an
   active period in its head, the repo-missing now card, three texts, and the board's sentence for a run without a
   summary.
+
+## U7
+
+### Ratchet
+
+New preview states: `54` before (`npm run design:states -- --design design/ds --no-shots` on `main` prints
+`states: 54/54 (shots not checked)`), `74` after (`states: 74/74 (shots not checked)`): 17 desktop and 3 phone added
+(the 17 states of spec 5.5 and `phone-run-running`, `phone-run-succeeded`, `phone-run-transcript-running`).
+
+### Red
+
+The 20 rows of `design/ds/STATES.md` and the ids of `design/ds/preview/states.js` first, no draw function yet.
+`npm run design:shots -- --design design/ds --dry` (exit code `1`; the first of 40 lines, then the last):
+
+```
+  ✗ run-running light: no draw function for state: run-running · requires run-header, shows 0 · requires run-facts, shows 0 · ...
+  ...
+drawn 74 states x 2 themes, 258 problems
+```
+
+The 40 lines name exactly the 20 new states, each in both themes: `phone-run-running phone-run-succeeded
+phone-run-transcript-running run-cancelled run-failed run-interrupted run-loading run-not-found run-repo-missing
+run-resume-copied run-running run-skipped run-succeeded run-timed-out run-transcript-missing run-transcript-no-session
+run-transcript-paused run-transcript-running run-transcript-waiting vi-run-transcript`.
+
+### Green
+
+(1) `npm run design:shots -- --design design/ds --dry`: `drawn 74 states x 2 themes, 0 problems`, exit code `0`. (The
+first drawn run reported `requires tx-entry*7, shows 11` for the three states that follow run 69: the sample session
+has 11 entries, so the required count was corrected to 11.)
+
+(2) `npm run design:states -- --design design/ds --no-shots`: `states: 74/74 (shots not checked)`.
+
+(3) `npx vitest run --project unit shared/i18n/i18n.test.ts tests/tools/design-states.test.ts`:
+`Test Files  2 passed (2)`, `Tests  17 passed (17)`. 30 keys added to `en.ts` and `vi.ts`: 28 of Appendix B (the
+run page and `tx.*` rows; `run.title` and `run.cost` already exist with the same text and are reused) and two that it
+lacks (`tx.lines.one`, `tx.lines.other`, in castraferrum#110).
+
+(4) `git diff --stat main -- design/preview design/STATES.md` prints nothing.
+
+(5) `reports/ds-preview/phone-run-succeeded-light.png` next to `design/reference/m-run-light.png`, and
+`reports/ds-preview/phone-run-succeeded-dark.png` next to `design/reference/m-run-dark.png`. Both follow the boards:
+the same blocks in the same order (navigation bar with `⋯`; "Run #68" and the Succeeded pill; the time line
+"Sun 18/10 · 13:30 to 13:53 · took 23:04"; "Issue backlog worker · active period #3"; the summary card; the facts
+Started by, Estimated cost with its note, Session with the copy button; Reopen this session on your computer with the
+command and Copy command; Transcript with its `?`, "9 entries · session ended", the nine entries and "End of the
+session · 13:53:04"; Log with "stored log · 2 lines"; the Prompt used cell). They differ where the sample data wins
+over the board (the summary of run 68 in `data.js`, the session id the seeded world makes, a thinking block that is
+empty because Claude Code stores only its signature, the server's own log line "Start round #68", the result of
+`npm test` as its own entry), where the navigation bar names the loop as on the other pushed pages of U6, and where the
+system has a rule or a defect that the board does not show (castraferrum#110): every fold shows body text because
+`.app button` overrides `.tx-fold`, and the resume command stays on one line (`.cmd`). Also looked at: `run-succeeded`
+(desktop, two columns: summary, transcript and log left; facts, resume command and prompt used right),
+`run-failed`, `run-repo-missing`, `run-skipped`, `phone-run-transcript-running`, `vi-run-transcript`.
+
+(6) `npm run verify`: exit code `0`: `ratchets: ok`; unit `Tests  472 passed | 2 skipped (474)`; contract
+`Tests  114 passed (114)`; api `Tests  115 passed (115)`; e2e `64 passed (9.4m)`; `UCs with a green e2e: 32/32`.
+
+### Stub check
+
+`run-succeeded` drawn as an empty string (`--only run-succeeded`), exit code `1`:
+
+```
+  ✗ run-succeeded light: requires run-header, shows 0 · requires run-facts, shows 0 · requires run-session, shows 0 · ...
+drawn 1 states x 2 themes, 20 problems
+```
+
+An invented class, an inline colour or length and a key missing from the locale files fail the same dry run (the
+checks of U5).
+
+### Notes
+
+- Transcripts: `run-transcript-running`, `run-transcript-paused` and `run-running` follow run 69 (`pilot69`),
+  `run-failed` shows the last page of 50 of run 104's 52 entries with "loading older…" at the top (`debt104`),
+  `vi-run-transcript` shows the whole file of run 63 (`pilot63`). Four short sessions are added to `data.js` for the
+  runs the classic preview drew without a transcript: run 68 (the board's nine entries), run 59 (interrupted), run 4 of
+  "Old schedule test" (timed out) and run 4 of "Clean old artifacts" (cancelled).
+- `run-running` and `run-transcript-running` draw the same page: in the new UI the transcript is always on the run
+  page, so a running run shows its live transcript.
+- The resume command appears only once a run has ended (D-UI12); a run without a session (skipped, repo missing) shows
+  the no-session note in place of the transcript.
+- Gaps of the system, in castraferrum#110 (blocks U17, castraferrum#85): the `.tx-fold` font and colour inside `.app`, a
+  command that wraps, a scrolling transcript frame, the two `tx.lines` texts and the classic texts reused by the states
+  without a board, and the `tx-entry` test id the state check counts.
