@@ -188,3 +188,24 @@ Source repo PR: https://github.com/hieplam/Cabal/pull/297 (squash-merged as `632
 - Stub check: changing the marker regex in `scripts/arch-lib.mjs` to a different marker makes `tests/tools/arch-fixtures.test.ts` fail (`1 failed | 1 passed`, 25 undeclared violations); restored afterwards. Comments were rewritten not deleted (774 -> 774), UC tags and test counts unchanged.
 - Scanner (`node scripts/lang-scan.mjs --tree --coupling`): before vietnamese 806, coupling 459; after vietnamese 160, coupling 430 (tests 587 -> 0, root 72 -> 24, scripts 145 -> 134; tests coupling 75 -> 48).
 - What changed: 21 architecture rules renamed to English (`domain-only-pure-libraries`, `web-only-api-calls-network`, ...); marker `// vi-pham:` -> `// violates:`; 26 fixture files/folders renamed (`vi-pham-*` -> `violates-*`, `vong-a/b` -> `cycle-a/b`); the rule names in `docs/loop-console/ARCHITECTURE.md` updated. The script output strings asserted by `tests/tools/test-contract.test.ts` and `uc-coverage.test.ts` were translated in `scripts/test-contract.mjs` / `scripts/uc-coverage.mjs` (messages only; their comments stay for T8). The fake Claude query summary `xong` became `done`. `haiku-small.jsonl` prompt/answer text translated.
+
+## T8
+
+Source PR: https://github.com/hieplam/Cabal/pull/298 (merged as fbfd0d0).
+
+Red (before building):
+- `node scripts/lang-scan.mjs --path scripts --coupling`: `vietnamese: 134`, `coupling: 7`; root configs: vietnamese 24 (`.`) + 2 (`pg-init`).
+- `git grep -n "Loop Console" -- shared/i18n web/index.html package.json`: 10 matches.
+- `LOOPS_PG_VOLUME=scratch_pg docker compose config`: volume name stayed `name: loop_console_pg`.
+
+Green (after):
+- `lang-scan --path scripts`: `vietnamese: 0`, scripts `coupling 0`; whole tree `vietnamese: 0`, root `.` coupling 0.
+- `git grep -n "Loop Console" -- shared/i18n web/index.html package.json`: prints nothing.
+- `docker compose config`: `container_name: loop_console_pg`, `name: loop_console_pg` by default; `name: scratch_pg` with `LOOPS_PG_VOLUME=scratch_pg`.
+- `scripts/test-restart-console.ps1`: `PASS 4/4`.
+- `npm run verify`: exit 0 (first run failed only on the 5 visual tests that compare the renamed title; `npm run design:shots` regenerated the reference shots; second run green).
+- Counts: unit 423 passed / 2 skipped, contract 114, api 115, Playwright 58, `UCs with a green e2e: 32/32`, arch-fixtures 25/25.
+
+Stub check: before the change every red above held (untouched tree keeps them); the default volume name was left at `loop_console_pg`, so the owner's data is not orphaned.
+
+Scanner (`--tree --coupling`): before `vietnamese: 160`, `coupling: 430`; after `vietnamese: 0`, `coupling: 421`. `lang-baseline.json` lowered (vietnamese `{}`).
