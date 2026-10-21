@@ -412,6 +412,11 @@
     order: ['pilot', 'crash', 'wiki', 'debt', 'prs', 'evidence', 'recap'],
     counts: { all: 7, active: 4, stopped: 3, archived: 1 },
     repos, repoOrder, loops, executions, runs, many, transcripts, folders,
+    // The new loop the editor states fill in (the board m-form-light).
+    formSample: {
+      name: 'Nightly dependency check', repo: 'api',
+      prompt: 'Run npm outdated in this repo. If a minor or patch update is safe, update it, run the tests and open a PR. Never touch major versions. If nothing is outdated, stop and do nothing else.',
+    },
     // Schedules of the form (schedule builder): cron + "now" to compute the next 5 runs. The description / warnings /
     // errors / next runs come from shared/domain/schedule.ts through schedule.js (npm run design:shots) — the preview
     // never writes schedule sentences itself.
@@ -425,6 +430,7 @@
       { key: 'advanced', cron: '0 9-17/2 * * 1-5', tz: 'Asia/Ho_Chi_Minh', from: '2026-10-18T14:00:42+07:00' },
       { key: 'advancedErr', cron: '61 8 * * 1-5', tz: 'Asia/Ho_Chi_Minh', from: '2026-10-18T14:00:42+07:00' },
       { key: 'daily22', cron: '0 22 * * *', tz: 'Asia/Ho_Chi_Minh', from: '2026-10-18T14:00:42+07:00' },
+      { key: 'daily0230', cron: '30 2 * * *', tz: 'Asia/Ho_Chi_Minh', from: '2026-10-18T14:00:42+07:00' },
     ],
   };
 })();

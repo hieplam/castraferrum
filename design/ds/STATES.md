@@ -118,3 +118,33 @@ separate id `phone-<id>` that draws its base state at 390 by 844. Open a state l
 | `run-transcript-missing` | The session file is gone | - |
 | `run-transcript-no-session` | A run without a session (no transcript) | - |
 | `vi-run-transcript` | The transcript in Vietnamese | - |
+
+## Editor (`form`, routes `/loops/new`, `/loops/:id/edit`)
+
+| id | State | Board |
+|---|---|---|
+| `form-new` | Defaults: no repo, every 30 minutes, Asia/Ho_Chi_Minh, opus, medium, no time limit | - |
+| `phone-form-new` | `form-new` on the phone | - |
+| `form-sched-minutes-uneven` | Every 7 minutes: the uneven-gap warning | - |
+| `form-sched-hours` | Every 2 hours at minute 05 | - |
+| `form-sched-daily` | Every day at 02:30 | - |
+| `phone-form-sched-daily` | `form-sched-daily` on the phone | `m-form-light` |
+| `form-sched-weekly` | Mon, Wed, Fri at 08:30 | - |
+| `phone-form-sched-weekly` | `form-sched-weekly` on the phone | - |
+| `form-sched-monthly-warn` | Day 31: the warning | - |
+| `form-sched-advanced` | A cron with no built-in kind, with its description | - |
+| `form-sched-advanced-error` | An invalid cron: the error, Save locked | - |
+| `form-errors` | After Save: an error at each field and a summary | - |
+| `phone-form-errors` | `form-errors` on the phone | - |
+| `form-saving` | Saving | - |
+| `form-edit-running` | Editing a running loop: applies from the next run | - |
+| `form-conflict` | `VERSION_CONFLICT`: Reload or Overwrite | - |
+| `form-duplicate` | The copy, stopped, its editor open | - |
+| `form-loading` | Loading the loop | - |
+| `form-repo-required` | No repo chosen | - |
+| `form-no-repos` | No repo registered: Register a repo | - |
+| `form-repo-pick` | The repo picker open (menu on desktop, sheet on phone), a repo whose folder is gone | - |
+| `phone-form-repo-pick` | `form-repo-pick` on the phone | - |
+| `form-edit-claude` | Haiku, low, 600 seconds | - |
+| `form-exec-mock` | Test mode: the Mock executor | - |
+| `vi-form-errors` | `form-errors` in Vietnamese | - |
