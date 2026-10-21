@@ -275,3 +275,24 @@ Guardrail: the move-record folder skip is gone; the history scan reads an exact 
 - Scanner ratchet (`--tree --coupling`, baseline file unchanged, still empty): before 0 / 0 (with the skip), after 0 / 0 (without it). Tree without the skip before the scrub: 6 / 17.
 - `npm run verify` exit 0: unit 427 passed, 2 skipped; contract 114; api 115; e2e 58; uc-coverage 32/32.
 - PR: this pull request (the source repo has no change in T17).
+
+## T12
+
+Fresh clone of hieplam/castraferrum (main at 30af111) in a new temporary folder with nothing next to it. Scratch names
+via `.env`: `LOOPS_COMPOSE_PROJECT=cf-scratch`, `LOOPS_PG_CONTAINER=cf_scratch_pg`, `LOOPS_PG_VOLUME=cf_scratch_pg`,
+`LOOPS_PG_PORT=55532`, `LOOPS_PORT=7170`, `LOOPS_E2E_PORT=7171`. `docker compose config` printed `container_name: cf_scratch_pg`
+before `up`.
+
+- Red: not applicable (plan: earlier tasks make this pass on the first run). It did.
+- Green, quickstart word for word (`npm ci`, `docker compose up -d`, `npm run build`, `npm start`):
+  `curl -s http://127.0.0.1:7170/ | grep -o "<title>Castraferrum</title>"` printed `<title>Castraferrum</title>`.
+- Green, `npm run verify`: exit 0. Unit 427 passed / 2 skipped, contract 114, api 115, e2e 58 passed, `UCs with a green e2e: 32/32`,
+  `dependency-cruiser: 0 violations`, `arch-fixtures: 25/25 violations caught`.
+- Green, size: `git repack -ad`, then `git count-objects -vH` shows `size-pack: 20.24 MiB` (limit 30 MiB).
+- Green, owner container: `docker inspect loop_console_pg` Id `86f7bfab17d4...99759e` and label
+  `com.docker.compose.project.working_dir` = the source repo console folder, identical before and after.
+- Stub check: with `.env` moved away, `docker compose config` prints `container_name: loop_console_pg`, so without the
+  override the run would have hit the owner's container; the override is what prevented it. The clone had no source repo
+  next to it and verify still exited 0, so there is no hidden dependency on it.
+- Scanner (`scripts/lang-scan.mjs`, run by verify): before vietnamese 0 / coupling 0, after vietnamese 0 / coupling 0 (baseline file empty, unchanged).
+- Cleanup: `docker compose down -v` in the scratch clone (only after the names were confirmed), temp folder deleted.
