@@ -15,3 +15,7 @@ design/preview/schedule.js
 
 # Generated side-by-side comparison of npm run design:compare (never committed)
 design/compare/
+
+# Build output of npm run design:shots -- --design design/ds
+design/ds/preview/messages.js
+design/ds/preview/schedule.js

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Castraferrum - new preview</title>
+<!-- Index of the new preview (UI uplift, epic #63): every state by screen. Selecting a state shows it live in four frames:
+     desktop light and dark (1440 by 900, scaled) and phone light and dark (390 by 844) when a phone-<id> state exists,
+     next to the reference boards of its screen (design/reference/). The page itself reads only tokens; the <style>
+     below lays out this index and nothing else. Run npm run design:shots -- --design design/ds --dry first (it writes
+     messages.js and schedule.js). -->
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../fonts.css">
+<link rel="stylesheet" href="../components.css">
+<style>
+  .ix { display: grid; grid-template-columns: var(--size-side) minmax(0, 1fr); min-height: 100dvh; }
+  .ix-nav { overflow-y: auto; max-height: 100dvh; position: sticky; top: 0; padding: var(--space-4); border-right: var(--border-w) solid var(--border); background: var(--surface); }
+  .ix-nav h1 { margin: 0 0 var(--space-1); font-size: var(--fs-h2); line-height: var(--lh-h2); }
+  .ix-nav p { margin: 0 0 var(--space-4); color: var(--text-muted); font-size: var(--fs-cap); line-height: var(--lh-cap); }
+  .ix-nav h2 { margin: var(--space-4) 0 var(--space-1); font-size: var(--fs-sm); line-height: var(--lh-sm); }
+  .ix-nav > a { display: block; padding: var(--space-1) var(--space-2); border-radius: var(--radius-xs); color: var(--text-muted); font-family: var(--font-data); font-size: var(--fs-cap); line-height: var(--lh-cap); text-decoration: none; }
+  .ix-nav > a.is-on { background: var(--selected); color: var(--accent-text); }
+  .ix-main { min-width: 0; padding: var(--space-5) var(--space-6); display: flex; flex-direction: column; gap: var(--space-4); }
+  .ix-main h2 { margin: 0; font-size: var(--fs-h2); line-height: var(--lh-h2); }
+  .ix-meta { color: var(--text-muted); font-size: var(--fs-sm); line-height: var(--lh-sm); }
+  .ix-meta a { color: var(--accent-text); }
+  .ix-row { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-start; }
+  .ix-frame { display: flex; flex-direction: column; gap: var(--space-1); color: var(--text-muted); font-family: var(--font-data); font-size: var(--fs-cap); }
+  .ix-desk { width: 720px; height: 450px; overflow: hidden; border: var(--border-w) solid var(--border-strong); border-radius: var(--radius-ctl); }
+  .ix-desk iframe { width: 1440px; height: 900px; border: 0; transform: scale(.5); transform-origin: 0 0; }
+  .ix-phone { width: 390px; height: 844px; border: var(--border-w) solid var(--border-strong); border-radius: var(--radius-sheet); overflow: hidden; }
+  .ix-phone iframe { width: 390px; height: 844px; border: 0; }
+  .ix-boards img { display: block; max-width: 390px; border: var(--border-w) solid var(--border); border-radius: var(--radius-ctl); }
+</style>
+</head>
+<body>
+<div class="ix">
+  <nav class="ix-nav" id="nav"></nav>
+  <main class="ix-main" id="main"></main>
+</div>
+<script src="states.js"></script>
+<script>
+  const ALL = window.PV_STATES, SCREENS = window.PV_SCREENS;
+  const desktop = ALL.filter((s) => !s.base);
+  const pick = new URLSearchParams(location.search).get('state') || 'loops-overview';
+  const cur = desktop.find((s) => s.id === pick) || desktop[0];
+  const phone = ALL.find((s) => s.base === cur.id);
+  document.getElementById('nav').innerHTML = `<h1>New preview</h1><p>${ALL.length} states (${desktop.length} desktop, ${ALL.length - desktop.length} phone). The list: <a href="../STATES.md">STATES.md</a>; the system: <a href="../index.html">design-system page</a>.</p>` +
+    SCREENS.map(([k, name, route]) => `<h2>${name} <span class="ix-meta">${route}</span></h2>` +
+      desktop.filter((s) => s.screen === k).map((s) => `<a href="?state=${s.id}" class="${s.id === cur.id ? 'is-on' : ''}">${s.id}${ALL.some((p) => p.base === s.id) ? ' + phone' : ''}</a>`).join('')).join('');
+  const frame = (s, theme, cls) => `<div class="ix-frame">${s.id} · ${theme}<div class="${cls}"><iframe src="app.html?state=${s.id}&theme=${theme}" title="${s.id} ${theme}"></iframe></div></div>`;
+  const screen = SCREENS.find(([k]) => k === cur.screen);
+  const boards = screen[3];
+  document.getElementById('main').innerHTML = `<h2>${cur.id}</h2><div class="ix-meta">${cur.title} · <a href="app.html?state=${cur.id}&theme=light">open light</a> · <a href="app.html?state=${cur.id}&theme=dark">open dark</a>` +
+    `${phone ? ` · <a href="app.html?state=${phone.id}&theme=light">open phone</a>` : ' · no phone state'}</div>` +
+    `<div class="ix-row">${frame(cur, 'light', 'ix-desk')}${frame(cur, 'dark', 'ix-desk')}</div>` +
+    (phone ? `<div class="ix-row">${frame(phone, 'light', 'ix-phone')}${frame(phone, 'dark', 'ix-phone')}</div>` : '') +
+    `<h2>Reference boards of this screen</h2>` +
+    (boards.length ? `<div class="ix-row ix-boards">${boards.map((b) => `<a class="ix-frame" href="../../reference/${b}">${b}<img src="../../reference/${b}" alt="${b}"></a>`).join('')}</div>`
+      : '<div class="ix-meta">No board: the state follows spec sections 4 and 4.6; the owner approves it at U10.</div>');
+</script>
+</body>
+</html>
