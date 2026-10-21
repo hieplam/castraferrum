@@ -479,3 +479,100 @@ drawn 1 states x 1 themes, 4 problems
 ```
 
 A key only in `en.ts` fails `vi.ts`'s `Record<MessageKey, string>` type and the i18n test "has one key set".
+
+## U6
+
+### Ratchet
+
+New preview states: `24` before (`npm run design:states -- --design design/ds --no-shots` on `main` prints
+`states: 24/24 (shots not checked)`), `54` after (`states: 54/54 (shots not checked)`): 21 desktop and 9 phone added
+(16 `loop-*`, 5 `period-*`, the 8 phone states of spec 5.3 and `phone-period-running`).
+
+### Corrected figures
+
+Read from the classic app for the seeded world: `npm run build`, then
+`npx playwright test --project=visual tests/visual/detail.visual.ts` (`5 passed`; the plan's `--project visual <file>`
+form makes Playwright read the file as a second project name, so the `=` form was used). The app shots in
+`reports/compare/shots/` were compared with every `avg` and `longest` of `design/ds/preview/data.js`:
+
+| Loop | Field | Old value | New value | App shot |
+|---|---|---|---|---|
+| Issue backlog worker | `avg` | `18 * 60 + 47` (18:47) | `14 * 60 + 52` (14:52) | `loop-running-light.png`, "Avg per run 14:52, 9 finished" |
+| Clean old artifacts | `avg` | `41` (0:41) | `37` (0:37) | `loop-stopped-light.png`, "Avg per run 0:37, 4 finished" |
+| Scan API logs for crashes | `longest.sec` | `5d 21h 28m 34s` | `4d 23h 28m 34s` | `loop-repo-missing-light.png`, "Longest execution 4d 23h, #1" |
+
+The other loops already match their shots: Digest upstream releases 6:52 and 1d 2h (`loop-idle`), Check test coverage
+6:01 and 9h 41m (`loop-last-failed`), Watch open PRs 2:40 and 5d 1h (`loop-server-down`), Old schedule test 1:00 and
+3h 2m (`loop-archived`). Execution #1 of "Scan API logs for crashes" reads its up time from `longest.sec`, so it is
+corrected with it.
+
+### Red
+
+The 30 rows of `design/ds/STATES.md` and the ids of `design/ds/preview/states.js` first, no draw function yet.
+`npm run design:shots -- --design design/ds --dry` (exit code `1`; the first of 60 lines, then the last):
+
+```
+  ✗ loop-running light: no draw function for state: loop-running · requires loop-header, shows 0 · requires now-card, shows 0 · ...
+  ...
+drawn 54 states x 2 themes, 504 problems
+```
+
+The 60 lines name exactly the 30 new states, each in both themes: `loop-archived loop-disconnected loop-help loop-idle
+loop-last-failed loop-loading loop-menu loop-never-run loop-not-found loop-running loop-runs loop-server-down
+loop-settings loop-stop-confirm loop-stopped loop-stopping period-copied period-not-found period-running
+period-server-down period-stopped phone-loop-help phone-loop-last-failed phone-loop-menu phone-loop-never-run
+phone-loop-running phone-loop-runs phone-loop-settings phone-loop-stop-confirm phone-period-running`.
+
+### Green
+
+(1) `npm run design:shots -- --design design/ds --dry`: `drawn 54 states x 2 themes, 0 problems`, exit code `0`.
+
+(2) `npm run design:states -- --design design/ds --no-shots`: `states: 54/54 (shots not checked)`.
+
+(3) `npx vitest run --project unit shared/i18n/i18n.test.ts tests/tools/design-states.test.ts`:
+`Test Files  2 passed (2)`, `Tests  17 passed (17)`. 101 keys added to `en.ts` and `vi.ts`: 98 of Appendix B and
+three that it lacks (`runs.prev`, `runs.next`, `period.notFound`, in castraferrum#108).
+
+(4) `git diff --stat main -- design/preview design/STATES.md` prints nothing.
+
+(5) `reports/ds-preview/loop-running-dark.png` next to `design/reference/d-loop-dark.png`, and
+`reports/ds-preview/phone-loop-running-light.png` next to `design/reference/m-loop-light.png`. Both follow the boards:
+the same blocks in the same order (header with Edit, `⋯` and Stop loop; the now card with the live output and Open run
+#69; the four figures; Recent runs with the current period's four runs, "Show 6 more runs from this period" and the two
+earlier periods; on the desktop the Settings card, on the phone the All 69 runs and Settings and prompt cells and the
+action bar). They differ where Appendix B or SYSTEM.md wins over the board (texts such as "Settings and prompt", a dash
+for a run without a summary, durations as `4h 13m`), where the corrected figures differ (typical run 14:52, not 18:47),
+where the server's own log line reads "Start round #69" (data, not UI text), and where the system has no rule yet: the
+prompt is not clamped in the side card (castraferrum#108). Also looked at: `loop-help` (desktop popover, dark),
+`phone-loop-help` (sheet, light, next to `m-help-light.png`), `loop-runs`, `phone-period-running`,
+`phone-loop-last-failed`.
+
+(6) The corrected figures are listed above, each with the app shot it was read from.
+
+(7) `npm run verify`: exit code `0`: `ratchets: ok`; unit `Tests  472 passed | 2 skipped (474)`; contract
+`Tests  114 passed (114)`; api `Tests  115 passed (115)`; e2e `64 passed (9.6m)`; `UCs with a green e2e: 32/32`.
+
+### Stub check
+
+`loop-running` drawn as an empty string (`--only loop-running`), exit code `1`:
+
+```
+  ✗ loop-running light: requires loop-header, shows 0 · requires now-card, shows 0 · requires loop-figures, shows 0 · ...
+drawn 1 states x 2 themes, 24 problems
+```
+
+An invented class, an inline colour or length and a key missing from the locale files fail the same dry run (the
+checks of U5). A preview that keeps the contradicting figure (`avg: 18 * 60 + 47` put back) still draws
+`drawn 1 states x 2 themes, 0 problems`: the dry run does not compare figures; the app at U16 does, against the
+corrected values above.
+
+### Notes
+
+- `loop-last-failed` draws "Scan API logs for crashes": it is the only sample loop that waits after a failed run (the
+  classic state drew "Check test coverage", whose run 105 is working, so the new now card would say that run is
+  working). Its runs have no skipped run, so the state shows none, although spec 5.3 mentions one.
+- Pushed pages (the loop page, All runs, loop settings, the active period page) show the navigation bar on the phone and
+  no tab bar, as the boards do; `states.js` adds `tabbar` to the required ids of the tab-root states only.
+- Gaps of the system, in castraferrum#108 (blocks U16, castraferrum#84): a pager, a clamped prompt, the state of an
+  active period in its head, the repo-missing now card, three texts, and the board's sentence for a run without a
+  summary.

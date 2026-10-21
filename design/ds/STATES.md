@@ -53,3 +53,43 @@ separate id `phone-<id>` that draws its base state at 390 by 844. Open a state l
 | `loops-many` | 12 loops, 10 runs at once, a long name cut with an ellipsis | - |
 | `vi-loops-overview` | `loops-overview` in Vietnamese | - |
 | `phone-vi-loops-overview` | `vi-loops-overview` on the phone | - |
+
+## Loop page (`loop`, routes `/loops/:id`, `/loops/:id/runs`, `/loops/:id/settings`)
+
+| id | State | Board |
+|---|---|---|
+| `loop-running` | A run working, live output | `d-loop-light`, `d-loop-dark` |
+| `phone-loop-running` | `loop-running` on the phone | `m-loop-light`, `m-loop-dark` |
+| `loop-idle` | Waiting for the next run, the last run's output | - |
+| `loop-last-failed` | The last run failed, the loop keeps running | - |
+| `phone-loop-last-failed` | `loop-last-failed` on the phone | - |
+| `loop-stopped` | Stopped by the user, the last run cancelled | - |
+| `loop-server-down` | Stopped by a server shutdown | - |
+| `loop-never-run` | Just created | - |
+| `phone-loop-never-run` | `loop-never-run` on the phone | - |
+| `loop-archived` | Archived: Restore, no Start | - |
+| `loop-stop-confirm` | Stop confirmation from the loop page (a dialog on the desktop) | - |
+| `phone-loop-stop-confirm` | `loop-stop-confirm` on the phone (a sheet) | `m-stop-light`, `m-stop-dark` |
+| `loop-stopping` | Stopping | - |
+| `loop-disconnected` | Connection lost while following the live output | - |
+| `loop-not-found` | `LOOP_NOT_FOUND` | - |
+| `loop-loading` | Skeleton | - |
+| `loop-help` | The `?` of Recent runs open (a popover on the desktop) | `d-loop-dark` |
+| `phone-loop-help` | `loop-help` on the phone (a sheet) | `m-help-light`, `m-help-dark` |
+| `loop-menu` | The `⋯` of the loop page open: Duplicate, Archive locked while running | - |
+| `phone-loop-menu` | `loop-menu` on the phone (a sheet) | - |
+| `loop-runs` | All runs: the longest active period, every run grouped by active period, paged (10 per page) | - |
+| `phone-loop-runs` | `loop-runs` on the phone | - |
+| `loop-settings` | Settings and prompt: repo with path, schedule, agent, runs at the same time, time limit, the full prompt, Edit settings | - |
+| `phone-loop-settings` | `loop-settings` on the phone | - |
+
+## Active period page (`period`, route `/executions/:id`)
+
+| id | State | Board |
+|---|---|---|
+| `period-running` | Still active | - |
+| `phone-period-running` | `period-running` on the phone | - |
+| `period-stopped` | Ended because the user pressed Stop | - |
+| `period-server-down` | Ended because the server shut down, an interrupted run | - |
+| `period-copied` | Toast after copying every session id | - |
+| `period-not-found` | `EXECUTION_NOT_FOUND` | - |
