@@ -54,6 +54,7 @@
   <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/></symbol>
   <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
   <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
   <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
   <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/></symbol>
   <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></symbol>
@@ -61,13 +62,14 @@
 </svg>`;
 
   // ── frame: the top bar (from 640px), the tab bar (below), banners ──
-  // conn: 'ok' | 'lost' | 'db'. The nav counts are the loops and the repos of the sample world.
+  // conn: 'ok' | 'lost' | 'db'. The nav counts are the loops and the repos of the sample world (o.repoCount for another
+  // world).
   function topbar(o) {
     const conn = { ok: ['is-ok', 'conn.ok', 'ok', 'ok'], lost: ['is-lost', 'conn.lost', 'down', 'wait'], db: ['is-db-down', 'conn.dbDown', 'ok', 'down'] }[o.conn || 'ok'];
     const link = (k, id, label, count) => `<a class="topbar-link${o.tab === k ? ' is-on' : ''}" href="#" data-testid="${id}"${o.tab === k ? ' aria-current="page"' : ''}>${label}${count}</a>`;
     return `<header class="topbar" data-testid="topbar"><span class="topbar-brand">${t('app.title')}</span>` +
       `<nav class="topbar-nav">${link('loops', 'nav-loops', t('nav.loops'), o.loopCount == null ? '' : ` <span>${o.loopCount}</span>`)}` +
-      `${link('repos', 'nav-repos', t('nav.repos'), ` <span data-testid="nav-repos-count">${D.repoOrder.length}</span>`)}${link('settings', 'nav-settings', t('nav.settings'), '')}</nav>` +
+      `${link('repos', 'nav-repos', t('nav.repos'), ` <span data-testid="nav-repos-count">${o.repoCount == null ? D.repoOrder.length : o.repoCount}</span>`)}${link('settings', 'nav-settings', t('nav.settings'), '')}</nav>` +
       `<div class="topbar-end"><span class="conn ${conn[0]}" data-testid="conn" data-server="${conn[2]}" data-db="${conn[3]}">${t(conn[1])}</span>` +
       `<button class="iconbtn" type="button" data-testid="toggle-theme" aria-label="${t('theme.switch')}">${icon('theme')}</button></div></header>`;
   }
@@ -754,6 +756,136 @@
     page: `<div class="page-head"><span class="skeleton is-line"></span></div><div class="group" data-testid="form-loading" aria-busy="true">` +
       [0, 1, 2, 3].map(() => '<div class="cell"><div class="cell-main"><span class="skeleton is-line"></span><span class="skeleton is-line"></span></div></div>').join('') + '</div><span class="skeleton is-block"></span>' });
 
+  // ── Repos page, folder picker, settings ─────────────────────
+  // A world of repos: the main one (the Windows machine of data.js) or the Mac's own console (its repos, no loops).
+  const WIN = { repos: D.repos, order: D.repoOrder, loops: true }, MAC = { repos: D.folders.mac.repos, order: D.folders.mac.repoOrder, loops: false };
+  const loopsOfRepo = (k) => Object.values(D.loops).filter((l) => l.repo === k);
+  const reposHead = () => (PHONE
+    ? `<div class="page-head"><h1 class="large-title">${t('repos.title')}</h1><button class="iconbtn" type="button" data-testid="repo-add" aria-label="${t('repos.add')}">${icon('plus')}</button></div>`
+    : `<div class="page-head"><h1 class="page-title">${t('repos.title')}</h1><button class="btn primary" type="button" data-testid="repo-add">${icon('plus')}${t('repos.add')}</button></div>`);
+  // A repo: name, path, "Folder is gone", the loop count and its ⋯ (Delete).
+  function repoCell(set, k) {
+    const r = set.repos[k], n = set.loops ? loopsOfRepo(k).length : 0;
+    const gone = r.gone ? `<span class="cell-row"><span class="pill s-warn" data-testid="repo-gone">${t('status.folderGone')}</span></span>` : '';
+    return `<div class="cell" data-testid="repo-row" data-repo-id="${r.id}" data-exists="${!r.gone}"><span class="cell-main"><span class="cell-title" data-testid="repo-row-name">${esc(r.name)}</span>` +
+      `<span class="cell-meta is-one-line">${esc(r.path)}</span>${gone}</span><span class="cell-value" data-testid="repo-loop-count" data-n="${n}">${tn('repos.loops', n)}</span>` +
+      `<button class="iconbtn" type="button" data-testid="repo-menu" aria-label="${t('act.more')}" aria-haspopup="menu">${icon('more')}</button></div>`;
+  }
+  // o: set (the world), loading, empty, banner.
+  function reposPage(o = {}) {
+    const set = o.set || WIN;
+    const list = o.loading
+      ? `<div class="group" data-testid="repo-loading" aria-busy="true">${[0, 1, 2, 3].map(() => '<div class="cell"><div class="cell-main"><span class="skeleton is-line"></span><span class="skeleton is-line"></span></div></div>').join('')}</div>`
+      : o.empty ? `<div class="empty" data-testid="repo-empty"><b>${t('repo.empty.title')}</b></div>`
+        : `<div class="group" data-testid="repo-table">${set.order.map((k) => repoCell(set, k)).join('')}</div>`;
+    return reposHead() + `<p class="page-desc">${t('repos.note')}</p>` + (o.banner || '') + list;
+  }
+  const reposApp = (o = {}) => app({ tab: 'repos', loopCount: o.set === MAC ? 0 : D.counts.all, repoCount: (o.set || WIN).order.length, narrow: true, page: reposPage(o), overlay: o.overlay });
+
+  // The folder picker (spec 5.7), drawn from a world of data.js PV.folders: the path field (also the registration path),
+  // quick access, the breadcrumb, the filter, the show-hidden switch, the folder list, the target line, the name and Add
+  // repo. A full-height sheet on the phone, a wide dialog from 640px. o: sel (the selected folder), at (the open folder),
+  // typed (the path field), target ({ path, name } instead of the selection), name, pathErr, navErr (the path error
+  // comes from opening a typed path, so Add keeps the open folder), nameErr, denied.
+  function picker(w, o = {}) {
+    const win = w.platform === 'win32', sep = win ? '\\' : '/';
+    const same = (a, b) => a.toLowerCase() === b.toLowerCase();
+    const nameOf = (p) => p.split(sep).filter(Boolean).pop() || p;
+    const parentOf = (p) => { const i = p.lastIndexOf(sep); return i <= 0 ? null : p.slice(0, i); };
+    const repoSet = w.repos ? Object.values(w.repos) : D.repoOrder.map((k) => D.repos[k]);
+    const at = o.at || w.at;
+    const segs = at.split(sep).filter(Boolean);
+    const crumbs = (win ? segs : ['/'].concat(segs)).map((s, i, a) => (i === a.length - 1 ? `<b data-testid="folder-crumb">${esc(s)}</b>` : `<span data-testid="folder-crumb">${esc(s)}</span><span>›</span>`)).join('');
+    const entries = o.denied ? [] : w.entries.map(([name, flag]) => {
+      const path = at + sep + name, repo = repoSet.find((r) => same(r.path, path));
+      return { name, path, git: flag === 'git', hidden: flag === 'hidden', repo: !!repo };
+    });
+    const shown = entries.filter((e) => !e.hidden);
+    // Quick access: the four places, the drives or volumes, then the folders that hold registered repos.
+    const known = w.known || {};
+    const places = [[t('folder.place.home'), w.home], [t('folder.place.desktop'), known.desktop || w.home + sep + 'Desktop'],
+      [t('folder.place.documents'), known.documents || w.home + sep + 'Documents'], [t('folder.place.downloads'), known.downloads || w.home + sep + 'Downloads']]
+      .concat(win ? w.roots.map((r) => [r, r + '\\']) : w.volumes);
+    for (const r of repoSet) {
+      const up = parentOf(r.path);
+      if (up && !places.some((p) => same(p[1], up))) places.push([esc(nameOf(up)), up]);
+    }
+    const placeChips = `<div class="picker-places" role="group" aria-label="${t('picker.quick')}">${places.map(([label, path]) => `<button class="chip${same(path, at) ? ' is-on' : ''}" type="button" data-testid="folder-place"${same(path, at) ? ' aria-current="true"' : ''}>${label}</button>`).join('')}</div>`;
+    const sel = entries.find((e) => e.name === o.sel) || null;
+    const tags = (e) => (e.git || e.repo ? `<span class="cell-row">${e.git ? `<span class="tag git">${t('picker.tagGit')}</span>` : ''}${e.repo ? `<span class="tag repo">${t('picker.tagRepo')}</span>` : ''}</span>` : '');
+    const row = (e) => `<div class="cell${sel === e ? ' is-sel' : ''}" role="option" aria-selected="${sel === e}" data-testid="folder-row">${icon('folder')}` +
+      `<span class="cell-main"><span class="cell-title is-plain">${esc(e.name)}</span>${tags(e)}</span>` +
+      `<button class="iconbtn" type="button" data-testid="folder-open" aria-label="${t('picker.open', { name: esc(e.name) })}">${chev}</button></div>`;
+    const list = o.denied
+      ? `<div class="picker-list" data-testid="folder-list"><div class="banner is-warn" data-testid="folder-unreadable" role="alert">${icon('alert')}<span class="banner-text">${t('folder.denied.darwin')}</span>` +
+        `<button class="btn sm" type="button" data-testid="folder-retry">${t('folder.retry')}</button></div></div>`
+      : `<div class="picker-list group" role="listbox" data-testid="folder-list" aria-label="${esc(at)}">${shown.map(row).join('')}</div>`;
+    const hidden = entries.length - shown.length;
+    const filter = `<label class="search">${icon('search')}<input type="search" data-testid="folder-filter" placeholder="${t('picker.filter')}" aria-label="${t('picker.filter')}"></label>` +
+      (hidden ? `<button class="chip" type="button" role="switch" aria-checked="false" data-testid="folder-show-hidden">${t('picker.showHidden')}</button>` : '');
+    const pathErr = o.pathErr ? `<p class="hint is-err" data-testid="error-repo-path">${o.pathErr}</p>` : '';
+    const path = `<div class="field" style="flex:1"><input class="input${o.pathErr ? ' is-err' : ''}" id="repo-path" data-testid="repo-path" data-platform="${w.platform}" type="text" value="${esc(o.typed || at)}" aria-label="${t('picker.path')}"${o.pathErr ? ' aria-invalid="true"' : ''}>${pathErr}</div>`;
+    const bar = `<div class="picker-bar">${path}<button class="iconbtn bordered" type="button" data-testid="folder-up" aria-label="${t('picker.up')}">${icon('up')}</button>` +
+      `<button class="btn" type="button" data-testid="folder-go">${t('picker.go')}</button></div>`;
+    // The target: the selected folder, or the open folder when nothing is selected.
+    const target = o.target || (sel ? { path: sel.path, name: sel.name } : { path: at, name: nameOf(at) });
+    const name = o.name || target.name;
+    const taken = (!!o.pathErr && !o.navErr) || !!o.nameErr;
+    const targetLine = `<div class="picker-target" data-testid="folder-target">${icon('folder')}<span>${t('picker.target', { path: `<b>${esc(target.path)}</b>`, name: `<b>${esc(name)}</b>` })}</span></div>`;
+    const nameErr = o.nameErr ? `<p class="hint is-err" data-testid="error-repo-name">${o.nameErr}</p>` : '';
+    const nameField = `<div class="field"><label class="label" for="repo-name">${t('picker.name')}</label><input class="input${o.nameErr ? ' is-err' : ''}" id="repo-name" data-testid="repo-name" type="text" value="${esc(name)}"${o.nameErr ? ' aria-invalid="true"' : ''}>${nameErr}</div>`;
+    const status = `<p class="picker-status">${t(PHONE ? 'picker.hintTouch' : 'picker.hintPointer')}</p>`;
+    const submit = (cls) => `<button class="btn primary${cls}" type="button" data-testid="repo-submit"${taken ? ' disabled' : ''}>${t('picker.add')}</button>`;
+    const crumbNav = `<nav class="crumbs" data-testid="folder-crumbs" aria-label="${t('picker.path')}">${crumbs}</nav>`;
+    if (PHONE) {
+      return `<div class="scrim"></div><div class="fullsheet" role="dialog" aria-modal="true" aria-label="${t('repos.add')}" data-testid="folder-picker">` +
+        `<nav class="navbar"><button class="navbar-back" type="button" data-testid="folder-cancel">${t('folder.cancel')}</button><span class="navbar-title">${t('repos.add')}</span><div class="navbar-actions"></div></nav>` +
+        `<div class="picker">${bar}${placeChips}${crumbNav}<div class="picker-bar">${filter}</div>${list}${status}${targetLine}${nameField}${submit(' lg block')}</div></div>`;
+    }
+    return `<div class="scrim"></div><div class="dialog is-wide" role="dialog" aria-modal="true" data-testid="folder-picker"><div class="dialog-head"><h2>${t('repos.add')}</h2></div>` +
+      `<div class="dialog-body"><div class="picker">${bar}<div class="picker-bar">${crumbNav.replace('class="crumbs"', 'class="crumbs" style="flex:1"')}${filter}</div>${placeChips}${list}${status}${targetLine}</div>${nameField}</div>` +
+      `<div class="dialog-foot"><button class="btn ghost" type="button" data-testid="folder-cancel">${t('folder.cancel')}</button>${submit('')}</div></div>`;
+  }
+  // Delete a repo no loop uses: a dialog from 640px, a sheet below.
+  function repoDelete(k) {
+    const r = D.repos[k], title = t('repos.deleteTitle', { name: esc(r.name) }), body = t('repos.deleteBody');
+    if (PHONE) {
+      return `<div class="scrim"></div><div class="sheet" role="dialog" aria-modal="true" data-testid="repo-delete-dialog"><span class="sheet-grab"></span><h2>${title}</h2><p>${body}</p>` +
+        `<button class="btn lg block danger-solid" type="button" data-testid="repo-delete-confirm">${t('repo.delete.confirm')}</button><button class="btn lg block plain" type="button" data-testid="repo-delete-cancel">${t('repo.delete.cancel')}</button></div>`;
+    }
+    return `<div class="scrim"></div><div class="dialog" role="dialog" aria-modal="true" data-testid="repo-delete-dialog"><div class="dialog-head"><h2>${title}</h2></div><div class="dialog-body">${body}</div>` +
+      `<div class="dialog-foot"><button class="btn ghost" type="button" data-testid="repo-delete-cancel">${t('repo.delete.cancel')}</button><button class="btn danger-solid" type="button" data-testid="repo-delete-confirm">${t('repo.delete.confirm')}</button></div></div>`;
+  }
+  // Delete refused (REPO_IN_USE): the loops that use the repo, archived ones marked.
+  function repoInUse(k) {
+    const list = loopsOfRepo(k).map((l) => `<b>${esc(l.archived ? t('repo.inUse.archived', { name: l.name }) : l.name)}</b>`).join(', ');
+    return `<div class="banner is-err" data-testid="repo-in-use" role="alert">${icon('alert')}<span class="banner-text">${t('repos.deleteBlocked', { list })}</span></div>`;
+  }
+  const FW = D.folders.win, FM = D.folders.mac;
+
+  // Settings (spec 5.8): Appearance, Connection, This device (phone only), About. Each language option reads its own
+  // name from its own locale file, marked with its lang and data-raw.
+  function selfName(l) {
+    const s = ((window.MESSAGES || {})[l] || {})['settings.lang.self'];
+    if (s == null) problems.push('missing i18n key: settings.lang.self (' + l + ')');
+    return `<span lang="${l}" data-raw="">${esc(s || '')}</span>`;
+  }
+  function settingsPage(o = {}) {
+    const fcell = (label, control) => `<div class="fcell"><span class="label">${label}</span>${control}</div>`;
+    const value = (id, label, dot, text) => `<div class="cell" data-testid="${id}"><span class="cell-main"><span class="cell-title is-plain">${label}</span></span><span class="cell-value"><span class="dot ${dot}"></span>${text}</span></div>`;
+    const group = (cap, rows) => `<p class="group-cap">${cap}</p><div class="group">${rows}</div>`;
+    const appearance = fcell(t('settings.theme'), seg('settings-theme', t('settings.theme'), ['auto', 'light', 'dark'], 'auto', (x) => t('settings.theme.' + x))) +
+      fcell(t('settings.language'), seg('settings-lang', t('settings.language'), ['en', 'vi'], LANG, selfName));
+    const connection = value('settings-server', t('settings.server'), 'd-ok', t('settings.connected')) +
+      (o.dbDown ? value('settings-db', t('settings.database'), 'd-fail', t('settings.notAnswering')) : value('settings-db', t('settings.database'), 'd-ok', t('settings.answering'))) +
+      `<div class="cell" data-testid="settings-address"><span class="cell-main"><span class="cell-title is-plain">${t('settings.address')}</span><span class="cell-meta">${esc(D.console.address)}</span></span></div>`;
+    const device = `<div class="cell"><span class="cell-main"><span class="cell-title is-plain">${t('settings.homeScreen')}</span><span class="cell-meta">${t('settings.homeScreenHow')}</span></span></div>`;
+    const about = `<div class="cell" data-testid="settings-version"><span class="cell-main"><span class="cell-title is-plain">${t('settings.version')}</span></span><span class="cell-value">${esc(D.console.version)}</span></div>`;
+    return `<div class="page-head"><h1 class="${PHONE ? 'large-title' : 'page-title'}">${t('settings.title')}</h1></div>` +
+      group(t('settings.appearance'), appearance) + group(t('settings.connection'), connection) + (PHONE ? group(t('settings.device'), device) : '') + group(t('settings.about'), about);
+  }
+  const settingsTabApp = (o = {}) => app({ tab: 'settings', loopCount: D.counts.all, narrow: true, conn: o.dbDown ? 'db' : 'ok', banner: o.dbDown ? 'db' : '', page: settingsPage(o) });
+
   // ── states ──────────────────────────────────────────────────
   const R = {
     'frame-loading': () => loops({ loopCount: null, page: loopsPage({ stats: null, toolbar: { off: true }, list: loading() }) }),
@@ -828,7 +960,23 @@
     'form-repo-pick': () => formApp({ mode: 'new', v: sampleNew(), s: SCHED.daily, repoPick: true }),
     'form-edit-claude': () => formApp({ mode: 'edit', key: 'wiki', v: valuesOf('wiki', { model: 'haiku', effort: 'low', timeout: 600 }), s: SCHED.hours }),
     'form-exec-mock': () => formApp({ mode: 'new', v: sampleNew(), s: SCHED.daily, mock: true }),
+    'repos-list': () => reposApp(),
+    'repos-empty': () => reposApp({ empty: true, set: { repos: {}, order: [], loops: false } }),
+    'repos-loading': () => reposApp({ loading: true }),
+    'repos-add': () => reposApp({ overlay: picker(FW, { sel: 'acme-tools' }) }),
+    'repos-add-notfound': () => reposApp({ overlay: picker(FW, { typed: FW.typo, pathErr: t('repo.val.notFound'), navErr: true }) }),
+    'repos-add-mac': () => reposApp({ set: MAC, overlay: picker(FM, { sel: 'dotfiles' }) }),
+    'repos-add-denied': () => reposApp({ set: MAC, overlay: picker(FM, { at: FM.denied, denied: true }) }),
+    'repos-err-dup-path': () => reposApp({ overlay: picker(FW, { sel: 'acme-api', typed: D.repos.api.path, pathErr: t('repo.val.pathTaken', { name: esc(D.repos.api.name) }) }) }),
+    'repos-err-dup-name': () => reposApp({ overlay: picker(FW, { sel: 'acme-api-hotfix', name: D.repos.api.name, nameErr: t('repo.val.nameTaken') }) }),
+    'repos-err-missing': () => reposApp({ overlay: picker(FW, { typed: FW.typo, target: { path: FW.typo, name: 'acme-tool' }, pathErr: t('repo.val.notFound') }) }),
+    'repos-delete-confirm': () => reposApp({ overlay: repoDelete('dotfiles') }),
+    'repos-delete-blocked': () => reposApp({ banner: repoInUse('old') }),
+    'settings': () => settingsTabApp(),
+    'settings-db-down': () => settingsTabApp({ dbDown: true }),
   };
+  R['vi-repos-list'] = R['repos-list'];
+  R['vi-repos-add'] = R['repos-add'];
   R['vi-form-errors'] = R['form-errors'];
   R['vi-loops-overview'] = R['loops-overview'];
 

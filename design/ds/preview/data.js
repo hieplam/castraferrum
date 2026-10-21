@@ -412,6 +412,8 @@
     order: ['pilot', 'crash', 'wiki', 'debt', 'prs', 'evidence', 'recap'],
     counts: { all: 7, active: 4, stopped: 3, archived: 1 },
     repos, repoOrder, loops, executions, runs, many, transcripts, folders,
+    // What Settings shows of the console: the address it is reached at and its version (package.json).
+    console: { address: 'http://192.168.1.20:7070', version: '0.1.0' },
     // The new loop the editor states fill in (the board m-form-light).
     formSample: {
       name: 'Nightly dependency check', repo: 'api',
