@@ -5,6 +5,11 @@
 - Plan: [../plans/2026-10-21-lan-access.md](../plans/2026-10-21-lan-access.md)
 - Next phase: [2026-10-21-remote-access.md](2026-10-21-remote-access.md) (sign-in with username and password,
   Cloudflare Tunnel)
+- **Update 2026-10-21:** the phone layout (D5, D6, G4 and UC-34) moved to epic #63, the UI uplift
+  ([2026-10-21-ui-uplift.md](2026-10-21-ui-uplift.md)), which designs it mobile-first for every screen. L3, L4 and L5
+  are closed as superseded, the phone overflow check is built by ui-uplift U0, and L6 waits for the ui-uplift
+  cut-over (U25) and compares the phone with `design/ds/preview/shots/phone-*`. This phase now delivers G1, G2, G3,
+  G5 and G6 with UC-33.
 
 ## 1. Context
 
@@ -73,7 +78,7 @@ Value syntax: `--name=value` or `--name value`. Phase 2 adds `--username`, `--pa
 | UC-33 | **Open the console from another device on the local network** - start with `--host=0.0.0.0` | The console answers and works at `http://<machine-ipv4>:<port>/`; the startup output lists that URL and the warning; without `--host` the address refuses the connection |
 | UC-34 | **Use the console on a phone** - 390px wide, touch | Every screen matches the approved phone preview; create, start, stop, live log, transcript and repo registration all work by tapping, with no sideways scrolling |
 
-`npm run verify` raises `uc-coverage --min` from 32 to 34 over the phase.
+`npm run verify` raises `uc-coverage --min` by one for UC-33 over the phase (UC-34 moved to epic #63).
 
 ## 6. Out of scope
 

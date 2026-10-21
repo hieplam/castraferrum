@@ -14,6 +14,18 @@ commit whose staged file names, added lines or message contain Vietnamese. CI ru
 over every commit and, on pull requests, `--pr-event` over the title, body and branch name. No folder is skipped. The only exceptions are the locale file and, for the `--history` check only, the
 exact (blob, line) pairs listed in `scripts/lang-history-allowlist.json`, which pin the known hits in old commits.
 
+## Design system
+
+Every UI change, however small, is designed from the design system first: the new system in `design/ds/`
+(`SYSTEM.md`, `tokens.css`, `components.css`, the design-system page `index.html` and the preview), and until the
+cut-over of epic #63 the classic system in `design/` for the classic UI. Use existing tokens and components only. A
+missing component, state, token or rule is an issue labelled `design-system` (template "Design system gap"), opened
+before the feature is built; the system is extended first, with the owner's approval in `design/APPROVED.md`, or the
+feature waits for that issue. From task U0 of epic #63 on, `npm run ratchets` runs in `verify` and CI: it fails on empty or missing tokens, on
+contrast below the minimum, on literal values in the design-system CSS, on classes the system does not define, on
+native `title` tooltips and on a drop in the number of e2e assertions. The limits live in `scripts/ratchets.json` and
+may only move in the good direction. The pull request template asks which components a UI change used.
+
 ## Workflow
 
 1. Work on a branch, one concern per branch; do not commit to `main`.

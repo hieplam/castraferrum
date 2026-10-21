@@ -95,6 +95,11 @@ username and password digests every time (no early return on a wrong username).
 
 ## R3 - Sign-in screen preview
 
+**Update 2026-10-21:** this task waits for the cut-over of epic #63 (ui-uplift U25) and follows its design system.
+Draw the states in `design/ds/preview/` (rows in `design/ds/STATES.md`, the `phone-*` form for the phone states) with
+the components of `design/ds/components.css` and the rules of `design/ds/SYSTEM.md`. Read the paths below with that
+change. A component the system lacks becomes a `design-system` issue first (CLAUDE.md, "Design system first").
+
 **Files:** `design/preview/states.js`, `preview.js`, `design/STATES.md` (rows and D-UI decisions),
 `design/components.css` (a sign-in block reading only existing tokens), `shared/i18n/en.ts` and `vi.ts` (the
 sign-in texts: title, username, password, Sign in, wrong credentials, too many attempts with the wait, Sign out,
@@ -131,6 +136,9 @@ issue, and on approval an entry goes into `design/APPROVED.md` with the owner's 
 - **Stub check:** only the owner's own words count.
 
 ## R5 - Sign-in screen and sign-out in the app; UC-35
+
+**Update 2026-10-21:** build the screen with the kit of the new UI (`web/ui/kit/`), and compare it in
+`tests/visual/ds/` against `design/ds/preview/shots/` (epic #63).
 
 **Files:** `web/api/` (`LoopsApi` gains `session()`, `login()`, `logout()`; a 401 `UNAUTHENTICATED` from any call
 raises a typed error), `web/data/` (a session query; on that error, or on an SSE failure followed by
