@@ -138,5 +138,8 @@
   "--z-sheet",
   "--z-toast",
   "--safe-top",
-  "--safe-bottom"
+  "--safe-bottom",
+  "--size-tip-arrow",
+  "--size-stepper-value",
+  "--size-tx-head"
 ]

@@ -252,3 +252,109 @@ branch changes no `web/` or e2e file). The run above started after midnight.
 A new entry in `scripts/ratchets.json` for `design/ds/tokens.css`: empty 0, missing in dark 0, contrast failures 0
 (126 checked), missing tokens 0 (140 required), all at 0 from the start. The classic entry is unchanged (0, 0, 0). Unit
 tests 450 -> 457 (the 7 spec tests). Tool: `npm run design:tokens`, `npm run ratchets`.
+
+## U3
+
+### Red
+
+Both tests first, with no `design/ds/components.css` or `design/ds/index.html`.
+
+`npx vitest run --project unit tests/tools/ds-catalogue.test.ts`:
+
+```
+catalogue coverage: 0/178
+     × every class is a selector of components.css 17ms
+     × every class has a rule with at least one declaration 6ms
+     × every class appears on the design-system page 4ms
+AssertionError: design/ds/components.css: classes with no selector: expected [ 'app', 'topbar', …(176) ] to deeply equal []
+AssertionError: design/ds/components.css: classes whose rules declare nothing: expected [ 'app', 'topbar', …(176) ] to deeply equal []
+AssertionError: design/ds/index.html: classes not shown: expected [ 'app', 'topbar', …(176) ] to deeply equal []
+      Tests  3 failed | 1 passed (4)
+```
+
+The test that passes only parses the spec table (178 classes, more than 150, `btn` and `picker-target` among them).
+
+After `npm run build`, `npx playwright test --project=visual tests/visual/ds/system-page.visual.ts`:
+
+```
+  ✘  1 [visual] › tests\visual\ds\system-page.visual.ts:55:5 › desktop light › desktop light: sizes and colours (469ms)
+  ✘  2 [visual] › tests\visual\ds\system-page.visual.ts:72:5 › phone light › phone light: sizes and colours (344ms)
+  ✘  3 [visual] › tests\visual\ds\system-page.visual.ts:55:5 › desktop dark › desktop dark: sizes and colours (370ms)
+  ✘  4 [visual] › tests\visual\ds\system-page.visual.ts:72:5 › phone dark › phone dark: sizes and colours (300ms)
+    Error: page.goto: net::ERR_FILE_NOT_FOUND at file:///.../design/ds/index.html
+```
+
+### Green
+
+(1) The catalogue test (`--reporter=verbose`):
+
+```
+spec 4.5 classes: 178
+catalogue coverage: 178/178
+ ✓ |unit| tests/tools/ds-catalogue.test.ts > design/ds components against spec 4.5 > the table of spec 4.5 names the classes
+ ✓ |unit| tests/tools/ds-catalogue.test.ts > design/ds components against spec 4.5 > every class is a selector of components.css
+ ✓ |unit| tests/tools/ds-catalogue.test.ts > design/ds components against spec 4.5 > every class has a rule with at least one declaration
+ ✓ |unit| tests/tools/ds-catalogue.test.ts > design/ds components against spec 4.5 > every class appears on the design-system page
+      Tests  4 passed (4)
+```
+
+(2) The system-page command:
+
+```
+  ✓  1 [visual] › tests\visual\ds\system-page.visual.ts:55:5 › desktop light › desktop light: sizes and colours (1.3s)
+  ✓  2 [visual] › tests\visual\ds\system-page.visual.ts:72:5 › phone light › phone light: sizes and colours (1.0s)
+  ✓  3 [visual] › tests\visual\ds\system-page.visual.ts:55:5 › desktop dark › desktop dark: sizes and colours (1.2s)
+  ✓  4 [visual] › tests\visual\ds\system-page.visual.ts:72:5 › phone dark › phone dark: sizes and colours (1.1s)
+  4 passed (8.8s)
+```
+
+(3) `npm run design:lint` with `design/ds/components.css` present: `css violations: 0` (the web counts unchanged:
+`native title: 8`, `unknown classes: 0`, `literal styles: 0`).
+
+(4) `npm run design:tokens -- design/ds/tokens.css --pairs design/ds/contrast-pairs.json --require design/ds/required-tokens.json`:
+
+```
+empty or swallowed: 0
+missing in dark: 0
+contrast pairs checked: 126
+contrast failures: 0
+required tokens: 143
+missing tokens: 0
+```
+
+The spec test `tests/tools/ds-tokens-spec.test.ts` still passes: `Tests  7 passed (7)`.
+
+(5) `npm run ratchets`: `ratchets: ok`.
+
+(6) Screenshots in `reports/ds-system/` (gitignored), next to a copy of `design/reference/tokens-sheet.png`
+(`reference-tokens-sheet.png`): `desktop-1440-light.png` and `desktop-1440-dark.png` (each theme column at 1440 by
+900), `phone-390-light.png` and `phone-390-dark.png` (the two phone frames, `index.html?frame=1&theme=<t>`, full page).
+
+(7) `npm run verify` (exit code `0`): `ratchets: ok`; unit `Tests  461 passed | 2 skipped (463)`; contract
+`Tests  114 passed (114)`; api `Tests  115 passed (115)`; e2e `64 passed (9.9m)` (60 before plus the 4 system-page
+tests); `UCs with a green e2e: 32/32`. Unit tests 457 -> 461 (the 4 catalogue tests).
+
+### Tokens added in U3
+
+Non-colour only, in `design/ds/tokens.css` and `design/ds/required-tokens.json` (140 -> 143 required); the owner
+reviews them at U10, and U4 writes them into `SYSTEM.md`:
+
+- `--size-tip-arrow: 5px`: the tooltip arrow (`canvas.css` `.tip-b::after`, border 5px);
+- `--size-stepper-value: 52px`: the value box of a stepper (`canvas.css` `.p-stepper output`, min-width 52px);
+- `--size-tx-head: 140px`: the transcript entry head beside its body from 1024px (spec 4.5, Transcript, desktop; the
+  canvas has no desktop transcript, so no value to port).
+
+### Stub check
+
+- Every rule emptied (each declaration block replaced by `{}`): catalogue `AssertionError: design/ds/components.css:
+  classes whose rules declare nothing: expected [ 'app', 'topbar', …(176) ] to deeply equal []`,
+  `Tests  1 failed | 3 passed (4)`; the system page `Expected: "36px"`, `Received: "21px"` (desktop) and
+  `Expected: "44px"`, `Received: "21px"` (phone) for `.btn`, all 4 tests failed.
+- One literal value (`.pill` `height: 22px` instead of `var(--size-pill)`): `design/ds/components.css:234 length
+  literal: height: 22px`, `css violations: 1`, exit code `1`.
+
+### Ratchet
+
+Catalogue coverage 0/178 -> 178/178 (`tests/tools/ds-catalogue.test.ts`); measured component checks 0 -> 4 passing
+tests (`tests/visual/ds/system-page.visual.ts`); `css violations` 0 -> 0 with the file now present; required tokens
+140 -> 143, missing 0 -> 0. Tools: the two tests, `npm run design:lint`, `npm run design:tokens`.

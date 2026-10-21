@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Castraferrum design system</title>
+<!-- The design-system page (UI uplift, epic #63, task U3): every family of spec 4.5 in every state of spec 4.4, light and
+     dark side by side. "Phone width" draws the page in two 390px frames (index.html?frame=1&theme=...), one per theme.
+     The components use only components.css; the <style> below lays out this page and nothing else. -->
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="components.css">
+<style>
+  .ds-top {
+    display: flex; align-items: center; gap: var(--space-4); padding: var(--space-4) var(--space-8);
+    background: var(--surface); border-bottom: var(--border-w) solid var(--border);
+  }
+  .ds-top h1 { flex: 1; margin: 0; font-size: var(--fs-h2); line-height: var(--lh-h2); }
+  .ds-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ds-col { min-width: 0; padding: var(--space-6) var(--space-6) var(--space-12); background: var(--bg); color: var(--text); }
+  .ds-theme { margin: 0 0 var(--space-4); font-size: var(--fs-title); line-height: var(--lh-title); }
+  .ds-sec { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-6) 0; border-top: var(--border-w) solid var(--border); }
+  .ds-sec > h2 { margin: 0; font-size: var(--fs-h2); line-height: var(--lh-h2); }
+  .ds-cap { margin: 0; color: var(--text-subtle); font-family: var(--font-data); font-size: var(--fs-cap); line-height: var(--lh-cap); }
+  .ds-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+  .ds-stack { display: flex; flex-direction: column; gap: var(--space-3); }
+  .ds-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+  .ds-stage {
+    position: relative; overflow: hidden; transform: translateZ(0); min-height: var(--size-log);
+    border: var(--border-w) dashed var(--border-strong); border-radius: var(--radius-card); background: var(--bg);
+  }
+  .ds-stage.is-tall { min-height: var(--size-tx); }
+  .ds-tipbox { position: relative; display: flex; align-items: flex-end; gap: var(--space-12); min-height: var(--space-12); padding: var(--space-10) var(--space-12) var(--space-10); }
+  .ds-tipbox > span { position: relative; display: inline-flex; }
+  .ds-phone { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-6); padding: var(--space-6); }
+  .ds-phone iframe { width: 390px; height: 844px; border: var(--border-w) solid var(--border-strong); border-radius: var(--radius-sheet); background: var(--bg); }
+  .ds-frame .ds-top { display: none; }
+  .ds-frame .ds-cols { grid-template-columns: minmax(0, 1fr); }
+  @media (max-width: 1023.98px) {
+    .ds-cols { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 639.98px) {
+    .ds-col { padding: var(--space-4) var(--space-3) var(--space-12); }
+    .ds-grid { grid-template-columns: minmax(0, 1fr); }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-loops" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3M18 3v4h-4M6 21v-4h4"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/></symbol>
+</svg>
+
+<header class="ds-top">
+  <h1>Castraferrum design system</h1>
+  <button class="btn" id="ds-phone-switch" type="button" aria-pressed="false">Phone width</button>
+</header>
+<main class="ds-cols" id="ds-desk">
+  <div class="ds-col" data-theme="light"><h1 class="ds-theme">Light</h1></div>
+  <div class="ds-col" data-theme="dark"><h1 class="ds-theme">Dark</h1></div>
+</main>
+<div class="ds-phone" id="ds-phone" hidden></div>
+
+<template id="ds-content">
+  <!-- App frame -->
+  <section class="ds-sec">
+    <h2>App frame</h2>
+    <p class="ds-cap">.app .topbar: hidden below 640px. Links: rest, hover, pressed, focus, active. Connection: ok, lost, database down.</p>
+    <div class="app">
+      <header class="topbar">
+        <a class="topbar-brand" href="#">Castraferrum</a>
+        <nav class="topbar-nav">
+          <a class="topbar-link is-on" href="#" aria-current="page">Loops <span class="count">7</span></a>
+          <a class="topbar-link is-hover" href="#">Repos <span class="count">4</span></a>
+          <a class="topbar-link is-pressed" href="#">Settings</a>
+          <a class="topbar-link is-focus" href="#">Focused</a>
+        </nav>
+        <div class="topbar-end">
+          <span class="conn is-ok">Connected</span>
+          <button class="iconbtn" type="button" aria-label="Theme"><svg class="icon"><use href="#i-gear"/></svg></button>
+        </div>
+      </header>
+    </div>
+    <div class="ds-row">
+      <span class="conn is-ok">Connected</span>
+      <span class="conn is-lost">Connection lost</span>
+      <span class="conn is-db-down">Database down</span>
+    </div>
+  </section>
+
+  <!-- Tab bar and navigation bar -->
+  <section class="ds-sec">
+    <h2>Tab bar and navigation bar</h2>
+    <p class="ds-cap">.navbar .tabbar: phone only (hidden from 640px; see "Phone width"). Tab: active, pressed, rest.</p>
+    <div class="ds-stage">
+      <div class="navbar">
+        <a class="navbar-back" href="#"><svg class="icon"><use href="#i-back"/></svg>Loops</a>
+        <span class="navbar-title">Issue backlog worker</span>
+        <div class="navbar-actions">
+          <button class="btn plain" type="button">Edit</button>
+          <button class="iconbtn" type="button" aria-label="More"><svg class="icon"><use href="#i-more"/></svg></button>
+        </div>
+      </div>
+      <nav class="tabbar">
+        <a class="tabbar-item is-on" href="#" aria-current="page"><svg class="icon"><use href="#i-loops"/></svg>Loops</a>
+        <a class="tabbar-item is-pressed" href="#"><svg class="icon"><use href="#i-folder"/></svg>Repos</a>
+        <a class="tabbar-item" href="#"><svg class="icon"><use href="#i-gear"/></svg>Settings</a>
+      </nav>
+    </div>
+  </section>
+
+  <!-- Page -->
+  <section class="ds-sec">
+    <h2>Page</h2>
+    <p class="ds-cap">.page .page-head .cols (two columns from 1024px) .actionbar (phone only, fixed bottom).</p>
+    <div class="ds-stage is-tall">
+      <div class="page">
+        <h1 class="large-title">Loops</h1>
+        <a class="backlink" href="#"><svg class="icon"><use href="#i-back"/></svg>Loops</a>
+        <div class="page-head">
+          <h1 class="page-title">Issue backlog worker <span class="pill s-run">Running</span></h1>
+          <button class="btn" type="button">Edit</button>
+          <button class="btn danger" type="button"><svg class="icon"><use href="#i-stop"/></svg>Stop loop</button>
+        </div>
+        <p class="page-desc">A fresh session every tick: backlog.js next, fix exactly one issue, check, release.</p>
+        <div class="page-meta"><span>acme-api</span><span>Every 30 minutes</span></div>
+        <div class="cols">
+          <div class="cols-main"><div class="card is-pad">Activity</div></div>
+          <div class="cols-side"><div class="card is-pad">Figures and settings</div></div>
+        </div>
+        <div class="actionbar">
+          <button class="btn lg block danger" type="button">Stop loop</button>
+        </div>
+      </div>
+    </div>
+    <div class="page is-narrow"><p class="page-desc">.page.is-narrow: the editor, settings, repos and loop settings pages.</p></div>
+  </section>
+
+  <!-- Banner -->
+  <section class="ds-sec">
+    <h2>Banner</h2>
+    <div class="ds-stack">
+      <div class="banner"><span class="banner-text">Rest: <b>3 loops</b> run on this console.</span></div>
+      <div class="banner is-info"><svg class="icon"><use href="#i-help"/></svg><span class="banner-text">A new version is ready.</span><button class="btn sm" type="button">Reload</button></div>
+      <div class="banner is-warn"><svg class="icon"><use href="#i-alert"/></svg><span class="banner-text">The folder of acme-api is gone.</span></div>
+      <div class="banner is-err"><svg class="icon"><use href="#i-alert"/></svg><span class="banner-text">The database is down. Changes are not saved.</span></div>
+    </div>
+  </section>
+
+  <!-- Button -->
+  <section class="ds-sec">
+    <h2>Button</h2>
+    <p class="ds-cap">Rest, hover, pressed, focus, disabled. 36px tall, 44px on the phone.</p>
+    <div class="ds-row">
+      <button class="btn" type="button">Edit</button>
+      <button class="btn primary" type="button">Start</button>
+      <button class="btn danger" type="button">Stop</button>
+      <button class="btn danger-solid" type="button">Stop loop</button>
+      <button class="btn ghost" type="button">Cancel</button>
+      <button class="btn plain" type="button">Done</button>
+      <span class="ds-cap">rest</span>
+    </div>
+    <div class="ds-row">
+      <button class="btn is-hover" type="button">Edit</button>
+      <button class="btn primary is-hover" type="button">Start</button>
+      <button class="btn danger is-hover" type="button">Stop</button>
+      <button class="btn danger-solid is-hover" type="button">Stop loop</button>
+      <button class="btn ghost is-hover" type="button">Cancel</button>
+      <button class="btn plain is-hover" type="button">Done</button>
+      <span class="ds-cap">hover</span>
+    </div>
+    <div class="ds-row">
+      <button class="btn is-pressed" type="button">Edit</button>
+      <button class="btn primary is-pressed" type="button">Start</button>
+      <button class="btn danger is-pressed" type="button">Stop</button>
+      <button class="btn danger-solid is-pressed" type="button">Stop loop</button>
+      <button class="btn ghost is-pressed" type="button">Cancel</button>
+      <button class="btn plain is-pressed" type="button">Done</button>
+      <span class="ds-cap">pressed</span>
+    </div>
+    <div class="ds-row">
+      <button class="btn is-focus" type="button">Focused</button>
+      <button class="btn primary" type="button" disabled>Start</button>
+      <button class="btn" type="button" disabled>Disabled</button>
+      <span class="ds-cap">focus, disabled</span>
+    </div>
+    <div class="ds-row">
+      <button class="btn sm" type="button">Open run #69</button>
+      <button class="btn sm primary" type="button"><svg class="icon"><use href="#i-plus"/></svg>New loop</button>
+      <span class="ds-cap">.sm</span>
+    </div>
+    <div class="ds-stack">
+      <button class="btn lg block primary" type="button"><svg class="icon"><use href="#i-play"/></svg>Start</button>
+      <button class="btn lg block danger-solid" type="button">Stop loop</button>
+      <button class="btn lg block plain" type="button">Cancel</button>
+    </div>
+    <div class="ds-row">
+      <button class="iconbtn" type="button" aria-label="More"><svg class="icon"><use href="#i-more"/></svg></button>
+      <button class="iconbtn is-hover" type="button" aria-label="More"><svg class="icon"><use href="#i-more"/></svg></button>
+      <button class="iconbtn is-pressed" type="button" aria-label="More"><svg class="icon"><use href="#i-more"/></svg></button>
+      <button class="iconbtn bordered" type="button" aria-label="Copy"><svg class="icon"><use href="#i-copy"/></svg></button>
+      <button class="iconbtn bordered is-focus" type="button" aria-label="Copy"><svg class="icon"><use href="#i-copy"/></svg></button>
+      <span class="ds-cap">.iconbtn</span>
+    </div>
+    <div class="ds-row">
+      <button class="act start" type="button" aria-label="Start"><svg class="icon"><use href="#i-play"/></svg></button>
+      <button class="act stop" type="button" aria-label="Stop"><svg class="icon"><use href="#i-stop"/></svg></button>
+      <button class="act start is-pressed" type="button" aria-label="Start"><svg class="icon"><use href="#i-play"/></svg></button>
+      <button class="act stop is-hover" type="button" aria-label="Stop"><svg class="icon"><use href="#i-stop"/></svg></button>
+      <button class="act start is-focus" type="button" aria-label="Start"><svg class="icon"><use href="#i-play"/></svg></button>
+      <span class="ds-cap">.act: rest, pressed, hover, focus</span>
+    </div>
+  </section>
+
+  <!-- Status -->
+  <section class="ds-sec">
+    <h2>Status</h2>
+    <div class="ds-row">
+      <span class="pill s-run">Running</span>
+      <span class="pill s-ok">Succeeded</span>
+      <span class="pill s-fail">Failed</span>
+      <span class="pill s-fail">Timed out</span>
+      <span class="pill s-int">Stopped by server</span>
+      <span class="pill s-skip">Cancelled</span>
+      <span class="pill s-stop">Stopped</span>
+      <span class="pill s-warn">Folder is gone</span>
+      <span class="pill s-wait">Waiting</span>
+    </div>
+    <div class="ds-row">
+      <span class="dot d-ok"></span><span class="dot d-run"></span><span class="dot d-fail"></span><span class="dot d-warn"></span><span class="dot"></span>
+      <span class="pulse"></span>
+      <span class="ds-cap">.dot, .pulse (still under reduced motion)</span>
+    </div>
+  </section>
+
+  <!-- Inset list -->
+  <section class="ds-sec">
+    <h2>Inset list</h2>
+    <p class="ds-cap">Cells: rest, hover, pressed, selected, focus. Min 52px, 56px on the phone.</p>
+    <p class="group-cap">Loops</p>
+    <div class="group">
+      <div class="cell">
+        <div class="cell-main">
+          <span class="cell-title">Daily recap</span>
+          <span class="cell-row"><span class="pill s-wait">Waiting</span><span>next 14:30</span></span>
+          <span class="cell-meta is-one-line">acme-api · every 30 minutes · C:\Users\alice\work\acme-api</span>
+        </div>
+        <button class="act start" type="button" aria-label="Start"><svg class="icon"><use href="#i-play"/></svg></button>
+      </div>
+      <a class="cell is-hover" href="#"><div class="cell-main"><span class="cell-title">Scan API logs</span><span class="cell-meta">hover</span></div><svg class="chev icon"><use href="#i-chev"/></svg></a>
+      <a class="cell is-pressed" href="#"><div class="cell-main"><span class="cell-title">Nightly dependency check</span><span class="cell-meta">pressed</span></div><svg class="chev icon"><use href="#i-chev"/></svg></a>
+      <a class="cell is-sel" href="#" aria-current="true"><div class="cell-main"><span class="cell-title">Issue backlog worker</span><span class="cell-meta">selected</span></div><svg class="chev icon"><use href="#i-chev"/></svg></a>
+      <a class="cell is-focus" href="#"><div class="cell-main"><span class="cell-title">Release notes</span><span class="cell-meta">focus</span></div><svg class="chev icon"><use href="#i-chev"/></svg></a>
+    </div>
+    <p class="group-note">Archived loops are hidden.</p>
+    <div class="group">
+      <div class="cell"><span class="cell-title is-plain">Theme</span><span class="cell-value">System</span><svg class="chev icon"><use href="#i-chev"/></svg></div>
+      <div class="cell"><span class="cell-title is-plain">Version</span><span class="cell-value">0.1.0</span></div>
+      <a class="cell is-link" href="#">Show 6 more runs from this period</a>
+    </div>
+  </section>
+
+  <!-- Run cell -->
+  <section class="ds-sec">
+    <h2>Run cell</h2>
+    <div class="group">
+      <a class="cell" href="#">
+        <div class="cell-main">
+          <div class="run-top"><span class="run-id">#68</span><span class="pill s-ok">Succeeded</span><span class="run-meta">13:30 · 23:04 · $1.92</span></div>
+          <span class="cell-sum">Done with the "password reset email" issue: the sender must be verified first, and the link now expires after 30 minutes.</span>
+        </div>
+        <svg class="chev icon"><use href="#i-chev"/></svg>
+      </a>
+      <a class="cell" href="#">
+        <div class="cell-main">
+          <div class="run-top"><span class="run-id">#66</span><span class="pill s-fail">Failed</span><span class="run-meta">12:30 · 5:12 · $0.41</span></div>
+          <span class="cell-sum">No summary: the session ended with an error.</span>
+        </div>
+        <svg class="chev icon"><use href="#i-chev"/></svg>
+      </a>
+    </div>
+  </section>
+
+  <!-- Loops table -->
+  <section class="ds-sec">
+    <h2>Loops table</h2>
+    <p class="ds-cap">.ltable from 1024px; cells below. Rows: rest, hover, pressed, focus.</p>
+    <div class="toolbar">
+      <label class="search"><svg class="icon"><use href="#i-search"/></svg><input type="search" placeholder="Search loops" aria-label="Search loops"></label>
+      <div class="seg" role="group" aria-label="Filter"><button class="is-on" type="button">All</button><button type="button">Running</button><button type="button">Stopped</button></div>
+    </div>
+    <div class="ltable" role="table">
+      <div class="ltable-head" role="row"><span>Loop</span><span>Status</span><span>Schedule</span><span>Last run</span><span>Next run</span><span></span></div>
+      <a class="ltable-row" href="#" role="row">
+        <span class="ltable-name"><b>Issue backlog worker</b><span>acme-api</span></span>
+        <span class="ltable-cell"><span class="pill s-run">Running</span></span>
+        <span class="ltable-cell">Every 30 minutes</span>
+        <span class="ltable-cell"><b>#69</b> 0:42</span>
+        <span class="ltable-cell">14:30</span>
+        <span class="ltable-act"><button class="iconbtn" type="button" aria-label="Stop"><svg class="icon"><use href="#i-stop"/></svg></button></span>
+      </a>
+      <a class="ltable-row is-hover" href="#" role="row">
+        <span class="ltable-name"><b>Daily recap</b><span>notes</span></span>
+        <span class="ltable-cell"><span class="pill s-wait">Waiting</span></span>
+        <span class="ltable-cell">Every day at 08:00</span>
+        <span class="ltable-cell"><b>#12</b> 3:10</span>
+        <span class="ltable-cell">08:00</span>
+        <span class="ltable-act"><button class="iconbtn" type="button" aria-label="Start"><svg class="icon"><use href="#i-play"/></svg></button></span>
+      </a>
+      <a class="ltable-row is-pressed" href="#" role="row">
+        <span class="ltable-name"><b>Scan API logs</b><span>acme-api</span></span>
+        <span class="ltable-cell"><span class="pill s-stop">Stopped</span></span>
+        <span class="ltable-cell">Every hour</span>
+        <span class="ltable-cell"><b>#3</b> 1:02</span>
+        <span class="ltable-cell">-</span>
+        <span class="ltable-act"><button class="iconbtn" type="button" aria-label="Start"><svg class="icon"><use href="#i-play"/></svg></button></span>
+      </a>
+      <a class="ltable-row is-focus" href="#" role="row">
+        <span class="ltable-name"><b>Release notes</b><span>site</span></span>
+        <span class="ltable-cell"><span class="pill s-int">Stopped by server</span></span>
+        <span class="ltable-cell">Every Monday</span>
+        <span class="ltable-cell"><b>#7</b> 9:40</span>
+        <span class="ltable-cell">-</span>
+        <span class="ltable-act"><button class="iconbtn" type="button" aria-label="Start"><svg class="icon"><use href="#i-play"/></svg></button></span>
+      </a>
+    </div>
+  </section>
+
+  <!-- Card and figures -->
+  <section class="ds-sec">
+    <h2>Card and figures</h2>
+    <div class="summary">
+      <a class="summary-item" href="#"><b><span class="dot d-run"></span>2</b>Running</a>
+      <a class="summary-item" href="#"><b>3</b>Waiting</a>
+      <a class="summary-item" href="#"><b>1</b>Failed today</a>
+      <a class="summary-item" href="#"><b>$4.21</b>Spent today</a>
+    </div>
+    <div class="card">
+      <div class="now"><span class="pulse"></span><p class="now-text"><b>Run #69 is working.</b> Started at 14:00, 0:42 so far.</p><button class="btn sm" type="button">Open run #69</button></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="stat-label">Active for</div><div class="stat-value">4 h 13 m</div><div class="stat-sub">since Sun 09:47</div></div>
+      <div class="stat"><div class="stat-label">Runs since Start</div><div class="stat-value">10</div><div class="stat-sub">8 ok · 1 failed</div></div>
+      <div class="stat"><div class="stat-label">Next run</div><div class="stat-value">14:30</div><div class="stat-sub">in 29 min</div></div>
+      <div class="stat"><div class="stat-label">Typical run</div><div class="stat-value">18:47</div><div class="stat-sub">average of 9</div></div>
+    </div>
+    <div class="card is-pad"><b>Settings</b><span>A card with padding (.card.is-pad).</span></div>
+  </section>
+
+  <!-- Section head -->
+  <section class="ds-sec">
+    <h2>Section head</h2>
+    <p class="ds-cap">.help and .link: rest, hover, pressed, focus.</p>
+    <div class="section-head">
+      <h2>Recent runs</h2>
+      <button class="help" type="button" aria-label="Help"><svg class="icon"><use href="#i-help"/></svg></button>
+      <a class="link" href="#">All 69 runs <svg class="icon"><use href="#i-arrow"/></svg></a>
+    </div>
+    <div class="ds-row">
+      <button class="help is-hover" type="button" aria-label="Help"><svg class="icon"><use href="#i-help"/></svg></button>
+      <button class="help is-pressed" type="button" aria-label="Help"><svg class="icon"><use href="#i-help"/></svg></button>
+      <button class="help is-focus" type="button" aria-label="Help"><svg class="icon"><use href="#i-help"/></svg></button>
+      <a class="link is-hover" href="#">hover</a>
+      <a class="link is-pressed" href="#">pressed</a>
+      <a class="link is-focus" href="#">focus</a>
+    </div>
+  </section>
+
+  <!-- Log -->
+  <section class="ds-sec">
+    <h2>Log</h2>
+    <p class="ds-cap">Dark in both themes. Live (cursor) and paused (no cursor).</p>
+    <div class="card">
+      <div class="log">
+        <div class="log-bar"><span>Live output</span><span>following</span></div>
+        <div class="log-scroll">
+          <span class="log-line"><span class="log-time">14:00:00</span><span class="log-head">Start run #69 · session 1cd6970e-26f6</span></span>
+          <span class="log-line"><span class="log-time">14:00:12</span>Reading backlog.js</span>
+          <span class="log-line"><span class="log-time">14:00:31</span><span class="log-ok">Tests passed: 42</span></span>
+          <span class="log-line"><span class="log-time">14:00:40</span><span class="log-err">Error: rate limit reached</span></span>
+          <span class="log-line"><span class="log-time">14:00:42</span><span class="cursor"></span></span>
+        </div>
+      </div>
+    </div>
+    <div class="log">
+      <div class="log-bar"><span>Live output</span><span>paused</span></div>
+      <span class="log-line"><span class="log-time">13:53:04</span><span class="log-ok">End · Succeeded · $1.92</span></span>
+    </div>
+  </section>
+
+  <!-- Transcript -->
+  <section class="ds-sec">
+    <h2>Transcript</h2>
+    <div class="tx">
+      <div class="tx-bar"><span>Transcript · 48 entries</span><span>session 55418851</span></div>
+      <div class="tx-entry k-assistant"><div class="tx-head"><span class="tx-kind">assistant</span><span>14:00:03</span></div><div class="tx-body">I will take the next issue from the backlog.</div></div>
+      <div class="tx-entry k-tool"><div class="tx-head"><span class="tx-kind">Bash</span><span>14:00:04</span></div><div class="tx-body is-code">node scripts/backlog.js next</div><button class="tx-fold" type="button" aria-expanded="false"><svg class="icon"><use href="#i-chev"/></svg>Show 12 lines</button></div>
+      <div class="tx-entry k-think"><div class="tx-head"><span class="tx-kind">thinking</span></div><div class="tx-body is-think">The sender must be verified first.</div><button class="tx-fold" type="button" aria-expanded="true"><svg class="icon"><use href="#i-chev"/></svg>Hide</button></div>
+      <div class="tx-entry k-tool is-err"><div class="tx-head"><span class="tx-kind">Edit</span><span>14:00:09</span></div><div class="tx-body">File not found: src/mail.ts</div></div>
+      <div class="tx-end">End of the transcript</div>
+    </div>
+  </section>
+
+  <!-- Fields -->
+  <section class="ds-sec">
+    <h2>Fields</h2>
+    <p class="ds-cap">Rest, hover, focus, error, disabled. 16px text everywhere; 36px tall, 44px on the phone.</p>
+    <div class="ds-grid">
+      <div class="field"><label class="label" for="f-name">Name</label><input class="input" id="f-name" value="Issue backlog worker"><p class="hint">Shown in the list.</p></div>
+      <div class="field"><span class="label">Hover</span><input class="input is-hover" value="15" aria-label="Hover"></div>
+      <div class="field"><span class="label">Focus</span><input class="input is-focus" value="15" aria-label="Focus"></div>
+      <div class="field"><span class="label">Every (minutes)</span><input class="input is-err" value="0" aria-invalid="true" aria-label="Every (minutes)"><p class="hint is-err">Enter a number from 1 to 59.</p></div>
+      <div class="field"><span class="label">Disabled</span><input class="input" value="acme-api" disabled aria-label="Disabled"><p class="hint is-warn">The folder of this repo is gone.</p></div>
+      <div class="field"><label class="label" for="f-agent">Agent</label><select class="select" id="f-agent"><option>Claude opus</option><option>Claude sonnet</option></select></div>
+    </div>
+    <div class="field"><label class="label" for="f-prompt">Prompt <span class="count">212 / 4000</span></label><textarea class="textarea" id="f-prompt">Run node scripts/backlog.js next - claim exactly one open issue.</textarea></div>
+    <div class="ds-row">
+      <label class="search is-hover"><svg class="icon"><use href="#i-search"/></svg><input type="search" placeholder="Search" aria-label="Search"></label>
+    </div>
+    <div class="ds-row">
+      <div class="seg" role="group" aria-label="Runs"><button class="is-on" type="button">All <span class="count">69</span></button><button class="is-hover" type="button">Failed <span class="count">3</span></button><button class="is-pressed" type="button">Today</button><button class="is-focus" type="button">Focused</button></div>
+    </div>
+    <div class="ds-row">
+      <div class="stepper"><button type="button" aria-label="Fewer">-</button><output>1</output><button type="button" aria-label="More">+</button></div>
+      <div class="stepper"><button type="button" aria-label="Fewer" disabled>-</button><output>1</output><button class="is-hover" type="button" aria-label="More">+</button></div>
+    </div>
+    <div class="ds-row">
+      <button class="chip is-on" type="button">Home</button>
+      <button class="chip" type="button">Desktop</button>
+      <button class="chip is-hover" type="button">Documents</button>
+      <button class="chip is-pressed" type="button">work</button>
+      <button class="chip is-focus" type="button">Focused</button>
+    </div>
+    <div class="group">
+      <div class="fcell"><label class="label" for="f-pname">Name</label><input class="input" id="f-pname" value="Issue backlog worker"></div>
+      <div class="fcell"><label class="label" for="f-pprompt">Prompt</label><textarea class="textarea" id="f-pprompt">Run node scripts/backlog.js next</textarea><span class="count">33 / 4000</span></div>
+      <div class="cell"><span class="cell-title is-plain">Runs at the same time</span><div class="stepper"><button type="button" aria-label="Fewer">-</button><output>1</output><button type="button" aria-label="More">+</button></div></div>
+    </div>
+    <div class="card is-pad">
+      <p class="sched-desc">Every 30 minutes</p>
+      <ol class="next-runs"><li><span>Sun 18/10 14:30</span><span>in 29 min</span></li><li><span>Sun 18/10 15:00</span><span>in 59 min</span></li></ol>
+    </div>
+    <div class="form-foot"><button class="btn ghost" type="button">Cancel</button><button class="btn primary" type="button">Create loop</button></div>
+  </section>
+
+  <!-- Overlays -->
+  <section class="ds-sec">
+    <h2>Overlays</h2>
+    <p class="ds-cap">Menu items: rest, hover, pressed, chosen, danger, disabled, focus. Tooltip: above, below, end.</p>
+    <div class="ds-row">
+      <div class="menu" role="menu">
+        <button class="menu-item" type="button" role="menuitem">Open</button>
+        <button class="menu-item is-hover" type="button" role="menuitem">Duplicate</button>
+        <button class="menu-item is-pressed" type="button" role="menuitem">Edit</button>
+        <button class="menu-item is-on" type="button" role="menuitem">Sort by name</button>
+        <button class="menu-item is-focus" type="button" role="menuitem">Focused</button>
+        <hr>
+        <button class="menu-item is-danger" type="button" role="menuitem">Delete</button>
+        <button class="menu-item" type="button" role="menuitem" disabled>Archive (stop it first)</button>
+      </div>
+      <div class="popover" role="dialog"><b>A run</b> is one fresh Claude Code session that the schedule starts. <b>An active period</b> lasts from Start until Stop.</div>
+    </div>
+    <div class="ds-tipbox">
+      <span><button class="iconbtn bordered" type="button" aria-label="Copy session id"><svg class="icon"><use href="#i-copy"/></svg></button><span class="tooltip" role="tooltip">Copy session id</span></span>
+      <span><button class="iconbtn bordered" type="button" aria-label="Copy"><svg class="icon"><use href="#i-copy"/></svg></button><span class="tooltip is-below" role="tooltip">Below</span></span>
+      <span><button class="iconbtn bordered" type="button" aria-label="Copy"><svg class="icon"><use href="#i-copy"/></svg></button><span class="tooltip is-end" role="tooltip">Aligned to the end</span></span>
+    </div>
+    <p class="ds-cap">Sheet over a scrim (phone):</p>
+    <div class="ds-stage is-tall">
+      <div class="scrim"></div>
+      <div class="sheet" role="dialog" aria-label="Stop loop">
+        <span class="sheet-grab"></span>
+        <h2>Stop Issue backlog worker?</h2>
+        <p>Run #69 is cancelled and no new run starts.</p>
+        <div class="def"><b>Run</b><span>One fresh session that the schedule starts.</span></div>
+        <button class="btn lg block danger-solid" type="button">Stop loop</button>
+        <button class="btn lg block plain" type="button">Cancel</button>
+      </div>
+    </div>
+    <p class="ds-cap">Dialog (desktop), and the wide dialog:</p>
+    <div class="ds-stage">
+      <div class="scrim"></div>
+      <div class="dialog" role="dialog" aria-label="Stop loop">
+        <div class="dialog-head"><h2>Stop Issue backlog worker?</h2></div>
+        <div class="dialog-body">Run #69 is cancelled and no new run starts.</div>
+        <div class="dialog-foot"><button class="btn ghost" type="button">Cancel</button><button class="btn danger-solid" type="button">Stop loop</button></div>
+      </div>
+    </div>
+    <div class="ds-stage is-tall">
+      <div class="dialog is-wide" role="dialog" aria-label="Add repo">
+        <div class="dialog-head"><h2>Add repo</h2></div>
+        <div class="dialog-body">
+          <div class="picker">
+            <div class="picker-bar"><label class="search"><svg class="icon"><use href="#i-search"/></svg><input type="search" placeholder="Type a path" aria-label="Path"></label></div>
+            <div class="picker-places"><button class="chip is-on" type="button">Home</button><button class="chip" type="button">Desktop</button><button class="chip" type="button">C:\</button></div>
+            <div class="picker-list group">
+              <a class="cell" href="#"><svg class="icon"><use href="#i-folder"/></svg><span class="cell-title is-plain">notes</span></a>
+              <a class="cell is-sel" href="#"><svg class="icon"><use href="#i-folder"/></svg><span class="cell-title is-plain">acme-api</span><span class="tag git">git</span><span class="tag repo">repo</span></a>
+            </div>
+            <p class="picker-status">12 folders</p>
+            <div class="picker-target"><svg class="icon"><use href="#i-folder"/></svg><span>C:\Users\alice\work\acme-api</span></div>
+          </div>
+        </div>
+        <div class="dialog-foot"><button class="btn ghost" type="button">Cancel</button><button class="btn primary" type="button">Add repo</button></div>
+      </div>
+    </div>
+    <p class="ds-cap">Full-height sheet (phone folder picker):</p>
+    <div class="ds-stage is-tall">
+      <div class="fullsheet" role="dialog" aria-label="Choose a folder">
+        <div class="navbar"><button class="navbar-back" type="button">Cancel</button><span class="navbar-title">Choose a folder</span><div class="navbar-actions"><button class="btn plain" type="button">Add</button></div></div>
+        <div class="picker">
+          <div class="picker-places"><button class="chip is-on" type="button">Home</button><button class="chip" type="button">Desktop</button><button class="chip" type="button">Documents</button></div>
+          <div class="crumbs"><span>C:</span><span>/</span><span>Users</span><span>/</span><b>alice</b></div>
+          <div class="picker-list group">
+            <a class="cell" href="#"><svg class="icon"><use href="#i-folder"/></svg><span class="cell-title is-plain">work</span><svg class="chev icon"><use href="#i-chev"/></svg></a>
+            <a class="cell" href="#"><svg class="icon"><use href="#i-folder"/></svg><span class="cell-title is-plain">notes</span><span class="tag git">git</span></a>
+          </div>
+          <div class="picker-target"><svg class="icon"><use href="#i-folder"/></svg><span>C:\Users\alice\work</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Toast -->
+  <section class="ds-sec">
+    <h2>Toast</h2>
+    <div class="ds-stage">
+      <div class="toast-stack"><span class="toast">Session id copied</span><span class="toast is-err">Could not save the loop</span></div>
+    </div>
+  </section>
+
+  <!-- Misc -->
+  <section class="ds-sec">
+    <h2>Misc</h2>
+    <div class="ds-row">
+      <svg class="icon"><use href="#i-folder"/></svg><span class="tag git">git</span><span class="tag repo">repo</span>
+      <span class="crumbs"><span>Loops</span><span>/</span><b>Issue backlog worker</b></span>
+    </div>
+    <div class="group"><div class="empty"><b>No loops yet</b><span>Create one to start.</span></div></div>
+    <div class="group"><div class="empty is-err"><b>Could not load the loops</b><span>The server did not answer.</span></div></div>
+    <div class="ds-stack"><span class="skeleton is-line"></span><span class="skeleton is-block"></span></div>
+    <p class="note">Times are in Asia/Ho_Chi_Minh.</p>
+    <div class="cmd"><code>claude --resume 55418851-89d3</code><button class="iconbtn" type="button" aria-label="Copy"><svg class="icon"><use href="#i-copy"/></svg></button></div>
+    <pre class="code">Run node scripts/backlog.js next - claim exactly one open issue (skip issues labelled in-progress).</pre>
+    <div class="def"><b>Active period</b><span>From Start until Stop, or until the server shuts down.</span></div>
+    <ol class="steps">
+      <li class="step"><div><b>Add a repo</b>The folder the agent works in.</div></li>
+      <li class="step"><div><b>Create a loop</b>A prompt and a schedule.</div></li>
+      <li class="step"><div><b>Press Start</b>A fresh session every tick.</div></li>
+    </ol>
+  </section>
+</template>
+
+<script>
+  // Fills each theme column from the template; ?frame=1&theme=<t> draws one theme only (the phone frames).
+  const params = new URLSearchParams(location.search);
+  const frame = params.get('frame') === '1';
+  const content = document.getElementById('ds-content');
+  if (frame) {
+    const theme = params.get('theme') === 'dark' ? 'dark' : 'light';
+    document.documentElement.classList.add('ds-frame');
+    document.documentElement.setAttribute('data-theme', theme);
+    for (const col of document.querySelectorAll('.ds-col')) if (col.dataset.theme !== theme) col.remove();
+  }
+  for (const col of document.querySelectorAll('.ds-col')) col.appendChild(content.content.cloneNode(true));
+  const desk = document.getElementById('ds-desk');
+  const phone = document.getElementById('ds-phone');
+  const toggle = document.getElementById('ds-phone-switch');
+  toggle.addEventListener('click', () => {
+    const on = toggle.getAttribute('aria-pressed') !== 'true';
+    toggle.setAttribute('aria-pressed', String(on));
+    if (on && !phone.childElementCount) {
+      for (const theme of ['light', 'dark']) {
+        const f = document.createElement('iframe');
+        f.src = `index.html?frame=1&theme=${theme}`;
+        f.title = `Phone width, ${theme}`;
+        phone.appendChild(f);
+      }
+    }
+    phone.hidden = !on;
+    desk.hidden = on;
+  });
+</script>
+</body>
+</html>
