@@ -358,3 +358,59 @@ reviews them at U10, and U4 writes them into `SYSTEM.md`:
 Catalogue coverage 0/178 -> 178/178 (`tests/tools/ds-catalogue.test.ts`); measured component checks 0 -> 4 passing
 tests (`tests/visual/ds/system-page.visual.ts`); `css violations` 0 -> 0 with the file now present; required tokens
 140 -> 143, missing 0 -> 0. Tools: the two tests, `npm run design:lint`, `npm run design:tokens`.
+
+## U4
+
+### Ratchet
+
+Documented tokens (the count `tests/tools/ds-docs.test.ts` prints): `0/143` before, `143/143` after.
+
+### Red
+
+The docs test first, with no `design/ds/SYSTEM.md`.
+
+`npx vitest run --project unit tests/tools/ds-docs.test.ts`:
+
+```
+sections: 0/13
+component families: 0/19
+documented tokens: 0/143
+     × exists 5ms
+     × has a section for each part of the plan 6ms
+     × has a subsection for every component family of spec 4.5 3ms
+     × names the label design-system 1ms
+     × documents every required token 4ms
+AssertionError: design/ds/SYSTEM.md is missing or empty: expected 0 to be greater than 0
+AssertionError: design/ds/SYSTEM.md: missing sections: expected [ 'Principles', 'Tokens', …(11) ] to deeply equal []
+AssertionError: design/ds/SYSTEM.md: missing component families: expected [ 'App frame', 'Tab bar', …(17) ] to deeply equal []
+AssertionError: expected '' to contain '`design-system`'
+AssertionError: design/ds/SYSTEM.md: tokens not documented: expected [ '--bg', '--surface', …(141) ] to deeply equal []
+      Tests  5 failed (5)
+```
+
+### Green
+
+(1) The docs test (`--reporter=verbose`):
+
+```
+sections: 13/13
+component families: 19/19
+documented tokens: 143/143
+ ✓ |unit| tests/tools/ds-docs.test.ts > design/ds/SYSTEM.md > exists
+ ✓ |unit| tests/tools/ds-docs.test.ts > design/ds/SYSTEM.md > has a section for each part of the plan
+ ✓ |unit| tests/tools/ds-docs.test.ts > design/ds/SYSTEM.md > has a subsection for every component family of spec 4.5
+ ✓ |unit| tests/tools/ds-docs.test.ts > design/ds/SYSTEM.md > names the label design-system
+ ✓ |unit| tests/tools/ds-docs.test.ts > design/ds/SYSTEM.md > documents every required token
+      Tests  5 passed (5)
+```
+
+(2) `node scripts/lang-scan.mjs --path design`: `vietnamese: 0`.
+
+(3) `npm run verify` (exit code `0`): `ratchets: ok`; unit `Tests  466 passed | 2 skipped (468)`; contract
+`Tests  114 passed (114)`; api `Tests  115 passed (115)`; e2e `64 passed (9.7m)`; `UCs with a green e2e: 32/32`.
+Unit tests 461 -> 466 (the 5 docs tests).
+
+### Stub check
+
+`SYSTEM.md` cut to its first 80 lines: `sections: 2/13`, `component families: 0/19`, `documented tokens: 42/143`,
+`Tests  4 failed | 1 passed (5)`. An empty `SYSTEM.md`: `0/13`, `0/19`, `0/143`, `Tests  5 failed (5)`.

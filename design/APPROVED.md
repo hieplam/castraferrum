@@ -95,3 +95,25 @@ had no value, and each swallowed the declaration after it. Chosen values, which 
 `--surface-2`, `--border`, `--st-active` and `--log-text` take their written dark values again. All 92 dark shots
 were re-shot; no light shot changed. Evidence: `npm run design:tokens` reports 0 empty and 0 missing in dark, the
 hovered row (`--text` on `--surface-2`) reads at 12.88:1, and the classic visual tests pass against the new dark shots.
+
+## brainstorm 2026-10-21 - the UI uplift: look C "Soft studio", mobile-first, 2026-10-21
+
+The owner ran the brainstorm of the UI uplift (epic #63) on 2026-10-21 in two rounds. Round 1 offered three looks and two
+layouts; then the vision changed to mobile-first, because the next features focus on the iPhone. The owner chose:
+
+- **look C "Soft studio"**: a teal accent, rounded corners, Be Vietnam Pro for words and JetBrains Mono for numbers, ids
+  and logs;
+- **the paper light theme** ("a feeling like reading a book"), with a near-black green dark theme;
+- **pages** instead of the permanent list-and-detail split, because they fit a phone;
+- **"active period"** as the name of the span from Start to Stop (the API keeps `execution`);
+- **hotfix first**: the four empty dark tokens of the classic UI are fixed before the redesign (see the entry above).
+
+The owner approved round 2 as a whole. Owner's words: "I approve all".
+
+The approved reference is [`reference/`](reference/README.md): the exports of the brainstorm canvas (phone and desktop
+boards, light and dark, and the tokens sheet). The new design system in [`ds/`](ds/) follows it, with the four contrast
+adjustments of spec D2, so every pair passes WCAG AA with the new pressed state: light `--text-subtle` `#6b624f` becomes
+`#665d4a`; dark `--text-subtle` `#8a9a95` becomes `#94a49f`; dark `--selected` `#15403a` becomes `#133a34`; dark
+`--border-strong` `#6a7b75` becomes `#74867f`. Where the reference and
+[the spec](../docs/specs/2026-10-21-ui-uplift.md) differ, the spec wins. The rules of the new system are written in
+[`ds/SYSTEM.md`](ds/SYSTEM.md). The owner approves the system and its preview against this reference at task U10.
