@@ -740,3 +740,90 @@ checks of U5).
 - Gaps of the system, in castraferrum#112 (blocks U18, castraferrum#86): the stepper's number field, the repo
   combobox, a row of chips, a field cell with the value at the end, the editor's navigation bar, the prompt font, five
   effort values on the phone, the classic texts reused by the states without a board, and the time field's format.
+
+## U9
+
+### Ratchet
+
+New preview states: `99` before (`npm run design:states -- --design design/ds --no-shots` on `main` prints
+`states: 99/99 (shots not checked)`), `120` after (`states: 120/120 (shots not checked)`): 16 desktop and 5 phone
+added (the 14 `repos-*` and `vi-repos-*` states, `settings`, `settings-db-down`, and `phone-repos-list`,
+`phone-repos-add`, `phone-repos-delete-confirm`, `phone-settings`, `phone-vi-settings`). 120 is the count of spec
+section 5 (90 desktop and 30 phone states): the preview is complete.
+
+### Red
+
+The 21 rows of `design/ds/STATES.md` and the ids of `design/ds/preview/states.js` first, no draw function yet.
+`npm run design:shots -- --design design/ds --dry` (exit code `1`; the first of 42 lines, then the last):
+
+```
+  ✗ repos-list light: no draw function for state: repos-list · requires repo-table, shows 0 · requires repo-row*4, ...
+  ...
+drawn 120 states x 2 themes, 350 problems
+```
+
+The 42 lines name exactly the 21 new states, each in both themes: `phone-repos-add phone-repos-delete-confirm
+phone-repos-list phone-settings phone-vi-settings repos-add repos-add-denied repos-add-mac repos-add-notfound
+repos-delete-blocked repos-delete-confirm repos-empty repos-err-dup-name repos-err-dup-path repos-err-missing
+repos-list repos-loading settings settings-db-down vi-repos-add vi-repos-list`.
+
+### Green
+
+(1) `npm run design:shots -- --design design/ds --dry`: `drawn 120 states x 2 themes, 0 problems`, exit code `0`.
+
+(2) `npm run design:states -- --design design/ds --no-shots`: `states: 120/120 (shots not checked)`, equal to the
+count of spec section 5.
+
+(3) `npx vitest run --project unit shared/i18n/i18n.test.ts tests/tools/design-states.test.ts`:
+`Test Files  2 passed (2)`, `Tests  17 passed (17)`. 45 keys added to `en.ts` and `vi.ts`: the `repos.*`, `picker.*`
+and `settings.*` rows of Appendix B and `status.folderGone`.
+
+(4) `git diff --stat main -- design/preview design/STATES.md` prints nothing.
+
+(5) `reports/ds-preview/phone-repos-add-light.png` next to `design/reference/m-folder-light.png`: the full-height
+sheet with Cancel and "Add a repo" in its navigation bar, the path field `C:\Users\alice\work` with Up, quick access
+as chips with "work" on, the breadcrumb `C: › Users › alice › work`, the folder list (acme-api tagged git and "already
+a repo", the selected acme-tools with the rail, the other folders, `›` on each), "Tap a folder to choose it, tap › to
+open it.", the target line "Adds C:\Users\alice\work\acme-tools as acme-tools" and Add repo. It also shows what the
+spec adds to the board: Go, the filter, the show-hidden switch (one hidden folder, `.vs`) and the name field.
+`reports/ds-preview/phone-settings-light.png` next to `design/reference/m-settings-light.png`: the same groups in the
+same order (Appearance: Theme Automatic, Light, Dark with Automatic on, Language English and the Vietnamese option's own name; Connection:
+Server Connected and Database Answering with a green dot, Console address `http://192.168.1.20:7070`; This device: Add
+to Home Screen with how; About: Version `0.1.0`) above the tab bar with Settings on. The language options read their
+own names from their locale files, with `lang` and `data-raw`. They differ where the system has no rule for what the
+boards show (castraferrum#114): the paths, the address and the version are not in `--font-data`; the target line and
+Add repo scroll with the sheet instead of staying at its bottom; "Home folder" instead of "Home". Also looked at:
+`phone-repos-list` (next to `m-repos-light`: the four repos, "Folder is gone", the loop counts 5, 2, No loops, 1 loop,
+each with `⋯`), `repos-add` and `repos-err-dup-name` (desktop dialogs), `repos-add-denied`, `repos-delete-blocked`,
+`settings`, `phone-vi-settings` (dark), `phone-repos-delete-confirm` (dark).
+
+(6) `npm run verify`: exit code `0`: `ratchets: ok`; unit `Tests  472 passed | 2 skipped (474)`; contract
+`Tests  114 passed (114)`; api `Tests  115 passed (115)`; e2e `64 passed (9.2m)`; `UCs with a green e2e: 32/32`.
+
+### Stub check
+
+`repos-add` drawn as an empty string (`--only repos-add`), exit code `1`:
+
+```
+  ✗ repos-add light: requires folder-picker, shows 0 · requires repo-path, shows 0 · requires folder-list, shows 0 · ...
+drawn 1 states x 2 themes, 16 problems
+```
+
+An invented class, an inline colour or length and a key missing from the locale files fail the same dry run (the
+checks of U5).
+
+### Notes
+
+- Sample data: `data.js` gains `console` (the address Settings shows and the version of `package.json`). The folder
+  worlds are the classic ones: `repos-add` selects acme-tools on the Windows machine; `repos-add-mac` and
+  `repos-add-denied` draw the Mac's own console (its two repos, no loops), with dotfiles selected and `~/Desktop`
+  refused.
+- The loop counts are those of the sample loops: acme-api (old) shows 2 loops (Scan API logs for crashes and the
+  archived Old schedule test), where the board shows 1.
+- `repos-add-notfound` keeps the open folder as the target (the error comes from opening a typed path), so Add repo
+  stays on; `repos-err-missing`, `repos-err-dup-path` and `repos-err-dup-name` lock it.
+- `vi-settings` is the phone-only state `phone-vi-settings` (base `settings`, `lang: 'vi'`).
+- Gaps of the system, in castraferrum#114 (blocks U14, castraferrum#82, and U19, castraferrum#87): a switch, slots of
+  the picker for the breadcrumb, the filter, the switch and the path error, the picker's height in the dialog, a foot
+  for the name and Add repo, data in `--font-data`, the quick-access labels, the classic texts reused by the states
+  without a board, and the tab-root action (castraferrum#106).

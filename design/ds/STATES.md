@@ -148,3 +148,34 @@ separate id `phone-<id>` that draws its base state at 390 by 844. Open a state l
 | `form-edit-claude` | Haiku, low, 600 seconds | - |
 | `form-exec-mock` | Test mode: the Mock executor | - |
 | `vi-form-errors` | `form-errors` in Vietnamese | - |
+
+## Repos page (`repos`, route `/repos`)
+
+| id | State | Board |
+|---|---|---|
+| `repos-list` | The four sample repos, one whose folder is gone | - |
+| `phone-repos-list` | `repos-list` on the phone | `m-repos-light` |
+| `repos-empty` | No repo yet | - |
+| `repos-loading` | Skeleton | - |
+| `repos-add` | The folder picker open (a full-height sheet on the phone, a wide dialog on the desktop), a git folder selected, the name filled in | - |
+| `phone-repos-add` | `repos-add` on the phone | `m-folder-light` |
+| `repos-add-notfound` | A typed path that does not exist: the error under the path, the list keeps the open folder | - |
+| `repos-add-mac` | macOS places (Home, Desktop, Documents, Downloads), a registered folder tagged | - |
+| `repos-add-denied` | macOS refuses to read a folder: where to grant access, Retry | - |
+| `repos-err-dup-path` | The path is already registered | - |
+| `repos-err-dup-name` | The name is taken | - |
+| `repos-err-missing` | The folder does not exist | - |
+| `repos-delete-confirm` | Delete an unused repo (a dialog on the desktop, a sheet on the phone) | - |
+| `phone-repos-delete-confirm` | `repos-delete-confirm` on the phone | - |
+| `repos-delete-blocked` | Delete refused: the loops that use it | - |
+| `vi-repos-list` | `repos-list` in Vietnamese | - |
+| `vi-repos-add` | `repos-add` in Vietnamese | - |
+
+## Settings page (`settings`, route `/settings`)
+
+| id | State | Board |
+|---|---|---|
+| `settings` | Everything connected | - |
+| `phone-settings` | `settings` on the phone | `m-settings-light` |
+| `settings-db-down` | The database not answering | - |
+| `phone-vi-settings` | Settings in Vietnamese (phone only) | - |
