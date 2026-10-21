@@ -139,3 +139,49 @@ ratchets step on the pull request.
 Baselines recorded in `scripts/ratchets.json`: empty 4, missing in dark 8, classic contrast failures 1, native title 8,
 unknown classes 0, literal styles 0, e2e expects 712. Not in the JSON: phone overflow 12/12, design bytes 25456640,
 dynamic classes 4.
+
+## U1
+
+### Red
+
+`npm run design:tokens -- design/tokens.css --pairs design/contrast-pairs-classic.json` on `main` (exit code `1`):
+
+```
+design/tokens.css
+empty or swallowed: 4 (--surface --surface-sunken --st-skipped-soft --log-bg)
+missing in dark: 8 (--surface --surface-2 --surface-sunken --border --st-skipped-soft --st-active --log-bg --log-text)
+contrast dark --text on --surface-2: 1.10 < 4.5
+contrast pairs checked: 2
+contrast failures: 1
+```
+
+### Green
+
+(1) The same command after the four values (exit code `0`):
+
+```
+design/tokens.css
+empty or swallowed: 0
+missing in dark: 0
+contrast pairs checked: 2
+contrast failures: 0
+```
+
+The hovered-row pair, computed with `contrastRatio` of `scripts/design-tokens.mjs`:
+`dark --text #d9e0d2 on --surface-2 #181b16 : 12.88`.
+
+(2) `npm run ratchets` with the classic maxima at 0: `ratchets: ok` (exit code `0`).
+
+(3) `npm run design:shots -- --theme dark`: `shot 92 images → design/preview/shots/`.
+`git diff --stat main -- design/preview/shots`: `92 files changed`, every one a `-dark.png`; 0 light shots changed.
+92 of the 92 dark shots changed.
+
+(4) `npm run build`, then `npx playwright test --project visual`: `23 passed (4.9m)` (exit code `0`).
+
+(5) `npm run verify` (exit code `0`): `ratchets: ok`; unit `Tests  450 passed | 2 skipped (452)`; contract
+`Tests  114 passed (114)`; api `Tests  115 passed (115)`; e2e `60 passed (9.9m)`; `UCs with a green e2e: 32/32`.
+
+### Ratchet
+
+empty or swallowed 4 -> 0; missing in dark 8 -> 0; classic contrast failures 1 -> 0 (`scripts/ratchets.json`, classic
+entry). Tool: `npm run design:tokens`.
