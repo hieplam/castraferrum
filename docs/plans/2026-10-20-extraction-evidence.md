@@ -13,9 +13,9 @@ Numbers and commands only. Every task of docs/plans/2026-10-20-extraction.md app
   - api (vitest project api): 115 passed, 0 skipped, 0 failed
   - e2e (`npm run test:e2e`, playwright, includes the visual project): 58 passed, 0 skipped, 0 failed
 - `uc-coverage`: 32/32
-- Frozen issues (label `frozen`, all still open): #273 #274 #275 #276 #277 #145 #279
+- Frozen issues (label `frozen`, all still open): issues 273, 274, 275, 276, 277, 145 and 279
   (`gh issue list --label frozen --state all --limit 50` lists all seven)
-- Evidence folder (outside both repos): `C:\Users\lamhi\Downloads\repo\castraferrum-evidence`
+- Evidence folder (outside both repos): the `castraferrum-evidence` folder next to the clones
   - `before-app/shots`: 178 files
   - `before-preview`: 184 files
   - note: `design:compare` forces its own output folder (`design/compare`), so `LOOPS_COMPARE_OUT` could not be used; it was run normally and `design/compare/shots` was copied
@@ -33,11 +33,11 @@ Numbers and commands only. Every task of docs/plans/2026-10-20-extraction.md app
 
 ### Notes
 
-- On 2026-10-20 the container `loop_console_pg` was recreated once by a `docker compose up -d` run from a scratch worktree. The volume `loop_console_pg` was intact. It was recreated again from the main checkout, so the compose `working_dir` label is `C:\Users\lamhi\Downloads\repo\Cabal\loop-console` again. Its `Created` time changed.
+- On 2026-10-20 the container `loop_console_pg` was recreated once by a `docker compose up -d` run from a scratch worktree. The volume `loop_console_pg` was intact. It was recreated again from the main checkout, so the compose `working_dir` label is the main checkout of the source repo again. Its `Created` time changed.
 
 ## T1 - Language and coupling scanner
 
-Source repo PR: https://github.com/hieplam/Cabal/pull/289 (squash-merged as `d4fa724`).
+Source repo PR: source repo PR 289 (squash-merged as `d4fa724`).
 
 - Red: `npx vitest run --project unit tests/tools/lang-scan.test.ts` -> `Error: Cannot find module '../../scripts/lang-scan.mjs' imported from .../tests/tools/lang-scan.test.ts`.
 - Green: same command, 35 passed. `node scripts/lang-scan.mjs --tree --coupling` -> `vietnamese: 7799` (B), `coupling: 737` (C), `comment-lines: 2478`.
@@ -52,9 +52,9 @@ Source repo PR: https://github.com/hieplam/Cabal/pull/289 (squash-merged as `d4f
 
 ## T2 - English docs set
 
-Source repo PR: https://github.com/hieplam/Cabal/pull/290 (squash-merged as `54ad5b9`).
+Source repo PR: source repo PR 290 (squash-merged as `54ad5b9`).
 
-- Red: `git grep -nE "'\.\.', *'docs'|\.\./docs|docs/loop-console" -- scripts server tests web` listed 3 readers (`scripts/uc-coverage.mjs:13`, `server/adapters/executors/claude/claude-agent-executor.test.ts:714`, `tests/api/api-surface.test.ts:14`). `npm run uc-coverage -- --spec docs/USE-CASES.md` -> `Error: ENOENT ... loop-console\docs\USE-CASES.md`.
+- Red: `git grep -nE` with a pattern for the path-join form, the parent-folder form and the old console docs folder name, over `scripts server tests web` listed 3 readers (`scripts/uc-coverage.mjs:13`, `server/adapters/executors/claude/claude-agent-executor.test.ts:714`, `tests/api/api-surface.test.ts:14`). `npm run uc-coverage -- --spec docs/USE-CASES.md` -> `Error: ENOENT ... loop-console\docs\USE-CASES.md`.
 - Green:
   - same `git grep` -> prints nothing (exit 1). The executor test now builds the path from `join(root, 'docs', 'ARCHITECTURE.md')`.
   - `uc-coverage` -> `UC has e2e green: 32/32` (the script's own wording is still Vietnamese until T8), `--min 32` exit 0.
@@ -73,7 +73,7 @@ Source repo PR: https://github.com/hieplam/Cabal/pull/290 (squash-merged as `54a
 
 ## T15 - Tool fix: scanner false positive, loop gate runs --check-baseline
 
-Source repo PR: https://github.com/hieplam/Cabal/pull/291 (squash-merged as `c3b7760`). This repo: the PR that adds this section.
+Source repo PR: source repo PR 291 (squash-merged as `c3b7760`). This repo: the PR that adds this section.
 
 - Red (before building, source main `54ad5b9`):
   - `node scripts/lang-scan.mjs --path docs --list` -> 7 hits, all `[text/word] them` (`docs/ARCHITECTURE.md` x6, `docs/adr/0002-ports-and-adapters.md` x1).
@@ -86,9 +86,9 @@ Source repo PR: https://github.com/hieplam/Cabal/pull/291 (squash-merged as `c3b
   - `npm run verify` exit 0 on the branch (same tree as merged main): unit 418 passed / 2 skipped, contract 114, api 115, e2e 58, `uc-coverage` 32/32, `dependency-cruiser: 0`, `arch-fixtures: 25/25`.
   - `loop.mjs check 7 --dry-run` on the fixed scanner -> `PASS #7 (T2) via PR #23; vietnamese 7799 -> 7576, coupling 737 -> 688`, exit 0.
   - Same command with two Vietnamese lines temporarily added to `vite.config.ts` in the scratch worktree -> exit 1: `FAIL #7 (T2)`, `- scanner --check-baseline failed: ABOVE BASELINE: . vietnamese 75 > 73; baseline check: FAILED`. Reverted (`git checkout`).
-- Stub check: the new corpus test run against the old word list failed with `them` found in `CONTRIBUTING.md`, `shared/i18n/en.ts`, `docs/ARCHITECTURE.md` and `docs/adr/0002-ports-and-adapters.md` (first draft of the test also hit `pham`, `khi`, `theo` in a code span and in comments, so the corpus is English prose only: markdown without code spans, string literals of `en.ts`). After removing `them` only, the test passes.
+- Stub check: the new corpus test run against the old word list failed with `them` found in `CONTRIBUTING.md`, `shared/i18n/en.ts`, `docs/ARCHITECTURE.md` and `docs/adr/0002-ports-and-adapters.md` (first draft of the test also hit three more short unaccented Vietnamese words in a code span and in comments, so the corpus is English prose only: markdown without code spans, string literals of `en.ts`). After removing `them` only, the test passes.
 - Word-list change: one hash removed (`them`). No other token was found to be a word of the English corpus.
-- Extra fix: `CONTRIBUTING.md` quoted the rule marker `vi-pham` literally, which counted as a Vietnamese hit in `.` (74 > 73). The sentence now points to `scripts/arch-lib.mjs` instead, so `.` is 73 again.
+- Extra fix: `CONTRIBUTING.md` quoted the old rule marker literally, which counted as a Vietnamese hit in `.` (74 > 73). The sentence now points to `scripts/arch-lib.mjs` instead, so `.` is 73 again.
 - Scanner before -> after (`node scripts/lang-scan.mjs --tree --coupling`):
   - vietnamese (B): 7590 -> 7576 (`.` 76 -> 73, design 3017 -> 3016, scripts 196 -> 195, shared 406 -> 405, tests 1732 -> 1731, docs 7 -> 0)
   - coupling (C): 688 -> 688
@@ -98,7 +98,7 @@ Source repo PR: https://github.com/hieplam/Cabal/pull/291 (squash-merged as `c3b
 
 ## T3
 
-Source repo PR: https://github.com/hieplam/Cabal/pull/292 (squash-merged as `790764c`).
+Source repo PR: source repo PR 292 (squash-merged as `790764c`).
 
 - Red (before building; only the new UC-18 test written): `npm run build`, then `npx playwright test --grep "@UC-18"` -> `shell.spec.ts:124 expect(locator('html')).toHaveAttribute('lang', 'en')` fails with `unexpected value "vi"`; 1 failed, 1 passed (the untouched light/dark UC-18 test).
 - Green:
@@ -120,7 +120,7 @@ Source repo PR: https://github.com/hieplam/Cabal/pull/292 (squash-merged as `790
 
 ## T4
 
-Source repo PR: https://github.com/hieplam/Cabal/pull/293 (squash-merged as `f46ff21`). Extra issue filed: https://github.com/hieplam/castraferrum/issues/28 (live-Claude e2e flake).
+Source repo PR: source repo PR 293 (squash-merged as `f46ff21`). Extra issue filed: https://github.com/hieplam/castraferrum/issues/28 (live-Claude e2e flake).
 
 - Verify block sharpened: the plan's `git archive HEAD:design` needs the path from the git root, `git archive HEAD:loop-console/design | wc -c`; the Red/Green numbers below use that form.
 - Red (freeze `790764c`, before building): `git archive 790764c:loop-console/design | wc -c` -> `64921600` (tracked file bytes 64484847); `node scripts/lang-scan.mjs --path design` -> `vietnamese: 2209`, `comment-lines: 189`.
@@ -140,7 +140,7 @@ Source repo PR: https://github.com/hieplam/Cabal/pull/293 (squash-merged as `f46
 Root cause (measured, not guessed): the haiku model sometimes skips the tool call the prompt asks for. Load and parallelism are not the cause (`workers: 1`).
 - UC-27 transcripts (2 of 2 clean Red runs): tool_use only `echo one` and `echo two`, the third command `echo $RANDOM$RANDOM` was dropped, so the assertion `tool_use echo $RANDOM$RANDOM` got `undefined`.
 - UC-30 (failed run): the transcript has no tool_use at all, the model answered `STILL WAITING` straight away, so `summary` lacked `ALL DONE`.
-- Fix: both prompts now put the required call first and say that skipping it is a failure. Assertions unchanged. Source PR: https://github.com/hieplam/Cabal/pull/294
+- Fix: both prompts now put the required call first and say that skipping it is a failure. Assertions unchanged. Source PR: source repo PR 294
 
 Red (3 full `npx playwright test --project chromium` runs on main f46ff21, about 4.7 min each): run 1: 1 failed (UC-27, `Error: tool_use echo $RANDOM$RANDOM`, `Received: undefined`); run 2: same; run 3 was disturbed by my own concurrent invocation (3 failed: UC-30 with `Received string: "STILL WAITING"`, plus two unrelated ENOENT failures caused by the disturbance). UC-27 failed in 2 of 2 clean runs, UC-30 passed in both of those.
 
@@ -157,19 +157,19 @@ Honest note: 2 of the 7 full verify runs I made failed on a visual test unrelate
 
 ## T5
 
-Source repo PR: https://github.com/hieplam/Cabal/pull/295 (squash-merged as `87deae8`).
+Source repo PR: source repo PR 295 (squash-merged as `87deae8`).
 
 - Red (freeze `44b4eef`): `node scripts/lang-scan.mjs --path server` -> `vietnamese: 1562`, `comment-lines: 746`.
 - Green (merged main `87deae8`, same command): `vietnamese: 0`, `comment-lines: 748` (at least 0.9 x 746); `node scripts/lang-scan.mjs --check-baseline` -> `baseline check: ok`; `lang-baseline.json` now has no `server` entry under vietnamese.
 - `npm run verify` on the branch: exit 0 (first full run, no retries). unit 423 passed / 2 skipped, contract 114, api 115, e2e 58 passed (chromium + visual), uc-coverage `32/32`. Counts equal to T4/T0 or higher.
 - Stub check: the untouched tree keeps `vietnamese: 1562`; comments were rewritten, not deleted (748 vs 746); all tests kept (counts above unchanged), so deleting tests would fail the count check.
-- Scanner (`node scripts/lang-scan.mjs --tree --coupling`): before vietnamese 3056, coupling 459; after vietnamese 1480, coupling 459 (server 1562 -> 0, tests 604 -> 590, scripts unchanged). Coupling: one new `#255` reference introduced by the translation was removed again.
-- What changed: translated all of `server/`; migration files renamed `0001_luu_tru.sql` -> `0001_storage.sql`, `0003_song_song.sql` -> `0003_parallel.sql` (journal tags updated, `when` unchanged; the trigger message in `0003` is now English); runtime texts (log lines, skip reasons, API error messages) are English and `tests/support/server-text.ts` plus the API/contract tests and `scripts/api-smoke.mjs` that matched old text were updated.
+- Scanner (`node scripts/lang-scan.mjs --tree --coupling`): before vietnamese 3056, coupling 459; after vietnamese 1480, coupling 459 (server 1562 -> 0, tests 604 -> 590, scripts unchanged). Coupling: one new issue reference introduced by the translation was removed again.
+- What changed: translated all of `server/`; the two migration files with Vietnamese names were renamed to `0001_storage.sql` and `0003_parallel.sql` (journal tags updated, `when` unchanged; the trigger message in `0003` is now English); runtime texts (log lines, skip reasons, API error messages) are English and `tests/support/server-text.ts` plus the API/contract tests and `scripts/api-smoke.mjs` that matched old text were updated.
 - Left for later tasks: test names and fixture text in `tests/` (T7); `web/api/fake-loops-api.ts` still names duplicates with the Vietnamese suffix (T6); `tests/support/service-kit.ts` Vietnamese defaults (T7).
 
 ## T6
 
-Source repo PR: https://github.com/hieplam/Cabal/pull/296 (squash-merged as `19c67b1`).
+Source repo PR: source repo PR 296 (squash-merged as `19c67b1`).
 
 - Red (freeze `87deae8`): `node scripts/lang-scan.mjs --path shared` -> `vietnamese: 92`, `comment-lines: 194`; `--path web` -> `vietnamese: 578`, `comment-lines: 481`.
 - Green (merged main `19c67b1`, same commands): `--path shared` -> `vietnamese: 0`, `comment-lines: 194`; `--path web` -> `vietnamese: 0`, `comment-lines: 481` (both at least 0.9 x before); `node scripts/lang-scan.mjs --check-baseline` -> `baseline check: ok`; `lang-baseline.json` no longer has `shared` or `web` under vietnamese.
@@ -180,18 +180,18 @@ Source repo PR: https://github.com/hieplam/Cabal/pull/296 (squash-merged as `19c
 
 ## T7
 
-Source repo PR: https://github.com/hieplam/Cabal/pull/297 (squash-merged as `632ad0f`).
+Source repo PR: source repo PR 297 (squash-merged as `632ad0f`).
 
 - Red (main `19c67b1`): `node scripts/lang-scan.mjs --path tests` -> `vietnamese: 587`, `comment-lines: 774`; `--names` -> `vietnamese: 26`; `--path .dependency-cruiser.cjs` -> `vietnamese: 48`, `comment-lines: 13`. (The plan's "about 1 600" was stale after T5/T6; the measured start is 587.)
 - Green (branch, same commands): `--path tests` -> `vietnamese: 0`, `comment-lines: 774`; `--names` -> `vietnamese: 0`; `--path .dependency-cruiser.cjs` -> `vietnamese: 0`, `comment-lines: 13`; `--check-baseline` -> `baseline check: ok`.
 - `npm run verify` exit 0 (first full run, no flake): `dependency-cruiser: 0 <violations>`, `arch-fixtures: 25/25 <violations caught>` (script output still Vietnamese until T8), unit 423 passed / 2 skipped, contract 114, api 115, e2e 58 passed, `UCs with a green e2e: 32/32`. Counts at least T0.
 - Stub check: changing the marker regex in `scripts/arch-lib.mjs` to a different marker makes `tests/tools/arch-fixtures.test.ts` fail (`1 failed | 1 passed`, 25 undeclared violations); restored afterwards. Comments were rewritten not deleted (774 -> 774), UC tags and test counts unchanged.
 - Scanner (`node scripts/lang-scan.mjs --tree --coupling`): before vietnamese 806, coupling 459; after vietnamese 160, coupling 430 (tests 587 -> 0, root 72 -> 24, scripts 145 -> 134; tests coupling 75 -> 48).
-- What changed: 21 architecture rules renamed to English (`domain-only-pure-libraries`, `web-only-api-calls-network`, ...); marker `// vi-pham:` -> `// violates:`; 26 fixture files/folders renamed (`vi-pham-*` -> `violates-*`, `vong-a/b` -> `cycle-a/b`); the rule names in `docs/loop-console/ARCHITECTURE.md` updated. The script output strings asserted by `tests/tools/test-contract.test.ts` and `uc-coverage.test.ts` were translated in `scripts/test-contract.mjs` / `scripts/uc-coverage.mjs` (messages only; their comments stay for T8). The fake Claude query summary `xong` became `done`. `haiku-small.jsonl` prompt/answer text translated.
+- What changed: 21 architecture rules renamed to English (`domain-only-pure-libraries`, `web-only-api-calls-network`, ...); the old Vietnamese violation marker became `// violates:`; 26 fixture files/folders were renamed to English names (`violates-*`, `cycle-a/b`); the rule names in the architecture document updated. The script output strings asserted by `tests/tools/test-contract.test.ts` and `uc-coverage.test.ts` were translated in `scripts/test-contract.mjs` / `scripts/uc-coverage.mjs` (messages only; their comments stay for T8). The fake Claude query summary, a Vietnamese word for "finished", became `done`. `haiku-small.jsonl` prompt/answer text translated.
 
 ## T8
 
-Source PR: https://github.com/hieplam/Cabal/pull/298 (merged as fbfd0d0).
+Source PR: source repo PR 298 (merged as fbfd0d0).
 
 Red (before building):
 - `node scripts/lang-scan.mjs --path scripts --coupling`: `vietnamese: 134`, `coupling: 7`; root configs: vietnamese 24 (`.`) + 2 (`pg-init`).
@@ -212,7 +212,7 @@ Scanner (`--tree --coupling`): before `vietnamese: 160`, `coupling: 430`; after 
 
 ## T9
 
-Source PR: https://github.com/hieplam/Cabal/pull/299 (squash-merged as `24bfd2d`).
+Source PR: source repo PR 299 (squash-merged as `24bfd2d`).
 
 - Local scan file fix: `.lang-scan.local.json` held `\b` with a single backslash, which JSON reads as a backspace, so the owner-specific patterns never matched. Rewritten with `\b` (owner file, gitignored, fixed in the main checkout too).
 - Red (freeze `fbfd0d0`, fixed local file): `node scripts/lang-scan.mjs --tree --coupling` -> `coupling: 451` (was 421 with the broken file; design 94, docs 2, server 178, shared 29, tests 54, web 94), `vietnamese: 0`.
@@ -224,7 +224,7 @@ Source PR: https://github.com/hieplam/Cabal/pull/299 (squash-merged as `24bfd2d`
 
 ### T9 attempt 2
 
-Source PR: https://github.com/hieplam/Cabal/pull/300 (squash-merged).
+Source PR: source repo PR 300 (squash-merged).
 
 - Gap: the transcript fixture still held the owner's Windows user name (16 times) in `ls -la` output and in Claude Code's encoded project folder form; the scanner saw neither (it also did not flag the fixture because the user name was not in the local pattern file).
 - Red: owner user name and account name added to the gitignored `.lang-scan.local.json` (main checkout too): `node scripts/lang-scan.mjs --tree --coupling` -> `coupling: 3`; independent `git grep -ciE '<owner words>' -- loop-console` listed the fixture with 3 lines.
@@ -257,3 +257,21 @@ Import PR: https://github.com/hieplam/castraferrum/pull/39 (branch `feat/import`
 - Stub check: with hooks disabled (`-c core.hooksPath=/dev/null`) the content commit goes through (control); without `--history` the scratch repo scan prints `vietnamese: 0`, exit 0; the Red commits above all passed without the guardrails.
 - Scanner `--history --coupling` on the imported tree: before `vietnamese: 8`, `coupling: 6` (all in `docs/specs`, `docs/plans`, `tools/extraction-loop`: records of the move that must quote the words and name the old repo, and one diacritic already in the T9 section of this file); after `RECORD_PREFIXES` exemption `vietnamese: 0`, `coupling: 0` (path names there are still scanned). `lang-baseline.json` unchanged (already empty).
 - `npm run verify` in the worktree: exit 0. Unit 425 passed / 2 skipped (T0: 382; the new test covers the record-folder rule), contract 114, api 115, e2e 58, `UCs with a green e2e: 32/32`, arch-fixtures 25/25. All at least T0.
+
+## T17
+
+Guardrail: the move-record folder skip is gone; the history scan reads an exact allowlist; the records are scrubbed. Issue 40.
+
+- Goal: G1 and G7. Only `shared/i18n/vi.ts` is skipped everywhere; the only other exception is `--history` matching listed (blob, line, class) triples.
+- Red 1 (scanner with the folder skip removed and no allowlist, public patterns only): `--history --coupling` printed `vietnamese: 7` and `coupling: 24`; `--tree --names --coupling` printed `vietnamese: 6` and `coupling: 17`. (The issue guessed 6 coupling hits; the real number is larger because the skip also hid the old docs-folder references and home-path examples.)
+- Red 2 (scratch commit adding one Vietnamese line to a file under `docs/plans/`, on `main` before the change): `git commit` exit 0, the hook let it through.
+- Change: `RECORD_PREFIXES` and `COUPLING_EXEMPT_PREFIXES` removed from `scripts/lang-scan.mjs`; `scripts/lang-history-allowlist.json` holds 137 entries (42 text, 95 coupling), each `{ blob, line, kind }` with SHAs and numbers only, generated from `--history --coupling --list` (which now prints `blob=<sha>`); `scanLines` receives a blob only from the history scan. The move records were rewritten to describe the old names instead of quoting them, and source repo PR URLs became "source repo PR <number>"; facts and numbers are unchanged. `CONTRIBUTING.md` describes the new rule.
+- Green:
+  - `node scripts/lang-scan.mjs --tree --names --coupling`: vietnamese 0, coupling 0, with no folder skip in the code.
+  - `node scripts/lang-scan.mjs --history --coupling`: vietnamese 0, coupling 0, using only the allowlist.
+  - Scratch commit with one Vietnamese line under `docs/plans/` after the change: refused by the pre-commit hook (`docs: vietnamese 1`).
+  - `npx vitest run tests/tools/lang-scan.test.ts`: 40 passed. Four new tests in `history allowlist`: no folder skipped; exact (blob, line, class) skipped, wrong line or class flagged; the same text in a new blob at the same path and line flagged; `--tree` and `--staged` flag the text even with the allowlist present.
+- Stub check: with the allowlist match changed to ignore the blob (path-style matching), the new-blob test failed (`1 failed | 39 passed`); restored, 40 passed.
+- Scanner ratchet (`--tree --coupling`, baseline file unchanged, still empty): before 0 / 0 (with the skip), after 0 / 0 (without it). Tree without the skip before the scrub: 6 / 17.
+- `npm run verify` exit 0: unit 427 passed, 2 skipped; contract 114; api 115; e2e 58; uc-coverage 32/32.
+- PR: this pull request (the source repo has no change in T17).

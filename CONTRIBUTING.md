@@ -11,8 +11,8 @@ change lowers them, lower the baseline in the same pull request.
 
 The rule is enforced three ways. Git hooks in `.githooks/` (set up by `npm ci`, which runs the `prepare` script) refuse a
 commit whose staged file names, added lines or message contain Vietnamese. CI runs `node scripts/lang-scan.mjs --history --coupling`
-over every commit and, on pull requests, `--pr-event` over the title, body and branch name. The records of the move out of the
-source repo (`docs/specs/`, `docs/plans/`, `tools/extraction-loop/`) are the only folders whose contents are not scanned.
+over every commit and, on pull requests, `--pr-event` over the title, body and branch name. No folder is skipped. The only exceptions are the locale file and, for the `--history` check only, the
+exact (blob, line) pairs listed in `scripts/lang-history-allowlist.json`, which pin the known hits in old commits.
 
 ## Workflow
 
