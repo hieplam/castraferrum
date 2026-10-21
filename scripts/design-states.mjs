@@ -8,11 +8,15 @@
 // shared/domain/schedule.ts (schedule descriptions, warnings, cron errors, next runs — one source with the real code, the
 // preview never writes schedule sentences). When one is missing, a note says to run `npm run design:shots`.
 // Prints "states with shots: k/N" + what is missing; anything missing → exit 1.
-// Options: --design <folder> (default design/), --i18n <folder> (default shared/i18n/).
+// Options: --design <folder> (default design/; design/ds for the new preview), --i18n <folder> (default shared/i18n/),
+// --no-shots (only the state list both ways and the build output; prints "states: k/N (shots not checked)" — the new
+// preview has no shots until the owner approves it).
+// checkDrawn() is the dry-run check of `npm run design:shots -- --dry`: required test ids, unknown classes, inline styles.
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
+import { hasColourLiteral } from './design-tokens.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 export const DEFAULT_DESIGN = join(ROOT, 'design');
@@ -20,6 +24,7 @@ export const DEFAULT_I18N = join(ROOT, 'shared', 'i18n');
 export const THEMES = ['light', 'dark'];
 export const GENERATED = ['messages.js', 'schedule.js'];
 const MIN_PNG_BYTES = 10 * 1024;
+const LENGTH = /(^|[^\w.-])-?(\d+\.?\d*|\.\d+)(px|rem|em)\b/;
 const PNG_SIG = '89504e470d0a1a0a';
 
 /** State ids = first cell of every table row of STATES.md shaped `| \`list-empty\` | …`. */
@@ -114,7 +119,7 @@ function shotOk(file) {
  * byte for byte; a missing one only adds a note.
  * @param {{ designDir?: string, generated?: Record<string, string> }} [opts]
  */
-export function checkStates({ designDir = DEFAULT_DESIGN, generated = {} } = {}) {
+export function checkStates({ designDir = DEFAULT_DESIGN, generated = {}, shots = true } = {}) {
   const errors = [];
   const notes = [];
   const md = readFileSync(join(designDir, 'STATES.md'), 'utf8');
@@ -129,15 +134,16 @@ export function checkStates({ designDir = DEFAULT_DESIGN, generated = {} } = {})
   for (const [name, want] of Object.entries(generated)) {
     const file = join(designDir, 'preview', name);
     const source = name === 'schedule.js' ? 'shared/domain/schedule.ts' : 'shared/i18n';
-    if (!existsSync(file)) notes.push(`design/preview/${name} is missing (build output of ${source}) — run npm run design:shots`);
-    else if (readFileSync(file, 'utf8') !== want) errors.push(`design/preview/${name} is out of date with ${source} — run npm run design:shots`);
+    const shown = relative(ROOT, file).split('\\').join('/');
+    if (!existsSync(file)) notes.push(`${shown} is missing (build output of ${source}) — run npm run design:shots`);
+    else if (readFileSync(file, 'utf8') !== want) errors.push(`${shown} is out of date with ${source} — run npm run design:shots`);
   }
   const missing = [];
   let ok = 0;
   for (const id of new Set(ids)) {
     const why = [];
     if (!preview.includes(id)) why.push('the preview cannot draw it (not in states.js)');
-    for (const th of THEMES) {
+    for (const th of shots ? THEMES : []) {
       const bad = shotOk(join(designDir, 'preview', 'shots', `${id}-${th}.png`));
       if (bad) why.push(`${th} shot ${bad}`);
     }
@@ -147,15 +153,36 @@ export function checkStates({ designDir = DEFAULT_DESIGN, generated = {} } = {})
   return { ids: [...new Set(ids)], ok, missing, errors, notes };
 }
 
+/**
+ * Problems of one drawn page of the dry run. snap = what the page shows: { ids: { testid: visible count }, classes:
+ * [every class on an element], styles: [every inline style attribute] }. requires = ['id' | 'id*count']: an id without
+ * a count must be shown exactly once. known = the class names the design CSS defines.
+ * @param {{ ids: Record<string, number>, classes: string[], styles: string[] }} snap
+ * @param {{ requires?: string[], known: Set<string> }} opts
+ */
+export function checkDrawn(snap, { requires = [], known }) {
+  const out = [];
+  for (const r of requires) {
+    const [id, n] = r.split('*');
+    const want = n === undefined ? 1 : Number(n);
+    const got = snap.ids[id] ?? 0;
+    if (got !== want) out.push(`requires ${id}${n === undefined ? '' : '*' + n}, shows ${got}`);
+  }
+  for (const c of [...new Set(snap.classes)].sort()) if (!known.has(c)) out.push(`unknown class .${c}`);
+  for (const st of snap.styles) if (hasColourLiteral(st) || LENGTH.test(st)) out.push(`inline style with a literal: "${st}"`);
+  return out;
+}
+
 export async function main(argv = process.argv.slice(2)) {
-  const { values } = parseArgs({ args: argv, options: { design: { type: 'string' }, i18n: { type: 'string' } } });
-  const designDir = values.design ?? DEFAULT_DESIGN;
+  const { values } = parseArgs({ args: argv, options: { design: { type: 'string' }, i18n: { type: 'string' }, 'no-shots': { type: 'boolean' } } });
+  const designDir = values.design ? resolve(values.design) : DEFAULT_DESIGN;
+  const shots = !values['no-shots'];
   const generated = await generatedFiles({ designDir, i18nDir: values.i18n ?? DEFAULT_I18N });
-  const r = checkStates({ designDir, generated });
+  const r = checkStates({ designDir, generated, shots });
   for (const m of r.missing) console.log(`  missing: ${m.id} — ${m.why}`);
   for (const e of r.errors) console.log(`  error: ${e}`);
   for (const n of r.notes) console.log(`  note: ${n}`);
-  console.log(`states with shots: ${r.ok}/${r.ids.length}`);
+  console.log(shots ? `states with shots: ${r.ok}/${r.ids.length}` : `states: ${r.ok}/${r.ids.length} (shots not checked)`);
   return r.missing.length || r.errors.length || !r.ids.length ? 1 : 0;
 }
 

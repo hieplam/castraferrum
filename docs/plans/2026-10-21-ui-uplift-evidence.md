@@ -414,3 +414,68 @@ Unit tests 461 -> 466 (the 5 docs tests).
 
 `SYSTEM.md` cut to its first 80 lines: `sections: 2/13`, `component families: 0/19`, `documented tokens: 42/143`,
 `Tests  4 failed | 1 passed (5)`. An empty `SYSTEM.md`: `0/13`, `0/19`, `0/143`, `Tests  5 failed (5)`.
+
+## U5
+
+### Ratchet
+
+New preview states: `0` before (`git ls-tree -r --name-only main -- design/ds/preview design/ds/STATES.md | wc -l` prints
+`0`), `24` after (`states: 24/24 (shots not checked)`): 16 desktop and 8 phone.
+
+### Red
+
+The 24 rows of `design/ds/STATES.md` and the ids of `design/ds/preview/states.js` first.
+
+(a) On `main`'s script, `npm run design:shots -- --design design/ds --dry` (exit code `1`):
+
+```
+TypeError [ERR_PARSE_ARGS_UNKNOWN_OPTION]: Unknown option '--design'
+```
+
+(b) With the option built and no draw function yet (exit code `1`; first and last lines of 48):
+
+```
+  ✗ frame-loading light: no draw function for state: frame-loading · requires list-loading, shows 0 · requires summary, shows 0 · requires topbar, shows 0
+  ✗ frame-loading dark: no draw function for state: frame-loading · requires list-loading, shows 0 · requires summary, shows 0 · requires topbar, shows 0
+  ...
+drawn 24 states x 2 themes, 244 problems
+```
+
+### Green
+
+(1) `npm run design:shots -- --design design/ds --dry`: `drawn 24 states x 2 themes, 0 problems`.
+
+(2) `npm run design:states -- --design design/ds --no-shots`: `states: 24/24 (shots not checked)`, exit code `0`.
+
+(3) `npx vitest run --project unit shared/i18n/i18n.test.ts tests/tools/design-states.test.ts`:
+`Test Files  2 passed (2)`, `Tests  17 passed (17)` (6 new: three for `--design` and `--no-shots`, three for the
+dry-run check `checkDrawn`).
+
+(4) `git diff --stat main -- design/preview design/STATES.md` prints nothing.
+
+(5) `reports/ds-preview/loops-overview-light.png` (next to `design/reference/d-loops-light.png`) and
+`reports/ds-preview/phone-loops-overview-dark.png` (next to `design/reference/m-loops-dark.png`). The desktop matches
+the board apart from the texts of spec Appendix B (it wins over the board). The phone differs where the system has no
+rule yet: the `+` sits under the large title, the repo filter wraps below the search. Both are in the design-system gap
+castraferrum#106, with the texts Appendix B lacks (the Loops table heads from the board, `row.lastTimedOut`).
+
+(6) `npm run verify` (exit code `0`): `ratchets: ok`; unit `Tests  472 passed | 2 skipped (474)`; contract
+`Tests  114 passed (114)`; api `Tests  115 passed (115)`; e2e `64 passed (9.6m)`; `UCs with a green e2e: 32/32`.
+Unit tests 466 -> 472.
+
+### Stub check
+
+`loops-overview` drawn as an empty string (`--only loops-overview,phone-loops-overview`), exit code `1`:
+
+```
+  ✗ loops-overview light: requires summary, shows 0 · requires stat-active-loops, shows 0 · requires stat-running-runs, shows 0 · requires stat-runs-today, shows 0 · requires stat-errors-24h, shows 0 · requires loop-row*7, shows 0 · requires list-search, shows 0 · requires topbar, shows 0
+```
+
+`loops-search-empty` with an invented class, an inline colour and length, and a key only in the draw code:
+
+```
+  ✗ loops-search-empty light: missing i18n key: loops.notAKey · requires list-no-match, shows 0 · unknown class .my-invented · inline style with a literal: "color:#ff0000;margin:4px"
+drawn 1 states x 1 themes, 4 problems
+```
+
+A key only in `en.ts` fails `vi.ts`'s `Record<MessageKey, string>` type and the i18n test "has one key set".

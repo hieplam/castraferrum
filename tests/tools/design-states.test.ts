@@ -1,8 +1,8 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { checkStates, loadDomain, messagesJs, readPreviewStates, readStateIds, scheduleJs } from '../../scripts/design-states.mjs';
+import { describe, expect, it, vi } from 'vitest';
+import { checkDrawn, checkStates, loadDomain, main, messagesJs, readPreviewStates, readStateIds, scheduleJs } from '../../scripts/design-states.mjs';
 
 // The smallest real PNG: the 8-byte signature + padding past the 10 KB threshold.
 const PNG = Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.alloc(11 * 1024)]);
@@ -83,5 +83,57 @@ describe('design-states', () => {
     expect(out.error['61 8 * * 1-5']?.en).toContain('61');
     expect(out.next['w']?.[0]).toEqual([1, '19/10', '08:30', 66558]); // Mon 19/10 08:30, in 18 h 29 min
     expect(out.next['bad']).toBeUndefined();
+  });
+
+  // The new preview (design/ds, UI uplift epic #63) is checked without shots until the owner approves it.
+  async function runMain(args: string[]) {
+    const lines: string[] = [];
+    const log = vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => { lines.push(a.join(' ')); });
+    try { return { code: await main(args), out: lines.join('\n') }; } finally { log.mockRestore(); }
+  }
+  const withData = (dir: string) => { writeFileSync(join(dir, 'preview', 'data.js'), 'window.PV = { loops: {}, many: [], schedules: [] };'); return dir; };
+
+  it('--design <folder> --no-shots: every id of STATES.md in states.js → "states: N/N (shots not checked)", exit 0', async () => {
+    const dir = withData(fixture(['a', 'phone-a'], ['a', 'phone-a'], []));
+    const r = await runMain(['--design', dir, '--no-shots']);
+    expect(r.out).toContain('states: 2/2 (shots not checked)');
+    expect(r.code).toBe(0);
+    rmSync(dir, { recursive: true });
+  });
+
+  it('--design <folder> --no-shots: a row the preview cannot draw is still missing, exit 1', async () => {
+    const dir = withData(fixture(['a', 'b'], ['a'], []));
+    const r = await runMain(['--design', dir, '--no-shots']);
+    expect(r.out).toContain('missing: b');
+    expect(r.out).toContain('states: 1/2 (shots not checked)');
+    expect(r.code).toBe(1);
+    rmSync(dir, { recursive: true });
+  });
+
+  it('--design <folder> without --no-shots still needs the shots', async () => {
+    const dir = withData(fixture(['a'], ['a'], []));
+    const r = await runMain(['--design', dir]);
+    expect(r.out).toContain('states with shots: 0/1');
+    expect(r.code).toBe(1);
+    rmSync(dir, { recursive: true });
+  });
+
+  describe('checkDrawn (the dry run of design:shots)', () => {
+    const known = new Set(['page', 'cell', 'pill', 's-run']);
+    it('a page that shows every required id with its count, known classes and no literal style → no problem', () => {
+      const snap = { ids: { summary: 1, 'loop-row': 7, topbar: 1 }, classes: ['page', 'cell', 'pill', 's-run'], styles: ['position:absolute;top:calc(100% + var(--space-1))'] };
+      expect(checkDrawn(snap, { requires: ['summary', 'loop-row*7', 'topbar'], known })).toEqual([]);
+    });
+    it('a draw function that returns nothing misses every required id', () => {
+      expect(checkDrawn({ ids: {}, classes: [], styles: [] }, { requires: ['summary', 'loop-row*7'], known }))
+        .toEqual(['requires summary, shows 0', 'requires loop-row*7, shows 0']);
+    });
+    it('a wrong count, an id shown twice, an invented class and an inline colour or length are problems', () => {
+      const snap = { ids: { 'loop-row': 6, summary: 2 }, classes: ['page', 'my-row'], styles: ['color:#fff', 'margin:4px', 'width:1.5rem'] };
+      expect(checkDrawn(snap, { requires: ['loop-row*7', 'summary'], known })).toEqual([
+        'requires loop-row*7, shows 6', 'requires summary, shows 2', 'unknown class .my-row',
+        'inline style with a literal: "color:#fff"', 'inline style with a literal: "margin:4px"', 'inline style with a literal: "width:1.5rem"',
+      ]);
+    });
   });
 });
