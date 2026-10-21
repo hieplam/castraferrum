@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": ["node"],
+    // tests import the .mjs scripts of scripts/ (types are inferred from JS; errors inside .mjs are not checked)
+    "allowJs": true,
+    "checkJs": false,
+    // the config files (vite, vitest, playwright, drizzle) import ./server/config.ts with its extension for the native config loader of Vite
+    "allowImportingTsExtensions": true
+  },
+  "include": ["server", "shared", "tests", "scripts", "*.ts"],
+  "exclude": ["tests/arch-fixtures"]
+}

@@ -1,0 +1,48 @@
+# Loop Console - use cases
+
+Thirty-two use cases describe what a person can see and do. Every row has an ID (`UC-NN`), a title with the
+action, and the observable result that proves it works. The IDs are stable: end-to-end tests carry the tag
+`@UC-NN`, and `npm run uc-coverage` counts the use cases that have at least one green e2e test (the project
+keeps this at 32/32).
+
+Terms used below:
+
+- **Loop**: a named prompt that runs on a schedule in one repository.
+- **Execution**: one Start-to-Stop span of a loop ("execution #k").
+- **Run**: one firing of the loop inside an execution ("run #N"); it can succeed, fail, be cancelled, time out,
+  be interrupted, or be skipped.
+
+| ID | Use case | Observable result |
+|---|---|---|
+| UC-01 | **Create a loop** - enter name, description, prompt, schedule, time zone, timeout and executor | The loop appears in the list in the Stopped state with the right schedule sentence; invalid input shows an error at the exact field and creates nothing in the database |
+| UC-02 | **Friendly schedule** - use the schedule builder | Choosing Mon, Wed, Fri at 08:30 stores `30 8 * * 1,3,5`; the sentence and the next five runs are correct; a malformed cron expression shows an error and cannot be saved |
+| UC-03 | **Browse the loop list** - per loop: name, short description, state, schedule sentence, how long the current execution has run, number of runs in it (succeeded / failed / cancelled / skipped), latest run, next run; overview bar: running loops, running runs, runs today, errors in 24 hours; search by name, filter by state (All / Running / Stopped / Archived) | Figures match the database; state, counters and "running for" **update within 2 seconds** without a page reload |
+| UC-04 | **Start** a stopped loop | A new execution (`#k+1`) exists in the database; the first run (`trigger = start`) begins immediately; the next run lands on the next cron tick after Start; a running loop has no Start button (the API refuses with `LOOP_ALREADY_ACTIVE`) |
+| UC-05 | **Stop** a running loop | A running run (if any) becomes `cancelled` within 5 seconds; the execution closes with `endReason = stopped` and `endedAt` = the click time; the loop is Stopped and no scheduled run fires |
+| UC-06 | **Loop detail** - info and figures, the running run with a **live log**, execution history, paged run history, configuration (prompt, executor) | A new log line shows within 1 second of the executor printing it; history matches the database; the longest execution is correct |
+| UC-07 | **Run detail** - state, timestamps, duration, session id, the prompt used, the full stored log, error or skip reason | The log is complete and in database order, also after the run finished; the session id matches the database |
+| UC-08 | **Execution detail** - start time, stop time, how long it ran, stop reason, number of runs, list of runs with the **session id** of each; copy the whole session-id list with one click; the API returns the list for analysis | The session-id list on screen = API `GET /executions/:id` = `SELECT session_id FROM runs WHERE execution_id = ...`; a cancelled run still has its session id |
+| UC-09 | **Edit a loop** - every field; a new schedule recomputes the next run; a new prompt or executor applies from the next run | A running run keeps its old snapshot; editing from two tabs at once gives the later save a conflict warning instead of a silent overwrite |
+| UC-10 | **Duplicate a loop** | The copy is named "... (copy)", is Stopped and opens in the edit form; it carries no executions or runs |
+| UC-11 | **Archive / restore a loop** - hidden from the default list, history kept | A running loop cannot be archived (Stop first); the "Archived" filter shows it again; restoring returns it to Stopped |
+| UC-12 | **Skip on overlap** - a tick arrives while the previous run is still going | There are never two `running` runs for one loop (the database enforces it, not only the code); a `skipped` row records the reason "run #N still running" |
+| UC-13 | **Timeout** | A run past `timeoutSec` becomes `timed_out` and the executor receives the stop signal; the loop keeps running and the next tick runs normally |
+| UC-14 | **Failed run** | An executor error makes the run `failed` with the error message; the loop keeps running, the next tick runs normally, the execution does not close |
+| UC-15 | **Server restart** | Loops, configuration and history survive; a run that was running at shutdown becomes `interrupted`; an open execution closes as `server_down` with `endedAt` within 10 seconds of the real shutdown; every loop is Stopped and **no run starts** until someone presses Start |
+| UC-16 | **Many loops at once** | Ten loops with one run each run at the same time; each loop's figures are correct; the UI stays smooth |
+| UC-17 | **Lost server connection** | The UI shows a "Connection lost, retrying" banner; when the server returns it reconnects and refreshes by itself, no reload needed |
+| UC-18 | **Language and light / dark mode** - English by default, Vietnamese one click away; light and dark (default follows the system) | A clean browser shows English (`lang="en"`) on every screen; switching language changes every text on the five screens and the choice survives a reload; no text lacks a translation (a test compares the `en` and `vi` key sets); switching mode applies the matching colour tokens |
+| UC-19 | **Register a repo** - enter a path (the name fills in) | The repo appears in the repo list; a missing directory, a duplicate path or a duplicate name shows an error at the field and writes nothing |
+| UC-20 | **Delete a repo** | With no loop using it, it disappears; with loops using it, deletion is refused and names the loops |
+| UC-21 | **Create / edit a Claude loop** - pick repo, Claude executor, model, effort, empty timeout | Saved exactly; defaults are opus / medium; a missing repo shows an error at the field |
+| UC-22 | **Real Claude run** | The run has a real `session_id`, `cost_usd` and a summary; `claude --resume <id>` inside the repo reopens the same session |
+| UC-23 | **Repo vanishes mid-flight** | The run is `failed` with the error "Repo does not exist", the loop keeps running, the next tick runs normally |
+| UC-24 | **No timeout** | A loop with an empty timeout: a run longer than 86 400 seconds is still `running` and never becomes `timed_out` |
+| UC-25 | **Repo on list and detail, filter by repo** | Each loop row shows its repo name; filtering by repo leaves only that repo's loops |
+| UC-26 | **Transcript of a running run** - open the screen of a running Claude run | Each entry (thinking, tool call, result, Claude text) appears at the bottom as it happens, each within 2 seconds of its `timestamp`; a second tab on the same run follows too; text is verbatim, never truncated |
+| UC-27 | **Transcript of a finished run, scroll up to load more** | Opening the screen shows the last page; scrolling up loads older entries to the start of the transcript; the entry count on screen equals the count from the `.jsonl` file; content that exists only in the transcript (tool results) is in no Postgres table |
+| UC-28 | **No transcript** - a skipped run, a run that failed before the session opened, or a missing file | The panel states the reason; the rest of the run screen works normally |
+| UC-29 | **Browse folders when registering a repo** - press **Browse...**, navigate by mouse or keyboard, **Select folder** | The path field receives the exact absolute path in canonical form and the name fills in; **+ Register** writes the right repo; typing a path that does not exist shows an error under the path bar and keeps the list; an already registered folder locks the Select button and names the repo |
+| UC-30 | **Run that waits for background tasks** - the agent starts a background command (for example `npm run verify`) and ends its turn to wait for the notification | The run stays `running` until Claude Code wakes the agent itself, the agent answers and the process exits by itself; the run screen shows Succeeded, the summary is the final text **after** the wake-up, the duration is at least the background command's time; the log has only the standard lifecycle lines; the session `.jsonl` ends with a `cost-state` line |
+| UC-31 | **Summary on the run row** - open loop detail or execution detail | Under each run row a line starting with the arrow mark shows the first non-empty line of `runs.summary`, cut at 80 code points with an ellipsis when longer or when more lines follow; hovering shows it in full; no summary shows a dash; a run where the agent chose to skip is still Succeeded and differs only in its text; the Latest runs table has no such line |
+| UC-32 | **Run N runs in parallel** - set **Max parallel runs** = 3 in the form, press Start, let ticks arrive; then edit it down to 2 while 3 runs are still going | The first 3 ticks (including the Start run) open 3 `running` runs at once; the 4th tick is `skipped` with "3 parallel runs in use (runs #1, #2, #3 still running)"; lowering to 2 does **not** cancel the 3 running runs, they finish (`succeeded`); a tick with 2 or more runs going is `skipped`, with 1 going it opens a new run; the database never holds more than N `running` runs (a trigger enforces it); Stop cancels every running run |
