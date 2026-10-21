@@ -9,6 +9,8 @@ the source was imported as one snapshot commit.
   [USE-CASES.md](docs/USE-CASES.md), [API.md](docs/API.md), [adr/](docs/adr/))
 - Spec: [docs/specs/2026-10-20-extraction.md](docs/specs/2026-10-20-extraction.md)
 - Plan: [docs/plans/2026-10-20-extraction.md](docs/plans/2026-10-20-extraction.md)
+- Design system: [design/README.md](design/README.md); the UI uplift (epic #63):
+  [spec](docs/specs/2026-10-21-ui-uplift.md), [plan](docs/plans/2026-10-21-ui-uplift.md)
 
 ## Language rule (non-negotiable)
 
@@ -25,6 +27,27 @@ Why: the repository is meant to be published, and no commit in its history may c
 History cannot be cleaned after the fact without rewriting it, so the rule is enforced on every commit:
 the hooks in `.githooks/` (installed by `npm ci` through the `prepare` script) run `node scripts/lang-scan.mjs --staged`
 and `--message`, and CI scans the whole history and each pull request's title, body and branch name.
+
+## Design system first (non-negotiable)
+
+Every UI change, however small (a button, a label, a colour, a gap, a new row), starts from the design system and
+stays inside it:
+
+- Read the system before you change the UI. The new system lives in `design/ds/` (`SYSTEM.md` first, then
+  `tokens.css` and `components.css`). Until the cut-over of the UI uplift (epic #63, task U25) the classic UI follows
+  the classic system in `design/` (start at `design/README.md`).
+- Use the existing tokens and components. Never write a colour, size, spacing or radius value, never add a class the
+  system does not define, never use a native `title` tooltip. From task U0 of epic #63 on, `npm run ratchets` (in
+  `verify` and CI) fails when you do.
+- If the system has no component, state or rule for what the change needs, do not invent one inline and do not let
+  it slip: open an issue labelled `design-system` (template "Design system gap") naming the gap and the feature that
+  needs it. Then either extend the system first (drawn in the design-system page and the preview, approved by the
+  owner in `design/APPROVED.md`) or block the feature on that issue.
+- Every pull request that touches `web/` or `design/` says in its body which components it used, or which
+  `design-system` issue it opened (the pull request template asks).
+
+Why: the classic UI drifted (native tooltips, hover-only actions, dark tokens with no value) because small changes
+skipped the system. The owner made this rule on 2026-10-21.
 
 ## Workflow
 
