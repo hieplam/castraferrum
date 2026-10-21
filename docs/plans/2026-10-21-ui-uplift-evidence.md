@@ -569,8 +569,8 @@ corrected values above.
 ### Notes
 
 - `loop-last-failed` draws "Scan API logs for crashes": it is the only sample loop that waits after a failed run (the
-  classic state drew "Check test coverage", whose run #105 is working, so the new now card would say "Run #105 is
-  working"). Its runs have no skipped run, so the state shows none, although spec 5.3 mentions one.
+  classic state drew "Check test coverage", whose run 105 is working, so the new now card would say that run is
+  working). Its runs have no skipped run, so the state shows none, although spec 5.3 mentions one.
 - Pushed pages (the loop page, All runs, loop settings, the active period page) show the navigation bar on the phone and
   no tab bar, as the boards do; `states.js` adds `tabbar` to the required ids of the tab-root states only.
 - Gaps of the system, in castraferrum#108 (blocks U16, castraferrum#84): a pager, a clamped prompt, the state of an
