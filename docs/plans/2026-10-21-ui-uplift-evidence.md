@@ -660,3 +660,83 @@ checks of U5).
 - Gaps of the system, in castraferrum#110 (blocks U17, castraferrum#85): the `.tx-fold` font and colour inside `.app`, a
   command that wraps, a scrolling transcript frame, the two `tx.lines` texts and the classic texts reused by the states
   without a board, and the `tx-entry` test id the state check counts.
+
+## U8
+
+### Ratchet
+
+New preview states: `74` before (`npm run design:states -- --design design/ds --no-shots` on `main` prints
+`states: 74/74 (shots not checked)`), `99` after (`states: 99/99 (shots not checked)`): 20 desktop and 5 phone added
+(the 20 states of spec 5.6 and `phone-form-new`, `phone-form-sched-daily`, `phone-form-sched-weekly`,
+`phone-form-errors`, `phone-form-repo-pick`).
+
+### Red
+
+The 25 rows of `design/ds/STATES.md` and the ids of `design/ds/preview/states.js` first, no draw function yet.
+`npm run design:shots -- --design design/ds --dry` (exit code `1`; the first of 50 lines, then the last):
+
+```
+  ✗ form-new light: no draw function for state: form-new · requires f-name, shows 0 · requires f-repo, shows 0 · ...
+  ...
+drawn 99 states x 2 themes, 644 problems
+```
+
+The 50 lines name exactly the 25 new states, each in both themes: `form-conflict form-duplicate form-edit-claude
+form-edit-running form-errors form-exec-mock form-loading form-new form-no-repos form-repo-pick form-repo-required
+form-saving form-sched-advanced form-sched-advanced-error form-sched-daily form-sched-hours form-sched-minutes-uneven
+form-sched-monthly-warn form-sched-weekly phone-form-errors phone-form-new phone-form-repo-pick phone-form-sched-daily
+phone-form-sched-weekly vi-form-errors`.
+
+### Green
+
+(1) `npm run design:shots -- --design design/ds --dry`: `drawn 99 states x 2 themes, 0 problems`, exit code `0`.
+
+(2) `npm run design:states -- --design design/ds --no-shots`: `states: 99/99 (shots not checked)`.
+
+(3) `npx vitest run --project unit shared/i18n/i18n.test.ts tests/tools/design-states.test.ts`:
+`Test Files  2 passed (2)`, `Tests  17 passed (17)`. 43 keys added to `en.ts` and `vi.ts`: the `editor.*` rows of
+Appendix B.
+
+(4) `git diff --stat main -- design/preview design/STATES.md` prints nothing.
+
+(5) `reports/ds-preview/phone-form-sched-daily-light.png` next to `design/reference/m-form-light.png`. It follows the
+board: the same sections in the same order (Details: Name, Repo with its value and chevron, Description with its hint,
+then "Every run happens in this folder: C:\Users\alice\work\acme-api"; Prompt: "What each run should do", the board's
+prompt and `184 / 20,000`; Schedule: Repeat, At, Time zone, then the card "Every day at 02:30", "stored as cron
+30 2 * * * · Asia/Ho_Chi_Minh" and the five next runs from Mon 19/10 02:30 "in 12 h 29 min" to Fri 23/10 "in 4 d 12 h";
+Agent: Model haiku, sonnet, opus with opus on; Effort with medium on; Runs at the same time with the stepper; Time
+limit per run, empty for none; Create loop in the action bar). It differs where the system has no rule for what the
+board shows (castraferrum#112): the stepper's number field fills its row, so the label "Runs at the same time" is
+squeezed; Repeat, At, Time zone and Time limit are field cells with the label above, not rows with the value at the
+end; the navigation bar shows a plain Cancel and the page keeps its `h1` "New loop"; the prompt is not set in
+`--font-data`; Effort shows the five values the app accepts, and "medium" overflows its segment; the time field shows
+"02:30 AM" in an English Chromium. Also looked at: `form-sched-daily` (desktop, `.page.is-narrow` with `.form-foot`),
+`form-repo-pick` (desktop menu, the gone folder's warning) and `phone-form-repo-pick` (sheet), `phone-form-errors`,
+`phone-form-sched-weekly` (seven chips, Mon, Wed and Fri on), `form-conflict`, `form-exec-mock`,
+`form-sched-advanced-error`, `vi-form-errors`.
+
+(6) `npm run verify`: exit code `0`: `ratchets: ok`; unit `Tests  472 passed | 2 skipped (474)`; contract
+`Tests  114 passed (114)`; api `Tests  115 passed (115)`; e2e `64 passed (9.4m)`; `UCs with a green e2e: 32/32`.
+
+### Stub check
+
+`form-sched-daily` drawn as an empty string (`--only form-sched-daily`), exit code `1`:
+
+```
+  ✗ form-sched-daily light: requires f-name, shows 0 · requires f-repo, shows 0 · requires f-prompt, shows 0 · ...
+drawn 1 states x 2 themes, 28 problems
+```
+
+An invented class, an inline colour or length and a key missing from the locale files fail the same dry run (the
+checks of U5).
+
+### Notes
+
+- Sample data: `data.js` gains `formSample` (the board's "Nightly dependency check", acme-api and its prompt) and the
+  schedule `daily0230` (`30 2 * * *`), so the next runs of `form-sched-daily` come from `shared/domain/schedule.ts`.
+- Edit states: `form-edit-running`, `form-conflict` (effort max) and `form-duplicate` edit "Issue backlog worker";
+  `form-edit-claude` edits "Digest upstream releases" with haiku, low and 600 seconds (`hint-f-timeout` shows 10 min).
+- The executor choice and the Mock fields show only in `form-exec-mock` (test mode).
+- Gaps of the system, in castraferrum#112 (blocks U18, castraferrum#86): the stepper's number field, the repo
+  combobox, a row of chips, a field cell with the value at the end, the editor's navigation bar, the prompt font, five
+  effort values on the phone, the classic texts reused by the states without a board, and the time field's format.

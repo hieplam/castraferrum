@@ -11,14 +11,17 @@ window.PV_SCREENS = [
   ['loop', 'Loop page', '/loops/:id, /loops/:id/runs, /loops/:id/settings', ['d-loop-light.png', 'd-loop-dark.png', 'm-loop-light.png', 'm-loop-dark.png', 'm-help-light.png', 'm-help-dark.png', 'm-stop-light.png', 'm-stop-dark.png']],
   ['period', 'Active period page', '/executions/:id', []],
   ['run', 'Run page', '/runs/:id', ['m-run-light.png', 'm-run-dark.png']],
+  ['form', 'Editor', '/loops/new, /loops/:id/edit', ['m-form-light.png']],
 ];
 (function () {
-  const PUSHED = ['loop', 'period', 'run'];
+  const PUSHED = ['loop', 'period', 'run', 'form'];
   const LOOP = ['loop-header', 'now-card', 'loop-figures', 'fig-active', 'fig-runs', 'fig-next', 'fig-typical'];
   const RUNNING = LOOP.concat('live-log', 'recent-runs', 'run-row*4', 'runs-help');
   const PERIOD = ['exec-header', 'back-to-loop', 'period-figures', 'copy-all', 'exec-runs', 'exec-api'];
   const RUN = ['run-header', 'run-facts', 'run-session', 'run-transcript', 'run-log'];
   const TX = ['run-transcript', 'run-transcript-scroll', 'tx-entry*11'];
+  const FORM = ['f-name', 'f-repo', 'f-prompt', 'sched-kind', 'sched-out', 'sched-next', 'f-model', 'f-effort', 'f-timeout', 'form-submit'];
+  const ERRORS = FORM.concat('form-errors', 'error-f-name', 'error-f-repo', 'error-f-prompt', 'error-f-timeout');
   const OVERVIEW = ['summary', 'stat-active-loops', 'stat-running-runs', 'stat-runs-today', 'stat-errors-24h', 'loop-row*7', 'list-search'];
   const desktop = [
     { id: 'frame-loading', screen: 'frame', title: 'First load: skeleton cells on the Loops page, figures -', requires: ['list-loading', 'summary'] },
@@ -75,10 +78,30 @@ window.PV_SCREENS = [
     { id: 'run-transcript-missing', screen: 'run', title: 'The session file is gone', requires: ['run-header', 'run-transcript-note', 'run-log'] },
     { id: 'run-transcript-no-session', screen: 'run', title: 'A run without a session (no transcript)', requires: ['run-header', 'run-transcript-note'] },
     { id: 'vi-run-transcript', screen: 'run', title: 'The transcript in Vietnamese', lang: 'vi', requires: ['run-transcript', 'run-transcript-scroll', 'tx-entry*5'] },
+    { id: 'form-new', screen: 'form', title: 'Defaults: no repo, every 30 minutes, Asia/Ho_Chi_Minh, opus, medium, no time limit', requires: FORM.concat('sched-minutes', 'sched-tz', 'f-max-concurrent', 'form-cancel') },
+    { id: 'form-sched-minutes-uneven', screen: 'form', title: 'Every 7 minutes: the uneven-gap warning', requires: FORM.concat('sched-minutes', 'sched-warn-unevenMinuteStep') },
+    { id: 'form-sched-hours', screen: 'form', title: 'Every 2 hours at minute 05', requires: FORM.concat('sched-hours', 'sched-at-minute') },
+    { id: 'form-sched-daily', screen: 'form', title: 'Every day at 02:30', requires: FORM.concat('sched-time', 'sched-desc', 'sched-next-when*5') },
+    { id: 'form-sched-weekly', screen: 'form', title: 'Mon, Wed, Fri at 08:30', requires: FORM.concat('sched-days', 'sched-day-1', 'sched-day-3', 'sched-day-5', 'sched-time') },
+    { id: 'form-sched-monthly-warn', screen: 'form', title: 'Day 31: the warning', requires: FORM.concat('sched-day', 'sched-time', 'sched-warn-missingMonthDay') },
+    { id: 'form-sched-advanced', screen: 'form', title: 'A cron with no built-in kind, with its description', requires: FORM.concat('sched-cron', 'sched-desc') },
+    { id: 'form-sched-advanced-error', screen: 'form', title: 'An invalid cron: the error, Save locked', requires: FORM.filter((x) => x !== 'sched-next').concat('sched-cron', 'sched-cron-error') },
+    { id: 'form-errors', screen: 'form', title: 'After Save: an error at each field and a summary', requires: ERRORS },
+    { id: 'form-saving', screen: 'form', title: 'Saving', requires: FORM },
+    { id: 'form-edit-running', screen: 'form', title: 'Editing a running loop: applies from the next run', requires: FORM.concat('form-edit-running') },
+    { id: 'form-conflict', screen: 'form', title: 'VERSION_CONFLICT: Reload or Overwrite', requires: FORM.concat('form-conflict', 'conflict-reload', 'conflict-overwrite') },
+    { id: 'form-duplicate', screen: 'form', title: 'The copy, stopped, its editor open', requires: FORM },
+    { id: 'form-loading', screen: 'form', title: 'Loading the loop', requires: ['form-loading'] },
+    { id: 'form-repo-required', screen: 'form', title: 'No repo chosen', requires: FORM.concat('error-f-repo') },
+    { id: 'form-no-repos', screen: 'form', title: 'No repo registered: Register a repo', requires: ['f-name', 'f-repo', 'repo-go-register', 'form-submit'] },
+    { id: 'form-repo-pick', screen: 'form', title: 'The repo picker open (menu on desktop, sheet on phone), a repo whose folder is gone', fixed: true, requires: ['f-repo', 'repo-opt-name*4', 'repo-manage'] },
+    { id: 'form-edit-claude', screen: 'form', title: 'Haiku, low, 600 seconds', requires: FORM.concat('hint-f-timeout') },
+    { id: 'form-exec-mock', screen: 'form', title: 'Test mode: the Mock executor', requires: FORM.filter((x) => x !== 'f-model' && x !== 'f-effort').concat('f-executor', 'f-duration', 'f-fail') },
+    { id: 'vi-form-errors', screen: 'form', title: 'form-errors in Vietnamese', lang: 'vi', requires: ERRORS },
   ];
   const PHONE = ['frame-loading', 'frame-disconnected', 'not-found', 'loops-empty', 'loops-overview', 'loops-repo-filter', 'loops-stop-confirm', 'vi-loops-overview',
     'loop-running', 'loop-last-failed', 'loop-never-run', 'loop-stop-confirm', 'loop-help', 'loop-menu', 'loop-runs', 'loop-settings', 'period-running',
-    'run-running', 'run-succeeded', 'run-transcript-running'];
+    'run-running', 'run-succeeded', 'run-transcript-running', 'form-new', 'form-sched-daily', 'form-sched-weekly', 'form-errors', 'form-repo-pick'];
   const byId = Object.fromEntries(desktop.map((s) => [s.id, s]));
   const phone = PHONE.map((id) => {
     const b = byId[id];
