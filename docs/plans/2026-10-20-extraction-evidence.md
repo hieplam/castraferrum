@@ -209,3 +209,15 @@ Green (after):
 Stub check: before the change every red above held (untouched tree keeps them); the default volume name was left at `loop_console_pg`, so the owner's data is not orphaned.
 
 Scanner (`--tree --coupling`): before `vietnamese: 160`, `coupling: 430`; after `vietnamese: 0`, `coupling: 421`. `lang-baseline.json` lowered (vietnamese `{}`).
+
+## T9
+
+Source PR: https://github.com/hieplam/Cabal/pull/299 (squash-merged as `24bfd2d`).
+
+- Local scan file fix: `.lang-scan.local.json` held `\b` with a single backslash, which JSON reads as a backspace, so the owner-specific patterns never matched. Rewritten with `\b` (owner file, gitignored, fixed in the main checkout too).
+- Red (freeze `fbfd0d0`, fixed local file): `node scripts/lang-scan.mjs --tree --coupling` -> `coupling: 451` (was 421 with the broken file; design 94, docs 2, server 178, shared 29, tests 54, web 94), `vietnamese: 0`.
+- Green (merged main, same command with the local file): `vietnamese: 0`, `coupling: 0`; `--names` also 0; `node scripts/lang-scan.mjs --check-baseline` -> `baseline check: ok`; `lang-baseline.json` now `{"vietnamese": {}, "coupling": {}}` (the one-time raise for the broken local file was not needed: 451 only ever existed in the working tree, the committed baseline went from 421-era values straight to empty).
+- `npm run verify`: first run exit 1, only the 6 visual tests failed (neutralised repo name `Atlas`, home folder `alice`, shortened ids in screenshots). `npm run design:shots` regenerated the shots (101 PNG files, data-only diff), second run exit 0: unit 423 passed / 2 skipped, contract 114, api 115, e2e 58, `UCs with a green e2e: 32/32`. Counts at least T0.
+- Stub check: deleting the fixture-holding tests would lower the count but drop unit/api/e2e totals below T0; the untouched tree keeps `coupling: 451`.
+- What changed: `Cabal` -> `Atlas` in fixtures; `lamhi`/`hiep`/`x` home folders -> `alice`; `LC-NN` and `#NNN` references removed from comments, headings and test names (reason kept in words, e.g. "the approved preview", "phase 2"); fixture issue numbers shortened; `Users/...` placeholders use `alice`. The T2 `git grep` for outside-folder readers prints nothing.
+- Scanner: before `vietnamese 0`, `coupling 451` (421 with the broken file); after `vietnamese 0`, `coupling 0`.
