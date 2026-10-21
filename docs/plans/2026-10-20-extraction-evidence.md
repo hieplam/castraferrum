@@ -232,3 +232,14 @@ Source PR: https://github.com/hieplam/Cabal/pull/300 (squash-merged).
 - Green: `coupling: 0`, `vietnamese: 0`, `--check-baseline` ok; independent `git grep -ciE 'lamhi|hieplam|claudebot|verifybot|cabal'` over `loop-console` prints nothing; `npm run verify` exit 0: unit 424 passed / 2 skipped, contract 114, api 115, e2e 58, `UCs with a green e2e: 32/32` (at least T0).
 - Stub check: a scanner without the encoded pattern fails the new carol/dave unit cases.
 - Scanner: before `vietnamese 0`, `coupling 3` (owner words in place); after `vietnamese 0`, `coupling 0`.
+
+## T10
+
+Check-only task, no source-repo PR. Export commit: `dd56bae4cfca49b53414e11885e40a91854af9b6` (source `main` HEAD, clean detached worktree, fresh `npm ci`, local pattern file present).
+
+- Red: not applicable (check-only; a failure goes back to the owning task). No failure occurred.
+- Green, scanner: `node scripts/lang-scan.mjs --tree --names --coupling` -> `vietnamese: 0`, `coupling: 0`; `--check-baseline` -> `baseline check: ok`. Before and after are the same (no edits): vietnamese 0 / coupling 0.
+- Green, `npm run verify`: exit 0. Unit 424 passed / 2 skipped, contract 114, api 115, e2e 58, `UCs with a green e2e: 32/32`, arch-fixtures 25/25 (all at least T0).
+- Green, independent grep: `git grep -ciE 'lamhi|lamhiep|hieplam|claudebot|verifybot|cabal' -- loop-console` prints nothing (no package-lock hash collisions either).
+- Green, size: `git ls-files loop-console | wc -l` = 538; `git archive HEAD:loop-console | wc -c` = 25 927 680 bytes; `git archive HEAD:loop-console/design | wc -c` = 23 552 000 (under 25 000 000).
+- Stub check: any skipped task leaves one of these off target (a remaining Vietnamese or owner-specific string fails the scan and grep; dropped tests fail the counts).
