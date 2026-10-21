@@ -221,3 +221,14 @@ Source PR: https://github.com/hieplam/Cabal/pull/299 (squash-merged as `24bfd2d`
 - Stub check: deleting the fixture-holding tests would lower the count but drop unit/api/e2e totals below T0; the untouched tree keeps `coupling: 451`.
 - What changed: `Cabal` -> `Atlas` in fixtures; `lamhi`/`hiep`/`x` home folders -> `alice`; `LC-NN` and `#NNN` references removed from comments, headings and test names (reason kept in words, e.g. "the approved preview", "phase 2"); fixture issue numbers shortened; `Users/...` placeholders use `alice`. The T2 `git grep` for outside-folder readers prints nothing.
 - Scanner: before `vietnamese 0`, `coupling 451` (421 with the broken file); after `vietnamese 0`, `coupling 0`.
+
+### T9 attempt 2
+
+Source PR: https://github.com/hieplam/Cabal/pull/300 (squash-merged).
+
+- Gap: the transcript fixture still held the owner's Windows user name (16 times) in `ls -la` output and in Claude Code's encoded project folder form; the scanner saw neither (it also did not flag the fixture because the user name was not in the local pattern file).
+- Red: owner user name and account name added to the gitignored `.lang-scan.local.json` (main checkout too): `node scripts/lang-scan.mjs --tree --coupling` -> `coupling: 3`; independent `git grep -ciE '<owner words>' -- loop-console` listed the fixture with 3 lines.
+- Change: generic coupling pattern for the encoded project folder (same neutral-name allowlist as home paths) with unit tests; fixture and test helpers use `alice` in both forms; JSONL still valid.
+- Green: `coupling: 0`, `vietnamese: 0`, `--check-baseline` ok; independent `git grep -ciE 'lamhi|hieplam|claudebot|verifybot|cabal'` over `loop-console` prints nothing; `npm run verify` exit 0: unit 424 passed / 2 skipped, contract 114, api 115, e2e 58, `UCs with a green e2e: 32/32` (at least T0).
+- Stub check: a scanner without the encoded pattern fails the new carol/dave unit cases.
+- Scanner: before `vietnamese 0`, `coupling 3` (owner words in place); after `vietnamese 0`, `coupling 0`.
