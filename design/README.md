@@ -1,8 +1,34 @@
 # Castraferrum - design
 
-The source of truth for the UI. Open any `.html` file straight in a browser (no server needed); add `?theme=dark` to
-`system/layout.html` for the dark set. **Start from [`preview/index.html`](preview/index.html)**: an index of every screen and
-state, with a light and a dark shot per state.
+The source of truth for the UI. Until the cut-over of the UI uplift (epic #63, task U25) this folder holds two design
+systems side by side:
+
+- **The new system** in [`ds/`](ds/), for the new UI (look C "Soft studio", mobile-first). It is the rule for every new
+  UI change. Start with [`ds/SYSTEM.md`](ds/SYSTEM.md), the written rules, then look at the approved reference
+  [`reference/`](reference/README.md).
+- **The classic system** (every other file of this folder, described below), for the classic UI that stays the default
+  until the cut-over. Its files are unchanged; a fix to the classic UI follows them.
+
+## The new system (`ds/`)
+
+| File | What it is | Used by |
+|---|---|---|
+| [`ds/SYSTEM.md`](ds/SYSTEM.md) | The written rules: principles, every token, type, contrast, interaction states, every component family, layout, content, accessibility, iOS, test ids, how to change the system and the checklist for UI pull requests | everyone who changes the UI; read it first |
+| [`reference/`](reference/README.md) | Exports of the brainstorm canvas the owner approved on 2026-10-21 (phone and desktop boards, the tokens sheet) | the ratified input; the system and its preview are built to match it |
+| [`ds/tokens.css`](ds/tokens.css) | Every token: colours (light and dark), type, space, sizes, radius, motion, layers, safe areas | the new UI |
+| [`ds/required-tokens.json`](ds/required-tokens.json), [`ds/contrast-pairs.json`](ds/contrast-pairs.json) | The token list and the contrast pairs `npm run design:tokens` checks | `verify`, CI |
+| [`ds/components.css`](ds/components.css) | Every component class, reading only tokens | the new UI |
+| [`ds/fonts.css`](ds/fonts.css) | Be Vietnam Pro and JetBrains Mono, self-hosted | the design-system page, the new UI |
+| [`ds/index.html`](ds/index.html) | The design-system page: every component in both themes side by side, and two phone frames (`?frame=1&theme=light\|dark`) | reference |
+
+The new preview (`ds/preview/`) is added by tasks U5 to U9 of the epic. A gap in the new system becomes an issue labelled
+`design-system`; see "How to change the system" in [`ds/SYSTEM.md`](ds/SYSTEM.md).
+
+## The classic system
+
+Open any `.html` file straight in a browser (no server needed); add `?theme=dark` to `system/layout.html` for the dark
+set. **Start from [`preview/index.html`](preview/index.html)**: an index of every screen and state, with a light and a
+dark shot per state.
 
 | File | What it is | Used by |
 |---|---|---|
@@ -23,7 +49,7 @@ committed: `npm run verify` writes it to `reports/compare/`, and `npm run design
 Rule: a component never writes a colour, font size or spacing value directly. A missing value becomes a token in `tokens.css`
 and an entry in `APPROVED.md` once the project owner approves it.
 
-## Preview files
+### Preview files
 
 | File | Role |
 |---|---|
@@ -38,7 +64,7 @@ UI text lives in `shared/i18n/vi.ts` and `en.ts`. Commands (run in `loop-console
 `states with shots: N/N` and exits 1 on a missing light or dark shot, a state the preview cannot draw, or a generated file that
 drifted from its source. To add a state: a row in `STATES.md`, an entry in `states.js`, a draw function in `preview.js`, then shoot.
 
-## Components added after the first set
+### Components added after the first set
 
 Each block sits at the end of `components.css`, reads only existing tokens and adds none. The decisions behind them are in
 [`STATES.md`](STATES.md) and the approvals in [`APPROVED.md`](APPROVED.md).
