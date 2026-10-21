@@ -243,3 +243,17 @@ Check-only task, no source-repo PR. Export commit: `dd56bae4cfca49b53414e11885e4
 - Green, independent grep: `git grep -ciE 'lamhi|lamhiep|hieplam|claudebot|verifybot|cabal' -- loop-console` prints nothing (no package-lock hash collisions either).
 - Green, size: `git ls-files loop-console | wc -l` = 538; `git archive HEAD:loop-console | wc -c` = 25 927 680 bytes; `git archive HEAD:loop-console/design | wc -c` = 23 552 000 (under 25 000 000).
 - Stub check: any skipped task leaves one of these off target (a remaining Vietnamese or owner-specific string fails the scan and grep; dropped tests fail the counts).
+
+## T11
+
+Import PR: https://github.com/hieplam/castraferrum/pull/39 (branch `feat/import`, merged with a merge commit so the import commit stays separate). Import commit message: `Import Castraferrum source (snapshot of Loop Console at the export commit)`, source `dd56bae4cfca49b53414e11885e40a91854af9b6`.
+
+- Import fidelity: first attempt (plain `git archive`) came out with CRLF line endings on this machine (`core.autocrlf=true`; `<commit>:loop-console` drops the source `.gitattributes`), which broke the API-table parser test. Re-done with `git -c core.autocrlf=false -c core.eol=lf archive`; all 538 blob hashes equal the source's (`comm` of the two `ls-tree -r` lists prints nothing).
+- Red (scratch clone of `main`, no guardrails, Vietnamese text built with `String.fromCodePoint`): a commit with the text as message exit 0; a commit staging a file that contains it exit 0; a commit staging a file named with it exit 0.
+- Green, hooks: fresh clone of the branch, `npm ci` (runs `prepare`, `core.hooksPath=.githooks`): the same three commits are refused, each exit 1 with the offending line printed (message `(commit message):1 [text/diacritic]`, content `note.txt:1 [text/diacritic]`, name `[name/diacritic]`).
+- Green, `--pr-event`: synthetic payloads with the text in the title, the body, the head branch each exit 1; an English payload exit 0.
+- Green, `--history`: scratch repo with one Vietnamese blob in an old, already-deleted commit: exit 1 (`vietnamese: 1`).
+- Green, CI on the import PR: run https://github.com/hieplam/castraferrum/actions/runs/39527374296, jobs `lang-scan` pass (10s), `checks` pass (1m44s).
+- Stub check: with hooks disabled (`-c core.hooksPath=/dev/null`) the content commit goes through (control); without `--history` the scratch repo scan prints `vietnamese: 0`, exit 0; the Red commits above all passed without the guardrails.
+- Scanner `--history --coupling` on the imported tree: before `vietnamese: 8`, `coupling: 6` (all in `docs/specs`, `docs/plans`, `tools/extraction-loop`: records of the move that must quote the words and name the old repo, and one diacritic already in the T9 section of this file); after `RECORD_PREFIXES` exemption `vietnamese: 0`, `coupling: 0` (path names there are still scanned). `lang-baseline.json` unchanged (already empty).
+- `npm run verify` in the worktree: exit 0. Unit 425 passed / 2 skipped (T0: 382; the new test covers the record-folder rule), contract 114, api 115, e2e 58, `UCs with a green e2e: 32/32`, arch-fixtures 25/25. All at least T0.
