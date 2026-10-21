@@ -139,6 +139,10 @@
   --size-col-status: 150px; --size-col-run: 130px; --size-col-next: 120px; --size-col-act: 92px;
   --size-summary-item: 220px;                       /* the desktop Loops table and summary */
   --size-cursor-w: 8px; --size-cursor-h: 15px; --blur-bar: 20px;   /* the log cursor, the translucent bars */
+  /* Added by U3 (non-colour, spec 4.2 last paragraph; reviewed by the owner at U10) */
+  --size-tip-arrow: 5px;       /* the tooltip arrow */
+  --size-stepper-value: 52px;  /* the value box of a stepper */
+  --size-tx-head: 140px;       /* the transcript entry head beside its body, from 1024px */
 
   /* Motion and layers */
   --dur-fast: 100ms; --dur-base: 180ms; --dur-sheet: 240ms; --ease: cubic-bezier(.2, .7, .2, 1);

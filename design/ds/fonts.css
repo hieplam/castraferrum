@@ -1,0 +1,10 @@
+/* Castraferrum - the design-system fonts (UI uplift, epic #63, task U3), self-hosted from the @fontsource packages
+   so the design-system page, the preview and the app draw the same glyphs with no network. Only the weights the
+   system uses (spec 4.2: --fw-regular to --fw-bold for words, up to semibold for data). */
+@import url("../../node_modules/@fontsource/be-vietnam-pro/400.css");
+@import url("../../node_modules/@fontsource/be-vietnam-pro/500.css");
+@import url("../../node_modules/@fontsource/be-vietnam-pro/600.css");
+@import url("../../node_modules/@fontsource/be-vietnam-pro/700.css");
+@import url("../../node_modules/@fontsource/jetbrains-mono/400.css");
+@import url("../../node_modules/@fontsource/jetbrains-mono/500.css");
+@import url("../../node_modules/@fontsource/jetbrains-mono/600.css");
