@@ -1,0 +1,169 @@
+/* Castraferrum - design-system tokens (UI uplift, epic #63; look C "Soft studio", approved on 2026-10-21).
+   The rules for using them: design/ds/SYSTEM.md. Every value comes from section 4 of
+   docs/specs/2026-10-21-ui-uplift.md (4.1 colours, 4.2 the rest); tests/tools/ds-tokens-spec.test.ts checks each one
+   against the spec, and `npm run design:tokens` checks the 63 contrast pairs of design/ds/contrast-pairs.json.
+   The set is picked with data-theme on <html>; [data-theme] on a child element draws a set inside a page.
+   No web font is loaded here: the app self-hosts its fonts. */
+
+/* ── Colours: light (the default set) ─────────────────────────── */
+:root, [data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #f3ecdc;               /* page background (paper) */
+  --surface: #faf6ec;          /* cards, lists, fields, bars */
+  --raised: #fffcf4;           /* menus, popovers, sheets, dialogs */
+  --hover: #ece4d2;            /* hover on pointer devices */
+  --pressed: #e6dcc6;          /* :active on every tappable element */
+  --selected: #dfece4;         /* the selected cell, the chosen chip */
+  --border: #e1d7c2;           /* separators, card edges */
+  --border-strong: #8a7e66;    /* control edges (fields, buttons) */
+
+  --text: #2b261e;
+  --text-muted: #57503f;       /* secondary text */
+  --text-subtle: #665d4a;      /* meta lines, captions */
+
+  --accent: #0f766e;           /* primary buttons, the selected rail, focus */
+  --accent-hover: #0b5f58;     /* primary button hover and pressed */
+  --accent-fg: #ffffff;        /* text on --accent */
+  --accent-text: #0b5f58;      /* links, the active tab, text buttons */
+  --focus: #0f766e;            /* the focus ring */
+
+  --tip-bg: #2b261e;
+  --tip-fg: #f7f1e3;
+  --scrim: rgba(43, 38, 30, .42);
+
+  --log-bg: #1d1a14;           /* log and transcript frames (dark in both themes) */
+  --log-text: #efe8d8;
+  --log-dim: #a59c88;          /* log times, folded lines */
+  --log-accent: #6fd8c6;       /* log head lines, tool names */
+  --log-ok: #a9d98f;           /* log success lines, assistant entries */
+  --log-err: #ff9a8a;
+
+  --run: #1d5aa8; --run-soft: #e2e9f2;     /* Running */
+  --ok: #2e6a26; --ok-soft: #e1e9d3;       /* Succeeded, Waiting, connected */
+  --err: #b0281f; --err-soft: #f5ded6;     /* Failed, Timed out, errors, Stop */
+  --on-err: #ffffff;                       /* text on a solid --err button */
+  --warn: #7f5300; --warn-soft: #f3e5c3;   /* warnings, Repo missing */
+  --int: #6c3da3; --int-soft: #ebe0ee;     /* Stopped by server, Interrupted */
+  --skip: #5a5f63; --skip-soft: #ebe4d4;   /* Skipped, Cancelled, Stopped */
+
+  --shadow-pop: 0 12px 32px rgba(43, 38, 30, .12), 0 0 0 var(--border-w) var(--border);
+  --shadow-sheet: 0 -8px 32px rgba(43, 38, 30, .18);
+  --shadow-tip: 0 6px 16px rgba(43, 38, 30, .18);
+}
+
+/* ── Colours: dark ────────────────────────────────────────────── */
+:root[data-theme="dark"], [data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0f1211;
+  --surface: #161b1a;
+  --raised: #1c2321;
+  --hover: #263230;
+  --pressed: #2c3936;
+  --selected: #133a34;
+  --border: #2c3835;
+  --border-strong: #74867f;
+
+  --text: #e7eeeb;
+  --text-muted: #a6b5b0;
+  --text-subtle: #94a49f;
+
+  --accent: #2dd4bf;
+  --accent-hover: #5eead4;
+  --accent-fg: #0f1211;
+  --accent-text: #5eead4;
+  --focus: #2dd4bf;
+
+  --tip-bg: #2a3533;
+  --tip-fg: #e7eeeb;
+  --scrim: rgba(0, 0, 0, .62);
+
+  --log-bg: #0a0d0c;
+  --log-text: #d5e2de;
+  --log-dim: #7f918c;
+  --log-accent: #5eead4;
+  --log-ok: #7bdc6b;
+  --log-err: #ff7d72;
+
+  --run: #8ab8ff; --run-soft: #14243a;
+  --ok: #7bdc6b; --ok-soft: #15260f;
+  --err: #ff7d72; --err-soft: #2f1513;
+  --on-err: #0f1211;
+  --warn: #f2cd55; --warn-soft: #29240d;
+  --int: #cfa8ff; --int-soft: #251b33;
+  --skip: #a3acb3; --skip-soft: #1d2123;
+
+  --shadow-pop: 0 12px 32px rgba(0, 0, 0, .6), 0 0 0 var(--border-w) var(--border);
+  --shadow-sheet: 0 0 0 var(--border-w) var(--border), 0 -8px 32px rgba(0, 0, 0, .6);
+  --shadow-tip: 0 0 0 var(--border-w) var(--border-strong), 0 8px 20px rgba(0, 0, 0, .5);
+}
+
+/* ── Type, space, size, radius, motion, layers (desktop; the phone block below overrides) ── */
+:root {
+  /* Type */
+  --font-ui: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;   /* words */
+  --font-data: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace; /* numbers, ids, times, paths, logs */
+  --fs-cap: 13px; --lh-cap: 18px;       /* captions, group headers, meta */
+  --fs-sm: 14px; --lh-sm: 20px;         /* secondary text, buttons */
+  --fs-body: 15px; --lh-body: 23px;     /* body */
+  --fs-h3: 16px; --lh-h3: 24px;         /* cell titles */
+  --fs-h2: 18px; --lh-h2: 26px;         /* section titles */
+  --fs-title: 24px; --lh-title: 32px;   /* page title */
+  --fs-large: 24px; --lh-large: 32px;   /* large title of a tab root */
+  --fs-num: 28px; --lh-num: 34px;       /* big figures */
+  --fs-data: 14px; --lh-data: 20px;     /* mono text */
+  --fs-field: 16px;                     /* every input, textarea and select */
+  --fs-tab: 12px; --lh-tab: 16px;       /* tab bar labels only */
+  --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600; --fw-bold: 700;
+  --track-tight: -0.02em; --track-snug: -0.01em;   /* titles */
+
+  /* Space: the only spacing values */
+  --space-0h: 2px; --space-1: 4px; --space-1h: 6px; --space-2: 8px; --space-2h: 10px; --space-3: 12px;
+  --space-3h: 14px; --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+  --space-12: 48px;
+
+  /* Radius and lines */
+  --radius-xs: 6px; --radius-ctl: 8px; --radius-card: 12px; --radius-sheet: 18px; --radius-pill: 999px;
+  --border-w: 1px; --rail-w: 3px; --focus-w: 2px; --focus-gap: 2px;
+
+  /* Sizes */
+  --size-icon-sm: 16px; --size-icon: 18px; --size-icon-md: 20px; --size-icon-lg: 24px; --size-icon-tab: 26px;
+  --size-dot: 7px; --size-pulse: 10px; --size-pill: 22px; --size-tag: 20px;
+  --size-control-sm: 30px; --size-control: 36px; --size-control-lg: 50px; --size-touch: 44px;
+  --size-topbar: 56px; --size-navbar: 52px; --size-tabbar: 56px; --size-row: 56px; --size-row-sm: 52px;
+  --size-grab-w: 36px; --size-grab-h: 5px;          /* sheet grabber */
+  --size-page: 1200px; --size-page-narrow: 720px; --size-side: 340px; --size-dialog: 440px; --size-dialog-wide: 720px;
+  --size-tip-wide: 340px; --size-menu: 220px;       /* widths */
+  --size-textarea: 150px; --size-log: 288px; --size-tx: 576px;   /* heights */
+  --size-col-status: 150px; --size-col-run: 130px; --size-col-next: 120px; --size-col-act: 92px;
+  --size-summary-item: 220px;                       /* the desktop Loops table and summary */
+  --size-cursor-w: 8px; --size-cursor-h: 15px; --blur-bar: 20px;   /* the log cursor, the translucent bars */
+
+  /* Motion and layers */
+  --dur-fast: 100ms; --dur-base: 180ms; --dur-sheet: 240ms; --ease: cubic-bezier(.2, .7, .2, 1);
+  --z-bar: 10; --z-pop: 30; --z-sheet: 40; --z-toast: 50;
+
+  /* iOS safe areas */
+  --safe-top: env(safe-area-inset-top, 0px); --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ── Phone: below 640px (a media query cannot read a custom property, so the breakpoint is literal) ── */
+@media (max-width: 639.98px) {
+  :root {
+    --fs-body: 16px; --lh-body: 24px;
+    --fs-h3: 17px;
+    --fs-h2: 20px; --lh-h2: 28px;
+    --fs-title: 26px;
+    --fs-large: 30px; --lh-large: 36px;
+    --fs-num: 24px; --lh-num: 30px;
+    --size-control: 44px;   /* controls are 44px tall on the phone */
+  }
+}
+
+/* ── Reduced motion: no durations ──────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms; --dur-base: 0ms; --dur-sheet: 0ms;
+  }
+}
