@@ -195,7 +195,7 @@ Source PR: https://github.com/hieplam/Cabal/pull/298 (merged as fbfd0d0).
 
 Red (before building):
 - `node scripts/lang-scan.mjs --path scripts --coupling`: `vietnamese: 134`, `coupling: 7`; root configs: vietnamese 24 (`.`) + 2 (`pg-init`).
-- `git grep -n "Loop Console" -- shared/i18n web/index.html package.json`: 6 matches.
+- `git grep -n "Loop Console" -- shared/i18n web/index.html package.json`: 10 matches.
 - `LOOPS_PG_VOLUME=scratch_pg docker compose config`: volume name stayed `name: loop_console_pg`.
 
 Green (after):
