@@ -1,0 +1,38 @@
+// Shared business errors: thrown by repositories / services, the entry layer maps `code` to an HTTP status (SPEC, API contract).
+// The UI translates by `code`, not by `message`.
+
+export type ErrorCode =
+  | 'VALIDATION_FAILED'
+  | 'LOOP_NOT_FOUND'
+  | 'LOOP_NAME_TAKEN'
+  | 'VERSION_CONFLICT'
+  | 'LOOP_ALREADY_ACTIVE'
+  | 'LOOP_NOT_ACTIVE'
+  | 'LOOP_ARCHIVED'
+  | 'LOOP_IS_ACTIVE'
+  | 'EXECUTION_NOT_FOUND'
+  | 'RUN_NOT_FOUND'
+  /** Phase 2: the repo registered for a loop. */
+  | 'REPO_NOT_FOUND'
+  | 'REPO_NAME_TAKEN'
+  | 'REPO_PATH_TAKEN'
+  /** Deleting a repo that loops still use (archived ones included) - `details.loops` = the names of those loops. */
+  | 'REPO_IN_USE'
+  /** Transcript: the turn has no session, or the JSONL file of the session was not found. */
+  | 'TRANSCRIPT_NOT_FOUND';
+
+export class DomainError extends Error {
+  readonly code: ErrorCode;
+  readonly details?: unknown;
+
+  constructor(code: ErrorCode, message: string, details?: unknown) {
+    super(message);
+    this.name = 'DomainError';
+    this.code = code;
+    this.details = details;
+  }
+}
+
+export function isDomainError(err: unknown, code?: ErrorCode): err is DomainError {
+  return err instanceof DomainError && (code === undefined || err.code === code);
+}

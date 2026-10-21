@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Castraferrum — Design system</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<style>
+/* CSS specific to the design-system page (not an app component) */
+body { padding: 0 0 64px; }
+.doc { max-width: 1560px; margin: 0 auto; padding: 0 32px; }
+.doc-head { padding: 32px 0 24px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+.doc-head h1 { margin: 0 0 4px; font: 600 28px/36px var(--font-sans); }
+.doc-head .brand { font-size: 13px; }
+.principles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); margin-top: 20px; }
+.principles div { background: var(--surface); padding: 12px 14px; font-size: 12.5px; color: var(--text-muted); }
+.principles b { display: block; color: var(--text); font-family: var(--font-mono); font-size: 12px; margin-bottom: 4px; }
+section { padding: 28px 0 8px; border-bottom: 1px solid var(--border); }
+section > h2 { margin: 0 0 16px; font: 600 12px/16px var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--accent); }
+section > h2 span { color: var(--text-faint); margin-left: 8px; text-transform: none; letter-spacing: 0; font-weight: 400; }
+.twin { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.box { background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; gap: 18px; }
+.box > .label { margin-bottom: -10px; }
+.stack { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.sw-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.sw { border: 1px solid var(--border); background: var(--surface); }
+.sw i { display: block; height: 40px; border-bottom: 1px solid var(--border); }
+.sw div { padding: 6px 8px; font: 11px/15px var(--font-mono); }
+.sw div span { color: var(--text-faint); display: block; }
+.type-row { display: grid; grid-template-columns: 170px 1fr; gap: 16px; align-items: baseline; padding: 8px 0; border-bottom: 1px dashed var(--border); }
+.type-row .label { margin: 0; }
+.scale { display: flex; gap: 14px; align-items: flex-end; }
+.scale div { text-align: center; font: 11px/14px var(--font-mono); color: var(--text-muted); }
+.scale i { display: block; background: var(--accent); margin: 0 auto 6px; }
+.radius-demo { width: 72px; height: 48px; border: 1px solid var(--border-strong); background: var(--surface); }
+.shell { border: 1px solid var(--border-strong); font: 12px/16px var(--font-mono); color: var(--text-muted); }
+.shell .r { display: grid; }
+.shell .cell { padding: 10px 12px; border-right: 1px dashed var(--border-strong); border-bottom: 1px dashed var(--border-strong); }
+.shell b { color: var(--text); }
+.routes td:first-child { color: var(--accent); }
+.inline-dialog { position: static; background: var(--scrim); padding: 28px; display: flex; justify-content: center; }
+</style>
+</head>
+<body>
+<div class="doc">
+  <header class="doc-head">
+    <span class="brand">Castraferrum</span>
+    <h1>Design system — direction C “Control room”</h1>
+    <div class="muted">One token file <span class="mono">design/tokens.css</span> · components <span class="mono">design/components.css</span> → copied verbatim into <span class="mono">web/ui/</span> when the app was built. Each section below draws the light and dark sets side by side.</div>
+    <div class="principles">
+      <div><b>01 · Mono is the main voice</b>Numbers, times, ids, labels, buttons and logs use IBM Plex Mono — columns line up and it reads like a control panel. Loop names and prose use IBM Plex Sans.</div>
+      <div><b>02 · The list is always there</b>The 520px left pane is the loop list on every screen; the right pane changes with the route. No context is lost when viewing details.</div>
+      <div><b>03 · The log is the centre</b>The log always has a dark background in both modes, like a terminal window embedded in the page.</div>
+      <div><b>04 · One accent colour</b>Amber = primary action + “Running”. Green / red / purple are only for run results. No decoration.</div>
+      <div><b>05 · Square, flat, information-dense</b>0–4px radius, no shadows except dialogs, 1px dividers. Status always has a glyph alongside colour.</div>
+    </div>
+  </header>
+
+  <section><h2>Colour <span>— semantic tokens, no raw colour codes</span></h2>
+    <div class="twin" id="colors"></div>
+  </section>
+
+  <section><h2>Type <span>— IBM Plex Sans + IBM Plex Mono, full Latin Extended coverage</span></h2>
+    <div class="twin" id="type"></div>
+  </section>
+
+  <section><h2>Spacing · radius · shadow</h2>
+    <div class="twin" id="space"></div>
+  </section>
+
+  <section><h2>Status <span>— glyph + colour, readable even when colour-blind</span></h2>
+    <div class="twin" id="status"></div>
+  </section>
+
+  <section><h2>Components</h2>
+    <div class="twin" id="comp"></div>
+  </section>
+
+  <section><h2>Layout <span>— AppShell = TopBar + SplitView</span></h2>
+    <div class="twin">
+      <div class="box">
+        <div class="label">Frame ≥ 1100px</div>
+        <div class="shell">
+          <div class="r" style="grid-template-columns:1fr"><div class="cell"><b>TopBar</b> 44px · ▍Castraferrum · 4 summary figures · EN/VI · light/dark · server, db lamps</div></div>
+          <div class="r" style="grid-template-columns:200px 1fr;height:230px">
+            <div class="cell"><b>List pane</b><br>fixed 520px<br><br>search + New loop<br>filter tabs<br>ListRow…<br><br>present on every route</div>
+            <div class="cell"><b>Main pane</b> (per route)<br>20px padding · content ≤ 1100px<br><br>PaneHeader: breadcrumb · title · status · actions<br>KvGrid figures<br>LogView / DataTable / form</div>
+          </div>
+        </div>
+        <div class="hint">Banners (connection lost, load error) sit right under the TopBar, full width. Dialogs are centred on the screen over a scrim.</div>
+      </div>
+      <div class="box">
+        <div class="label">Route → main pane</div>
+        <table class="table routes">
+          <tr><th>Route</th><th>Main pane</th><th>Selected row on the left</th></tr>
+          <tr><td>/</td><td class="wrap">No loop selected: short guide + New loop button; empty list → large EmptyState</td><td>—</td></tr>
+          <tr><td>/loops/new</td><td class="wrap">New loop form</td><td>—</td></tr>
+          <tr><td>/loops/:id</td><td class="wrap">Loop detail: figures, run in progress + live log, executions, runs, configuration</td><td>that loop</td></tr>
+          <tr><td>/loops/:id/edit</td><td class="wrap">Edit loop form</td><td>that loop</td></tr>
+          <tr><td>/executions/:id</td><td class="wrap">Execution detail + session id</td><td>its loop</td></tr>
+          <tr><td>/runs/:id</td><td class="wrap">Run detail + full log</td><td>its loop</td></tr>
+        </table>
+        <div class="hint">&lt; 1100px: no split — <span class="mono">/</span> shows only the list, other routes show only the main pane with a “← List” button.</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const themes = ['light', 'dark'];
+const box = (t, html) => `<div class="box" data-theme="${t}"><div class="label">${t === 'light' ? 'Light — paper' : 'Dark — terminal'}</div>${html}</div>`;
+const css = (el, v) => getComputedStyle(el).getPropertyValue(v).trim();
+function twin(id, fn) { document.getElementById(id).innerHTML = themes.map(t => box(t, fn(t))).join(''); }
+
+const COLORS = [
+  ['Background', ['--bg', '--surface', '--surface-2', '--surface-sunken', '--border', '--border-strong']],
+  ['Text', ['--text', '--text-muted', '--text-faint']],
+  ['Accent', ['--accent', '--accent-hover', '--accent-soft', '--accent-fg']],
+  ['Run result', ['--st-running', '--st-succeeded', '--st-failed', '--st-interrupted', '--st-cancelled', '--st-skipped', '--warn']],
+  ['Log', ['--log-bg', '--log-text', '--log-dim', '--log-accent', '--log-err', '--log-ok']],
+];
+twin('colors', () => COLORS.map(([g, vars]) => `<div class="label">${g}</div><div class="sw-grid">${vars.map(v => `<div class="sw"><i style="background:var(${v})"></i><div>${v}<span data-var="${v}"></span></div></div>`).join('')}</div>`).join(''));
+document.querySelectorAll('[data-var]').forEach(s => s.textContent = css(s.closest('[data-theme]'), s.dataset.var));
+
+twin('type', () => [
+  ['--text-xl · mono 24/32', '<span class="num" style="font-size:var(--text-xl);line-height:var(--lh-xl);font-weight:500">4 h 12 min · ✓10 ✗1</span>'],
+  ['--text-lg · sans 600 18/26', '<span style="font:var(--weight-semibold) var(--text-lg)/var(--lh-lg) var(--font-sans)">Issue backlog worker</span>'],
+  ['--text-md · sans 600 14/22', '<span style="font:var(--weight-semibold) var(--text-md)/var(--lh-md) var(--font-sans)">Digest upstream releases — loop name in the list</span>'],
+  ['--text-sm · sans 13/20', '<span>Pick the first open item in the backlog, verify it, open a PR. The quick brown fox jumps over the lazy dog. “All good?”</span>'],
+  ['--text-xs · mono 12/18', '<span class="mono" style="font-size:var(--text-xs)">Every 30 minutes · execution #3 · mock-7f3c2a91-0b4e-4c55 · 14:12:07</span>'],
+  ['--text-2xs · UPPERCASE label', '<span class="label">Execution #3 running · Next run · Runs in execution</span>'],
+].map(([k, v]) => `<div class="type-row"><span class="label">${k}</span>${v}</div>`).join('') +
+  `<div class="hint">Weights: 400 body text · 500 figures, buttons · 600 headings, loop names · 700 unused in the app. Numbers always <span class="mono">tabular-nums</span>.</div>`);
+
+twin('space', () => `
+  <div class="label">Spacing — 4px grid</div>
+  <div class="scale">${[1, 2, 3, 4, 5, 6, 8, 10, 12].map(n => `<div><i style="width:var(--space-${n});height:var(--space-${n})"></i>${n}<br><span class="faint" data-sp="--space-${n}"></span></div>`).join('')}</div>
+  <div class="label">Radius</div>
+  <div class="stack">${[['--radius-0', 'pane, table, log'], ['--radius-1', 'button, input, tag'], ['--radius-2', 'dialog']].map(([v, u]) => `<div style="text-align:center"><div class="radius-demo" style="border-radius:var(${v})"></div><div class="hint mono">${v}<br>${u}</div></div>`).join('')}</div>
+  <div class="label">Shadow — floating layers only</div>
+  <div class="stack">${[['--shadow-pop', '⋯ menu, toast'], ['--shadow-dialog', 'dialog']].map(([v, u]) => `<div style="text-align:center;margin-right:16px"><div class="radius-demo" style="box-shadow:var(${v});border:0;width:120px"></div><div class="hint mono" style="margin-top:10px">${v}<br>${u}</div></div>`).join('')}</div>
+  <div class="label">Sizes</div>
+  <div class="hint mono">--header-h 44 · --list-w 520 · --detail-max 1100 · --control-h 30 / lg 36 · --row-pad 12×16 · --pane-pad 20 · --rail-w 3</div>`);
+document.querySelectorAll('[data-sp]').forEach(s => s.textContent = css(s.closest('[data-theme]'), s.dataset.sp));
+
+const RUN = [['running', 'Running'], ['succeeded', 'Succeeded'], ['failed', 'Failed'], ['timed_out', 'Timed out'], ['interrupted', 'Interrupted'], ['cancelled', 'Cancelled'], ['skipped', 'Skipped']];
+const LOOP = [['active', 'Running'], ['stopped', 'Stopped'], ['archived', 'Archived'], ['server_down', 'Stopped by server shutdown']];
+twin('status', () => `
+  <div class="label">Run — text</div><div class="stack">${RUN.map(([k, v]) => `<span class="st ${k}">${v}</span>`).join('')}</div>
+  <div class="label">Run — boxed (history table)</div><div class="stack">${RUN.map(([k, v]) => `<span class="st boxed ${k}">${v}</span>`).join('')}</div>
+  <div class="label">Loop / execution</div><div class="stack">${LOOP.map(([k, v]) => `<span class="st ${k}">${v}</span>`).join('')}</div>
+  <div class="label">Run counter within an execution</div>
+  <div class="counts"><span class="c-ok">✓10</span> <span class="c-err">✗1</span> ⊘0 ↷3 <span class="faint">· succeeded · failed · cancelled · skipped</span></div>
+  <div class="label">Running — blinks with the cursor beat</div>
+  <div><span class="st running pulse">#12 00:42</span></div>`);
+
+twin('comp', () => `
+  <div class="label">Button</div>
+  <div class="stack"><button class="btn primary">+ New loop</button><button class="btn primary is-hover">+ New loop</button><button class="btn">▶ Start</button><button class="btn danger">■ Stop</button><button class="btn danger solid">■ Stop loop</button><button class="btn ghost">Cancel</button><button class="btn icon">⋯</button><button class="btn is-focus">focus</button><button class="btn" disabled>▶ Start</button></div>
+  <div class="label">Field</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <div class="field"><span class="label">Name</span><input class="input" value="Issue backlog worker"></div>
+    <div class="field"><span class="label">Name — focus</span><input class="input is-focus" value="Issue backlog wor"></div>
+    <div class="field"><span class="label">Name — error</span><input class="input is-error" value="Digest upstream releases"><span class="hint is-error">Name already used by another loop</span></div>
+    <div class="field"><span class="label">Cron — advanced</span><input class="input mono" value="*/7 * * * *"><span class="hint is-warn">Uneven gap at the end of the hour</span></div>
+  </div>
+  <div class="label">Schedule type + weekday picker</div>
+  <div class="stack"><div class="seg"><span>Every N minutes</span><span>Every N hours</span><span>Daily</span><span class="is-on">By weekday</span><span>Monthly</span><span>Advanced</span></div></div>
+  <div class="stack">${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d, i) => `<span class="chip-day ${[0, 2, 4].includes(i) ? 'is-on' : ''}">${d}</span>`).join('')}</div>
+  <div class="label">Filter tabs + search</div>
+  <div class="stack"><input class="input mono" style="width:220px" placeholder="/ Search by name…"><div class="tabs"><span class="tab is-on">All<span class="n">5</span></span><span class="tab">Running<span class="n">3</span></span><span class="tab">Stopped<span class="n">2</span></span><span class="tab">Archived<span class="n">1</span></span></div></div>
+  <div class="label">ListRow — normal · hover · selected · archived</div>
+  <div style="border:1px solid var(--border)">
+    <div class="row"><span class="row-name">Digest upstream releases</span><span class="st active">waiting for next run</span><span class="row-meta">Every 2 hours, at minute 05 · execution #1 1 d 3 h</span><span class="row-meta row-right"><span class="st succeeded">12:05</span> → 14:05</span></div>
+    <div class="row is-hover"><span class="row-name">Check test coverage</span><span class="st running">#44 00:07</span><span class="row-meta">Every 15 minutes · execution #5 38 min</span><span class="row-meta row-right"><span class="st failed">13:45</span> → 14:15</span></div>
+    <div class="row is-sel"><span class="row-name">Issue backlog worker</span><span class="st running pulse">#12 00:42</span><span class="row-meta">Every 30 minutes · execution #3 4 h 12 min · <span class="counts"><span class="c-ok">✓10</span> <span class="c-err">✗1</span> ⊘0 ↷3</span></span><span class="row-meta row-right"><span class="st succeeded">14:00</span> → 14:30</span></div>
+    <div class="row is-archived"><span class="row-name">Old schedule test</span><span class="st archived">archived</span><span class="row-meta">Daily at 09:00 · execution #2 3 h</span><span class="row-meta row-right">—</span></div>
+  </div>
+  <div class="label">KvGrid</div>
+  <div class="kv"><div><div class="label">Execution #3 running</div><div class="v big">4:12:07</div><div class="sub">since 10:00 today</div></div><div><div class="label">Runs in execution</div><div class="v big">14</div><div class="counts"><span class="c-ok">✓10</span> <span class="c-err">✗1</span> ⊘0 ↷3</div></div><div><div class="label">Next run</div><div class="v big">14:30</div><div class="sub">in 18 min</div></div><div><div class="label">Avg per run</div><div class="v big">6:02</div><div class="sub">min:sec</div></div></div>
+  <div class="label">LogView — live</div>
+  <div class="log"><div class="log-bar"><span>run #12 · mock-7f3c2a91</span><span>● live</span></div>
+    <div><span class="t">14:12:00</span><span class="lv-head">Started run #12 — prompt: «Read docs/backlog.md, take the first open item…»</span></div>
+    <div><span class="t">14:12:01</span>working… (1/10)</div><div><span class="t">14:12:02</span>working… (2/10)</div>
+    <div><span class="t">14:12:03</span><span class="lv-err">Simulated failure</span></div>
+    <div><span class="t">14:12:03</span><span class="cursor"></span></div></div>
+  <div class="label">DataTable + pagination</div>
+  <table class="table"><tr><th>Run</th><th>Status</th><th>Started</th><th>Duration</th><th>Session id</th></tr>
+    <tr><td>#11</td><td><span class="st boxed succeeded">Succeeded</span></td><td>14:00:00</td><td>6:10</td><td>mock-1c9e…a07b</td></tr>
+    <tr><td>—</td><td><span class="st boxed skipped">Skipped</span></td><td>13:30:00</td><td>—</td><td class="faint">run #10 still running</td></tr>
+    <tr><td>#10</td><td><span class="st boxed timed_out">Timed out</span></td><td>13:00:00</td><td>30:00</td><td>mock-88d2…41fe</td></tr></table>
+  <div class="pager">1–20 / 57 <button class="btn icon is-disabled">‹</button><button class="btn icon">›</button></div>
+  <div class="label">Banner</div>
+  <div style="border:1px solid var(--border)"><div class="banner is-err">● Server connection lost, retrying… <span class="spacer"></span>attempt 3 · 4 s</div><div class="banner is-warn">! Loop was edited in another tab at 14:02. <span class="spacer"></span><button class="btn">Reload</button><button class="btn danger">Overwrite</button></div><div class="banner is-info">↻ Reconnected — data just refreshed</div></div>
+  <div class="label">EmptyState · Skeleton</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div class="empty" style="border:1px solid var(--border)"><div class="glyph">▍_</div><h3>No loops yet</h3><div>Create your first loop to get started.</div><button class="btn primary">+ New loop</button></div>
+    <div style="border:1px solid var(--border)">${[0, 1, 2].map(() => `<div class="row"><span class="sk" style="width:60%"></span><span class="sk" style="width:60px"></span><span class="sk" style="width:85%"></span><span class="sk" style="width:80px"></span></div>`).join('')}</div></div>
+  <div class="label">Dialog · ⋯ menu · Toast</div>
+  <div class="inline-dialog"><div class="dialog"><div class="d-head">Stop “Issue backlog worker”?</div><div class="d-body">Run #12, running for 00:42, will be cancelled. Execution #3 ends with reason <span class="mono">User Stop</span>.</div><div class="d-foot"><button class="btn ghost">Cancel</button><button class="btn danger solid">■ Stop loop</button></div></div></div>
+  <div class="stack" style="align-items:flex-start"><div class="menu"><div>Edit</div><div class="is-hover">Duplicate</div><hr><div class="is-disabled">Archive (Stop first)</div></div><span class="toast">✓ Copied 14 session ids</span></div>
+`);
+</script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Castraferrum — Sample layout</title>
+<script>document.documentElement.dataset.theme = new URLSearchParams(location.search).get('theme') || 'light';</script>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+</head>
+<body>
+<div class="app" style="height:100vh">
+  <header class="topbar">
+    <span class="brand">Castraferrum</span>
+    <div class="topstats"><span><b>3</b> loops running</span><span><b>2</b> runs in progress</span><span><b>37</b> runs today</span><span class="is-err"><b>1</b> errors 24h</span></div>
+    <span class="spacer"></span>
+    <span class="toggle"><b>EN</b> / VI</span><span class="toggle" id="th"></span>
+    <span class="lamp">server</span><span class="lamp">db</span>
+  </header>
+  <div class="split" style="min-height:0">
+    <aside class="pane-list">
+      <div class="toolbar"><input class="input mono" placeholder="/ Search by name…"><button class="btn primary">+ New loop</button></div>
+      <div class="toolbar"><div class="tabs"><span class="tab is-on">All<span class="n">5</span></span><span class="tab">Running<span class="n">3</span></span><span class="tab">Stopped<span class="n">2</span></span><span class="tab">Archived<span class="n">1</span></span></div></div>
+      <div id="rows"></div>
+    </aside>
+    <main class="pane-main" style="overflow:hidden">
+      <div class="crumbs"><a href="#">Loops</a> / Issue backlog worker</div>
+      <div class="ph"><h1>Issue backlog worker</h1><span class="st running pulse">Run #12 in progress · 00:42</span><span class="spacer"></span><button class="btn">Edit</button><button class="btn icon">⋯</button><button class="btn danger">■ Stop</button></div>
+      <div class="muted" style="margin-top:-8px">Pick the first open item in the backlog, verify it, open a PR · <span class="mono">Every 30 minutes · Asia/Ho_Chi_Minh · timeout 30 min · Mock 100 s, 5% failures</span></div>
+      <div class="kv" style="--kv-cols:5">
+        <div><div class="label">Execution #3 up for</div><div class="v big">4:12:07</div><div class="sub">since 10:00 today</div></div>
+        <div><div class="label">Runs in execution</div><div class="v big">14</div><div class="counts"><span class="c-ok">✓10</span> <span class="c-err">✗1</span> ⊘0 ↷3</div></div>
+        <div><div class="label">Next run</div><div class="v big">14:30</div><div class="sub">in 18 min</div></div>
+        <div><div class="label">Avg per run</div><div class="v big">6:02</div><div class="sub">min:sec</div></div>
+        <div><div class="label">Longest execution</div><div class="v big">1d 3h</div><div class="sub">execution #1 · 3 executions · 57 runs</div></div>
+      </div>
+      <div class="section-title"><h2>Run in progress</h2><span class="crumbs">run #12 · mock-7f3c2a91-0b4e-4c55-9d2e-31a8e6f0c412</span></div>
+      <div class="log" id="log" style="height:300px"></div>
+      <div class="section-title"><h2>Run history</h2></div>
+      <table class="table"><tr><th>Run</th><th>Status</th><th>Trigger</th><th>Started</th><th>Duration</th><th>Session id</th></tr>
+        <tr><td>#11</td><td><span class="st boxed succeeded">Succeeded</span></td><td>schedule</td><td>14:00:00</td><td>6:10</td><td>mock-1c9e…a07b</td></tr>
+        <tr><td>—</td><td><span class="st boxed skipped">Skipped</span></td><td>schedule</td><td>13:30:00</td><td>—</td><td class="faint">run #10 still in progress</td></tr>
+        <tr><td>#10</td><td><span class="st boxed timed_out">Timed out</span></td><td>schedule</td><td>13:00:00</td><td>30:00</td><td>mock-88d2…41fe</td></tr>
+      </table>
+    </main>
+  </div>
+</div>
+<script>
+const dark = document.documentElement.dataset.theme === 'dark';
+document.getElementById('th').innerHTML = dark ? 'light / <b>dark</b>' : '<b>light</b> / dark';
+const L = [
+  ['Issue backlog worker', '<span class="st running pulse">#12 00:42</span>', 'Every 30 minutes · execution #3 4 h 12 min · <span class="counts"><span class="c-ok">✓10</span> <span class="c-err">✗1</span> ⊘0 ↷3</span>', '<span class="st succeeded">14:00</span> → 14:30', 'is-sel'],
+  ['Digest upstream releases', '<span class="st active">waiting for next run</span>', 'Every 2 hours, at minute 05 · execution #1 1 d 3 h · <span class="counts"><span class="c-ok">✓13</span> <span class="c-err">✗0</span> ⊘0 ↷0</span>', '<span class="st succeeded">12:05</span> → 14:05', ''],
+  ['Check test coverage', '<span class="st running">#44 00:07</span>', 'Every 15 minutes · execution #5 38 min · <span class="counts"><span class="c-ok">✓2</span> <span class="c-err">✗1</span> ⊘0 ↷0</span>', '<span class="st failed">13:45</span> → 14:15', ''],
+  ['Watch open PRs', '<span class="st server_down">server down</span>', 'At 08:30 on Mon, Wed, Fri · execution #2 6 d 2 h', '<span class="st succeeded">16/10 08:30</span>', ''],
+  ['Clean old artifacts', '<span class="st stopped">stopped</span>', 'Daily at 03:00 · execution #1 2 d 3 h', '<span class="st cancelled">15/10 03:00</span>', ''],
+];
+document.getElementById('rows').innerHTML = L.map(([n, s, m, r, c]) => `<div class="row ${c}"><span class="row-name">${n}</span>${s}<span class="row-meta">${m}</span><span class="row-meta row-right">${r}</span></div>`).join('');
+const lines = [['14:12:00', '<span class="lv-head">Started run #12 — prompt: «Read docs/backlog.md, take the first open item not yet…»</span>']];
+for (let k = 1; k <= 13; k++) lines.push([`14:12:${String(k).padStart(2, '0')}`, `working… (${k}/100)`]);
+document.getElementById('log').innerHTML = `<div class="log-bar"><span>live log</span><span>● following</span></div>` + lines.map(([t, s]) => `<div><span class="t">${t}</span>${s}</div>`).join('') + '<div><span class="t">14:12:14</span><span class="cursor"></span></div>';
+</script>
+</body>
+</html>

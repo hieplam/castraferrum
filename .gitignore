@@ -1,0 +1,17 @@
+node_modules/
+dist/
+reports/
+test-results/
+playwright-report/
+.env
+coverage/
+
+# Owner-specific coupling patterns for scripts/lang-scan.mjs (never committed)
+.lang-scan.local.json
+
+# Build output of npm run design:shots (written from shared/i18n/*.ts and shared/domain/schedule.ts)
+design/preview/messages.js
+design/preview/schedule.js
+
+# Generated side-by-side comparison of npm run design:compare (never committed)
+design/compare/
