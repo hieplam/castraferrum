@@ -5,7 +5,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
 import {
-  COUPLING_EXEMPT_PREFIXES,
   NEUTRAL_USERS,
   SKIP_PATHS,
   WORD_HASHES,
@@ -244,28 +243,52 @@ describe('coupling', () => {
     const gitignore = fs.readFileSync(path.join(here, '..', '..', '.gitignore'), 'utf8');
     expect(gitignore).toContain('.lang-scan.local.json');
   });
-
-  it('is not applied under the spec and plan folders', () => {
-    expect(COUPLING_EXEMPT_PREFIXES).toEqual(['docs/specs/', 'docs/plans/', 'tools/extraction-loop/']);
-    const root = repo({
-      'docs/plans/p.md': `step ${'LC' + '-12'}\n`,
-      'docs/specs/s.md': `step ${'LC' + '-12'}\n`,
-      'server/a.ts': `// ${'LC' + '-12'}\n`,
-    });
-    expect(value(run(['--coupling'], { root }), 'coupling')).toBe(1);
-  });
 });
 
-describe('record folders', () => {
-  it('skip the content of the move records for Vietnamese, but not other folders or path names', () => {
-    const root = repo({
-      'docs/plans/p.md': `quoted ${TOKEN_A}\n`,
-      'docs/specs/s.md': `quoted ${TOKEN_A}\n`,
-      'tools/extraction-loop/b.md': `quoted ${TOKEN_A}\n`,
-      'server/a.ts': `// ${TOKEN_A}\n`,
-      [`docs/plans/${TOKEN_A}.md`]: 'English\n',
-    });
-    expect(value(run(['--tree'], { root }), 'vietnamese')).toBe(2);
+describe('history allowlist', () => {
+  const ALLOW = 'scripts/lang-history-allowlist.json';
+  const blobOf = (root: string, rel: string) => git(root, 'rev-parse', `HEAD:${rel}`).trim();
+  const allow = (root: string, entries: Array<{ blob: string; line: number; kind: string }>) =>
+    write(root, ALLOW, JSON.stringify(entries));
+  const REF = 'docs/plans/p.md';
+
+  it('no folder is skipped: the same text under docs/plans is flagged by --tree, and an unlisted history is flagged', () => {
+    const root = repo({ [REF]: `quoted ${TOKEN_A}\n`, 'docs/specs/s.md': `step ${'LC' + '-12'}\n`, 'tools/extraction-loop/b.md': `quoted ${TOKEN_A}\n` });
+    expect(value(run(['--tree', '--coupling'], { root }), 'vietnamese')).toBe(2);
+    expect(value(run(['--tree', '--coupling'], { root }), 'coupling')).toBe(1);
+    expect(run(['--history', '--coupling'], { root }).code).toBe(1);
+  });
+
+  it('--history skips exactly the allowlisted (blob, line, kind) and nothing else', () => {
+    const root = repo({ [REF]: `quoted ${TOKEN_A}\n` });
+    const blob = blobOf(root, REF);
+    allow(root, [{ blob, line: 1, kind: 'text' }]);
+    expect(run(['--history'], { root }).code).toBe(0);
+    allow(root, [{ blob, line: 2, kind: 'text' }]);
+    expect(run(['--history'], { root }).code).toBe(1);
+    allow(root, [{ blob, line: 1, kind: 'coupling' }]);
+    expect(run(['--history'], { root }).code).toBe(1);
+  });
+
+  it('the same text in a new blob is flagged, even at the same path and line', () => {
+    const root = repo({ [REF]: `quoted ${TOKEN_A}\n` });
+    allow(root, [{ blob: blobOf(root, REF), line: 1, kind: 'text' }]);
+    expect(run(['--history'], { root }).code).toBe(0);
+    write(root, REF, `quoted ${TOKEN_A}\nmore English\n`);
+    git(root, 'commit', '-q', '-am', 'edit the record');
+    const out = run(['--history'], { root });
+    expect(out.code).toBe(1);
+    expect(value(out, 'vietnamese')).toBe(1);
+  });
+
+  it('the allowlist does not apply to --tree or --staged', () => {
+    const root = repo({ [REF]: `quoted ${TOKEN_A}\n` });
+    allow(root, [{ blob: blobOf(root, REF), line: 1, kind: 'text' }]);
+    expect(run(['--history'], { root }).code).toBe(0);
+    expect(run(['--tree', '--max', '0'], { root }).code).toBe(1);
+    write(root, 'docs/plans/q.md', `quoted ${TOKEN_A}\n`);
+    git(root, 'add', 'docs/plans/q.md');
+    expect(run(['--staged'], { root }).code).toBe(1);
   });
 });
 

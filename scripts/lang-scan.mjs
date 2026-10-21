@@ -21,14 +21,10 @@ import { fileURLToPath } from 'node:url';
 export const SKIP_PATHS = ['shared/i18n/vi.ts'];
 
 /**
- * Folders (relative to the package root) that record the move out of the source repo. They must name the old
- * repository and quote the words they teach the scanner to catch, so neither count is applied to their contents.
- * Path names are still scanned. Remove an entry when the folder is deleted.
+ * Known historical hits, pinned by blob. Only --history reads this file, and only for exactly these (blob, line)
+ * pairs. Nothing else is ever skipped: not a folder, not a path.
  */
-export const RECORD_PREFIXES = ['docs/specs/', 'docs/plans/', 'tools/extraction-loop/'];
-
-/** The coupling rule reads the same folders. */
-export const COUPLING_EXEMPT_PREFIXES = RECORD_PREFIXES;
+export const HISTORY_ALLOWLIST_FILE = 'scripts/lang-history-allowlist.json';
 
 /** Home-folder user names that are neutral (compared case-insensitively). */
 export const NEUTRAL_USERS = ['alice', 'bob', 'user', 'runner', 'Shared', 'Public', 'Default'];
@@ -493,24 +489,29 @@ function isBinaryPath(rel) {
   return BINARY_EXT.has(path.extname(rel).toLowerCase());
 }
 
-function couplingExempt(rel) {
-  return COUPLING_EXEMPT_PREFIXES.some((p) => rel.startsWith(p));
-}
-
 function scanName(rel, folder, acc) {
   const v = findVietnamese(rel);
   if (v) acc.hits.push({ folder, path: rel, line: 0, cls: 'name', kind: v.kind, match: v.match });
   // Coupling is applied to file content only.
 }
 
-function scanLines(rel, folder, lines, acc, opts, startLine = 1) {
-  if (RECORD_PREFIXES.some((p) => rel.startsWith(p))) return;
+/** Exact (blob, line, class) triples the history scan may skip. Empty for every other mode. */
+function loadHistoryAllowlist(root) {
+  const file = path.join(root, HISTORY_ALLOWLIST_FILE);
+  if (!fs.existsSync(file)) return new Set();
+  const list = JSON.parse(fs.readFileSync(file, 'utf8'));
+  return new Set(list.map((e) => `${e.blob}|${e.line}|${e.kind}`));
+}
+
+function scanLines(rel, folder, lines, acc, opts, startLine = 1, blob = null) {
+  const allowed = (line, cls) => blob !== null && opts.historyAllow?.has(`${blob}|${line}|${cls}`);
   lines.forEach((text, i) => {
+    const line = startLine + i;
     const v = findVietnamese(text);
-    if (v) acc.hits.push({ folder, path: rel, line: startLine + i, cls: 'text', kind: v.kind, match: v.match, text });
-    if (opts.coupling && !couplingExempt(rel)) {
+    if (v && !allowed(line, 'text')) acc.hits.push({ folder, path: rel, line, cls: 'text', kind: v.kind, match: v.match, text, blob });
+    if (opts.coupling) {
       const c = findCoupling(text, opts.localPatterns);
-      if (c) acc.hits.push({ folder, path: rel, line: startLine + i, cls: 'coupling', kind: c.kind, match: c.match, coupling: true, text });
+      if (c && !allowed(line, 'coupling')) acc.hits.push({ folder, path: rel, line, cls: 'coupling', kind: c.kind, match: c.match, coupling: true, text, blob });
     }
   });
 }
@@ -591,7 +592,8 @@ function scanPrEvent(file, acc, opts) {
   }
 }
 
-function scanHistory(root, acc, opts) {
+function scanHistory(root, acc, baseOpts) {
+  const opts = { ...baseOpts, historyAllow: loadHistoryAllowlist(root) };
   const prefix = git(root, ['rev-parse', '--show-prefix']).toString('utf8').trim();
   const shaPaths = new Map(); // sha -> set of root-relative paths
   const seenPaths = new Set();
@@ -639,7 +641,7 @@ function scanHistory(root, acc, opts) {
         pos = nl + 1 + len + 1;
         if (isBinaryBuffer(body)) continue;
         const p = [...shaPaths.get(sha)].find((x) => !SKIP_PATHS.includes(x)) ?? '';
-        scanLines(p, folderOf(p), body.toString('utf8').split(/\r?\n/), acc, opts);
+        scanLines(p, folderOf(p), body.toString('utf8').split(/\r?\n/), acc, opts, 1, sha);
       }
     }
   }
@@ -780,12 +782,12 @@ export function run(argv, { root: rootOverride } = {}) {
   if (o.list || hookMode) {
     const seen = new Set();
     for (const h of acc.hits) {
-      const key = `${h.coupling ? 'c' : 'v'}|${h.path}|${h.line}`;
+      const key = `${h.coupling ? 'c' : 'v'}|${h.path}|${h.line}|${h.blob ?? ''}`;
       if (seen.has(key)) continue;
       seen.add(key);
       const tag = h.coupling ? `coupling/${h.kind}` : `${h.cls}/${h.kind}`;
       const extra = hookMode && h.text ? `  ${h.text.trim().slice(0, 160)}` : '';
-      lines.push(`${h.path}:${h.line}  [${tag}] ${h.match}${extra}`);
+      lines.push(`${h.path}:${h.line}  [${tag}] ${h.match}${h.blob ? ` blob=${h.blob}` : ''}${extra}`);
     }
   }
   if (o.writeBaseline) {

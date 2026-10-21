@@ -88,7 +88,7 @@ name and the bot account names.
 - **Green:** the same command passes, with at least these cases: diacritic sample flagged; unaccented sample
   (built from the hashed list's test vector) flagged; an English sentence that shares spellings not flagged;
   Vietnamese path name flagged; `shared/i18n/vi.ts` skipped while `tests/arch-fixtures/shared/i18n/vi.ts` is
-  scanned; skip list has exactly one entry; `Run #{n}` and `#123456` are not issue refs while `#260` in a comment
+  scanned; skip list has exactly one entry; `Run #{n}` and `#123456` are not issue refs while a number-sign issue reference in a comment
   is; `/Users/alice` and `/Users/Shared` are not coupling while another user segment is; `--staged`,
   `--message`, `--history` (on a scratch repo created in the test's temp folder) and `--pr-event` (on a synthetic
   payload) each flag a Vietnamese sample and pass an English one; the scanner's own source scans to 0.
@@ -122,7 +122,7 @@ Files:
 
 **Verify**
 - **Goal:** G5 and G3.
-- **Red:** `git grep -nE "'\.\.', *'docs'|\.\./docs|docs/loop-console" -- scripts server tests web` lists the
+- **Red:** `git grep -nE` with a pattern for the path-join form, the parent-folder form and the old console docs folder name, over `scripts server tests web` lists the
   three readers. `npm run uc-coverage -- --spec docs/USE-CASES.md` fails (file missing).
 - **Green:** the same `git grep` prints nothing. `npm run uc-coverage` reports `32/32`; the API surface test and
   the executor test pass. `node scripts/lang-scan.mjs --path docs` prints `vietnamese: 0`, and the same for
@@ -230,7 +230,7 @@ Same rules as T5. Visible text does not change (it lives in the locale files sin
 
 Steps:
 1. Translate test names, comments and fixture prose. Titles keep their `@UC-NN` tags.
-2. In one commit: rename the 19 dependency-cruiser rules to English, rename the `// vi-pham:` marker (for example
+2. In one commit: rename the 19 dependency-cruiser rules to English, rename the old Vietnamese violation marker (for example
    `// violates:`) in `arch-lib.mjs` and in every fixture that uses it, and rename the fixture files and folders
    with Vietnamese names.
 
@@ -371,7 +371,7 @@ Steps:
 2. Stop the old console. Clone this repo into the owner's usual repo folder, `npm ci`, `npm run build`, then
    `docker compose up -d` **from the new clone** (default names, so the existing volume is reused), then
    `npm start`.
-3. In the source repo (its own workflow and language): delete `loop-console/` and `docs/loop-console/`; update its
+3. In the source repo (its own workflow and language): delete the console folder and its docs folder; update its
    `CLAUDE.md`, README and console guide pages in the wiki to point here; measurement pages stay as history.
 4. Update the owner's memory notes that mention the console's path.
 
@@ -381,7 +381,7 @@ Steps:
   `docker inspect loop_console_pg --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}'`
   prints the source repo's console folder.
 - **Green:** the same command prints the new clone's folder; the new console returns the same loop ids and tick
-  counts as step 1; in the source repo `git ls-files loop-console docs/loop-console` prints nothing and
+  counts as step 1; in the source repo `git ls-files` on those two folders prints nothing and
   `git grep -n "loop-console/" -- CLAUDE.md README.md` points only to Castraferrum.
 - **Stub check:** an empty database fails the id comparison; a container still owned by the old folder shows the
   old label; a forgotten folder shows up in `git ls-files`.

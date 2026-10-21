@@ -20,22 +20,22 @@ Where it lives today, in the source repo:
 | Path | What |
 |---|---|
 | `loop-console/` | The application: `server/`, `shared/`, `web/`, `tests/`, `scripts/`, `design/`, configs |
-| `docs/loop-console/` | Vision, spec phase 1 and 2, architecture, plan (about 350 KB) |
+| the console docs folder | Vision, spec phase 1 and 2, architecture, plan (about 350 KB) |
 | wiki pages about the console | Measurements and research notes (transcript format, folder browsing on Windows and macOS, executor behaviour) |
 
 ### Measured starting point (2026-10-20, source repo `main` at `2b7e9d9`)
 
 | | Value |
 |---|---|
-| Tracked files | 882 (876 under `loop-console/`, 6 under `docs/loop-console/`); 318 text files contain Vietnamese diacritics, and all 521 PNGs show the Vietnamese UI |
-| Lines with Vietnamese diacritics | about 7 460 under `loop-console/` with `shared/i18n/vi.ts` excluded, plus about 2 390 in `docs/loop-console/` |
+| Tracked files | 882 (876 under `loop-console/`, 6 in the console docs folder); 318 text files contain Vietnamese diacritics, and all 521 PNGs show the Vietnamese UI |
+| Lines with Vietnamese diacritics | about 7 460 under `loop-console/` with `shared/i18n/vi.ts` excluded, plus about 2 390 in the console docs folder |
 | Vietnamese UI text outside `vi.ts` | `shared/domain/schedule.ts` (a `TEXT.vi` block and a Vietnamese natural-language override for cron descriptions, about 107 lines); generated copies of the locale in `design/preview/messages.js` and `design/preview/schedule.js`; Vietnamese defaults (`.default('vi')` in `shared/contracts/loops.ts`, `locale = 'vi'` defaults in `schedule.ts`, `lang="vi"` in `web/index.html`, `'vi'` fallback in `web/prefs/prefs.tsx`) |
-| Unaccented Vietnamese | at least 45 lines in code comments and strings, plus 19 architecture rule names in `.dependency-cruiser.cjs`, the `// vi-pham:` marker parsed by `scripts/arch-lib.mjs`, and about 25 fixture file names under `tests/arch-fixtures/` |
+| Unaccented Vietnamese | at least 45 lines in code comments and strings, plus 19 architecture rule names in `.dependency-cruiser.cjs`, the old Vietnamese violation marker parsed by `scripts/arch-lib.mjs`, and about 25 fixture file names under `tests/arch-fixtures/` |
 | Identifiers | English, except one Vietnamese local variable in `shared/i18n/i18n.test.ts` and the rule names above |
 | Tests that assert Vietnamese text | about 212 assertion lines in 17 e2e and visual files; the existing UC-18 e2e test asserts that the default language is Vietnamese |
 | `design/` | 521 PNGs (64.7 MB): `preview/shots` (184, about 23 MB, the approved reference the visual tests compare against), `compare/` (generated output, about 40 MB, partly tracked), `directions/` (early explorations, unaccented Vietnamese file names), `system/shots` (3, no generator script) |
 | Locale wiring | `MessageKey` is derived from `vi.ts`; default locale is `vi` |
-| References into the source repo | issue refs and `LC-NN` task refs in code; test fixtures with the owner's real home paths and the source repo's name; three readers of files outside the folder: `scripts/uc-coverage.mjs` (use-case table), `tests/api/api-surface.test.ts` (API table), one executor test (a quoted message) - all read `docs/loop-console/SPEC-phase-*.md`; `scripts/restart-console.ps1` hard-codes the owner's path |
+| References into the source repo | issue refs and `LC-NN` task refs in code; test fixtures with the owner's real home paths and the source repo's name; three readers of files outside the folder: `scripts/uc-coverage.mjs` (use-case table), `tests/api/api-surface.test.ts` (API table), one executor test (a quoted message) - all read the phase spec files in the console docs folder; `scripts/restart-console.ps1` hard-codes the owner's path |
 | Use cases | 32 (UC-01 to UC-32); `npm run verify` requires all 32 with green e2e (`--min 32`) |
 | Runtime | compose project `loop-console`, container and volume `loop_console_pg` (hard-coded names), Postgres on 55432, console on 7070, e2e console on 7071; `npm start` serves the UI only when `dist/web` exists; on startup, runs left open are marked interrupted |
 | Git history | 37 commits touching the two paths, all with Vietnamese messages |
@@ -72,7 +72,7 @@ kind as the claim, and it must fail for an empty or stub implementation.
 | G5 | A newcomer can understand and run the project from English docs alone. | The README quickstart, executed word for word in a fresh clone on port 7170, serves the UI: `curl -s http://127.0.0.1:7170/` contains `<title>Castraferrum</title>`. `uc-coverage` reads `docs/USE-CASES.md` and finds 32 use cases; the API surface test reads `docs/API.md`. | Without `npm run build` the server answers JSON but serves no page. A wrong port could hit an old console, so a scratch port and the new title are required. |
 | G6 | Design reference images show the English UI, and the repository is small enough to clone quickly. | Side by side: each new English reference next to its Vietnamese counterpart from the freeze commit, judged by the owner in the acceptance task. Mechanical check: no tracked PNG under `design/` has a blob id that also exists under `design/` at the freeze commit (so every image was regenerated, not relabelled). Size: `git archive HEAD:design \| wc -c` under 25 MB in the source repo; in this repository `git count-objects -vH` reports `size-pack` under 30 MiB right after import. | Untouched PNGs keep their old blob ids. Keeping all 521 PNGs breaks the size budget. |
 | G7 | After import, any attempt to add Vietnamese is rejected before it reaches `main`. | Each check is shown red and then green, on scratch input: the pre-commit hook rejects a staged Vietnamese line and a Vietnamese file name; the commit-msg hook rejects a Vietnamese message; the CI script rejects a synthetic pull-request event whose title, body or branch name is Vietnamese, and a history containing a Vietnamese blob. | Without hooks and the CI job, all the scratch inputs pass. |
-| G8 | The owner keeps working without loss: the console runs from this repository, existing loops and ticks are still there, and the source repo no longer contains the console. | Before cut-over, loop ids and tick counts are recorded from the old console. After: the console started from the Castraferrum clone returns the same ids and counts, and the Postgres container's compose working-dir label points at the new clone. In the source repo, `git ls-files loop-console docs/loop-console` prints nothing. | An empty database returns 0 loops. A container still owned by the old folder shows the old label. |
+| G8 | The owner keeps working without loss: the console runs from this repository, existing loops and ticks are still there, and the source repo no longer contains the console. | Before cut-over, loop ids and tick counts are recorded from the old console. After: the console started from the Castraferrum clone returns the same ids and counts, and the Postgres container's compose working-dir label points at the new clone. In the source repo, `git ls-files` on the console folder and its docs folder prints nothing. | An empty database returns 0 loops. A container still owned by the old folder shows the old label. |
 | G9 | The owner accepts the result. | The owner looks at the English UI next to the Vietnamese one from the freeze point, reads the new docs, and signs off on the acceptance issue. | Only the owner can close it. |
 
 ## 4. The language scanner (`scripts/lang-scan.mjs`)
@@ -93,9 +93,9 @@ The ratchet tool for G1, G4 and G7. Written first, so every later task reports a
 is scanned). A unit test pins the skip list to that single entry.
 
 **Coupling patterns** (`--coupling`), not applied to `docs/specs/` and `docs/plans/` (they describe the move):
-- absolute home paths (`C:\Users\<x>`, `/Users/<x>`, `/home/<x>`) whose `<x>` is not one of `alice`, `bob`, `user`,
+- absolute home paths (a Windows, macOS or Linux home folder) whose `<x>` is not one of `alice`, `bob`, `user`,
   `runner`, `Shared`, `Public`, `Default`;
-- `docs/loop-console`, the path-join form `'..', 'docs'`, and `LC-\d+`;
+- the old console docs folder name, the path-join form that climbs to a parent `docs` folder, and `LC-` followed by digits;
 - issue refs `#\d{3,}`, except inside string literals that carry a `{n}`-style placeholder (UI text such as
   `Run #{n}`) and except CSS hex colours;
 - owner-specific strings (the source repo's name, bot account names), read from a gitignored
