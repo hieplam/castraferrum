@@ -27,6 +27,19 @@ exact (blob, line) pairs listed in `scripts/lang-history-allowlist.json`, which 
 5. Open a pull request with a `## Verify` section that states the red command and output, the green command and
    output, and why an empty implementation would fail it. Squash-merge when green.
 
+## Releases
+
+Releases are cut by [release-please](https://github.com/googleapis/release-please) (`.github/workflows/release-please.yml`).
+It reads the squash-merged commit messages on `main`, so a pull request title must follow
+[Conventional Commits](https://www.conventionalcommits.org/): `feat: ...`, `fix: ...`, `docs: ...`, `chore: ...`, and
+`feat!: ...` or a `BREAKING CHANGE:` footer for a breaking change. Only `feat`, `fix` and breaking changes trigger a release.
+release-please keeps an open release pull request that bumps `package.json`, `.release-please-manifest.json` and
+`CHANGELOG.md`; merging it tags the release and publishes the GitHub release.
+
+The project stays below 1.0.0: while the version is `0.x.y`, a breaking change bumps the minor (`0.1.0` to `0.2.0`),
+a `feat` bumps the minor and a `fix` bumps the patch (`0.1.0` to `0.1.1`). Leaving 0.x is a deliberate decision,
+made by merging a pull request whose commit carries a `Release-As: 1.0.0` footer.
+
 Rules worth knowing:
 
 - Never lower a test count (unit, contract, API, e2e) or `uc-coverage` (32/32). A change that adds a use case
