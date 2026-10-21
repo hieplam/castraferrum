@@ -59,6 +59,8 @@ jobs:
         run: psql -h 127.0.0.1 -p 55432 -U loops -d loops -f pg-init/01-loops-test.sql
       - run: npm run typecheck
       - run: npm run arch
+      - name: Ratchets
+        run: npm run ratchets ${{ github.event_name == 'pull_request' && '-- --base origin/main' || '' }}
       - run: npm run test:unit
       - run: npm run build
       - run: npm run test:contract
