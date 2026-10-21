@@ -185,3 +185,70 @@ The hovered-row pair, computed with `contrastRatio` of `scripts/design-tokens.mj
 
 empty or swallowed 4 -> 0; missing in dark 8 -> 0; classic contrast failures 1 -> 0 (`scripts/ratchets.json`, classic
 entry). Tool: `npm run design:tokens`.
+
+## U2
+
+### Red
+
+The two JSON files and `tests/tools/ds-tokens-spec.test.ts` first, `design/ds/tokens.css` absent.
+
+`npx vitest run --project unit tests/tools/ds-tokens-spec.test.ts`:
+
+```
+AssertionError: design/ds/tokens.css is missing: expected false to be true // Object.is equality
+AssertionError: light --bg: expected undefined to be '#f3ecdc' // Object.is equality
+AssertionError: desktop --font-ui: expected undefined to be '"Be Vietnam Pro", system-ui, -apple-s…' // Object.is equality
+AssertionError: --dur-fast: expected undefined to be '0ms' // Object.is equality
+      Tests  4 failed | 3 passed (7)
+```
+
+The three that pass read only the spec and the JSON files: the tables parse into 41 colour and 99 other names, the
+140 required names, and the 63 pairs generated from the 4.3 bullets equal `contrast-pairs.json` (that file was written
+from a separate hand expansion of the bullets, so the two agree independently).
+
+`npm run design:tokens -- design/ds/tokens.css --pairs design/ds/contrast-pairs.json --require design/ds/required-tokens.json`
+(exit code `1`):
+
+```
+Error: ENOENT: no such file or directory, open '...\design\ds\tokens.css'
+```
+
+### Green
+
+(1) The spec test: `Tests  7 passed (7)`.
+
+(2) The token command (exit code `0`):
+
+```
+design/ds/tokens.css
+empty or swallowed: 0
+missing in dark: 0
+contrast pairs checked: 126
+contrast failures: 0
+required tokens: 140
+missing tokens: 0
+```
+
+(3) `npm run ratchets`: the new `design/ds/tokens.css` entry prints the same six lines, then `ratchets: ok`.
+
+(4) `npm run verify` (exit code `0`): `ratchets: ok`; unit `Tests  457 passed | 2 skipped (459)`; contract
+`Tests  114 passed (114)`; api `Tests  115 passed (115)`; e2e `60 passed (9.1m)`; `UCs with a green e2e: 32/32`.
+A first run, started at 23:33, exited `1` on two e2e tests of `tests/e2e/list.spec.ts` (UC-03, UC-04: expected
+`→ 00:00`, received `→ 22/10 00:00`): the next run fell on the next day. This is the known clock flake #22 (this
+branch changes no `web/` or e2e file). The run above started after midnight.
+
+### Stub check
+
+- Wrong value (phone `--fs-h3` 17px -> 18px): `AssertionError: phone --fs-h3: expected '18px' to be '17px'`,
+  `Tests  1 failed | 6 passed (7)`.
+- Contrast break (light `--text-subtle` -> `#9a9080`): `contrast light --text-subtle on --bg: 2.67 < 4.5` and five more,
+  `contrast failures: 6`, exit code `1`.
+- Fewer pairs (last pair dropped): `AssertionError: expected [ …(62) ] to deeply equal [ …(63) ]`;
+  `contrast pairs checked: 124`.
+- Empty `tokens.css`: `missing tokens: 140 (...)`; spec test `Tests  4 failed | 3 passed (7)`.
+
+### Ratchet
+
+A new entry in `scripts/ratchets.json` for `design/ds/tokens.css`: empty 0, missing in dark 0, contrast failures 0
+(126 checked), missing tokens 0 (140 required), all at 0 from the start. The classic entry is unchanged (0, 0, 0). Unit
+tests 450 -> 457 (the 7 spec tests). Tool: `npm run design:tokens`, `npm run ratchets`.
