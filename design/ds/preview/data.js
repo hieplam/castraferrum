@@ -69,7 +69,7 @@
         counts: { ok: 8, err: 1, cancel: 0, skip: 0 }, rounds: 10 },
       run: { n: 69, elapsed: 42, started: '14:00:00' },
       last: { st: 'succeeded', at: '13:30', n: 68 }, next: { at: '14:30', inSec: 29 * 60 + 18 },
-      avg: 18 * 60 + 47, finished: 9, longest: { k: 1, sec: 86400 + 3 * 3600 + 8 * 60 + 26 }, execCount: 3, lifetime: 69,
+      avg: 14 * 60 + 52, finished: 9, longest: { k: 1, sec: 86400 + 3 * 3600 + 8 * 60 + 26 }, execCount: 3, lifetime: 69,
       runsTotal: 69,
     },
     crash: {
@@ -82,7 +82,7 @@
         counts: { ok: 4, err: 5, cancel: 0, skip: 0 }, rounds: 9 },
       run: null, last: { st: 'failed', at: '14:00', n: 31, dur: 0, err: 'Repo does not exist: C:\\Users\\alice\\acme-api', repoGone: true },
       next: { at: '14:10', inSec: 9 * 60 + 18 },
-      avg: 93, finished: 9, longest: { k: 1, sec: 5 * 86400 + 21 * 3600 + 28 * 60 + 34 }, execCount: 2, lifetime: 31, runsTotal: 31,
+      avg: 93, finished: 9, longest: { k: 1, sec: 4 * 86400 + 23 * 3600 + 28 * 60 + 34 }, execCount: 2, lifetime: 31, runsTotal: 31,
     },
     wiki: {
       id: '1d6a8f30-2b7c-4e95-b0d4-6c3e9a1f7b22', name: 'Digest upstream releases', repo: 'api',
@@ -126,7 +126,7 @@
       exec: { k: 1, id: '3b8d6f1a-0c92-4e7b-95d4-a16e2c7f80b3', startedAt: '12/10 22:41:05', since: '12/10 22:41:05', endedAt: '15/10 03:00:12',
         up: 2 * 86400 + 4 * 3600 + 19 * 60 + 7, counts: { ok: 3, err: 0, cancel: 1, skip: 0 }, rounds: 4 },
       run: null, last: { st: 'cancelled', at: '15/10 03:00', n: 4, dur: 12 }, next: null,
-      avg: 41, finished: 4, longest: { k: 1, sec: 2 * 86400 + 4 * 3600 + 19 * 60 + 7 }, execCount: 1, lifetime: 4, runsTotal: 4,
+      avg: 37, finished: 4, longest: { k: 1, sec: 2 * 86400 + 4 * 3600 + 19 * 60 + 7 }, execCount: 1, lifetime: 4, runsTotal: 4,
     },
     recap: {
       id: 'b4e27f9d-1c63-4a05-8d7e-f0a3b6c9e512', name: 'Daily recap', repo: 'notes',
