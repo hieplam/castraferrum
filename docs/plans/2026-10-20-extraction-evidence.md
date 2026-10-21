@@ -229,7 +229,7 @@ Source PR: source repo PR 300 (squash-merged).
 - Gap: the transcript fixture still held the owner's Windows user name (16 times) in `ls -la` output and in Claude Code's encoded project folder form; the scanner saw neither (it also did not flag the fixture because the user name was not in the local pattern file).
 - Red: owner user name and account name added to the gitignored `.lang-scan.local.json` (main checkout too): `node scripts/lang-scan.mjs --tree --coupling` -> `coupling: 3`; independent `git grep -ciE '<owner words>' -- loop-console` listed the fixture with 3 lines.
 - Change: generic coupling pattern for the encoded project folder (same neutral-name allowlist as home paths) with unit tests; fixture and test helpers use `alice` in both forms; JSONL still valid.
-- Green: `coupling: 0`, `vietnamese: 0`, `--check-baseline` ok; independent `git grep -ciE 'lamhi|hieplam|claudebot|verifybot|cabal'` over `loop-console` prints nothing; `npm run verify` exit 0: unit 424 passed / 2 skipped, contract 114, api 115, e2e 58, `UCs with a green e2e: 32/32` (at least T0).
+- Green: `coupling: 0`, `vietnamese: 0`, `--check-baseline` ok; independent `git grep -ciE '<owner-specific names>'` over `loop-console` prints nothing; `npm run verify` exit 0: unit 424 passed / 2 skipped, contract 114, api 115, e2e 58, `UCs with a green e2e: 32/32` (at least T0).
 - Stub check: a scanner without the encoded pattern fails the new carol/dave unit cases.
 - Scanner: before `vietnamese 0`, `coupling 3` (owner words in place); after `vietnamese 0`, `coupling 0`.
 
@@ -240,7 +240,7 @@ Check-only task, no source-repo PR. Export commit: `dd56bae4cfca49b53414e11885e4
 - Red: not applicable (check-only; a failure goes back to the owning task). No failure occurred.
 - Green, scanner: `node scripts/lang-scan.mjs --tree --names --coupling` -> `vietnamese: 0`, `coupling: 0`; `--check-baseline` -> `baseline check: ok`. Before and after are the same (no edits): vietnamese 0 / coupling 0.
 - Green, `npm run verify`: exit 0. Unit 424 passed / 2 skipped, contract 114, api 115, e2e 58, `UCs with a green e2e: 32/32`, arch-fixtures 25/25 (all at least T0).
-- Green, independent grep: `git grep -ciE 'lamhi|lamhiep|hieplam|claudebot|verifybot|cabal' -- loop-console` prints nothing (no package-lock hash collisions either).
+- Green, independent grep: `git grep -ciE '<owner-specific names>' -- loop-console` prints nothing (no package-lock hash collisions either).
 - Green, size: `git ls-files loop-console | wc -l` = 538; `git archive HEAD:loop-console | wc -c` = 25 927 680 bytes; `git archive HEAD:loop-console/design | wc -c` = 23 552 000 (under 25 000 000).
 - Stub check: any skipped task leaves one of these off target (a remaining Vietnamese or owner-specific string fails the scan and grep; dropped tests fail the counts).
 
@@ -296,3 +296,23 @@ before `up`.
   next to it and verify still exited 0, so there is no hidden dependency on it.
 - Scanner (`scripts/lang-scan.mjs`, run by verify): before vietnamese 0 / coupling 0, after vietnamese 0 / coupling 0 (baseline file empty, unchanged).
 - Cleanup: `docker compose down -v` in the scratch clone (only after the names were confirmed), temp folder deleted.
+
+## T13
+
+Cut-over. The old console was not running (nothing listening on 7070), so step 1 was recorded from the database.
+
+- Step 1, loops before (`select ... from loops`, ids and counts only; runs counted in `runs` per loop):
+  - `23eb13f6-9a60-4184-b765-9f88fc2aadaf` stopped, run_counter 5, execution_counter 3, runs 5, executions 3
+  - `c72a6474-70a3-4941-a3c1-7417e284def9` stopped, run_counter 83, execution_counter 11, runs 95, executions 11
+  - `2d7f0689-1a85-4e86-980d-520302b57c14` stopped, run_counter 1, execution_counter 1, runs 8, executions 1
+  - `select count(*) from runs`: 108
+- Red: `docker inspect loop_console_pg --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}'` printed the old console folder inside the source repo (`<repos>\Cabal\loop-console`); container Id `86f7bfab17d4...99759e`, bind mount `pg-init` from the same folder, volume `loop_console_pg`.
+- Step 2, in the owner's clone `<repos>\castraferrum`: `npm ci`, `npm run build`, `docker compose up -d` with default names (output: `Container loop_console_pg Recreate / Recreated / Started`), `npm start`.
+- Green, label: the same `docker inspect` command now prints `<repos>\castraferrum`; new container Id `025e2d621350...f0e4` (recreated, as expected); bind mount `pg-init` from the new clone; the volume is still `loop_console_pg` (`/var/lib/docker/volumes/loop_console_pg/_data` -> `/var/lib/postgresql`).
+- Green, ids and counts from the new console (`GET /api/loops`, `GET /api/loops?archived=true`, `GET /api/loops/:id/runs` followed over the cursor): the same three ids, status stopped, run counts 5 / 95 / 8; `select count(*) from runs` still 108. `npm start` printed `Restart recovery: 0 unfinished runs ...` and `Loop Console: http://127.0.0.1:7070`. The console process was then stopped; the Postgres container keeps running (healthy).
+- Green, source repo: `git ls-files` on the console folder and on its docs folder prints nothing (before: 544 tracked files); `git grep -n "loop-console/" -- CLAUDE.md README.md` prints nothing; `git grep -n "loop-console/" -- scripts tools .claude docker` prints nothing; the wiki lint reports 0 errors (28 broken-link errors before the links into the deleted folders were rewritten). Source repo PR: https://github.com/hieplam/Cabal/pull/301
+- Green, `node tools/extraction-loop/loop.mjs status` runs with `CF_SOURCE_REPO` unset and prints `vietnamese 0, coupling 0` (the scanner is found in this repo).
+- Stub check: an empty database would not return the three ids and 5 / 95 / 8 runs; a container still owned by the old folder would print the old label (it printed it before `up -d` and no longer does); a forgotten folder would show in `git ls-files` (it printed 544 lines before the deletion, nothing after).
+- Scanner ratchet (`node scripts/lang-scan.mjs --tree --coupling`, baseline file empty): before vietnamese 0 / coupling 0, after vietnamese 0 / coupling 0. `--history`: 0 / 0. The owner's local pattern file was trimmed to the names that still make sense after the move; the repo owner's account name and the source repo name are now legitimate words in this repo (URLs, history). Two evidence lines that quoted the old pattern list were reworded.
+- `npm run verify` exit 0 in the worktree: unit 427 passed / 2 skipped, contract 114, api 115, e2e 58, `UCs with a green e2e: 32/32`, `dependency-cruiser: 0 violations`, `arch-fixtures: 25/25 violations caught`. All at least T0.
+- Memory notes (step 4) are not touched here; the coordinator owns them.
