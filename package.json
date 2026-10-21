@@ -9,6 +9,7 @@
   },
   "scripts": {
     "postinstall": "playwright install chromium",
+    "prepare": "git config core.hooksPath .githooks || true",
     "dev": "node scripts/dev.mjs",
     "start": "node --import tsx server/main.ts",
     "build": "vite build",

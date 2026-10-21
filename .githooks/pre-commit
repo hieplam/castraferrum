@@ -1,0 +1,3 @@
+#!/bin/sh
+# Refuses a commit whose staged path names or added lines contain Vietnamese.
+exec node scripts/lang-scan.mjs --staged
