@@ -246,13 +246,26 @@ describe('coupling', () => {
   });
 
   it('is not applied under the spec and plan folders', () => {
-    expect(COUPLING_EXEMPT_PREFIXES).toEqual(['docs/specs/', 'docs/plans/']);
+    expect(COUPLING_EXEMPT_PREFIXES).toEqual(['docs/specs/', 'docs/plans/', 'tools/extraction-loop/']);
     const root = repo({
       'docs/plans/p.md': `step ${'LC' + '-12'}\n`,
       'docs/specs/s.md': `step ${'LC' + '-12'}\n`,
       'server/a.ts': `// ${'LC' + '-12'}\n`,
     });
     expect(value(run(['--coupling'], { root }), 'coupling')).toBe(1);
+  });
+});
+
+describe('record folders', () => {
+  it('skip the content of the move records for Vietnamese, but not other folders or path names', () => {
+    const root = repo({
+      'docs/plans/p.md': `quoted ${TOKEN_A}\n`,
+      'docs/specs/s.md': `quoted ${TOKEN_A}\n`,
+      'tools/extraction-loop/b.md': `quoted ${TOKEN_A}\n`,
+      'server/a.ts': `// ${TOKEN_A}\n`,
+      [`docs/plans/${TOKEN_A}.md`]: 'English\n',
+    });
+    expect(value(run(['--tree'], { root }), 'vietnamese')).toBe(2);
   });
 });
 

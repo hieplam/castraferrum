@@ -20,8 +20,15 @@ import { fileURLToPath } from 'node:url';
 /** Paths (relative to the package root, forward slashes) whose content is never scanned. Exactly one entry. */
 export const SKIP_PATHS = ['shared/i18n/vi.ts'];
 
-/** Folders (relative to the package root) where the coupling count is not applied: they describe the move. */
-export const COUPLING_EXEMPT_PREFIXES = ['docs/specs/', 'docs/plans/'];
+/**
+ * Folders (relative to the package root) that record the move out of the source repo. They must name the old
+ * repository and quote the words they teach the scanner to catch, so neither count is applied to their contents.
+ * Path names are still scanned. Remove an entry when the folder is deleted.
+ */
+export const RECORD_PREFIXES = ['docs/specs/', 'docs/plans/', 'tools/extraction-loop/'];
+
+/** The coupling rule reads the same folders. */
+export const COUPLING_EXEMPT_PREFIXES = RECORD_PREFIXES;
 
 /** Home-folder user names that are neutral (compared case-insensitively). */
 export const NEUTRAL_USERS = ['alice', 'bob', 'user', 'runner', 'Shared', 'Public', 'Default'];
@@ -497,6 +504,7 @@ function scanName(rel, folder, acc) {
 }
 
 function scanLines(rel, folder, lines, acc, opts, startLine = 1) {
+  if (RECORD_PREFIXES.some((p) => rel.startsWith(p))) return;
   lines.forEach((text, i) => {
     const v = findVietnamese(text);
     if (v) acc.hits.push({ folder, path: rel, line: startLine + i, cls: 'text', kind: v.kind, match: v.match, text });
