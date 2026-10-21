@@ -1,10 +1,6 @@
 # Castraferrum
 
-Castraferrum is a local web UI that runs and watches agent loops. A loop is a prompt, a cron schedule and a
-repository: every time the schedule fires, the console starts one fresh Claude Code session in that repository,
-streams its log and transcript to the browser, and keeps the history (runs, session ids, cost, summaries) in
-PostgreSQL. Start and Stop are the only controls; when the server restarts, every loop stops and nothing runs
-again until a person presses Start.
+Castraferrum is a UI that runs and watches and mangage agent loops.
 
 ## Requirements
 
