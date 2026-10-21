@@ -1,9 +1,12 @@
 # CLAUDE.md - Castraferrum
 
 Castraferrum is a local web console that runs many coding-agent loops, one fresh agent session per tick.
-It is being extracted from the owner's private game-server repository, where it was called "Loop Console".
-Until the import task of the plan lands, this repository holds only documents.
+It was extracted from the owner's private game-server repository, where it was called "Loop Console";
+the source was imported as one snapshot commit.
 
+- Contributing guide (workflow, language rule, tests): [CONTRIBUTING.md](CONTRIBUTING.md)
+- Architecture, use cases, API, decisions: [docs/](docs/) ([ARCHITECTURE.md](docs/ARCHITECTURE.md),
+  [USE-CASES.md](docs/USE-CASES.md), [API.md](docs/API.md), [adr/](docs/adr/))
 - Spec: [docs/specs/2026-10-20-extraction.md](docs/specs/2026-10-20-extraction.md)
 - Plan: [docs/plans/2026-10-20-extraction.md](docs/plans/2026-10-20-extraction.md)
 
@@ -19,7 +22,9 @@ Nothing else may contain Vietnamese text, including tests of that locale: they r
 from the locale file instead of repeating them.
 
 Why: the repository is meant to be published, and no commit in its history may contain Vietnamese.
-History cannot be cleaned after the fact without rewriting it, so the rule is enforced on every commit.
+History cannot be cleaned after the fact without rewriting it, so the rule is enforced on every commit:
+the hooks in `.githooks/` (installed by `npm ci` through the `prepare` script) run `node scripts/lang-scan.mjs --staged`
+and `--message`, and CI scans the whole history and each pull request's title, body and branch name.
 
 ## Workflow
 

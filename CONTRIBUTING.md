@@ -9,13 +9,20 @@ expectations from that file. The scanner `node scripts/lang-scan.mjs` counts Vie
 inside `npm run verify` against the baseline in `scripts/lang-baseline.json`. The numbers may only go down: if a
 change lowers them, lower the baseline in the same pull request.
 
+The rule is enforced three ways. Git hooks in `.githooks/` (set up by `npm ci`, which runs the `prepare` script) refuse a
+commit whose staged file names, added lines or message contain Vietnamese. CI runs `node scripts/lang-scan.mjs --history --coupling`
+over every commit and, on pull requests, `--pr-event` over the title, body and branch name. The records of the move out of the
+source repo (`docs/specs/`, `docs/plans/`, `tools/extraction-loop/`) are the only folders whose contents are not scanned.
+
 ## Workflow
 
 1. Work on a branch, one concern per branch; do not commit to `main`.
 2. Run `npm ci` and make sure Postgres is up (`docker compose up -d`).
 3. Make the change. A new behaviour starts with a failing test, and a bug fix starts with a test that shows the
    bug.
-4. Run `npm run verify`. It must exit 0 before you open a pull request. A Playwright run needs `npm run build`
+4. Run `npm run verify` locally. It must exit 0 before you open a pull request. CI runs only the checks that need no
+   Claude login and no browser (language scan, `typecheck`, `arch`, `test:unit`, `build`, `test:contract`); the full
+   `verify`, with the real-Claude e2e tests, stays local. A Playwright run needs `npm run build`
    first because the e2e server serves `dist/web`.
 5. Open a pull request with a `## Verify` section that states the red command and output, the green command and
    output, and why an empty implementation would fail it. Squash-merge when green.
