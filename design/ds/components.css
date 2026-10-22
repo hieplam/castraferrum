@@ -592,7 +592,7 @@ button.select { display: block; overflow: hidden; text-overflow: ellipsis; white
 .fcell > .label { color: var(--text-muted); font-size: var(--fs-cap); line-height: var(--lh-cap); font-weight: var(--fw-semibold); }
 .fcell .input, .fcell .textarea, .fcell .select { height: auto; padding: 0; border: 0; border-radius: 0; background-color: transparent; }
 .fcell .input, .fcell .select { min-height: var(--space-8); }
-.fcell .input.is-err, .fcell .textarea.is-err { box-shadow: none; }
+.fcell .input.is-err, .fcell .textarea.is-err, .fcell .select.is-err { box-shadow: none; }
 .fcell .count { align-self: flex-end; }
 /* A row of a group: the label at the start, the value (the control, right-aligned) and a chevron at the end; a hint
    wraps under the row. */
