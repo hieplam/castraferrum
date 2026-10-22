@@ -8,7 +8,7 @@
     1. first call -WaitForIdle; the later call comes 10 s after          -> later call merges (exit 0, no step 5-6)
     2. later call comes when the first one logs 'step 5: npm run build'  -> later call queues, full restart, new PID
     3. later call comes when the first one logs 'step 7: health ok'      -> later call queues, full restart
-  then counts the 'Loop Console <port>' windows (must be exactly 1).
+  then counts the 'Castraferrum <port>' windows (must be exactly 1).
   Prints one PASS/FAIL line per check and 'PASS k/4'; exit 1 when any check FAILs.
   At the end it closes every window / process of the test console and drops the test DB (unless -Keep).
 
@@ -32,7 +32,7 @@ $ConsoleDir = (Resolve-Path $ConsoleDir).Path
 $Script = Join-Path $ConsoleDir 'scripts\restart-console.ps1'
 $Work = Join-Path $ConsoleDir 'reports\test-restart'
 $Base = "http://127.0.0.1:$Port"
-$Title = "WindowTitle='Loop Console $Port'"
+$Title = "WindowTitle='Castraferrum $Port'"
 
 # the console windows opened by restart-console.ps1 inherit these three
 $env:LOOPS_PORT = "$Port"
@@ -265,7 +265,7 @@ if ($why.Count -gt 0) { Show-Logs $a3 $b3 }
 $wins = @(Get-ConsoleWindows)
 $why = @()
 if ($wins.Count -ne 1) { $why += ("{0} windows: PID {1}" -f $wins.Count, (($wins | ForEach-Object { $_.ProcessId }) -join ', ')) }
-Add-Result ($wins.Count -eq 1) "windows: exactly 1 'Loop Console $Port' window is left after 3 scenarios" $why
+Add-Result ($wins.Count -eq 1) "windows: exactly 1 'Castraferrum $Port' window is left after 3 scenarios" $why
 
 # ---------------------------------------------------------------------------- summary + cleanup
 $pass = @($results | Where-Object { $_.StartsWith('PASS') }).Count

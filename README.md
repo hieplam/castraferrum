@@ -1,6 +1,6 @@
 # Castraferrum
 
-Castraferrum is a UI that runs and watches and mangage agent loops.
+Castraferrum is a UI that runs, watches and manages agent loops.
 
 ## Requirements
 
@@ -37,7 +37,7 @@ repository on the Repo page (the **Browse...** button picks a folder), then crea
 | `npm start` | Real server: API and the built UI (`dist/web`) on `127.0.0.1:7070`, database `loops` |
 | `npm run dev` | API with `tsx watch` on 7070 plus the Vite dev server on `127.0.0.1:5180` (proxies `/api`) |
 | `npm run build` | Build the UI into `dist/web` |
-| `npm run verify` | The full gate: typecheck, language scan baseline, `arch`, unit, contract, API, `api-smoke`, build, e2e, `uc-coverage --min 32` |
+| `npm run verify` | The full gate: typecheck, language scan baseline, `arch`, `ratchets -- --base main`, unit, contract, API, `api-smoke`, build, e2e, `uc-coverage --min 32` |
 | `npm run typecheck` | Strict `tsc` for server, shared and tests, and for the UI |
 | `npm run arch` | Layer rules: prints `dependency-cruiser: N violations` (must be 0) and `arch-fixtures: k/k violations caught` |
 | `npm test` | All Vitest projects |
@@ -47,6 +47,10 @@ repository on the Repo page (the **Browse...** button picks a folder), then crea
 | `npm run api-smoke` | Starts the real `server/main.ts`, walks the whole life cycle over HTTP, kills and restarts it |
 | `npm run test:e2e` | Playwright: starts its own server on `127.0.0.1:7071` from the build (run `npm run build` first) |
 | `npm run uc-coverage -- --min k` | Counts the use cases with a green e2e test (k/32) from `reports/e2e.json`; exits 1 below `k` |
+| `npm run ratchets` | Design-system ratchets from `scripts/ratchets.json`; `-- --base <git-ref>` also checks that no limit moved the wrong way against that ref; prints `ratchets: ok` or `ratchets: failed` |
+| `npm run design:tokens -- <tokens.css>` | Checks one design token file: empty or swallowed values, tokens missing in dark, contrast pairs, required tokens |
+| `npm run design:lint` | The design-system rule as a check: native `title` tooltips, classes the design CSS does not define, literal values in `style` |
+| `npm run phone:check` | Starts a test-mode server and checks whether any of six screens scrolls sideways at phone and tablet widths (run `npm run build` first) |
 | `npm run design:compare` | Real app next to the approved reference screens, with per-region pixel diffs |
 | `npm run design:shots` / `design:states` | Regenerate and check the reference screens |
 | `npm run db:generate` | Generate a SQL migration from `server/adapters/postgres/schema.ts` (commit the result) |

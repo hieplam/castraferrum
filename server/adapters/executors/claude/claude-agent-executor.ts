@@ -96,7 +96,7 @@ export function formatWait(ms: number): string {
  */
 export function cleanupMessage(ceilingMs: number, stopped: readonly string[]): string {
   return (
-    `[Loop Console] This run has waited for background tasks for more than ${formatWait(ceilingMs)} since your last reply, ` +
+    `[Castraferrum] This run has waited for background tasks for more than ${formatWait(ceilingMs)} since your last reply, ` +
     `so the console stopped these tasks: ${stopped.join(', ')}. ` +
     'This is the last turn of the run: tidy up the unfinished work (record the state so the next run can continue), ' +
     'do not start new background tasks, then reply briefly with what you did.'

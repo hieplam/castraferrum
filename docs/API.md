@@ -1,4 +1,4 @@
-# Loop Console - HTTP API
+# Castraferrum - HTTP API
 
 All routes live under `/api`. Request and response shapes are zod schemas in `shared/contracts/` (one schema
 validates the request, encodes the response and types the browser client). Timestamps are ISO strings.

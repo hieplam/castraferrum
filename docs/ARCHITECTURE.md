@@ -1,6 +1,6 @@
-# Loop Console - architecture
+# Castraferrum - architecture
 
-Loop Console is a local web UI that runs and watches many agent loops. A loop is a prompt plus a cron schedule
+Castraferrum is a local web UI that runs and watches many agent loops. A loop is a prompt plus a cron schedule
 plus a repository; each time it fires, one fresh Claude Code session starts in that repository (see
 [ADR 0001](adr/0001-fresh-session-per-tick.md)). This document explains how the code is layered, how a run
 flows through it, what is stored, and how it is tested. The use cases are in [USE-CASES.md](USE-CASES.md) and
@@ -196,7 +196,7 @@ sequenceDiagram
   E->>R: startScheduled(...) / startFirst(...)
   R->>DB: start(execution, snapshot of prompt + executor)
   alt database says busy (limit reached)
-    R->>DB: recordSkipped("run #N still running")
+    R->>DB: recordSkipped("round #N still running")
     R->>B: run.skipped
   else started
     R->>B: run.started
@@ -260,7 +260,7 @@ wake the agent, so the agent would never get a turn to tidy up. The executor the
 message through the input, only after every `stopTask` finished and the agent is idle (if a new turn started
 first, that turn is the cleanup turn). The wording, quoted verbatim by a unit test that re-reads this file, is:
 
-> [Loop Console] This run has waited for background tasks for more than 30 minutes since your last reply, so the
+> [Castraferrum] This run has waited for background tasks for more than 30 minutes since your last reply, so the
 > console stopped these tasks: <description 1>, <description 2>. This is the last turn of the run: tidy up the
 > unfinished work (record the state so the next run can continue), do not start new background tasks, then reply
 > briefly with what you did.
@@ -356,7 +356,7 @@ swap the whole machine.
 
 ## Persistence (PostgreSQL)
 
-Tables (schema in `server/adapters/postgres/schema.ts`; `npm run db:generate` writes SQL to `migrations/`, which
+Tables (schema in `server/adapters/postgres/schema.ts`; `npm run db:generate` writes SQL to `server/adapters/postgres/migrations/`, which
 is committed and applied at startup):
 
 | Table | Holds | Key constraints |
@@ -418,7 +418,7 @@ at least one green e2e test (skipped, red or flaky do not count) from `reports/e
 the count falls below `k`.
 
 **`npm run verify`** is the one command every change must pass: typecheck, language scan baseline, `arch`,
-unit, contract, API (these run one after another because contract and API share `loops_test`), `api-smoke`,
+`ratchets -- --base main`, unit, contract, API (these run one after another because contract and API share `loops_test`), `api-smoke`,
 build, e2e, and `uc-coverage --min 32`. E2E starts its own server on `127.0.0.1:7071` from the build so it does
 not touch the one in use on 7070, and tests that kill the server or cut Postgres use
 `tests/support/server-process.ts`: a real `server/main.ts` on a free port with a private database and a TCP proxy

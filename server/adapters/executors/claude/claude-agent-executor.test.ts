@@ -294,7 +294,7 @@ describe('ClaudeAgentExecutor — waiting for background tasks', () => {
    * `cleanupMessage`: the test compares against the spec, not against the very code under test (case (e9) also compares against the spec file).
    */
   const cleanupText = (tasks: string) =>
-    `[Loop Console] This run has waited for background tasks for more than 1 second since your last reply, so the console stopped these tasks: ${tasks}. ` +
+    `[Castraferrum] This run has waited for background tasks for more than 1 second since your last reply, so the console stopped these tasks: ${tasks}. ` +
     'This is the last turn of the run: tidy up the unfinished work (record the state so the next run can continue), do not start new background tasks, then reply briefly with what you did.';
   const userMessage = (text: string) => ({ type: 'user', message: { role: 'user', content: text }, parent_tool_use_id: null, session_id: '' });
   const overCeiling = (tasks: string) => `Waited more than 1 second for background tasks - stopped: ${tasks}`;
@@ -712,7 +712,7 @@ describe('ClaudeAgentExecutor — waiting for background tasks', () => {
 
   it('(e9) cleanupMessage: verbatim the sentence in SPEC-phase-2 § Rules of the `claude` executor step 2 (re-reads the spec file, not copied by hand)', () => {
     const spec = readFileSync(join(fileURLToPath(new URL('../../../..', import.meta.url)), 'docs', 'ARCHITECTURE.md'), 'utf8').split('\n');
-    const first = spec.findIndex((l) => l.trim().startsWith('> [Loop Console]'));
+    const first = spec.findIndex((l) => l.trim().startsWith('> [Castraferrum]'));
     expect(first, 'the spec still has the cleanup message sentence').toBeGreaterThan(-1);
     const quote: string[] = [];
     for (let i = first; i < spec.length && spec[i]!.trim().startsWith('>'); i++) quote.push(spec[i]!.trim().replace(/^>\s?/, ''));

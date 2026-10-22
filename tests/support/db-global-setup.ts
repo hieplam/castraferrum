@@ -11,7 +11,7 @@ export default async function setup(): Promise<void> {
     if ((err as { code?: string }).code !== '3D000') {
       throw new Error(
         `Cannot connect to the test Postgres at ${redactUrl(url)} (${(err as Error).message}). ` +
-          'Start Postgres: docker compose -f compose.yml up -d (inside loop-console/)',
+          'Start Postgres: docker compose -f compose.yml up -d (in the repository root)',
       );
     }
     const target = new URL(url);

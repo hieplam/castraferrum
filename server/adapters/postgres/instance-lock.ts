@@ -4,14 +4,14 @@ import type pg from 'pg';
 // the earlier process is really running as `interrupted` (UC-15 only holds with a single server). Postgres's advisory lock
 // is held on a dedicated connection for the life of the process: when the process dies Postgres releases the lock itself.
 
-/** Loop Console's 64-bit advisory lock key ("loop" + "cons" as ASCII codes). */
+/** Castraferrum's 64-bit advisory lock key ("loop" + "cons" as ASCII codes). */
 const LOCK_KEY = 0x6c6f6f70_636f6e73n;
 
 export type InstanceLock = { release(): Promise<void> };
 
 export class InstanceLockTakenError extends Error {
   constructor(dbName: string) {
-    super(`Another Loop Console server is already running on DB "${dbName}" — stop it first (or point DATABASE_URL at a different DB)`);
+    super(`Another Castraferrum server is already running on DB "${dbName}" — stop it first (or point DATABASE_URL at a different DB)`);
     this.name = 'InstanceLockTakenError';
   }
 }
