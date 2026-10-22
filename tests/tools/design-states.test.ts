@@ -2,7 +2,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { checkDrawn, checkStates, loadDomain, main, messagesJs, readPreviewStates, readStateIds, scheduleJs } from '../../scripts/design-states.mjs';
+import { PNG as Png } from 'pngjs';
+import { checkDrawn, checkStates, compressPng, encodePng, loadDomain, main, messagesJs, readPreviewStates, readStateIds, scheduleJs } from '../../scripts/design-states.mjs';
 
 // The smallest real PNG: the 8-byte signature + padding past the 10 KB threshold.
 const PNG = Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.alloc(11 * 1024)]);
@@ -135,5 +136,17 @@ describe('design-states', () => {
         'inline style with a literal: "color:#fff"', 'inline style with a literal: "margin:4px"', 'inline style with a literal: "width:1.5rem"',
       ]);
     });
+  });
+
+  it('compressPng: a lossless re-encode keeps the pixels; a lossy one fails and keeps the original', () => {
+    const img = new Png({ width: 40, height: 30 });
+    for (let i = 0; i < img.data.length; i += 4) img.data.set([i % 251, (i * 7) % 253, 90, 255], i);
+    const plain = Png.sync.write(img, { deflateLevel: 0 });
+    const good = compressPng(plain);
+    expect(good.identical).toBe(true);
+    expect(good.after).toBeLessThan(good.before);
+    expect(Png.sync.read(good.buf).data.equals(Png.sync.read(plain).data)).toBe(true);
+    const lossy = compressPng(plain, (x) => { const d = Buffer.from(x.data); d[0] ^= 1; return encodePng({ ...x, data: d }); });
+    expect([lossy.identical, lossy.buf]).toEqual([false, plain]);
   });
 });

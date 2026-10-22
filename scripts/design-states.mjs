@@ -12,10 +12,12 @@
 // --no-shots (only the state list both ways and the build output; prints "states: k/N (shots not checked)" — the new
 // preview has no shots until the owner approves it).
 // checkDrawn() is the dry-run check of `npm run design:shots -- --dry`: required test ids, unknown classes, inline styles.
+// compressPng() is the lossless re-encode of `npm run design:shots -- --compress`.
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
+import { PNG } from 'pngjs';
 import { hasColourLiteral } from './design-tokens.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -172,6 +174,30 @@ export function checkDrawn(snap, { requires = [], known }) {
   for (const c of [...new Set(snap.classes)].sort()) if (!known.has(c)) out.push(`unknown class .${c}`);
   for (const st of snap.styles) if (hasColourLiteral(st) || LENGTH.test(st)) out.push(`inline style with a literal: "${st}"`);
   return out;
+}
+
+/** pngjs at deflate level 9 with the adaptive filter; RGB when every pixel is opaque. */
+export function encodePng({ width, height, data }) {
+  let opaque = true;
+  for (let i = 3; i < data.length; i += 4) if (data[i] !== 255) { opaque = false; break; }
+  const png = new PNG({ width, height, colorType: opaque ? 2 : 6, inputHasAlpha: true });
+  data.copy(png.data);
+  return PNG.sync.write(png, { deflateLevel: 9, filterType: -1, colorType: opaque ? 2 : 6, inputHasAlpha: true });
+}
+
+/**
+ * Re-encodes one PNG losslessly. Returns { buf, identical, before, after }: buf is the smaller of the two encodings,
+ * identical is false when the re-encoded file decodes to other pixels (then buf is the original).
+ * @param {Buffer} original
+ * @param {(img: { width: number, height: number, data: Buffer }) => Buffer} [encode]
+ */
+export function compressPng(original, encode = encodePng) {
+  const img = PNG.sync.read(original);
+  const out = encode(img);
+  const back = PNG.sync.read(out);
+  const identical = back.width === img.width && back.height === img.height && back.data.equals(img.data);
+  const buf = identical && out.length < original.length ? out : original;
+  return { buf, identical, before: original.length, after: buf.length };
 }
 
 export async function main(argv = process.argv.slice(2)) {

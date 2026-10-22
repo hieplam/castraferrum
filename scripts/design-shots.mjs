@@ -14,16 +14,19 @@
 // `requires`, visible elements only) missing or with the wrong count, a class <folder>/components.css does not define,
 // an inline style with a colour literal or a px, rem or em length. Prints "drawn <k> states x <t> themes, <n> problems";
 // any problem → exit 1.
+// --compress re-encodes every written shot losslessly (pngjs, deflate level 9, adaptive filter) and keeps the smaller
+// file. A re-encode that decodes to other pixels keeps the original and fails. Prints "pixels identical: <k>/<n>" and
+// the bytes before and after.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { chromium } from '@playwright/test';
 import { cssClasses } from './design-lint.mjs';
-import { DEFAULT_DESIGN, THEMES, checkDrawn, generatedFiles, readPreviewStates } from './design-states.mjs';
+import { DEFAULT_DESIGN, THEMES, checkDrawn, compressPng, generatedFiles, readPreviewStates } from './design-states.mjs';
 
 const { values } = parseArgs({ options: {
-  only: { type: 'string' }, theme: { type: 'string' }, design: { type: 'string' }, dry: { type: 'boolean' },
+  only: { type: 'string' }, theme: { type: 'string' }, design: { type: 'string' }, dry: { type: 'boolean' }, compress: { type: 'boolean' },
 } });
 const designDir = values.design ? resolve(values.design) : DEFAULT_DESIGN;
 const preview = join(designDir, 'preview');
@@ -53,7 +56,7 @@ const snapshot = () => {
 };
 
 const browser = await chromium.launch();
-let bad = 0, n = 0, problemCount = 0;
+let bad = 0, n = 0, problemCount = 0, same = 0, before = 0, after = 0;
 for (const s of states) {
   const [width, height] = s.vp ?? [1440, 900];
   const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1 });
@@ -72,8 +75,15 @@ for (const s of states) {
       problemCount += problems.length;
       console.log(`  ✗ ${s.id} ${theme}: ${problems.join(' · ')}`);
     } else if (!values.dry) {
-      await page.screenshot({ path: join(shots, `${s.id}-${theme}.png`), fullPage: !s.fixed, animations: 'disabled', caret: 'hide' });
+      const file = join(shots, `${s.id}-${theme}.png`);
+      await page.screenshot({ path: file, fullPage: !s.fixed, animations: 'disabled', caret: 'hide' });
       n++;
+      if (values.compress) {
+        const c = compressPng(readFileSync(file));
+        before += c.before;
+        after += c.after;
+        if (c.identical) { same++; writeFileSync(file, c.buf); } else { bad++; console.log(`  ✗ ${s.id} ${theme}: the re-encoded PNG has other pixels`); }
+      }
     }
     await page.close();
   }
@@ -82,4 +92,5 @@ for (const s of states) {
 await browser.close();
 if (values.dry) console.log(`drawn ${states.length} states x ${themes.length} themes, ${problemCount} problems`);
 else console.log(`shot ${n} images${bad ? `, ${bad} pages with problems` : ''} → ${shots}`);
+if (values.compress) console.log(`pixels identical: ${same}/${n} (${before} → ${after} bytes)`);
 process.exitCode = bad ? 1 : 0;
