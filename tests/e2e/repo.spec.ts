@@ -11,6 +11,7 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
 import { REPO_MISSING_PREFIX } from '../../shared/domain/cost';
 import { api, closeDb, db, fill, MOCK_LONG, pickRepo } from '../support/form-kit';
 import { t } from '../support/ui-text';
+import { deleteRepo, pickScheduleKind, registerRepo } from '../support/ui';
 
 test.use({ timezoneId: 'Asia/Ho_Chi_Minh' });
 test.afterAll(closeDb);
@@ -34,7 +35,7 @@ async function loopApi(request: APIRequestContext, body: Json): Promise<Json> {
   expect(r.status, JSON.stringify(r.body)).toBe(201);
   return r.body;
 }
-const repoRow = (page: Page, name: string) => page.getByTestId('repo-row').filter({ has: page.locator('.repo-tag', { hasText: new RegExp(`^${name}$`) }) });
+const repoRow = (page: Page, name: string) => page.getByTestId('repo-row').filter({ has: page.getByTestId('repo-row-name').filter({ hasText: new RegExp(`^${name}$`) }) });
 
 test.describe('repo + Claude executor (phase 2)', () => {
   test('UC-19: register a repo - name auto-filled from the folder; a missing folder / duplicate path / duplicate name -> error at the field, nothing written to the DB', { tag: '@UC-19' }, async ({ page }) => {
@@ -57,14 +58,12 @@ test.describe('repo + Claude executor (phase 2)', () => {
     await expect(page.getByTestId('nav-repos-count')).toHaveText('1');
 
     // Folder does not exist -> error at the path field; the DB still has one repo.
-    await page.getByTestId('repo-path').fill(join(dir, 'missing'));
-    await page.getByTestId('repo-submit').click();
+    await registerRepo(page, join(dir, 'missing'));
     await expect(page.getByTestId('error-repo-path')).toHaveText(t('repo.val.notFound'));
     expect(await count('SELECT count(*) AS n FROM repos')).toBe(1);
 
     // Duplicate path (typed another way: a trailing "\") -> error at the field, names the existing repo (D-UI21).
-    await page.getByTestId('repo-path').fill(`${dir}\\`);
-    await page.getByTestId('repo-submit').click();
+    await registerRepo(page, `${dir}\\`);
     await expect(page.getByTestId('error-repo-path')).toHaveText(t('repo.val.pathTaken', { name: basename(dir) }));
     await expect(page.getByTestId('error-repo-name')).toHaveCount(0);
     expect(await count('SELECT count(*) AS n FROM repos')).toBe(1);
@@ -81,7 +80,7 @@ test.describe('repo + Claude executor (phase 2)', () => {
     await page.getByTestId('repo-submit').click();
     await expect(page.getByTestId('repo-row')).toHaveCount(2);
     expect((await rows('SELECT name, path FROM repos ORDER BY lower(name)')).map((r) => r.name)).toEqual(
-      (await page.locator('[data-testid=repo-row] .repo-tag').allInnerTexts()),
+      (await page.getByTestId('repo-row-name').allInnerTexts()),
     );
   });
 
@@ -97,18 +96,18 @@ test.describe('repo + Claude executor (phase 2)', () => {
     await expect(repoRow(page, 'free-repo').getByTestId('repo-loop-count')).toHaveText(t('repo.loops.none'));
 
     // A loop still uses it -> red banner names them (the archived loop is marked "(archived)"), the repo stays in the DB (D-UI20).
-    await repoRow(page, 'in-use').getByTestId('repo-delete').click();
+    await deleteRepo(repoRow(page, 'in-use'));
     await expect(page.getByTestId('repo-in-use')).toHaveText(
       t('repo.inUse', { name: 'in-use', n: 2, loops: `Loop A, ${t('repo.inUse.archived', { name: 'Loop B' })}` }),
     );
     expect(await count('SELECT count(*) AS n FROM repos WHERE id = $1', [used.id])).toBe(1);
 
     // No loop uses it -> confirmation box -> gone from the table + DB.
-    await repoRow(page, 'free-repo').getByTestId('repo-delete').click();
+    await deleteRepo(repoRow(page, 'free-repo'));
     await expect(page.getByTestId('repo-delete-dialog')).toContainText(t('repo.delete.title', { name: 'free-repo' }));
     await page.getByTestId('repo-delete-cancel').click();
     expect(await count('SELECT count(*) AS n FROM repos WHERE id = $1', [free.id])).toBe(1);
-    await repoRow(page, 'free-repo').getByTestId('repo-delete').click();
+    await deleteRepo(repoRow(page, 'free-repo'));
     await page.getByTestId('repo-delete-confirm').click();
     await expect(page.getByTestId('repo-row')).toHaveCount(1);
     expect(await count('SELECT count(*) AS n FROM repos WHERE id = $1', [free.id])).toBe(0);
@@ -123,7 +122,7 @@ test.describe('repo + Claude executor (phase 2)', () => {
     await fill(page, 'f-prompt', 'Read the README, summarize in one line.');
     // No repo -> error at the Repo field, nothing written to the DB.
     await page.getByTestId('form-submit').click();
-    await expect(page.getByTestId('f-repo').locator('xpath=../..')).toContainText(t('val.repoRequired'));
+    await expect(page.getByTestId('error-f-repo')).toContainText(t('val.repoRequired'));
     await expect(page.getByTestId('form-errors')).toHaveText(t('form.errSummary', { n: 1 }));
     expect(await count('SELECT count(*) AS n FROM loops')).toBe(0);
 
@@ -196,7 +195,7 @@ test.describe('repo + Claude executor (phase 2)', () => {
     await fill(page, 'f-name', 'Runs forever');
     await fill(page, 'f-prompt', 'Fix issues until none are left');
     await pickRepo(page, 'repo');
-    await page.getByTestId('sched-kind-advanced').click();
+    await pickScheduleKind(page, 'advanced');
     await fill(page, 'sched-cron', '0 0 1 1 *'); // yearly - no schedule tick gets in when the clock is advanced
     await page.getByTestId('f-executor-mock').click(); // a long run without opening Claude (Mock exists in test mode only)
     await fill(page, 'f-duration', '600');
@@ -236,7 +235,7 @@ test.describe('repo + Claude executor (phase 2)', () => {
     const db1 = await rows<{ loop: string; repo: string }>(
       'SELECT l.name AS loop, r.name AS repo FROM loops l JOIN repos r ON r.id = l.repo_id WHERE l.archived_at IS NULL ORDER BY l.created_at DESC, l.id DESC',
     );
-    const shown = await page.getByTestId('loop-row').evaluateAll((els) => els.map((e) => ({ loop: e.querySelector('.nm')?.textContent, repo: e.querySelector('[data-testid=row-repo]')?.textContent })));
+    const shown = await page.getByTestId('loop-row').evaluateAll((els) => els.map((e) => ({ loop: e.querySelector('[data-testid=loop-name]')?.textContent, repo: e.querySelector('[data-testid=row-repo]')?.textContent })));
     expect(shown).toEqual(db1);
 
     // Filter by Beta -> only Beta's loops; the count on each tab under the filter = SELECT.
@@ -245,16 +244,16 @@ test.describe('repo + Claude executor (phase 2)', () => {
     await expect(page.getByTestId('repo-filter')).toHaveAttribute('data-active', 'true');
     await expect(page.getByTestId('loop-row')).toHaveCount(2);
     const beta = await rows<{ name: string }>('SELECT name FROM loops WHERE repo_id = $1 AND archived_at IS NULL ORDER BY created_at DESC, id DESC', [b.id]);
-    await expect(page.locator('[data-testid=loop-row] .nm')).toHaveText(beta.map((r) => r.name));
+    await expect(page.getByTestId('loop-name')).toHaveText(beta.map((r) => r.name));
     await expect(page.getByTestId('tab-all')).toContainText(String(beta.length));
     await expect(page.getByTestId('tab-archived')).toContainText(String(await count('SELECT count(*) AS n FROM loops WHERE repo_id = $1 AND archived_at IS NOT NULL', [b.id])));
     await page.getByTestId('tab-archived').click();
-    await expect(page.locator('[data-testid=loop-row] .nm')).toHaveText(['Loop 4 archived']);
+    await expect(page.getByTestId('loop-name')).toHaveText(['Loop 4 archived']);
     await page.getByTestId('tab-all').click();
 
     // Loop detail: the repo in the header + the configuration.
     await page.locator(`[data-testid=loop-row][data-loop-id="${l3.id}"]`).click();
-    await expect(page.locator('.ph-sub [data-testid=repo-tag]')).toHaveText('Beta');
+    await expect(page.getByTestId('loop-repo')).toHaveText('Beta');
     await expect(page.getByTestId('config-repo')).toContainText(b.path);
 
     // Remove the filter -> all 3 rows.

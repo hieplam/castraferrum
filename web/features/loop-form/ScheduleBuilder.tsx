@@ -180,7 +180,7 @@ function ScheduleOut({ draft, timezone, result, now }: { draft: ScheduleDraft; t
           const p = runParts(at, timezone, (all.at(-1)?.getTime() ?? 0) - now.getTime() > FAR_MS);
           return (
             <li key={at.getTime()} data-at={at.toISOString()}>
-              <span>
+              <span data-testid="sched-next-when">
                 {t(`day.short.${p.dow}` as MessageKey)} {p.date} · <b>{p.time}</b>
               </span>
               <span className="rel">{fmtRelative(t, Math.floor((at.getTime() - now.getTime()) / 1000))}</span>
@@ -193,9 +193,11 @@ function ScheduleOut({ draft, timezone, result, now }: { draft: ScheduleDraft; t
 }
 
 /** A field with a label + a hint / error below (class `.field` of the design system). */
-export function Field({ label, htmlFor, error, hint, children, className, head }: {
+export function Field({ label, htmlFor, errorFor, error, hint, children, className, head }: {
   label: string;
   htmlFor?: string;
+  /** Names the error element (`error-<errorFor>`) when the field has no `htmlFor` (the repo combobox). */
+  errorFor?: string;
   error?: string | undefined;
   hint?: ReactNode;
   children: ReactNode;
@@ -216,7 +218,7 @@ export function Field({ label, htmlFor, error, hint, children, className, head }
       )}
       {children}
       {error ? (
-        <span className="hint is-error" data-testid={htmlFor ? `error-${htmlFor}` : undefined}>
+        <span className="hint is-error" data-testid={htmlFor || errorFor ? `error-${htmlFor ?? errorFor}` : undefined}>
           {error}
         </span>
       ) : (

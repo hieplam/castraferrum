@@ -11,6 +11,7 @@ import { vi } from '../../shared/i18n/vi';
 import { liveDbUrl, ServerProcess } from '../support/server-process';
 import { ensureTestRepo } from '../support/test-repo';
 import { t } from '../support/ui-text';
+import { lampState, statValue, switchLanguage, themeName } from '../support/ui';
 
 const TOKENS = readFileSync(fileURLToPath(new URL('../../design/tokens.css', import.meta.url)), 'utf8');
 /** The `--bg` value of a token set in design/tokens.css (the default light block / the `[data-theme="dark"]` block). */
@@ -57,15 +58,15 @@ test.describe('app shell', () => {
       const id = created.body.id;
 
       await page.goto(`${sp.baseUrl}/`);
-      await expect(page.getByTestId('lamp-server')).toHaveAttribute('data-state', 'ok');
-      await expect(page.getByTestId('lamp-db')).toHaveAttribute('data-state', 'ok');
-      await expect(page.getByTestId('stat-active-loops')).toHaveText(t('top.stats.activeLoops', { n: 0 }));
+      await expect(lampState(page, 'server')).toHaveAttribute('data-state', 'ok');
+      await expect(lampState(page, 'db')).toHaveAttribute('data-state', 'ok');
+      await expect(statValue(page, 'active-loops')).toHaveText(t('top.stats.activeLoops', { n: 0 }));
       await page.evaluate(() => ((window as unknown as { __noReload: boolean }).__noReload = true));
 
       // Live: Start through the API (another tab) -> SSE event -> the figures change, no F5.
       expect((await sp.api('POST', `/api/loops/${id}/start`)).status).toBe(200);
-      await expect(page.getByTestId('stat-active-loops')).toHaveText(t('top.stats.activeLoops', { n: 1 }), { timeout: 2_000 });
-      await expect(page.getByTestId('stat-running-runs')).toHaveText(t('top.stats.runningRuns', { n: 1 }), { timeout: 2_000 });
+      await expect(statValue(page, 'active-loops')).toHaveText(t('top.stats.activeLoops', { n: 1 }), { timeout: 2_000 });
+      await expect(statValue(page, 'running-runs')).toHaveText(t('top.stats.runningRuns', { n: 1 }), { timeout: 2_000 });
 
       // The server dies.
       await sp.kill();
@@ -73,10 +74,10 @@ test.describe('app shell', () => {
       await expect(banner).toBeVisible({ timeout: 3_000 });
       await expect(banner).toContainText(t('banner.disconnected'));
       await expect(banner).toContainText(/attempt \d+ · retry in \d+ s · figures frozen at \d\d:\d\d:\d\d/);
-      await expect(page.getByTestId('lamp-server')).toHaveAttribute('data-state', 'down');
-      await expect(page.getByTestId('lamp-db')).toHaveAttribute('data-state', 'wait');
-      await expect(page.getByTestId('topstats')).toHaveClass(/is-stale/);
-      await expect(page.getByTestId('stat-active-loops')).toHaveText(t('top.stats.activeLoops', { n: 1 })); // figures frozen
+      await expect(lampState(page, 'server')).toHaveAttribute('data-state', 'down');
+      await expect(lampState(page, 'db')).toHaveAttribute('data-state', 'wait');
+      await expect(page.getByTestId('topstats')).toHaveAttribute('data-stale', 'true');
+      await expect(statValue(page, 'active-loops')).toHaveText(t('top.stats.activeLoops', { n: 1 })); // figures frozen
       await expect(banner).toContainText(/attempt [2-9]/, { timeout: 8_000 }); // still retrying
 
       // Server back: recovery stopped the loop (UC-15) without emitting any event -> only right if the UI reloads by itself.
@@ -86,10 +87,10 @@ test.describe('app shell', () => {
       await expect(page.getByTestId('banner-reconnected')).toBeVisible({ timeout: 12_000 });
       await expect(page.getByTestId('banner-reconnected')).toHaveText(t('banner.reconnected'));
       await expect(banner).toHaveCount(0);
-      await expect(page.getByTestId('lamp-server')).toHaveAttribute('data-state', 'ok');
-      await expect(page.getByTestId('stat-active-loops')).toHaveText(t('top.stats.activeLoops', { n: 0 }), { timeout: 2_000 });
-      await expect(page.getByTestId('stat-running-runs')).toHaveText(t('top.stats.runningRuns', { n: 0 }));
-      await expect(page.getByTestId('topstats')).not.toHaveClass(/is-stale/);
+      await expect(lampState(page, 'server')).toHaveAttribute('data-state', 'ok');
+      await expect(statValue(page, 'active-loops')).toHaveText(t('top.stats.activeLoops', { n: 0 }), { timeout: 2_000 });
+      await expect(statValue(page, 'running-runs')).toHaveText(t('top.stats.runningRuns', { n: 0 }));
+      await expect(page.getByTestId('topstats')).not.toHaveAttribute('data-stale', 'true');
       expect(await page.evaluate(() => (window as unknown as { __noReload?: boolean }).__noReload)).toBe(true);
       await expect(page.getByTestId('banner-reconnected')).toHaveCount(0, { timeout: 8_000 }); // the banner turns itself off
     } finally {
@@ -103,17 +104,17 @@ test.describe('app shell', () => {
     const sp = await ServerProcess.launch();
     try {
       await page.goto(`${sp.baseUrl}/`);
-      await expect(page.getByTestId('lamp-db')).toHaveAttribute('data-state', 'ok');
+      await expect(lampState(page, 'db')).toHaveAttribute('data-state', 'ok');
       await sp.cutDb();
       const banner = page.getByTestId('banner-db-down');
       await expect(banner).toBeVisible({ timeout: 12_000 });
       await expect(banner).toContainText('Database not responding — the server is up');
       await expect(banner).toContainText(/since \d\d:\d\d:\d\d · retrying/);
-      await expect(page.getByTestId('lamp-db')).toHaveAttribute('data-state', 'down');
-      await expect(page.getByTestId('lamp-server')).toHaveAttribute('data-state', 'ok');
+      await expect(lampState(page, 'db')).toHaveAttribute('data-state', 'down');
+      await expect(lampState(page, 'server')).toHaveAttribute('data-state', 'ok');
       await sp.restoreDb();
       await expect(banner).toHaveCount(0, { timeout: 12_000 });
-      await expect(page.getByTestId('lamp-db')).toHaveAttribute('data-state', 'ok');
+      await expect(lampState(page, 'db')).toHaveAttribute('data-state', 'ok');
     } finally {
       await sp.stop();
     }
@@ -128,7 +129,7 @@ test.describe('app shell', () => {
     await expect(page.getByTestId('toggle-lang').locator('b')).toHaveText('EN');
     for (const path of SCREENS) {
       await page.goto(path);
-      await expect(page.getByTestId('lamp-server')).toHaveAttribute('data-state', 'ok');
+      await expect(lampState(page, 'server')).toHaveAttribute('data-state', 'ok');
       await expect(page.locator('html')).toHaveAttribute('lang', 'en');
       const text = await visibleUiText(page);
       expect(hasVietnamese(text), `${path} still shows Vietnamese letters:\n${text}`).toBe(false);
@@ -137,7 +138,7 @@ test.describe('app shell', () => {
 
     // The toggle switches to the strings of vi.ts and lang="vi".
     await page.goto('/');
-    await page.getByTestId('toggle-lang').click();
+    await switchLanguage(page);
     await expect(page.locator('html')).toHaveAttribute('lang', 'vi');
     await expect(page.getByTestId('nav-loops')).toHaveText(vi['nav.loops']);
     await expect(page.getByTestId('toggle-lang').locator('b')).toHaveText('VI');
@@ -145,7 +146,7 @@ test.describe('app shell', () => {
     await expect(page.locator('html')).toHaveAttribute('lang', 'vi');
     await expect(page.getByTestId('nav-loops')).toHaveText(vi['nav.loops']);
 
-    await page.getByTestId('toggle-lang').click();
+    await switchLanguage(page);
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
     await page.reload();
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
@@ -158,12 +159,12 @@ test.describe('app shell', () => {
       await page.goto('/');
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
       expect(await bodyBg(page)).toBe(tokenBg('dark'));
-      await expect(page.getByTestId('toggle-theme').locator('b')).toHaveText(en['top.theme.dark']);
+      await expect(themeName(page)).toHaveText(en['top.theme.dark']);
 
       await page.getByTestId('toggle-theme').click();
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
       expect(await bodyBg(page)).toBe(tokenBg('light'));
-      await expect(page.getByTestId('toggle-theme').locator('b')).toHaveText(en['top.theme.light']);
+      await expect(themeName(page)).toHaveText(en['top.theme.light']);
 
       await page.reload(); // the system is still dark, the manual choice wins
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');

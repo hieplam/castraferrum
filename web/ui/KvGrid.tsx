@@ -16,8 +16,8 @@ export function KvCell({ label, value, sub, big = true, testId }: { label: React
   return (
     <div data-testid={testId}>
       <div className="label">{label}</div>
-      <div className={big ? 'v big' : 'v'}>{value}</div>
-      {sub !== undefined && sub !== null && sub !== '' && <div className="sub">{sub}</div>}
+      <div className={big ? 'v big' : 'v'} data-testid={testId ? `${testId}-value` : undefined}>{value}</div>
+      {sub !== undefined && sub !== null && sub !== '' && <div className="sub" data-testid={testId ? `${testId}-sub` : undefined}>{sub}</div>}
     </div>
   );
 }

@@ -11,11 +11,11 @@ export function TopStats({ stale }: { stale: boolean }) {
   const o = useOverview().data;
   const v = (n: number | undefined): ReactNode => <b>{n ?? '—'}</b>;
   return (
-    <div className={cx('topstats', stale && 'is-stale')} data-testid="topstats">
+    <div className={cx('topstats', stale && 'is-stale')} data-testid="topstats" data-stale={stale ? 'true' : undefined}>
       <span data-testid="stat-active-loops">{t.node('top.stats.activeLoops', { n: v(o?.activeLoops) })}</span>
       <span data-testid="stat-running-runs">{t.node('top.stats.runningRuns', { n: v(o?.runningRuns) })}</span>
       <span data-testid="stat-runs-today">{t.node('top.stats.runsToday', { n: v(o?.runsToday) })}</span>
-      <span className={o?.errors24h ? 'is-err' : ''} data-testid="stat-errors-24h">{t.node('top.stats.errors24h', { n: v(o?.errors24h) })}</span>
+      <span className={o?.errors24h ? 'is-err' : ''} data-alert={o?.errors24h ? 'true' : undefined} data-testid="stat-errors-24h">{t.node('top.stats.errors24h', { n: v(o?.errors24h) })}</span>
     </div>
   );
 }

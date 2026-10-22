@@ -128,5 +128,5 @@ export async function pickDays(page: Page, days: number[]): Promise<void> {
 /** Picks a repo in the Repo field of the form (combobox — D-UI13) by the name shown in the list. */
 export async function pickRepo(page: Page, name: string): Promise<void> {
   await page.getByTestId('f-repo').click();
-  await page.locator('.combo').getByRole('option').filter({ has: page.locator('b', { hasText: new RegExp(`^${name.replace(/[()]/g, '\\$&')}$`) }) }).click();
+  await page.getByTestId(/^repo-opt-/).filter({ has: page.getByTestId('repo-opt-name').filter({ hasText: new RegExp(`^${name.replace(/[()]/g, '\\$&')}$`) }) }).click();
 }

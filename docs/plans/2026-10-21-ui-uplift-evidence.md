@@ -827,3 +827,69 @@ checks of U5).
   the picker for the breadcrumb, the filter, the switch and the path error, the picker's height in the dialog, a foot
   for the name and Add repo, data in `--font-data`, the quick-access labels, the classic texts reused by the states
   without a board, and the tab-root action (castraferrum#106).
+
+## U12
+
+### Ratchet
+
+Class and XPath selectors in tests (`tests/tools/e2e-selectors.test.ts`): `59` before, `0` after. e2e expects
+(`npm run ratchets`): `712` before, `712` after. Chromium e2e tests (`npx playwright test --list --project chromium`):
+`Total: 37 tests in 11 files` before, `37` after.
+
+### Red
+
+Both tool tests first, no `tests/support/ui.ts`:
+`npx vitest run --project unit tests/tools/e2e-selectors.test.ts tests/tools/ui-branches.test.ts` (exit code `1`):
+
+```
+class and xpath selectors in tests: 59
++   "tests/e2e/claude.spec.ts:159 class token .log-scroll in \".log-scroll > div[data-seq]\"",
++   "tests/e2e/concurrency.spec.ts:57 class token .row-name in \".row-name .nm\"",
++   "tests/e2e/concurrency.spec.ts:96 class token .ph in \".ph .st.running\"",
+  ... (59 lines)
+Error: ENOENT: no such file or directory, open '...\tests\support\ui.ts'
+ Test Files  2 failed (2)
+      Tests  2 failed | 2 passed (4)
+```
+
+The plan's regular expression also matches the file and folder names the tests create or read (`.claude`, `.git`,
+`.jsonl`, `.png`, and the hidden test folder `.an`): 14 more places in a first run (73). The scan lists them as file
+names, not selectors; the 59 left are the selectors.
+
+### Green
+
+(1) The same command with `--silent=false` (Vitest 5 hides the console output of passing tests):
+
+```
+helpers without a new branch: 12
+class and xpath selectors in tests: 0
+ Test Files  2 passed (2)
+      Tests  4 passed (4)
+```
+
+(2), (3), (5) `npm run verify`: exit code `0`. Build, then e2e `64 passed (9.4m)`: 37 in `chromium` (as U0) and 27 in
+`visual`. Unit `Tests  476 passed | 2 skipped (478)`; contract `Tests  114 passed (114)`; api
+`Tests  115 passed (115)`; `UCs with a green e2e: 32/32` (unchanged). `git diff --stat main -- design` prints nothing.
+
+(4) `npm run ratchets -- --base main` (inside verify):
+
+```
+e2e expects: 712 (min 712)
+base main: every limit held
+ratchets: ok
+```
+
+### Stub check
+
+`toHaveClass(/is-sel/)` put back on the selected loop row in `list.spec.ts`: the scan fails with
+`class and xpath selectors in tests: 1` and `"tests/e2e/list.spec.ts:192 toHaveClass("`. One `expect` removed from
+`detail.spec.ts`: `e2e expects: 711 (min 712)`, `ratchets: failed`. A new-UI branch with fewer `expect` calls than its
+classic branch fails the fixture case of `ui-branches.test.ts`.
+
+### Notes
+
+- `StatusTag` renders `data-status` (and `data-testid`) only when it gets a `testId`. With `data-status` on every tag,
+  `[data-status="failed"]` inside `runs-table` matched both a run row and its pill, and 4 tests failed (UC-12, UC-13,
+  UC-14, UC-32). `row-right` carries the last run's status itself, as `data-status`.
+- `Field` gets `errorFor`, which names the error element `error-<id>` for the repo combobox, which has no `htmlFor`.
+- `loop-repo` is a span around the header's `RepoTag`, so the tag's own `repo-tag` id stays.

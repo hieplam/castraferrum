@@ -111,7 +111,7 @@ test.describe.serial('real Claude transcript (haiku)', () => {
     await expect(page.getByTestId('run-transcript-edge')).toHaveText(t('tx.loadingOlder')); // hasMore
 
     // Scroll to the top repeatedly until "start of transcript" shows (no button - the project owner decided #4).
-    const scroller = tx(page).locator('.log-scroll');
+    const scroller = page.getByTestId('run-transcript-scroll');
     for (let i = 0; i < 60; i++) {
       if ((await page.getByTestId('run-transcript-edge').textContent()) === t('tx.start')) break;
       await scroller.evaluate((el) => (el.scrollTop = 0));

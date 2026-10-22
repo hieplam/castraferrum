@@ -32,15 +32,15 @@ export function LoopRow({ row, selected, hover, menuOpen, busy, onOpen, onStart,
 
   const s = row.status;
   let st: ReactNode;
-  if (s.kind === 'stopping') st = <StatusTag kind="cancelled" pulse>{t('list.row.stopping', { n: s.iteration })}</StatusTag>;
+  if (s.kind === 'stopping') st = <StatusTag kind="cancelled" pulse testId="row-status">{t('list.row.stopping', { n: s.iteration })}</StatusTag>;
   else if (s.kind === 'running') {
     // several parallel runs -> `×k` after the newest iteration
-    st = <StatusTag kind="running" pulse>#{s.iteration} {fmtClock(s.elapsedSec)}{s.count > 1 ? ` ×${s.count}` : ''}</StatusTag>;
+    st = <StatusTag kind="running" pulse testId="row-status">#{s.iteration} {fmtClock(s.elapsedSec)}{s.count > 1 ? ` ×${s.count}` : ''}</StatusTag>;
   }
-  else if (s.kind === 'archived') st = <StatusTag kind="archived">{t('list.row.archived')}</StatusTag>;
-  else if (s.kind === 'idle') st = <StatusTag kind="active">{t('list.row.idle')}</StatusTag>;
-  else if (s.kind === 'server_down') st = <StatusTag kind="server_down">{t('list.row.serverDown')}</StatusTag>;
-  else st = <StatusTag kind="stopped">{t('list.row.stopped')}</StatusTag>;
+  else if (s.kind === 'archived') st = <StatusTag kind="archived" testId="row-status">{t('list.row.archived')}</StatusTag>;
+  else if (s.kind === 'idle') st = <StatusTag kind="active" testId="row-status">{t('list.row.idle')}</StatusTag>;
+  else if (s.kind === 'server_down') st = <StatusTag kind="server_down" testId="row-status">{t('list.row.serverDown')}</StatusTag>;
+  else st = <StatusTag kind="stopped" testId="row-status">{t('list.row.stopped')}</StatusTag>;
 
   const ex = row.execution;
   const c = row.counts;
@@ -51,9 +51,10 @@ export function LoopRow({ row, selected, hover, menuOpen, busy, onOpen, onStart,
       data-testid="loop-row"
       data-loop-id={row.id}
       data-status={s.kind}
+      aria-current={selected ? 'true' : undefined}
     >
       <span className="row-name has-repo">
-        <span className="nm" data-raw>
+        <span className="nm" data-raw data-testid="loop-name">
           {row.name}
         </span>
         <span className="repo-tag" data-raw data-testid="row-repo">
@@ -72,7 +73,7 @@ export function LoopRow({ row, selected, hover, menuOpen, busy, onOpen, onStart,
           </>
         )}
       </span>
-      <span className="row-meta row-right" data-testid="row-right">
+      <span className="row-meta row-right" data-testid="row-right" data-status={row.last?.status}>
         {row.last ? <StatusTag kind={row.last.status}>{row.last.at}</StatusTag> : '—'}
         {row.next && ` → ${row.next}`}
       </span>

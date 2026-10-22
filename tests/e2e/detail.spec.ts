@@ -8,6 +8,7 @@ import pg from 'pg';
 import { databaseUrl, loadDotEnv } from '../../server/config';
 import { ensureTestRepo } from '../support/test-repo';
 import { t } from '../support/ui-text';
+import { executionRows, lampState, loopRowOnList, runHistory } from '../support/ui';
 
 loadDotEnv();
 const db = new pg.Pool({ connectionString: databaseUrl(process.env, 'test'), max: 2 });
@@ -47,7 +48,7 @@ async function until<T>(read: () => Promise<T>, ok: (v: T) => boolean, ms = 15_0
 const runStatus = (id: string) => rows<{ status: string }>('SELECT status FROM runs WHERE id = $1', [id]).then((r) => r[0]?.status);
 async function open(page: Page, path: string) {
   await page.goto(path);
-  await expect(page.getByTestId('lamp-server')).toHaveAttribute('data-state', 'ok');
+  await expect(lampState(page, 'server')).toHaveAttribute('data-state', 'ok');
 }
 
 test.beforeEach(async ({ request }) => {
@@ -75,7 +76,7 @@ test.describe('loop detail · execution · run', () => {
     await page.getByTestId('loop-start').click();
 
     // Run #1 starts at once (UC-04) and its log runs live on screen, no F5.
-    await expect(page.locator('.ph .st.running')).toContainText('Run #1 in progress');
+    await expect(page.locator('[data-testid="loop-status"][data-status="running"]')).toContainText('Run #1 in progress');
     const live = page.getByTestId('live-log');
     await expect(live.locator('[data-seq="6"]')).toBeVisible({ timeout: 15_000 });
     await expect(live).toHaveAttribute('data-paused', 'false');
@@ -93,9 +94,9 @@ test.describe('loop detail · execution · run', () => {
 
     // Execution + run history = DB.
     const execs = await rows<{ id: string }>('SELECT id FROM loop_executions WHERE loop_id = $1', [loop.id]);
-    await expect(page.getByTestId('exec-row')).toHaveCount(execs.length);
+    await expect(executionRows(page)).toHaveCount(execs.length);
     const dbRuns = await rows<{ id: string }>('SELECT id FROM runs WHERE loop_id = $1', [loop.id]);
-    await expect(page.getByTestId('runs-table').getByTestId('run-row')).toHaveCount(dbRuns.length);
+    await expect(runHistory(page).getByTestId('run-row')).toHaveCount(dbRuns.length);
 
     // Stop while a run is going -> confirmation box (D-UI1) -> run `cancelled` <= 5 seconds, execution closed `stopped`.
     await page.getByTestId('loop-stop').click();
@@ -110,12 +111,12 @@ test.describe('loop detail · execution · run', () => {
 
     // Execution #2: finish a run then Stop while waiting for the next one -> stops straight away, no question (D-UI1).
     await page.getByTestId('loop-start').click();
-    await expect(page.locator('.ph .st.running')).toContainText('Run #2 in progress');
-    await expect(page.locator('.ph .st.active')).toContainText('next run', { timeout: 15_000 });
+    await expect(page.locator('[data-testid="loop-status"][data-status="running"]')).toContainText('Run #2 in progress');
+    await expect(page.locator('[data-testid="loop-status"][data-status="active"]')).toContainText('next run', { timeout: 15_000 });
     await page.getByTestId('loop-stop').click();
     await expect(page.getByTestId('stop-dialog')).toHaveCount(0);
     await expect(page.getByTestId('loop-header')).toHaveAttribute('data-status', 'stopped');
-    await expect(page.getByTestId('exec-row')).toHaveCount(2);
+    await expect(executionRows(page)).toHaveCount(2);
 
     // Longest execution = SELECT; number of executions and total runs = DB.
     const [longest] = await rows<{ seq: number; sec: number }>(
@@ -130,8 +131,8 @@ test.describe('loop detail · execution · run', () => {
     );
     const sec = longest!.sec;
     const text = sec >= 60 ? new RegExp(String.raw`^${Math.floor(sec / 60)}\s+min$`) : new RegExp(String.raw`^${sec}\s+s$`);
-    await expect(page.getByTestId('kv-longest').locator('.v')).toHaveText(text);
-    await expect(page.getByTestId('kv-longest').locator('.sub')).toHaveText(t('kv.longestSub', { k: longest!.seq, e: counts!.execs, r: counts!.rounds }));
+    await expect(page.getByTestId('kv-longest-value')).toHaveText(text);
+    await expect(page.getByTestId('kv-longest-sub')).toHaveText(t('kv.longestSub', { k: longest!.seq, e: counts!.execs, r: counts!.rounds }));
   });
 
   test('UC-06: run history paginates by cursor - every page in DB order, total right', { tag: '@UC-06' }, async ({ page, request }) => {
@@ -153,7 +154,7 @@ test.describe('loop detail · execution · run', () => {
     const all = await rows<{ id: string }>('SELECT id FROM runs WHERE loop_id = $1 ORDER BY started_at DESC, id DESC', [loop.id]);
     expect(all.length).toBe(28);
     await open(page, `/loops/${loop.id}`);
-    const ids = () => page.getByTestId('runs-table').getByTestId('run-row').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.runId));
+    const ids = () => runHistory(page).getByTestId('run-row').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.runId));
     const pager = page.getByTestId('runs-pager');
     await expect(pager).toContainText(t('pager.range', { a: 1, b: 10, n: 28 }));
     expect(await ids()).toEqual(all.slice(0, 10).map((r) => r.id));
@@ -167,7 +168,7 @@ test.describe('loop detail · execution · run', () => {
     await page.getByTestId('runs-prev').click();
     await expect(pager).toContainText(t('pager.range', { a: 11, b: 20, n: 28 }));
     // Skipped run: no round number, reason verbatim from the DB.
-    await expect(page.getByTestId('runs-table').locator('[data-status="skipped"]').first()).toContainText('run #1 still in progress');
+    await expect(runHistory(page).locator('[data-status="skipped"]').first()).toContainText('run #1 still in progress');
     await page.getByTestId('runs-prev').click();
     await expect(pager).toContainText(t('pager.range', { a: 1, b: 10, n: 28 }));
     await expect(page.getByTestId('runs-prev')).toBeDisabled();
@@ -181,7 +182,7 @@ test.describe('loop detail · execution · run', () => {
 
     await open(page, `/runs/${runId}`);
     await expect(page.getByTestId('run-header')).toHaveAttribute('data-status', 'running');
-    await expect(page.locator('[data-testid="loop-row"].is-sel')).toContainText('UC-07 run detail');
+    await expect(loopRowOnList(page)).toContainText('UC-07 run detail');
     await expect(page.getByTestId('run-log')).toContainText(t('log.live'));
     // No F5: the run finishes -> status + the full log appear by themselves.
     await expect(page.getByTestId('run-header')).toHaveAttribute('data-status', 'succeeded', { timeout: 15_000 });
@@ -264,11 +265,11 @@ test.describe('loop detail · execution · run', () => {
 
     // From the loop detail -> executions table -> execution #1.
     await open(page, `/loops/${loop.id}`);
-    await page.getByTestId('exec-row').first().click();
+    await executionRows(page).first().click();
     await expect(page).toHaveURL(new RegExp(`/executions/${exec!.id}$`));
     await expect(page.getByTestId('exec-header')).toHaveAttribute('data-ended', 'stopped');
     // list pane: the row of the loop that holds the execution stays selected
-    await expect(page.locator('[data-testid="loop-row"].is-sel')).toContainText('UC-08 session id');
+    await expect(loopRowOnList(page)).toContainText('UC-08 session id');
     const shown = page.getByTestId('exec-runs').getByTestId('run-session');
     await expect(shown).toHaveCount(3);
     const onScreen = (await shown.evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.sessionId as string))).reverse(); // table: newest first
@@ -299,7 +300,7 @@ test.describe('loop detail · execution · run', () => {
     expect((await state()).archived_at).toBeNull();
     await page.keyboard.press('Escape');
 
-    await expect(page.locator('.ph .st.active')).toContainText('next run', { timeout: 10_000 }); // the 1-second run is done
+    await expect(page.locator('[data-testid="loop-status"][data-status="active"]')).toContainText('next run', { timeout: 10_000 }); // the 1-second run is done
     await page.getByTestId('loop-stop').click();
     await expect(page.getByTestId('loop-header')).toHaveAttribute('data-status', 'stopped');
     await page.getByTestId('loop-menu').click();
@@ -315,7 +316,7 @@ test.describe('loop detail · execution · run', () => {
     const ids = async (q: string) => (await call<{ items: { id: string }[] }>(request, 'GET', `/api/loops${q}`)).body.items.map((l) => l.id);
     expect(await ids('')).not.toContain(loop.id);
     expect(await ids('?archived=true')).toContain(loop.id);
-    await expect(page.getByTestId('exec-row')).toHaveCount(1);
+    await expect(executionRows(page)).toHaveCount(1);
 
     await page.getByTestId('loop-restore').click();
     await expect(page.getByTestId('loop-header')).toHaveAttribute('data-status', 'stopped');
