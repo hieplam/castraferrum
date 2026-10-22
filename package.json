@@ -29,6 +29,7 @@
     "design:tokens": "node scripts/design-tokens.mjs",
     "design:lint": "node scripts/design-lint.mjs",
     "design:fit": "node scripts/design-fit.mjs",
+    "design:card": "node scripts/design-card.mjs",
     "ratchets": "node scripts/ratchets.mjs",
     "phone:check": "node --import tsx scripts/phone-check.mts",
     "db:generate": "drizzle-kit generate",

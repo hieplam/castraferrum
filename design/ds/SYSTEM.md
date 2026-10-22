@@ -444,7 +444,11 @@ Screens put kit components together in `web/features/`. Never add a class that i
   `.cmd.is-wrap` wraps a long command (`overflow-wrap: anywhere`) with its copy button under it, so nothing scrolls
   sideways on the phone. `.code.is-clamped` cuts a prompt after five lines with a fade into its own background; the full
   text is one link away (`loopSettings.fullPrompt`). `.pager` pages a list: the range (`--font-data`) and two bordered
-  `.iconbtn` (`.pager-nav`), the previous one disabled on page 1.
+  `.iconbtn` (`.pager-nav`), the previous one disabled on page 1. `.def` is a term and its explanation (help sheet and
+  popover). `.def.is-compact` is its settings-list variant for the loop page's side card: no divider and no gap, a small
+  bold label (`--fs-cap`) with the value right under it in body size and text colour; a repo name is a `<strong>` (bold
+  `--font-data`) with its path as a `.data` under it, a schedule is one line "schedule · time zone", and the Prompt
+  label is a compact row that holds the `.code.is-clamped`. Rows follow each other with the card's own gap.
 - **Do not** use `.skeleton` for longer than a load, or `.note` for an error.
 - **Phone and desktop:** the same.
 - **States:** none.

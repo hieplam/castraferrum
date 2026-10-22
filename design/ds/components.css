@@ -838,6 +838,13 @@ button.select { display: block; overflow: hidden; text-overflow: ellipsis; white
 .def { display: flex; flex-direction: column; gap: var(--space-0h); padding-top: var(--space-3); border-top: var(--border-w) solid var(--border); }
 .def b { font-weight: var(--fw-bold); }
 .def span { color: var(--text-muted); font-size: var(--fs-sm); line-height: var(--lh-sm); }
+.def.is-compact { gap: 0; padding-top: 0; border-top: 0; }
+.def.is-compact b { color: var(--text-muted); font-size: var(--fs-cap); line-height: var(--lh-cap); }
+.def.is-compact span { color: var(--text); font-size: var(--fs-body); line-height: var(--lh-sm); }
+.def.is-compact strong, .def.is-compact .data { font-family: var(--font-data); font-size: var(--fs-data); line-height: var(--lh-data); }
+.def.is-compact strong { font-weight: var(--fw-bold); }
+.def.is-compact .data { color: var(--text-muted); white-space: normal; overflow-wrap: anywhere; }
+.def.is-compact .code { margin-top: var(--space-1); }
 .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); margin: 0; padding: 0; list-style: none; counter-reset: ds-step; }
 .step {
   display: flex; gap: var(--space-3); padding: var(--space-3h) var(--space-4); counter-increment: ds-step;
