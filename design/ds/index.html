@@ -33,7 +33,9 @@
     border: var(--border-w) dashed var(--border-strong); border-radius: var(--radius-card); background: var(--bg);
   }
   .ds-stage.is-tall { min-height: var(--size-tx); }
-  .ds-stage.is-sheet { min-height: calc(var(--size-log) + 2 * var(--size-row)); }
+  /* The wide dialog and the full-height sheet size to the viewport (100dvh): their stage is as tall as a phone, so the
+     head, the foot and the pinned picker foot stay inside it at every window width. */
+  .ds-stage.is-xl { min-height: calc(var(--size-tx) + var(--size-log)); }
   .ds-tipbox { position: relative; display: flex; align-items: flex-end; justify-content: space-around; gap: var(--space-12); min-height: var(--space-12); padding: var(--space-10) var(--space-12) var(--space-10); }
   .ds-tipbox > span { position: relative; display: inline-flex; }
   .ds-pad { padding: var(--space-4); }
@@ -583,7 +585,7 @@
         <div class="dialog-foot"><button class="btn ghost" type="button">Cancel</button><button class="btn danger-solid" type="button">Stop loop</button></div>
       </div>
     </div>
-    <div class="ds-stage is-tall">
+    <div class="ds-stage is-xl">
       <div class="dialog is-wide" role="dialog" aria-label="Add repo">
         <div class="dialog-head"><h2>Add repo</h2></div>
         <div class="dialog-body">
@@ -614,7 +616,7 @@
       </div>
     </div>
     <p class="ds-cap">Full-height sheet (phone folder picker):</p>
-    <div class="ds-stage is-sheet">
+    <div class="ds-stage is-xl">
       <div class="fullsheet" role="dialog" aria-label="Choose a folder">
         <div class="navbar"><button class="navbar-back" type="button">Cancel</button><span class="navbar-title">Choose a folder</span><div class="navbar-actions"><button class="btn plain" type="button">Add</button></div></div>
         <div class="picker">
