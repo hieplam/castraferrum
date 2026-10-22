@@ -1128,29 +1128,29 @@ Each stub rebuilt and run, then put back:
 
 ## U15
 
-Status: not done. One state, `loops-many`, cannot reach `MAX_RATIO` because the preview's figures and the seeded sample
-world disagree (see Blocker). The other 19 states (38 pairs) are at `MAX_RATIO` or under; most at 0 mismatched pixels.
+Status: done. All 20 states (40 pairs, desktop and phone, light and dark) are at `MAX_RATIO` or under, with no mask.
 
-### Blocker (needs the owner)
+### Sample data of `loops-many` (owner decision, 2026-10-22)
 
-`loops-many` (desktop, light and dark), page region, `0.12 %` off against `MAX_RATIO` `0.001`, with `stat-errors-24h`
-masked (the one mask the kit allows). The rest comes from the sample data, not from the UI:
+Attempt 1 stopped on `loops-many`: the preview draws `214` runs today, `3` failed in 24 h and the agent line
+`acme-api · Claude`, while `seedPreviewMany` gave `130`, `4` and `Claude sonnet`. The owner chose to change the seed, not
+the preview (comment on #83). `seedPreviewMany` (`tests/support/preview-world.ts`) now:
 
-- Summary "runs today": preview `214` (`PV.stats.runsToday` of the many world), app `130` (the server counts the seeded
-  runs of `seedPreviewMany`).
-- Every row's agent line: the preview draws `acme-api · Claude` (the rows of `PV.many` have no `claude` model), the app
-  draws `acme-api · Claude sonnet` (`seedPreviewMany` writes `{"model":"sonnet"}`).
-- Failed in 24 h: preview `3`, app `4` (masked by `stat-errors-24h`).
+- writes no model in the loops' executor config (`{"effort":"medium"}`); the row's agent text says `Claude` when a Claude
+  loop names no model (`agentText` in `web/features/loop-list/row-view.tsx`), as the preview draws it;
+- moves the earliest failed run of "Verify invoice totals + tax" back 25 hours, so `3` failed in 24 h while the open
+  executions' failed counts stay as the classic list draws them;
+- adds an earlier, closed execution (#4) of "Check test coverage" whose succeeded runs (one statement) bring today's runs
+  to `214`.
 
-Neither the seed nor the shot was changed, and nothing else was masked. The owner decides on a corrected shot.
+The `stat-errors-24h` mask of `loops-many` is gone: the figure now matches. The preview, the frozen shots and the
+classic `list-many` shot are unchanged; the classic `list-many` top bar now shows the preview's `214` and `3` too.
 
 ### Ratchet
 
-New-UI visual pairs: `24` before (`frame.json`); `loops.json` is written only when the whole file passes, so the `40` is
-not reached yet. `npm run ratchets` before and after: `native title: 8`, `unknown classes: 0`, `dynamic classes: 4 (not
-checked)`, `literal styles: 0`, `css violations: 0`, `e2e expects: 724 (min 712)`, `ratchets: ok`. Unit tests unchanged:
-`499 passed | 2 skipped (501)`. `npm run arch`: `0 violations`, `26/26`. `node scripts/lang-scan.mjs --check-baseline`
-fails with `docs coupling 9 > 0` on a clean `main` too (not caused by U15).
+New-UI visual pairs: `24` (`frame.json`) -> `64` (`frame.json` 24 + `loops.json` 40). `npm run ratchets` before and
+after: `native title: 8`, `unknown classes: 0`, `dynamic classes: 4 (not checked)`, `literal styles: 0`,
+`css violations: 0`, `e2e expects: 724 (min 712)`, `ratchets: ok`. Unit tests unchanged: `499 passed | 2 skipped (501)`.
 
 ### Red
 
@@ -1158,12 +1158,21 @@ fails with `docs coupling 9 > 0` on a clean `main` too (not caused by U15).
 `npx playwright test --project=visual tests/visual/ds/loops.visual.ts`: the page rendered the placeholder, `home-empty`
 not found, `2 failed`, `9 did not run`.
 
-### Green (so far)
+### Green
 
-- (1) `loops.visual.ts`: `11 passed`, `1 failed` (`12 loops`, the blocker above).
+- (1) `npx playwright test --project=visual tests/visual/ds/loops.visual.ts`: `12 passed`, exit 0.
+  `node -e "console.log(require('./reports/compare/ds/results/loops.json').length)"`: `40`. 52 regions, 28 at 0
+  mismatched pixels, worst ratio `0.0002` (`MAX_RATIO` `0.001`); `loops-many` page `7` px light, `2` px dark.
 - (2) `npm run ratchets`: `ratchets: ok`.
-- (3) classic visual tests: `23 passed`, unchanged.
-- (4) `npm run verify`: not run (it would fail on `loops-many`).
+- (3) The 23 classic visual tests pass unchanged (inside `npm run test:e2e`: the `visual` project `50 passed`).
+  One earlier full run hit `list-many` at `4.80 %` off: the server clock runs from `PREVIEW_NOW` while the world is
+  seeded, and a slow seed made "exec #3 4 h" read "4 h 1 min". The added runs are now one statement; `list.visual.ts`
+  then passed twice in a row (`4 passed`, 19.6 s).
+- (4) `npm run verify`: stops at `node scripts/lang-scan.mjs --check-baseline` with `ABOVE BASELINE: docs coupling 9 > 0`,
+  the same output as a clean `main` (issue https://github.com/hieplam/castraferrum/issues/153, the open-in-terminal docs; not caused by U15). Every later step of the
+  chain was run and exited 0: `arch` `0 violations`, `arch-fixtures: 26/26 violations caught`, `ratchets: ok`, unit
+  `499 passed | 2 skipped`, contract `114 passed`, executor contract `7 passed` each, api `115 passed`,
+  `npm run build`, e2e `94 passed (9.0m)`, `UCs with a green e2e: 32/32`.
 
 ### Stub check
 
@@ -1171,3 +1180,4 @@ not found, `2 failed`, `9 did not run`.
   found).
 - Round Start or Stop not rendered on the phone: `phone-loops-overview-light` `3.06 % off (13890/453960 px)`,
   `-dark` `3.32 %`.
+- The old seed (130 runs today, `Claude sonnet`) fails `loops-many` at `0.12 %` off even with `stat-errors-24h` masked.

@@ -68,10 +68,14 @@ export function useLastRun(row: RowModel): { className: string; node: ReactNode 
   return { className: cx('result', cls), node: t.node(key, { t: data(row.last.at) }) };
 }
 
-/** The agent of a loop as a row says it ("Claude opus"), or the executor's name when it is not Claude. */
+/**
+ * The agent of a loop as a row says it ("Claude opus"; "Claude" when the config names no model, as the preview draws
+ * it), or the executor's name when it is not Claude.
+ */
 export function agentText(t: (key: MessageKey, params?: Record<string, string | number>) => string, loop: LoopDto): string {
+  if (loop.executor.kind !== 'claude') return loop.executor.kind;
   const config = loop.executor.config as { model?: unknown } | null;
-  return loop.executor.kind === 'claude' && typeof config?.model === 'string' ? t('row.agent', { model: config.model }) : loop.executor.kind;
+  return t('row.agent', { model: typeof config?.model === 'string' ? config.model : '' }).trim();
 }
 
 /** The loop's Start or Stop, visible at rest (D9): a round button in a cell, an icon button in the table. */

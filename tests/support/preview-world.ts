@@ -418,8 +418,10 @@ async function insertRun(c: pg.PoolClient, key: string, l: Any, eid: string, r: 
 
 /**
  * Seeds the `list-many` world (UC-16: 12 loops, 10 runs in progress at once, very long names) + repos + 1 archived loop
- * for the Archived tab. The top bar of the preview contradicts itself in this state ("3 errors 24h" while the ✗ of the
- * open executions — all opened in the last 24 hours — add up to 4) → the visual test only compares the list pane.
+ * for the Archived tab. It matches the figures both previews draw (owner decision on #83, 2026-10-22): 214 runs today and
+ * 3 failed in 24 h, and no model on the loops (the agent line reads "Claude"). The ✗ of the open executions add up to 4,
+ * so the earliest failed run of "Verify invoice totals + tax" is moved back 25 hours (it stays in its execution's ✗), and
+ * an earlier, closed execution of "Check test coverage" holds the succeeded runs that bring today's count to 214.
  */
 export async function seedPreviewMany(db: pg.Pool, file = DATA_JS): Promise<PreviewData> {
   const pv = previewData(file);
@@ -452,7 +454,7 @@ export async function seedPreviewMany(db: pg.Pool, file = DATA_JS): Promise<Prev
     await db.query(
       `INSERT INTO loops (id, name, description, prompt, cron, timezone, timeout_sec, executor_kind, executor_config, status, next_run_at,
                           run_counter, execution_counter, version, created_at, updated_at, archived_at, repo_id)
-       VALUES ($1,$2,'',$3,$4,$5,1800,'claude','{"model":"sonnet","effort":"medium"}',$6,$7,$8,$9,1,$10,$11,NULL,$12)`,
+       VALUES ($1,$2,'',$3,$4,$5,1800,'claude','{"effort":"medium"}',$6,$7,$8,$9,1,$10,$11,NULL,$12)`,
       [id, [...name].slice(0, 80).join(''), `Task ${i + 1}`, cron, TZ, running ? 'active' : 'stopped', nextAt ? pvTime(nextAt) : null, top, k,
         new Date(now - 30 * 86_400_000 - i * 60_000), new Date(now - 86_400_000 * 9), pv.repos[repo]!.id],
     );
@@ -471,6 +473,35 @@ export async function seedPreviewMany(db: pg.Pool, file = DATA_JS): Promise<Prev
     for (let j = 0; j < sk; j++) await insertRunMany(id, exId, null, 'skipped', new Date(lastStart.getTime() + (j + 1) * 1000));
     if (running) await insertRunMany(id, exId, n!, 'running', new Date(now - el! * 1000));
   }
+  // 3 failed in 24 h: the earliest failed run of "Verify invoice totals + tax" (the last of its sequence) goes back 25 hours.
+  const [failed] = (await db.query(
+    `SELECT id FROM runs WHERE loop_id = $1 AND status = 'failed' ORDER BY iteration ASC LIMIT 1`, [uuid('many:4')],
+  )).rows as { id: string }[];
+  const dayBefore = new Date(now - 25 * 3_600_000);
+  await db.query('UPDATE runs SET scheduled_for = $2, started_at = $2, finished_at = $3 WHERE id = $1', [failed!.id, dayBefore, addSec(dayBefore, 20)]);
+  // 214 runs today: an earlier, closed execution (#4) of "Check test coverage" (*/5, execution #5 open) holds the rest,
+  // one succeeded run every 5 minutes ending at 12:00, iterations counting down from 100.
+  const todayFrom = new Date('2026-10-18T00:00:00+07:00');
+  const { rows: [{ c: today }] } = await db.query(`SELECT count(*)::int AS c FROM runs WHERE status <> 'skipped' AND started_at >= $1`, [todayFrom]);
+  const extra = 214 - (today as number);
+  const coverage = uuid('many:1');
+  const prevEx = uuid('many:1:exec:4');
+  const lastPrev = new Date('2026-10-18T12:00:00+07:00').getTime();
+  const firstPrev = new Date(lastPrev - (extra - 1) * 300_000);
+  await db.query('INSERT INTO loop_executions (id, loop_id, seq, started_at, ended_at, end_reason) VALUES ($1,$2,4,$3,$4,$5)', [
+    prevEx, coverage, firstPrev, new Date(lastPrev + 1_800_000), 'stopped',
+  ]);
+  // One statement: the server clock runs from PREVIEW_NOW while this seeds, and the rows' "exec #k 4 h" figures allow
+  // only a few seconds of drift.
+  const js = Array.from({ length: extra }, (_, j) => j);
+  await db.query(
+    `INSERT INTO runs (id, loop_id, execution_id, iteration, trigger, status, scheduled_for, started_at, finished_at, duration_ms,
+                       prompt_snapshot, executor_kind, executor_config, session_id)
+     SELECT r.id, $1, $2, r.n, 'schedule', 'succeeded', r.at, r.at, r.at + interval '20 seconds', 20000, 'p', 'claude', '{}', r.sid
+       FROM unnest($3::uuid[], $4::int[], $5::timestamptz[], $6::uuid[]) AS r(id, n, at, sid)`,
+    [coverage, prevEx, js.map((j) => uuid(`many-prev-run-${j}`)), js.map((j) => 100 - j), js.map((j) => new Date(lastPrev - j * 300_000)),
+      js.map((j) => uuid(`many-prev-sid-${j}`))],
+  );
   const old = pv.loops.oldsched;
   await db.query(
     `INSERT INTO loops (id, name, description, prompt, cron, timezone, timeout_sec, executor_kind, executor_config, status, next_run_at,

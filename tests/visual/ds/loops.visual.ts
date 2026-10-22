@@ -202,7 +202,7 @@ test.describe('desktop Loops page against the preview', () => {
     await ctx.world(page, 'many');
     await page.goto(`${ctx.sp.baseUrl}/`);
     await ready(page, 12);
-    await snap(page, 'loops-many', '12 loops, 10 runs at once, a long name cut with an ellipsis', [regions.page(['stat-errors-24h'])]);
+    await snap(page, 'loops-many', '12 loops, 10 runs at once, a long name cut with an ellipsis', [regions.page()]);
   });
 });
 
