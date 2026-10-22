@@ -19,7 +19,7 @@ window.PV_SCREENS = [
   const PUSHED = ['loop', 'period', 'run', 'form'];
   const LOOP = ['loop-header', 'now-card', 'loop-figures', 'fig-active', 'fig-runs', 'fig-next', 'fig-typical'];
   const RUNNING = LOOP.concat('live-log', 'recent-runs', 'run-row*4', 'runs-help');
-  const PERIOD = ['exec-header', 'back-to-loop', 'period-figures', 'copy-all', 'exec-runs', 'exec-api'];
+  const PERIOD = ['exec-header', 'back-to-loop', 'period-figures', 'copy-all', 'exec-runs', 'period-status'];
   const RUN = ['run-header', 'run-facts', 'run-session', 'run-transcript', 'run-log'];
   const TX = ['run-transcript', 'run-transcript-scroll', 'tx-entry*11'];
   const FORM = ['f-name', 'f-repo', 'f-prompt', 'sched-kind', 'sched-out', 'sched-next', 'f-model', 'f-effort', 'f-timeout', 'form-submit'];
@@ -48,7 +48,7 @@ window.PV_SCREENS = [
     { id: 'vi-loops-overview', screen: 'loops', title: 'loops-overview in Vietnamese', lang: 'vi', requires: OVERVIEW },
     { id: 'loop-running', screen: 'loop', title: 'A run working, live output', requires: RUNNING },
     { id: 'loop-idle', screen: 'loop', title: "Waiting for the next run, the last run's output", requires: LOOP.concat('last-run-log', 'recent-runs', 'run-row*4') },
-    { id: 'loop-last-failed', screen: 'loop', title: 'The last run failed, the loop keeps running', requires: LOOP.concat('last-run-log', 'recent-runs', 'run-row*4', 'period-row*1') },
+    { id: 'loop-last-failed', screen: 'loop', title: 'The last run failed, the loop keeps running', requires: LOOP.concat('last-run-log', 'last-run-repo-missing', 'open-repos', 'recent-runs', 'run-row*4', 'period-row*1') },
     { id: 'loop-stopped', screen: 'loop', title: 'Stopped by the user, the last run cancelled', requires: LOOP.concat('last-run-log', 'loop-start', 'run-row*4') },
     { id: 'loop-server-down', screen: 'loop', title: 'Stopped by a server shutdown', requires: LOOP.concat('last-run-log', 'loop-start', 'run-row*4', 'period-row*1') },
     { id: 'loop-never-run', screen: 'loop', title: 'Just created', requires: LOOP.concat('loop-start') },

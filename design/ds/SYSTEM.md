@@ -307,7 +307,8 @@ Screens put kit components together in `web/features/`. Never add a class that i
 
 - **Classes:** `.run-top`, `.run-id`, `.run-meta`, inside a `.cell`.
 - **Use it** for one run in Recent runs, All runs and an active period: the run number, its pill, times, and the
-  summary cut at two lines (`.cell-sum`). A run without a summary shows a dash; a running run shows "Still working.".
+  summary cut at two lines (`.cell-sum`). A run without a summary shows a dash, except a failed run: "No summary: the
+  session ended with an error."; a running run shows "Still working.".
 - **Do not** hide the summary behind a hover.
 - **Phone and desktop:** the same, the summary two lines.
 - **States:** those of the cell.
@@ -330,9 +331,13 @@ Screens put kit components together in `web/features/`. Never add a class that i
 ### Card and figures
 
 - **Classes:** `.card` (`.is-pad`), `.summary`, `.summary-item`, `.stats`, `.stat`, `.stat-label`, `.stat-value`,
-  `.stat-sub`, `.now`, `.now-text`.
+  `.stat-sub`, `.now`, `.now-text`, `.now-actions`.
 - **Use** `.summary` for the four figures above the Loops list, `.stats` for the figures of a loop or an active period,
-  `.now` for the card that says what the loop is doing now. Figures use `--font-data` and `--fs-num`.
+  `.now` for the card that says what the loop is doing now. Figures use `--font-data` and `--fs-num`. In `.now-text` the
+  title is the `<b>` (a line of its own) and the sentence follows under it; a state with a recovery adds a `.hint.is-err`
+  line and puts its actions in `.now-actions` (desktop: buttons beside the text; phone: link cells under the output). The
+  last run failed because the repo folder is gone: the hint "The repo folder no longer exists: <path>" and Open Repos next
+  to Open run.
 - **Do not** put a list inside a card (use a group).
 - **Phone:** figures two by two. **Desktop:** four in a row, or two by two in `.cols-side`.
 - **States:** none.
@@ -360,8 +365,11 @@ Screens put kit components together in `web/features/`. Never add a class that i
 ### Transcript
 
 - **Classes:** `.tx`, `.tx-bar`, `.tx-entry` (`.k-tool`, `.k-assistant`, `.k-think`, `.is-err`), `.tx-head`,
-  `.tx-kind`, `.tx-body` (`.is-think`, `.is-code`), `.tx-fold`, `.tx-end`.
-- **Use it** for the transcript of a Claude session on the run page: one entry per block, long blocks folded.
+  `.tx-kind`, `.tx-body` (`.is-think`, `.is-code`), `.tx-fold`, `.tx-scroll`, `.tx-end`.
+- **Use it** for the transcript of a Claude session on the run page: one entry per block, long blocks folded. The
+  entries sit in a `.tx-scroll` frame under the `.tx-bar`: from 640px it is `--size-tx` tall and scrolls; on the phone
+  it grows with its entries (the page scrolls). A fold keeps its own small `--font-data` line in `--log-accent`: the
+  `.app button` reset has zero specificity, so every component button keeps its own font and colour.
 - **Do not** use it for the plain log.
 - **Phone:** one entry per block, the head above the body. **Desktop:** head and body side by side from 1024px
   (`--size-tx-head`).
@@ -428,11 +436,15 @@ Screens put kit components together in `web/features/`. Never add a class that i
 ### Misc
 
 - **Classes:** `.icon`, `.tag` (`.git`, `.repo`), `.crumbs`, `.empty` (`.is-err`), `.skeleton` (`.is-line`,
-  `.is-block`), `.note`, `.cmd`, `.code`, `.def`, `.steps`, `.step`, `.data`.
+  `.is-block`), `.note`, `.cmd` (`.is-wrap`), `.code` (`.is-clamped`), `.pager`, `.pager-nav`, `.def`, `.steps`, `.step`, `.data`.
 - **Use** `.icon` for every icon, `.tag` to mark a git folder or a registered repo, `.crumbs` for a path, `.empty` for
   an empty or failed list, `.skeleton` while loading, `.note` for a short aside, `.cmd` for a command with a copy
   button, `.code` for code and prompts, `.def` for definitions, `.steps` and `.step` for numbered how-to steps, `.data` for a time, a run number, a duration or a path inside a sentence
   (`--font-data`, tabular figures, never broken across lines): "last run failed" and a `.data` "14:00".
+  `.cmd.is-wrap` wraps a long command (`overflow-wrap: anywhere`) with its copy button under it, so nothing scrolls
+  sideways on the phone. `.code.is-clamped` cuts a prompt after five lines with a fade into its own background; the full
+  text is one link away (`loopSettings.fullPrompt`). `.pager` pages a list: the range (`--font-data`) and two bordered
+  `.iconbtn` (`.pager-nav`), the previous one disabled on page 1.
 - **Do not** use `.skeleton` for longer than a load, or `.note` for an error.
 - **Phone and desktop:** the same.
 - **States:** none.
@@ -498,6 +510,10 @@ Screens put kit components together in `web/features/`. Never add a class that i
 | Run | running / succeeded / failed / timed out | `.s-run` / `.s-ok` / `.s-fail` / `.s-fail` | Running / Succeeded / Failed / Timed out |
 | Run | cancelled / interrupted / skipped | `.s-skip` / `.s-int` / `.s-skip` | Cancelled / Interrupted / Skipped |
 | Repo | folder is gone | `.s-warn` | Folder is gone |
+| Active period | still active / stopped by you / ended by the server | `.s-run` / `.s-stop` / `.s-int` | Still active / Stopped by you / Ended by server |
+
+The state of an active period is the pill in the head of its page (`period.pill.*`); the lowercase phrase of a cell
+(`period.stillActive`, `period.byYou`, `period.byServer`) is for the meta line of a list.
 
 - **Plural keys.** A text that counts something has `.one` and `.other` forms (and `.zero` where the design shows a
   word for zero), read with `tn(base, n)` of `web/prefs`. Never write "1 loops".
