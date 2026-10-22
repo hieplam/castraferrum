@@ -23,7 +23,7 @@
       The coming build already holds the merged code, so nothing is lost.
     - QUEUES (logs 'lock: ... waiting for the lock ...') otherwise: waits for the mutex (at most -WaitMaxMinutes), then runs all
       nine steps itself, so code merged after the holder's build is not lost.
-  Step 4 also closes the old 'Loop Console <Port>' windows left at their prompt (no child process besides conhost).
+  Step 4 also closes the old 'Castraferrum <Port>' windows left at their prompt (no child process besides conhost).
   A window whose console died stays open, to read the error, until the next restart.
 
   Called by an agent running INSIDE a loop at the end of its turn (detached, from Bash):
@@ -263,7 +263,7 @@ if ($null -eq $oldPid) {
     Write-Log "step 4: port $Port is free"
 }
 # the old window of this port stays at its prompt once its server is gone (-NoExit, ~90 MB each): close it
-$winTitle = "WindowTitle='Loop Console $Port'"
+$winTitle = "WindowTitle='Castraferrum $Port'"
 foreach ($w in @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -and $_.CommandLine.Contains($winTitle) })) {
     $kids = @()
     for ($i = 0; $i -lt 10; $i++) {
@@ -324,7 +324,7 @@ foreach ($v in @(Get-ChildItem Env: | Where-Object { $_.Name -like 'CLAUDE*' }))
 }
 if ($dropped.Count -gt 0) { Write-Log ("step 6: not passed to the new console: " + ($dropped -join ', ')) }
 $dirLit = $ConsoleDir.Replace("'", "''")
-$command = "`$host.UI.RawUI.WindowTitle='Loop Console $Port'; Set-Location '$dirLit'; npm start"
+$command = "`$host.UI.RawUI.WindowTitle='Castraferrum $Port'; Set-Location '$dirLit'; npm start"
 $proc = Start-Process powershell -ArgumentList '-NoExit', '-Command', $command -WorkingDirectory $ConsoleDir -PassThru
 Write-Log ("step 6: opened window PID {0}: npm start in {1}" -f $proc.Id, $ConsoleDir)
 

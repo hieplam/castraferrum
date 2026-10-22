@@ -17,7 +17,7 @@ const server: ComposedServer = await composeServer({
 }).catch((err: Error) => {
   console.error(`Could not start (DB ${redactUrl(cfg.databaseUrl)}): ${err.message}`);
   if (err.name !== 'InstanceLockTakenError') {
-    console.error('Is Postgres running? docker compose -f compose.yml up -d (in the loop-console folder)');
+    console.error('Is Postgres running? docker compose -f compose.yml up -d (in the repository root)');
   }
   process.exit(1);
 });
@@ -36,7 +36,7 @@ try {
   await server.shutdown();
   process.exit(1);
 }
-log(`Loop Console: http://127.0.0.1:${cfg.port}  (DB ${redactUrl(cfg.databaseUrl)}${cfg.testMode ? ', test mode' : ''})`);
+log(`Castraferrum: http://127.0.0.1:${cfg.port}  (DB ${redactUrl(cfg.databaseUrl)}${cfg.testMode ? ', test mode' : ''})`);
 
 let closing = false;
 async function shutdown(reason: string): Promise<void> {

@@ -25,7 +25,7 @@ export type Config = {
   transcriptPage?: { minEntries: number; maxBytes: number };
 };
 
-/** Loads loop-console/.env if present; environment variables that are already set are left untouched. */
+/** Loads .env if present; environment variables that are already set are left untouched. */
 export function loadDotEnv(): void {
   const file = join(ROOT, '.env');
   if (existsSync(file)) process.loadEnvFile(file);

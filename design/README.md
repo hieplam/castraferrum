@@ -59,7 +59,7 @@ and an entry in `APPROVED.md` once the project owner approves it.
 | `preview/messages.js` | Generated from `shared/i18n/*.ts`; do not edit by hand (gitignored) |
 | `preview/schedule.js` | Generated from `shared/domain/schedule.ts`: schedule sentences, warnings, cron errors and the next 5 runs; the preview never writes a schedule sentence itself (gitignored) |
 
-UI text lives in `shared/i18n/vi.ts` and `en.ts`. Commands (run in `loop-console/`): `npm run design:shots` generates
+UI text lives in `shared/i18n/vi.ts` and `en.ts`. Commands (run in the repository root): `npm run design:shots` generates
 `messages.js` and `schedule.js` and re-shoots everything (`-- --only a,b` shoots a few states); `npm run design:states` prints
 `states with shots: N/N` and exits 1 on a missing light or dark shot, a state the preview cannot draw, or a generated file that
 drifted from its source. To add a state: a row in `STATES.md`, an entry in `states.js`, a draw function in `preview.js`, then shoot.

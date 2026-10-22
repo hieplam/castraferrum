@@ -86,7 +86,7 @@ describe.skipIf(!REAL)('ClaudeAgentExecutor on real Claude Code - background tas
       expect(r.logs).toEqual([`Start round #1 · session ${sessionId}`, expect.stringMatching(/^End · Success · [$]\d/)]);
       const lines = transcript(sessionId);
       expect(lines.at(-1)?.type, 'last transcript line = the process exited cleanly on its own').toBe('cost-state');
-      expect(userTexts(lines).filter((t) => t.startsWith('[Loop Console]')), 'the background command finished normally: the console sends no cleanup message').toEqual([]);
+      expect(userTexts(lines).filter((t) => t.startsWith('[Castraferrum]')), 'the background command finished normally: the console sends no cleanup message').toEqual([]);
     },
     TEST_TIMEOUT,
   );
