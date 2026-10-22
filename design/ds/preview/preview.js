@@ -623,80 +623,78 @@
   const emptyNew = () => ({ name: '', desc: '', repo: null, prompt: '', exec: 'claude', model: 'opus', effort: 'medium', parallel: 1, timeout: null });
   const valuesOf = (key, o) => { const l = D.loops[key]; return Object.assign({ name: l.name, desc: l.desc, repo: l.repo, prompt: l.prompt, exec: 'claude', model: l.claude.model, effort: l.claude.effort, parallel: 1, timeout: l.timeout }, o); };
 
-  // A form control with its label and hints: a row of a group on the phone (.fcell), a field from 640px.
+  // A form control with its label and hints: a row of a group (.fcell) on every width, the label above the control.
   // o.hints = [[class, text, test id]]; o.err = the error under the control (error-<id>); o.count = the count of the prompt.
+  const hintsOf = (o) => (o.err ? [['is-err', o.err, 'error-' + o.id]] : o.hints || []).map(([cls, s, tid]) => `<p class="hint${cls ? ' ' + cls : ''}"${tid ? ` data-testid="${tid}"` : ''}>${s}</p>`).join('');
   function fld(id, label, control, o = {}) {
-    const hints = (o.err ? [['is-err', o.err, 'error-' + id]] : o.hints || []).map(([cls, s, tid]) => `<p class="hint${cls ? ' ' + cls : ''}"${tid ? ` data-testid="${tid}"` : ''}>${s}</p>`).join('');
     const count = o.count ? `<span class="count">${o.count}</span>` : '';
-    return PHONE
-      ? `<div class="fcell"><label class="label" for="${id}">${label}</label>${control}${count}${hints}</div>`
-      : `<div class="field"><label class="label" for="${id}">${label}${count}</label>${control}${hints}</div>`;
+    return `<div class="fcell"><label class="label" for="${id}">${label}</label>${control}${count}${hintsOf(Object.assign({ id }, o))}</div>`;
   }
-  const input = (id, value, o = {}) => `<input class="input${o.err ? ' is-err' : ''}" id="${id}" data-testid="${id}" type="${o.type || 'text'}" value="${esc(value)}"` +
+  // A pick row (.fcell.is-row): the label at the start, the value and a chevron at the end; a hint wraps under it.
+  const rowFld = (id, label, control, o = {}) => `<div class="fcell is-row"><label class="label" for="${id}">${label}</label>${control}${chev}${hintsOf(Object.assign({ id }, o))}</div>`;
+  // o.time = a 24-hour HH:MM text field (the browser's time field shows 12 hours in an English browser).
+  const input = (id, value, o = {}) => `<input class="input${o.err ? ' is-err' : ''}" id="${id}" data-testid="${id}" type="${o.time ? 'text' : o.type || 'text'}" value="${esc(value)}"` +
+    `${o.time ? ' inputmode="numeric" maxlength="5" autocomplete="off" pattern="([01][0-9]|2[0-3]):[0-5][0-9]"' : ''}` +
     `${o.ph ? ` placeholder="${esc(o.ph)}"` : ''}${o.err ? ' aria-invalid="true"' : ''}${o.label ? ` aria-label="${esc(o.label)}"` : ''}${o.off ? ' disabled' : ''}>`;
   // The stepper: Fewer, the value as a number field, More.
   const stepper = (id, value, label) => `<div class="stepper"><button type="button" aria-label="${t('editor.fewer')}"${value <= 1 ? ' disabled' : ''}>-</button>` +
-    `${input(id, value, { type: 'number', label })}<button type="button" aria-label="${t('editor.more')}">+</button></div>`;
-  // A row with a stepper: the cell of the board on the phone, a field from 640px.
-  const stepRow = (id, label, meta, value) => (PHONE
-    ? `<div class="cell"><span class="cell-main"><span class="cell-title is-plain">${label}</span>${meta ? `<span class="cell-meta">${meta}</span>` : ''}</span>${stepper(id, value, label)}</div>`
-    : `<div class="field"><span class="label">${label}</span>${stepper(id, value, label)}${meta ? `<p class="hint">${meta}</p>` : ''}</div>`);
+    `<input id="${id}" data-testid="${id}" type="number" value="${esc(value)}" aria-label="${esc(label)}"><button type="button" aria-label="${t('editor.more')}">+</button></div>`;
+  // A row with a stepper: a cell of the group.
+  const stepRow = (id, label, meta, value) => `<div class="cell"><span class="cell-main"><span class="cell-title is-plain">${label}</span>${meta ? `<span class="cell-meta">${meta}</span>` : ''}</span>${stepper(id, value, label)}</div>`;
   const seg = (id, label, list, on, word = (x) => x) => `<div class="seg" role="radiogroup" aria-label="${label}" data-testid="${id}" data-value="${on}">` +
     list.map((x) => `<button type="button" role="radio" aria-checked="${x === on}" data-testid="${id}-${x}"${x === on ? ' class="is-on"' : ''}>${word(x)}</button>`).join('') + '</div>';
-  const segFld = (id, label, list, on, word) => (PHONE
-    ? `<div class="fcell"><span class="label">${label}</span>${seg(id, label, list, on, word)}</div>`
-    : `<div class="field"><span class="label">${label}</span>${seg(id, label, list, on, word)}</div>`);
-  // A section: its caption and a group of rows on the phone, its title and the fields from 640px.
-  const section = (title, rows, note = '') => (PHONE
-    ? `<p class="group-cap">${title}</p><div class="group">${rows}</div>${note}`
-    : `<div class="section-head"><h2>${title}</h2></div>${rows}${note}`);
+  const segFld = (id, label, list, on, word) => `<div class="fcell"><span class="label">${label}</span>${seg(id, label, list, on, word)}</div>`;
+  // Effort has five values: the segmented control from 640px, a row whose value opens the list (a sheet) on the phone.
+  const effortFld = (on) => (PHONE
+    ? `<div class="fcell is-row"><span class="label" id="l-f-effort">${t('editor.effort')}</span><button class="select" type="button" id="f-effort" data-testid="f-effort" data-value="${on}" aria-haspopup="dialog" aria-labelledby="l-f-effort f-effort">${on}</button>${chev}</div>`
+    : segFld('f-effort', t('editor.effort'), EFFORTS, on));
+  // A section: its caption (phone) or title (from 640px) and a group of rows.
+  const section = (title, rows, note = '') => (PHONE ? `<p class="group-cap">${title}</p>` : `<div class="section-head"><h2>${title}</h2></div>`) + `<div class="group">${rows}</div>${note}`;
 
-  // The repo: a cell that opens a sheet on the phone, a select-like button that opens a menu from 640px.
+  // The repo: a cell that opens a sheet on the phone, a select-like button (a combobox) that opens a menu from 640px.
   function repoRow(v, o) {
     const r = v.repo ? D.repos[v.repo] : null;
-    const value = o.noRepos ? t('form.repo.none') : r ? esc(r.name) : t('form.repo.placeholder');
+    const value = o.noRepos ? t('editor.repoNone') : r ? esc(r.name) : t('editor.repoPlaceholder');
     const err = o.errs && o.errs.repo;
     const errHint = err ? `<p class="hint is-err" data-testid="error-f-repo">${err}</p>` : '';
     if (PHONE) {
-      return `<button class="cell is-link" type="button" data-testid="f-repo" aria-haspopup="dialog"${o.noRepos ? ' disabled' : ''}><span class="cell-main"><span class="cell-title is-plain">${t('editor.repo')}</span>` +
+      return `<button class="cell" type="button" data-testid="f-repo" aria-haspopup="dialog"${o.noRepos ? ' disabled' : ''}><span class="cell-main"><span class="cell-title is-plain">${t('editor.repo')}</span>` +
         `${errHint}</span><span class="cell-value">${value}</span>${chev}</button>`;
     }
     const btn = `<button class="select${err ? ' is-err' : ''}" type="button" id="f-repo" data-testid="f-repo" aria-haspopup="menu"${o.repoPick ? ' aria-expanded="true"' : ''}${err ? ' aria-invalid="true"' : ''}${o.noRepos ? ' disabled' : ''}>${value}</button>`;
-    const menu = o.repoPick ? `<span style="position:relative;display:flex">${btn}${repoMenu2()}</span>` : btn;
-    return `<div class="field"><label class="label" for="f-repo">${t('editor.repo')}</label>${menu}${errHint}</div>`;
+    return `<div class="fcell"><label class="label" for="f-repo">${t('editor.repo')}</label><div class="combo">${btn}${o.repoPick ? repoMenu2() : ''}</div>${errHint}</div>`;
   }
   const repoOpt = (k, cls) => {
-    const r = D.repos[k], gone = r.gone ? `<span class="hint is-warn">${t('form.repo.goneHint')}</span>` : '';
+    const r = D.repos[k], gone = r.gone ? `<span class="hint is-warn">${t('editor.repoGone')}</span>` : '';
     return cls === 'cell'
       ? `<button class="cell${k === 'api' ? ' is-sel' : ''}" type="button" data-testid="repo-opt-${r.id}"${k === 'api' ? ' aria-current="true"' : ''}><span class="cell-main"><span class="cell-title is-plain" data-testid="repo-opt-name">${esc(r.name)}</span><span class="cell-meta">${esc(r.path)}</span>${gone}</span></button>`
       : `<button class="menu-item${k === 'api' ? ' is-on' : ''}" type="button" role="menuitemradio" aria-checked="${k === 'api'}" data-testid="repo-opt-${r.id}"><span class="cell-main"><span class="cell-title is-plain" data-testid="repo-opt-name">${esc(r.name)}</span><span class="cell-meta">${esc(r.path)}</span>${gone}</span></button>`;
   };
-  const repoMenu2 = () => `<div class="menu" role="menu" style="position:absolute;top:calc(100% + var(--space-1));left:0;right:0">${D.repoOrder.map((k) => repoOpt(k)).join('')}<hr>` +
-    `<a class="menu-item" href="#" data-testid="repo-manage">${t('form.repo.manage')}</a></div>`;
+  const repoMenu2 = () => `<div class="menu" role="menu">${D.repoOrder.map((k) => repoOpt(k)).join('')}<hr>` +
+    `<a class="menu-item" href="#" data-testid="repo-manage">${t('editor.repoManage')}</a></div>`;
   const repoSheet2 = () => `<div class="scrim"></div><div class="sheet" role="dialog" aria-modal="true" aria-label="${t('editor.repo')}"><span class="sheet-grab"></span><h2>${t('editor.repo')}</h2>` +
-    `<div class="group">${D.repoOrder.map((k) => repoOpt(k, 'cell')).join('')}</div><a class="btn lg block plain" href="#" data-testid="repo-manage">${t('form.repo.manage')}</a></div>`;
+    `<div class="group">${D.repoOrder.map((k) => repoOpt(k, 'cell')).join('')}</div><a class="btn lg block plain" href="#" data-testid="repo-manage">${t('editor.repoManage')}</a></div>`;
 
   // The fields of the chosen kind, then the time zone.
   function schedFields(s) {
-    const time = () => fld('sched-time', t('editor.at'), input('sched-time', s.t, { type: 'time' }));
+    const time = () => rowFld('sched-time', t('editor.at'), input('sched-time', s.t, { time: true }));
     let f = '';
     if (s.kind === 'minutes') f = stepRow('sched-minutes', t('editor.every'), t('editor.minutes'), s.n);
-    if (s.kind === 'hours') f = stepRow('sched-hours', t('editor.every'), t('editor.hours'), s.n) + fld('sched-at-minute', t('editor.atMinute'), input('sched-at-minute', s.m, { type: 'number' }));
+    if (s.kind === 'hours') f = stepRow('sched-hours', t('editor.every'), t('editor.hours'), s.n) + rowFld('sched-at-minute', t('editor.atMinute'), input('sched-at-minute', s.m, { type: 'number' }));
     if (s.kind === 'daily') f = time();
     if (s.kind === 'weekly') {
       const chips = [1, 2, 3, 4, 5, 6, 0].map((d) => `<button class="chip${s.days.includes(d) ? ' is-on' : ''}" type="button" role="checkbox" aria-checked="${s.days.includes(d)}" data-testid="sched-day-${d}">${t('day.short.' + d)}</button>`).join('');
-      const days = `<div class="page-meta" role="group" aria-label="${t('editor.on')}" data-testid="sched-days">${chips}</div>`;
-      f = (PHONE ? `<div class="fcell"><span class="label">${t('editor.on')}</span>${days}</div>` : `<div class="field"><span class="label">${t('editor.on')}</span>${days}</div>`) + time();
+      f = `<div class="fcell"><span class="label">${t('editor.on')}</span><div class="chips" role="group" aria-label="${t('editor.on')}" data-testid="sched-days">${chips}</div></div>` + time();
     }
-    if (s.kind === 'monthly') f = fld('sched-day', t('editor.dayOfMonth'), input('sched-day', s.d, { type: 'number' })) + time();
+    if (s.kind === 'monthly') f = rowFld('sched-day', t('editor.dayOfMonth'), input('sched-day', s.d, { type: 'number' })) + time();
     if (s.kind === 'advanced') {
       const e = SCH.error[s.cron];
       f = fld('sched-cron', t('editor.cron'), input('sched-cron', s.cron, { err: !!e }),
-        e ? { hints: [['is-err', `${t('error.INVALID_CRON')}: ${esc(e[LANG])}`, 'sched-cron-error']] } : { hints: [['', t('sched.field.cron.hint')]] });
+        e ? { hints: [['is-err', `${t('error.INVALID_CRON')}: ${esc(e[LANG])}`, 'sched-cron-error']] } : { hints: [['', t('editor.cronHint')]] });
     }
     const kind = `<select class="select" id="sched-kind" data-testid="sched-kind">${KINDS.map((k) => `<option value="${k}"${k === s.kind ? ' selected' : ''}>${t('editor.kind.' + k)}</option>`).join('')}</select>`;
     const tz = `<select class="select" id="sched-tz" data-testid="sched-tz"><option>${TZ}</option></select>`;
-    return fld('sched-kind', t('editor.repeat'), kind) + f + fld('sched-tz', t('editor.timeZone'), tz);
+    return rowFld('sched-kind', t('editor.repeat'), kind) + f + rowFld('sched-tz', t('editor.timeZone'), tz);
   }
   // The description card: the sentence, the stored cron, the warnings and the next 5 runs (or the error).
   function schedOut(s) {
@@ -718,37 +716,38 @@
     const details = section(t('editor.details'),
       fld('f-name', t('editor.name'), input('f-name', v.name, { err: !!e.name }), { err: e.name }) + repoRow(v, o) +
       fld('f-description', t('editor.description'), input('f-description', v.desc, { ph: t('editor.descriptionHint') })),
-      r ? `<p class="${PHONE ? 'group-note' : 'hint'}">${t('editor.repoNote', { path: esc(r.path) })}</p>` : o.noRepos ? `<a class="btn" href="#" data-testid="repo-go-register">${t('form.repo.goRegister')}</a>` : '');
+      r ? `<p class="group-note">${t('editor.repoNote', { path: esc(r.path) })}</p>` : o.noRepos ? `<a class="btn" href="#" data-testid="repo-go-register">${t('editor.repoRegister')}</a>` : '');
     const prompt = section(t('editor.prompt'), fld('f-prompt', t('editor.promptLabel'),
       `<textarea class="textarea${e.prompt ? ' is-err' : ''}" id="f-prompt" data-testid="f-prompt"${e.prompt ? ' aria-invalid="true"' : ''}>${esc(v.prompt)}</textarea>`,
       { err: e.prompt, count: t('editor.count', { n: num(v.prompt.length), max: num(PROMPT_MAX) }) }));
     const schedule = section(t('editor.schedule'), schedFields(s)) + schedOut(s);
     const limitHints = [['', t('editor.limitHint')]].concat(v.timeout != null && !e.timeout ? [['', durLong(v.timeout), 'hint-f-timeout']] : []);
-    const limit = fld('f-timeout', t('editor.limit'), input('f-timeout', v.timeout == null ? '' : v.timeout, { type: 'number', ph: t('editor.noLimit'), err: !!e.timeout }), { err: e.timeout, hints: limitHints });
+    const limit = rowFld('f-timeout', t('editor.limit'), input('f-timeout', v.timeout == null ? '' : v.timeout, { type: 'number', ph: t('editor.noLimit'), err: !!e.timeout }), { err: e.timeout, hints: limitHints });
     const parallel = stepRow('f-max-concurrent', t('editor.parallel'), t('editor.atMost'), v.parallel);
     const agent = section(t('editor.agent'), o.mock
       ? segFld('f-executor', t('form.executor'), ['claude', 'mock'], 'mock', (x) => t('form.executor.' + x)) + parallel + limit +
-        fld('f-duration', t('form.mockDur'), input('f-duration', 10, { type: 'number' }), { hints: [['', t('form.mockDur.hint')]] }) +
-        fld('f-fail', t('form.mockFail'), input('f-fail', 0, { type: 'number' }), { hints: [['', t('form.mockFail.hint')]] })
-      : segFld('f-model', t('editor.model'), MODELS, v.model) + segFld('f-effort', t('editor.effort'), EFFORTS, v.effort) + parallel + limit,
-    o.mock ? `<p class="note">${t('form.executor.mockHint')}</p>` : '');
+        rowFld('f-duration', t('editor.mockDur'), input('f-duration', 10, { type: 'number' }), { hints: [['', t('editor.mockDurHint')]] }) +
+        rowFld('f-fail', t('editor.mockFail'), input('f-fail', 0, { type: 'number' }), { hints: [['', t('editor.mockFailHint')]] })
+      : segFld('f-model', t('editor.model'), MODELS, v.model) + effortFld(v.effort) + parallel + limit,
+    o.mock ? `<p class="note">${t('editor.mockHint')}</p>` : '');
     const locked = o.saving || o.noRepos || !!SCH.error[s.cron];
     const label = o.saving ? t('form.saving') : t(edit ? 'editor.save' : 'editor.create');
     const submit = `<button class="btn primary${PHONE ? ' lg block' : ''}" type="submit" form="loop-form" data-testid="form-submit"${locked ? ' disabled' : ''}>${label}</button>`;
     const back = edit ? D.loops[o.key].name : t('nav.loops');
-    const page = (PHONE ? '' : backlink(back)) + `<div class="page-head"><h1 class="page-title">${title}</h1></div>` + (o.banner || '') +
+    // The phone's navigation bar holds the heading (Cancel at the start, the title centred); from 640px the page does.
+    const page = (PHONE ? '' : backlink(back) + `<div class="page-head"><h1 class="page-title">${title}</h1></div>`) + (o.banner || '') +
       `<form id="loop-form" data-testid="loop-form" style="display:contents">${details}${prompt}${schedule}${agent}</form>` +
       (PHONE ? `<div class="actionbar">${submit}</div>` : `<div class="form-foot"><button class="btn ghost" type="button" data-testid="form-cancel">${t('editor.cancel')}</button>${submit}</div>`);
-    const bar = `<nav class="navbar"><a class="navbar-back" href="#" data-testid="form-cancel">${t('editor.cancel')}</a><span class="navbar-title"></span><div class="navbar-actions"></div></nav>`;
+    const bar = `<nav class="navbar"><a class="navbar-back" href="#" data-testid="form-cancel">${t('editor.cancel')}</a><h1 class="navbar-title">${title}</h1><div class="navbar-actions"></div></nav>`;
     return app({ tab: 'loops', loopCount: D.counts.all, narrow: true, navbar: bar, page, overlay: o.repoPick && PHONE ? repoSheet2() : '' });
   }
   const formBanner = {
-    errors: (n) => `<div class="banner is-err" data-testid="form-errors" role="alert">${icon('alert')}<span class="banner-text">${t('form.errSummary', { n })}</span></div>`,
-    running: () => `<div class="banner is-info" data-testid="form-edit-running" role="status">${icon('info')}<span class="banner-text">${t('form.editRunning', { n: D.loops.pilot.run.n })}</span></div>`,
-    conflict: () => `<div class="banner is-warn" data-testid="form-conflict" role="alert">${icon('alert')}<span class="banner-text">${t('form.conflict', { t: '14:02:10' })} ` +
-      `${t('form.conflict.fields', { fields: `${t('editor.prompt')}, ${t('editor.schedule')}` })}</span><button class="btn sm" type="button" data-testid="conflict-reload">${t('form.conflict.reload')}</button>` +
+    errors: (n) => `<div class="banner is-err" data-testid="form-errors" role="alert">${icon('alert')}<span class="banner-text">${tn('editor.errSummary', n)}</span></div>`,
+    running: () => `<div class="banner is-info" data-testid="form-edit-running" role="status">${icon('info')}<span class="banner-text">${t('editor.editRunning', { n: D.loops.pilot.run.n })}</span></div>`,
+    conflict: () => `<div class="banner is-warn" data-testid="form-conflict" role="alert">${icon('alert')}<span class="banner-text">${t('editor.conflict', { t: '14:02:10' })} ` +
+      `${t('editor.conflictFields', { fields: `${t('editor.prompt')}, ${t('editor.schedule')}` })}</span><button class="btn sm" type="button" data-testid="conflict-reload">${t('form.conflict.reload')}</button>` +
       `<button class="btn sm danger" type="button" data-testid="conflict-overwrite">${t('form.conflict.overwrite')}</button></div>`,
-    duplicated: () => `<p class="note">${t('form.duplicated')}</p>`,
+    duplicated: () => `<p class="note">${t('editor.duplicated')}</p>`,
   };
   const formErrors = () => formApp({ mode: 'new', v: Object.assign(emptyNew(), { name: D.loops.wiki.name, desc: 'Also scan the beta channel', timeout: 30 }), s: SCHED.weekly,
     errs: { name: t('error.LOOP_NAME_TAKEN'), repo: t('val.repoRequired'), prompt: t('val.required'), timeout: t('val.timeoutRangeOptional') }, banner: formBanner.errors(4) });
