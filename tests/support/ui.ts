@@ -2,11 +2,38 @@
 // Each helper holds today's classic code for its step; the new-UI branch (`isNewUi`) is added at the cut-over, and the comment on
 // each helper names it. Helpers return locators and values, so the `expect` stays at the call site. This file is exempt from the
 // selector scan (tests/tools/e2e-selectors.test.ts): the classic selectors live here until they are removed (task U25).
-import type { Locator, Page } from '@playwright/test';
+import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 
-/** True when the page runs the new UI: `html[data-ui="new"]`. The classic UI has no such attribute. */
+export type Ui = 'classic' | 'new';
+/** The Playwright projects that run the new UI (task U13): their pages carry `castraferrum.ui=new`. */
+const NEW_UI_PROJECTS = ['chromium-new', 'webkit-phone'];
+
+/** The UI a project runs: `new` for `chromium-new` and `webkit-phone`, `classic` otherwise. */
+export function projectUi(testInfo: TestInfo = test.info()): Ui {
+  return NEW_UI_PROJECTS.includes(testInfo.project.name) ? 'new' : 'classic';
+}
+
+/**
+ * `page.goto` for every page of the app. The project's stored choice only covers its own `baseURL` origin, so in a new-UI
+ * project a URL of another origin (a `ServerProcess`) gets `ui=new`, which the app stores for that origin.
+ */
+export async function gotoApp(page: Page, url: string): Promise<void> {
+  const info = test.info();
+  const base = info.project.use.baseURL;
+  const target = new URL(url, base);
+  if (projectUi(info) === 'new' && (!base || target.origin !== new URL(base).origin)) {
+    target.searchParams.set('ui', 'new');
+    await page.goto(target.toString());
+    return;
+  }
+  await page.goto(url);
+}
+
+/** True when the page runs the new UI. It first asserts that `html[data-ui]` is the UI of the project, so a page never runs the wrong UI unnoticed. */
 export async function isNewUi(page: Page): Promise<boolean> {
-  return (await page.locator('html').getAttribute('data-ui')) === 'new';
+  const ui = projectUi();
+  await expect(page.locator('html')).toHaveAttribute('data-ui', ui);
+  return ui === 'new';
 }
 
 /** New UI (spec 7.2): row actions are visible at rest; no hover. */

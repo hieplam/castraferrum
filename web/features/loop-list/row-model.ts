@@ -3,7 +3,6 @@
 // the web only runs the clock between two loads: a running run = now - the run's start, an open execution =
 // the `elapsedMs` the server counted when it answered + the time passed since the load (`fetchedAt`).
 import type { LoopDto } from '../../../shared/contracts/loops';
-import type { StatusKind } from '../../ui/components';
 import { roundList } from '../loop-detail/format';
 
 export type RowStatus =
@@ -28,7 +27,7 @@ export type RowModel = {
   /** ✓ ✗ ⊘ ↷ of the execution - shown only while the loop is running (like the preview). */
   counts: { ok: number; err: number; cancel: number; skip: number } | null;
   /** Latest run that has a result: status + start time (the loop's time). */
-  last: { status: StatusKind; at: string } | null;
+  last: { status: NonNullable<LoopDto['lastRun']>['status']; at: string } | null;
   /** Next run (the loop's time). */
   next: string | null;
   /** Running iteration #N (newest) for the Stop confirm box - D-UI1; `count` / `list` = every running run. */

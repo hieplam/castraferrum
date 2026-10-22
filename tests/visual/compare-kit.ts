@@ -19,14 +19,13 @@ import { messagesJs, readPreviewData, scheduleJs } from '../../scripts/design-st
 import * as schedule from '../../shared/domain/schedule';
 import { en, type MessageKey } from '../../shared/i18n/en';
 import { vi } from '../../shared/i18n/vi';
-import { compareRegions, type Rect, type Region, type RegionResult } from './pixel-diff';
+import { compareRegions, MAX_RATIO, type Rect, type Region, type RegionResult } from './pixel-diff';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 export const OUT = resolve(ROOT, process.env.LOOPS_COMPARE_OUT ?? 'reports/compare');
 /** The reference = the approved preview shots. */
 export const PREVIEW_SHOTS = join(ROOT, 'design', 'preview', 'shots');
-/** Mismatch threshold per region (mismatched pixels / compared pixels). Ratchet: may only go down. */
-export const MAX_RATIO = 0.001;
+export { MAX_RATIO };
 const THEMES = ['light', 'dark'] as const;
 type Theme = (typeof THEMES)[number];
 

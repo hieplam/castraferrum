@@ -15,7 +15,7 @@ import { FAKE_CLAUDE_DIR_PREFIX } from '../../server/adapters/executors/claude/t
 import { fill, pickRepo } from '../support/form-kit';
 import { skipParallel, soakSummary } from '../support/server-text';
 import { t } from '../support/ui-text';
-import { runHistory } from '../support/ui';
+import { gotoApp, runHistory } from '../support/ui';
 
 loadDotEnv();
 test.use({ timezoneId: 'Asia/Ho_Chi_Minh' });
@@ -67,7 +67,7 @@ test('UC-32: run up to N runs in parallel - N = 3 via the form: 3 runs running a
   expect((await request.post('/api/repos', { data: { path: dir, name: 'fake-claude' } })).status()).toBe(201);
 
   // 1. Create the loop THROUGH THE FORM: every 1 minute, Claude, max concurrent runs = 3.
-  await page.goto('/loops/new');
+  await gotoApp(page, '/loops/new');
   await expect(page.getByTestId('sched-out')).toHaveAttribute('data-state', 'ok');
   await expect(page.getByTestId('f-max-concurrent')).toHaveValue('1'); // default = the old rule
   await fill(page, 'f-name', NAME);

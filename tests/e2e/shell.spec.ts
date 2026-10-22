@@ -11,7 +11,7 @@ import { vi } from '../../shared/i18n/vi';
 import { liveDbUrl, ServerProcess } from '../support/server-process';
 import { ensureTestRepo } from '../support/test-repo';
 import { t } from '../support/ui-text';
-import { lampState, statValue, switchLanguage, themeName } from '../support/ui';
+import { gotoApp, lampState, statValue, switchLanguage, themeName } from '../support/ui';
 
 const TOKENS = readFileSync(fileURLToPath(new URL('../../design/tokens.css', import.meta.url)), 'utf8');
 /** The `--bg` value of a token set in design/tokens.css (the default light block / the `[data-theme="dark"]` block). */
@@ -57,7 +57,7 @@ test.describe('app shell', () => {
       expect(created.status).toBe(201);
       const id = created.body.id;
 
-      await page.goto(`${sp.baseUrl}/`);
+      await gotoApp(page, `${sp.baseUrl}/`);
       await expect(lampState(page, 'server')).toHaveAttribute('data-state', 'ok');
       await expect(lampState(page, 'db')).toHaveAttribute('data-state', 'ok');
       await expect(statValue(page, 'active-loops')).toHaveText(t('top.stats.activeLoops', { n: 0 }));
@@ -103,7 +103,7 @@ test.describe('app shell', () => {
     test.setTimeout(60_000);
     const sp = await ServerProcess.launch();
     try {
-      await page.goto(`${sp.baseUrl}/`);
+      await gotoApp(page, `${sp.baseUrl}/`);
       await expect(lampState(page, 'db')).toHaveAttribute('data-state', 'ok');
       await sp.cutDb();
       const banner = page.getByTestId('banner-db-down');
@@ -122,13 +122,13 @@ test.describe('app shell', () => {
 
   test('UC-18: English by default on every screen, the toggle switches every text to Vietnamese and back, and it survives a reload', { tag: '@UC-18' }, async ({ page }) => {
     // A clean context (no stored preference) shows English with lang="en" on every screen.
-    await page.goto('/');
+    await gotoApp(page, '/');
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
     await expect(page.getByTestId('nav-loops')).toHaveText(en['nav.loops']);
     await expect(page.getByTestId('toggle-lang')).toHaveText('EN / VI');
     await expect(page.getByTestId('toggle-lang').locator('b')).toHaveText('EN');
     for (const path of SCREENS) {
-      await page.goto(path);
+      await gotoApp(page, path);
       await expect(lampState(page, 'server')).toHaveAttribute('data-state', 'ok');
       await expect(page.locator('html')).toHaveAttribute('lang', 'en');
       const text = await visibleUiText(page);
@@ -137,7 +137,7 @@ test.describe('app shell', () => {
     }
 
     // The toggle switches to the strings of vi.ts and lang="vi".
-    await page.goto('/');
+    await gotoApp(page, '/');
     await switchLanguage(page);
     await expect(page.locator('html')).toHaveAttribute('lang', 'vi');
     await expect(page.getByTestId('nav-loops')).toHaveText(vi['nav.loops']);
@@ -156,7 +156,7 @@ test.describe('app shell', () => {
     const dark = await browser.newContext({ colorScheme: 'dark' });
     const page = await dark.newPage();
     try {
-      await page.goto('/');
+      await gotoApp(page, '/');
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
       expect(await bodyBg(page)).toBe(tokenBg('dark'));
       await expect(themeName(page)).toHaveText(en['top.theme.dark']);
@@ -176,7 +176,7 @@ test.describe('app shell', () => {
     const light = await browser.newContext({ colorScheme: 'light' });
     const page2 = await light.newPage();
     try {
-      await page2.goto('/');
+      await gotoApp(page2, '/');
       await expect(page2.locator('html')).toHaveAttribute('data-theme', 'light');
       expect(await bodyBg(page2)).toBe(tokenBg('light'));
       await page2.getByTestId('toggle-theme').press('Enter'); // the keyboard works too

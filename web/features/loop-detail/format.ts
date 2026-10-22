@@ -3,7 +3,6 @@
 import type { LogLineDto, RunDto } from '../../../shared/contracts/loops';
 import { fmtClock, fmtDateTime, fmtDuration, fmtDurationShort, fmtTime, type T } from '../../prefs/format';
 import { formatUsd, REPO_MISSING_PREFIXES } from '../../../shared/domain/cost';
-import type { LogViewLine } from '../../ui/LogView';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -115,6 +114,9 @@ export function runTimeoutSec(run: RunDto): number | null {
  * Log lines -> LogView lines: the first line of a run is the opening line (`head`), level `error` -> red, the last line of a successful run
  * -> green. Does not read the log text (the phase 2 executor prints other text).
  */
+/** One line as a log view draws it; both UIs' log components take this shape. */
+export type LogViewLine = { key: number; seq: number; time: string; tone?: 'head' | 'ok' | 'err'; text: string };
+
 export function toLogViewLines(lines: readonly LogLineDto[], timeZone: string, status: RunDto['status'] | null): LogViewLine[] {
   const last = lines[lines.length - 1];
   return lines.map((l) => ({

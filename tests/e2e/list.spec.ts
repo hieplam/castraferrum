@@ -9,7 +9,7 @@ import { databaseUrl, loadDotEnv } from '../../server/config';
 import { nextRuns } from '../../shared/domain/schedule';
 import { ensureTestRepo } from '../support/test-repo';
 import { t } from '../support/ui-text';
-import { revealRowActions, statValue } from '../support/ui';
+import { gotoApp, revealRowActions, statValue } from '../support/ui';
 
 loadDotEnv();
 const TZ = 'Asia/Ho_Chi_Minh';
@@ -88,7 +88,7 @@ test.describe('list screen', () => {
     const exB = await one<{ id: string }>(`SELECT id FROM loop_executions WHERE loop_id = $1`, [b]);
     await rawRun(b, exB.id, 50, 'failed', 50 * 3600);
 
-    await page.goto('/');
+    await gotoApp(page, '/');
     await expect(page.getByTestId('loop-row')).toHaveCount(3);
     await markNoReload(page);
 
@@ -196,7 +196,7 @@ test.describe('list screen', () => {
   test('UC-04: Start from a row -> new execution, the first run trigger=start runs at once, the next run on the exact cron boundary; while running there is no Start (LOOP_ALREADY_ACTIVE)', { tag: '@UC-04' }, async ({ page, request, browser }) => {
     test.setTimeout(60_000);
     const id = await createLoop(request, 'Loop Start');
-    await page.goto('/');
+    await gotoApp(page, '/');
     const r = row(page, 'Loop Start');
     await expect(r.locator('[data-testid="row-status"][data-status="stopped"]')).toBeVisible();
     await markNoReload(page);
@@ -235,7 +235,7 @@ test.describe('list screen', () => {
     const stale = await ctx.newPage();
     try {
       await stale.route('**/api/events**', () => {}); // SSE hangs: no live events
-      await stale.goto('/');
+      await gotoApp(stale, '/');
       const sr = row(stale, 'Loop Start');
       await expect(sr.locator('[data-testid="row-status"][data-status="stopped"]')).toBeVisible();
       expect(await post(request, `/api/loops/${id}/start`)).toBe(200); // execution #2 opened in "another tab"
@@ -259,7 +259,7 @@ test.describe('list screen', () => {
     test.setTimeout(60_000);
     const id = await createLoop(request, 'Loop Stop');
     expect(await post(request, `/api/loops/${id}/start`)).toBe(200);
-    await page.goto('/');
+    await gotoApp(page, '/');
     const r = row(page, 'Loop Stop');
     await expect(r.locator('[data-testid="row-status"][data-status="running"]')).toBeVisible();
     await markNoReload(page);
