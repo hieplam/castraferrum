@@ -260,6 +260,12 @@
       <span class="pill s-wait">Waiting</span>
     </div>
     <div class="ds-row">
+      <span class="pill s-run">Still active</span>
+      <span class="pill s-stop">Stopped by you</span>
+      <span class="pill s-int">Ended by server</span>
+      <span class="ds-cap">the state of an active period, in the head of its page</span>
+    </div>
+    <div class="ds-row">
       <span class="dot d-ok"></span><span class="dot d-run"></span><span class="dot d-fail"></span><span class="dot d-warn"></span><span class="dot"></span>
       <span class="pulse"></span>
       <span class="ds-cap">.dot, .pulse (still under reduced motion)</span>
@@ -381,7 +387,10 @@
       <a class="summary-item" href="#"><b>$4.21</b>Spent today</a>
     </div>
     <div class="card">
-      <div class="now"><span class="pulse"></span><p class="now-text"><b>Run #69 is working.</b> Started at 14:00, 0:42 so far.</p><button class="btn sm" type="button">Open run #69</button></div>
+      <div class="now"><span class="pulse"></span><p class="now-text"><b>Run #69 is working</b>Started at 14:00, 0:42 so far. The next run starts at 14:30, in 29 min.</p><button class="btn sm" type="button">Open run #69</button></div>
+    </div>
+    <div class="card">
+      <div class="now"><span class="dot d-fail"></span><div class="now-text"><b>The last run failed</b>Run #31 failed at 14:00 after 0:00. The loop keeps running: the next run starts at 14:10.<p class="hint is-err">The repo folder no longer exists: C:\Users\alice\acme-api</p></div><span class="now-actions"><a class="btn sm" href="#">Open run #31</a><a class="btn sm" href="#">Open Repos</a></span></div>
     </div>
     <div class="stats">
       <div class="stat"><div class="stat-label">Active for</div><div class="stat-value">4 h 13 m</div><div class="stat-sub">since Sun 09:47</div></div>
@@ -438,12 +447,16 @@
     <h2>Transcript</h2>
     <div class="tx">
       <div class="tx-bar"><span>Transcript · 48 entries</span><span>session 55418851</span></div>
+      <div class="tx-scroll">
       <div class="tx-entry k-assistant"><div class="tx-head"><span class="tx-kind">assistant</span><span>14:00:03</span></div><div class="tx-body">I will take the next issue from the backlog.</div></div>
       <div class="tx-entry k-tool"><div class="tx-head"><span class="tx-kind">Bash</span><span>14:00:04</span></div><div class="tx-body is-code">node scripts/backlog.js next</div><button class="tx-fold" type="button" aria-expanded="false"><svg class="icon"><use href="#i-chev"/></svg>Show 12 lines</button></div>
       <div class="tx-entry k-think"><div class="tx-head"><span class="tx-kind">thinking</span></div><div class="tx-body is-think">The sender must be verified first.</div><button class="tx-fold" type="button" aria-expanded="true"><svg class="icon"><use href="#i-chev"/></svg>Hide</button></div>
       <div class="tx-entry k-tool is-err"><div class="tx-head"><span class="tx-kind">Edit</span><span>14:00:09</span></div><div class="tx-body">File not found: src/mail.ts</div></div>
+      <div class="tx-entry"><div class="tx-head"><span>14:00:12</span><span class="tx-kind">Prompt</span></div><button class="tx-fold" type="button" aria-expanded="false"><svg class="icon"><use href="#i-chev"/></svg>Run node scripts/backlog.js next · 4 lines</button></div>
       <div class="tx-end">End of the transcript</div>
+      </div>
     </div>
+    <p class="note">.tx-scroll scrolls the entries inside a frame as tall as the transcript size token from 640px, and grows with them on the phone.</p>
   </section>
 
   <!-- Fields -->
@@ -646,7 +659,23 @@
     <p class="note">Times are in Asia/Ho_Chi_Minh.</p>
     <p class="note">.data: a time, id or path inside a sentence, in the data font: run <span class="data">#69</span> took <span class="data">0:42</span>.</p>
     <div class="cmd"><code>claude --resume 55418851-89d3</code><button class="iconbtn" type="button" aria-label="Copy"><svg class="icon"><use href="#i-copy"/></svg></button></div>
+    <div class="cmd is-wrap"><code>claude --resume 55418851-0c1d-4b7e-9f2a-3e6d0b1c89d3</code><button class="btn plain" type="button">Copy command</button></div>
     <pre class="code">Run node scripts/backlog.js next - claim exactly one open issue (skip issues labelled in-progress).</pre>
+    <pre class="code is-clamped">Run node scripts/backlog.js next - claim exactly one open issue (skip issues labelled in-progress).
+Follow its brief in the background, on the staging account - never ask the user for input.
+node scripts/backlog.js check must pass before you release; open a PR and merge it per CONTRIBUTING.md.
+If no issue is left, stop right away and do nothing else.
+Write one line to the log for each step.
+Never touch the main branch directly.
+Keep every change small.</pre>
+    <a class="link" href="#">Show the full prompt</a>
+    <div class="pager">
+      <span>1–10 of 69</span>
+      <span class="pager-nav">
+        <button class="iconbtn bordered" type="button" aria-label="Previous page" disabled><svg class="icon"><use href="#i-back"/></svg></button>
+        <button class="iconbtn bordered" type="button" aria-label="Next page"><svg class="icon"><use href="#i-chev"/></svg></button>
+      </span>
+    </div>
     <div class="def"><b>Active period</b><span>From Start until Stop, or until the server shuts down.</span></div>
     <ol class="steps">
       <li class="step"><div><b>Add a repo</b>The folder the agent works in.</div></li>

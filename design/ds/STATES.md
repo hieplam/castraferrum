@@ -61,7 +61,7 @@ separate id `phone-<id>` that draws its base state at 390 by 844. Open a state l
 | `loop-running` | A run working, live output | `d-loop-light`, `d-loop-dark` |
 | `phone-loop-running` | `loop-running` on the phone | `m-loop-light`, `m-loop-dark` |
 | `loop-idle` | Waiting for the next run, the last run's output | - |
-| `loop-last-failed` | The last run failed, the loop keeps running | - |
+| `loop-last-failed` | The last run failed, the loop keeps running; the repo folder is gone: the hint and Open Repos | - |
 | `phone-loop-last-failed` | `loop-last-failed` on the phone | - |
 | `loop-stopped` | Stopped by the user, the last run cancelled | - |
 | `loop-server-down` | Stopped by a server shutdown | - |

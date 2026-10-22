@@ -303,6 +303,8 @@
   }
   const periodSpan = (e) => (e.end ? t('period.span', { from: when(e.start), to: when(e.end, e.start) }) : t('period.since', { t: when(e.start) }));
   const periodEnd = (e) => t(e.st === 'active' ? 'period.stillActive' : e.st === 'server_down' ? 'period.byServer' : 'period.byYou');
+  // The state of an active period as a pill (page head of the active period page): still active, stopped by you, ended by the server.
+  const periodPill = (e) => { const [cls, key] = e.st === 'active' ? ['s-run', 'period.pill.active'] : e.st === 'server_down' ? ['s-int', 'period.pill.byServer'] : ['s-stop', 'period.pill.byYou']; return `<span class="pill ${cls}" data-testid="period-status">${t(key)}</span>`; };
   const periodCounts = (e) => tn('period.runs', e.rounds) + (e.counts[1] ? ', ' + tn('period.failed', e.counts[1]) : '');
   const periodRuns = (key, e) => (key === 'pilot' && e.k === 2 ? D.runs.pilotExec2 : D.runs[key].slice(0, e.rounds));
 
@@ -311,7 +313,7 @@
   function runCell(key, r, o = {}) {
     const p = RUN_PILL[r.st], rid = runId(key, r);
     const meta = [stamp(r.start)].concat(r.dur != null ? clock(r.dur) : [], r.cost != null ? usd(r.cost) : []).join(' · ');
-    const sum = r.st === 'running' ? t('runs.stillWorking') : r.st === 'skipped' ? t('skip.reason', { n: r.reason }) : r.sum ? esc(r.sum) : '-';
+    const sum = r.st === 'running' ? t('runs.stillWorking') : r.st === 'skipped' ? t('skip.reason', { n: r.reason }) : r.sum ? esc(r.sum) : r.st === 'failed' ? t('runs.noSummaryFailed') : '-';
     return `<a class="cell" href="#" data-testid="run-row" data-run-id="${rid}" data-status="${r.st}"><span class="cell-main">` +
       `<span class="run-top"><span class="run-id">${r.n == null ? '-' : '#' + r.n}</span><span class="pill ${p[0]}">${t(p[1])}</span><span class="run-meta">${meta}</span></span>` +
       `<span class="cell-sum" data-testid="run-sum" data-run-id="${rid}">${sum}</span>${o.session && r.n != null ? `<span class="cell-meta">${sid(key, r.n)}</span>` : ''}</span>${chev}</a>`;
@@ -323,7 +325,7 @@
   function nowCard(key, o = {}) {
     const l = D.loops[key], kind = pageKind(l, o), rs = D.runs[key];
     const inT = l.next ? t('dur.m', { m: Math.floor(l.next.inSec / 60) }) : '';
-    let state = kind, head, sub, mark = '', log = '', open = '';
+    let state = kind, head, sub, mark = '', log = '', open = '', gone = '';
     if (!l.exec) {
       state = 'never'; head = t('now.neverRun'); sub = t('now.neverRunSub');
     } else if (l.run) {
@@ -336,6 +338,7 @@
       const last = rs.find((r) => r.n === l.last.n);
       if (kind === 'active' && last.st === 'failed') {
         state = 'last-failed'; head = t('now.lastFailed'); mark = '<span class="dot d-fail"></span>';
+        if (last.repoGone) gone = `<p class="hint is-err" data-testid="last-run-repo-missing">${t('now.repoMissing', { path: esc(D.repos[l.repo].path) })}</p>`;
         sub = t('now.lastFailedSub', { n: last.n, t: addSec(last.start, last.dur).slice(0, 5), d: clock(last.dur), next: l.next.at });
       } else if (kind === 'active') {
         head = t('now.waiting'); sub = t('now.waitingSub', { next: l.next.at, in: inT }); mark = '<span class="dot d-ok"></span>';
@@ -349,8 +352,12 @@
       log = logBlock('last-run-log', serverLines(key, last), { left: t('now.lastOutput', { n: last.n }) });
       open = kind === 'active' ? t('now.openRun', { n: last.n }) : t('now.openLastRun');
     }
-    const link = !open ? '' : PHONE ? `<a class="cell is-link" href="#"><span class="cell-main">${open}</span>${chev}</a>` : `<a class="btn" href="#">${open}${icon('arrow')}</a>`;
-    return `<div class="card" data-testid="now-card" data-state="${state}"><div class="now">${mark}<span class="now-text"><b>${head}</b> ${sub}</span>${PHONE ? '' : link}</div>${log}${PHONE ? link : ''}</div>`;
+    // Open run, and Open Repos beside it when the repo folder is gone (spec 7.1: open-repos).
+    const repos = gone ? t('act.openRepos') : '';
+    const link = !open ? '' : PHONE
+      ? `<a class="cell is-link" href="#"><span class="cell-main">${open}</span>${chev}</a>${repos ? `<a class="cell is-link" href="#" data-testid="open-repos"><span class="cell-main">${repos}</span>${chev}</a>` : ''}`
+      : `<span class="now-actions"><a class="btn" href="#">${open}${icon('arrow')}</a>${repos ? `<a class="btn" href="#" data-testid="open-repos">${repos}</a>` : ''}</span>`;
+    return `<div class="card" data-testid="now-card" data-state="${state}"><div class="now">${mark}<div class="now-text"><b>${head}</b>${sub}${gone}</div>${PHONE ? '' : link}</div>${log}${PHONE ? link : ''}</div>`;
   }
 
   // The four figures of the loop (spec 5.3), two by two.
@@ -406,7 +413,9 @@
     const list = card
       ? rows.map(([id, k, v, m]) => `<div class="def"${tid(id)}><b>${t(k)}</b><span>${v}</span>${m ? `<span>${esc(m)}</span>` : ''}</div>`).join('')
       : `<div class="group">${rows.map(([id, k, v, m]) => `<div class="cell"${tid(id)}><span class="cell-main"><span class="cell-title is-plain">${t(k)}</span>${m ? `<span class="cell-meta">${esc(m)}</span>` : ''}</span><span class="cell-value">${v}</span></div>`).join('')}</div>`;
-    return list + `<p class="group-cap">${t('loopSettings.prompt')}</p><pre class="code" data-testid="loop-prompt">${esc(l.prompt)}</pre>`;
+    // The side card shows the prompt cut after five lines with a fade and a link to the full text (spec 5.3).
+    return list + `<p class="group-cap">${t('loopSettings.prompt')}</p><pre class="code${card ? ' is-clamped' : ''}" data-testid="loop-prompt">${esc(l.prompt)}</pre>` +
+      (card ? `<a class="link" href="#" data-testid="loop-prompt-full">${t('loopSettings.fullPrompt')}</a>` : '');
   }
   const settingsCard = (key) => `<div class="card is-pad"><div class="section-head"><h2>${t('loopSettings.title')}</h2></div>${settings(key, true)}<button class="btn block" type="button">${t('loopSettings.edit')}</button></div>`;
 
@@ -440,7 +449,7 @@
     let page;
     if (PHONE) {
       const links = `<div class="group">${l.runsTotal ? `<a class="cell" href="#" data-testid="all-runs-link"><span class="cell-title">${t('runs.all', { n: l.runsTotal })}</span>${chev}</a>` : ''}` +
-        `<a class="cell" href="#" data-testid="loop-settings-link"><span class="cell-main"><span class="cell-title">${t('loopSettings.title')}</span><span class="cell-meta">${t('loop.meta.claude', l.claude)}</span></span>${chev}</a></div>`;
+        `<a class="cell" href="#" data-testid="loop-settings-link"><span class="cell-main"><span class="cell-title">${t('loopSettings.title')}</span><span class="cell-meta">${t('loop.meta.claude', l.claude)} · ${l.timeout == null ? t('loopSettings.noLimitShort') : t('loopSettings.limitShort', { d: dur(l.timeout) })}</span></span>${chev}</a></div>`;
       page = `<div class="page-head" data-testid="loop-header" data-status="${status}"><h1 class="page-title">${esc(l.name)}</h1></div>` +
         `<div class="page-meta">${pill}<span data-testid="loop-repo">${esc(repo.name)}</span> · <span>${esc(schedDesc(l.cron))}</span></div>${desc}` +
         nowCard(key, o) + figures(key) + recentRuns(key, o) + links + `<div class="actionbar">${mainAction(l, kind)}</div>`;
@@ -460,9 +469,9 @@
       `<p class="page-desc" data-testid="period-longest">${t('runs.longest', { k: l.longest.k, d: dur(l.longest.sec) })}</p>` +
       `<p class="group-cap" data-testid="exec-row" data-execution-id="${execId(key, cur.k)}">${t('period.title', { k: cur.k })} · ${periodSpan(cur)} · ${periodEnd(cur)} · ${periodCounts(cur)}</p>` +
       `<div class="group" data-testid="runs-table">${rows.map((r) => runCell(key, r)).join('')}</div>` +
-      `<div class="page-meta" data-testid="runs-pager"><span>${t('runs.range', { a: 1, b: rows.length, n: l.runsTotal })}</span>` +
+      `<div class="pager" data-testid="runs-pager"><span>${t('runs.range', { a: 1, b: rows.length, n: l.runsTotal })}</span><span class="pager-nav">` +
       `<button class="iconbtn bordered" type="button" data-testid="runs-prev" aria-label="${t('runs.prev')}" disabled>${icon('back')}</button>` +
-      `<button class="iconbtn bordered" type="button" data-testid="runs-next" aria-label="${t('runs.next')}">${icon('chev')}</button></div>`;
+      `<button class="iconbtn bordered" type="button" data-testid="runs-next" aria-label="${t('runs.next')}">${icon('chev')}</button></span></div>`;
     return app({ tab: 'loops', loopCount: D.counts.all, navbar: navbar(l.name, ''), page });
   }
   // Settings and prompt of one loop (narrow page); Edit settings is the main action.
@@ -476,17 +485,16 @@
   }
   // The active period page (spec 5.4).
   function periodApp(key, k, o = {}) {
-    const l = D.loops[key], e = D.executions[key].find((x) => x.k === k), id = execId(key, k);
+    const l = D.loops[key], e = D.executions[key].find((x) => x.k === k);
     const stat = (label, value, sub) => `<div class="stat"><div class="stat-label">${label}</div><div class="stat-value">${value}</div>${sub ? `<div class="stat-sub">${sub}</div>` : ''}</div>`;
     const running = e.st === 'active' && l.run ? 1 : 0;
     const page = (PHONE ? '' : backlink(l.name, 'back-to-loop')) +
-      `<div class="page-head" data-testid="exec-header" data-ended="${!!e.end}"><h1 class="page-title">${t('period.title', { k })}</h1></div>` +
-      `<div class="page-meta">${periodSpan(e)} · ${periodEnd(e)}</div>` +
+      `<div class="page-head" data-testid="exec-header" data-ended="${!!e.end}"><h1 class="page-title">${t('period.title', { k })}${PHONE ? '' : periodPill(e)}</h1></div>` +
+      `<div class="page-meta">${PHONE ? periodPill(e) : ''}${periodSpan(e)}</div>` +
       `<div class="stats" data-testid="period-figures">${stat(t('period.started'), when(e.start))}${stat(t('period.ended'), e.end ? when(e.end, e.start) : '-', e.end ? '' : t('period.stillActive'))}` +
       `${stat(t('period.lasted'), dur(e.up))}${stat(t('period.runsLabel'), e.rounds, countWords(e.counts, running))}</div>` +
       `<div class="page-head"><button class="btn" type="button" data-testid="copy-all">${icon('copy')}${tn('period.copyIds', e.sessions)}</button></div>` +
-      `<div class="group" data-testid="exec-runs">${periodRuns(key, e).map((r) => runCell(key, r, { session: true })).join('')}</div>` +
-      `<p class="note" data-testid="exec-api">${t('exec.api', { id, n: e.sessions })}</p>`;
+      `<div class="group" data-testid="exec-runs">${periodRuns(key, e).map((r) => runCell(key, r, { session: true })).join('')}</div>`;
     return app({ tab: 'loops', loopCount: D.counts.all, navbar: navbar(l.name, 'back-to-loop'), page, overlay: o.overlay });
   }
   const notFoundApp = (title) => app({ tab: 'loops', loopCount: D.counts.all, navbar: navbar(t('nav.loops'), ''),
@@ -519,7 +527,7 @@
     const [cls, key] = TX_KIND[e.kind] || TX_KIND.system;
     let body;
     if (e.kind === 'user') body = fold(`${esc(firstLine(e.text))} · ${tn('tx.lines', e.text.split('\n').length)}`);
-    else if (e.kind === 'thinking') body = `<div class="tx-body is-think">${e.text.trim() ? esc(e.text) : t('tx.thinking.empty')}</div>`;
+    else if (e.kind === 'thinking') body = `<div class="tx-body is-think">${e.text.trim() ? esc(e.text) : t('tx.thinkingEmpty')}</div>`;
     else if (e.kind === 'tool_use') {
       const o = txFields(e.text) || {};
       const sk = TX_SUBJECT.find((x) => typeof o[x] === 'string') || Object.keys(o).find((x) => typeof o[x] === 'string');
@@ -539,17 +547,17 @@
   function transcript(r, s, tx) {
     const help = `<button class="help" type="button" aria-label="${t('tx.help')}" aria-haspopup="dialog">${icon('help')}</button>`;
     const head = `<div class="section-head"><h2 data-testid="run-transcript-title">${t('run.transcript')}</h2>${help}</div>`;
-    const note = { noSession: () => t('tx.noSession'), waiting: () => t('tx.waiting'), missing: () => t('tx.missing', { id: s }) }[tx.mode];
+    const note = { noSession: () => t('tx.note.noSession'), waiting: () => t('tx.note.waiting'), missing: () => t('tx.note.missing', { id: s }) }[tx.mode];
     if (note) return head + `<p class="note" data-testid="run-transcript-note" data-mode="${tx.mode}">${esc(note())}</p>`;
     const all = D.transcripts[tx.data], list = tx.page ? all.slice(-tx.page) : all;
     const live = tx.mode === 'following' || tx.mode === 'paused';
     const right = live ? t(tx.mode === 'paused' ? 'now.paused' : 'now.following') : t('tx.ended');
-    const top = list.length < all.length ? `<div class="tx-end" data-testid="run-transcript-edge">${t('tx.loadingOlder')}</div>` : '';
+    const top = list.length < all.length ? `<div class="tx-end" data-testid="run-transcript-edge">${t('tx.loadingOlderEntries')}</div>` : '';
     const end = live
       ? `<div class="tx-entry" data-cursor="live"><div class="tx-head"><span>${D.now}</span></div><div class="tx-body"><span class="cursor"></span></div></div>`
       : `<div class="tx-end" data-testid="run-transcript-edge">${t('tx.end', { t: addSec(r.start, r.dur) })}</div>`;
     return head + `<div class="tx" data-testid="run-transcript" data-paused="${tx.mode === 'paused'}"><div class="tx-bar"><span>${tn('tx.entries', all.length)}</span><span>${right}</span></div>` +
-      `<div data-testid="run-transcript-scroll">${top}${list.map(txEntry).join('')}${end}</div></div>`;
+      `<div class="tx-scroll" data-testid="run-transcript-scroll">${top}${list.map(txEntry).join('')}${end}</div></div>`;
   }
 
   // The run page (spec 5.5). Phone: one column in the board's order. From 1024px two columns: summary, transcript and log
@@ -559,7 +567,7 @@
     const running = r.st === 'running', skipped = r.st === 'skipped';
     const s = r.n != null && !r.repoGone ? sid(key, r.n) : null;
     const pill = `<span class="pill ${RUN_PILL[r.st][0]}">${t(RUN_PILL[r.st][1])}</span>`;
-    const title = r.n != null ? t('run.title', { n: r.n }) : t('run.skippedTitle', { t: hm(r.start) });
+    const title = r.n != null ? t('run.title', { n: r.n }) : t('run.skipTitle', { t: hm(r.start) });
     const took = `<span data-testid="run-duration">${r.dur != null ? clock(r.dur) : '-'}</span>`;
     const end = addSec(r.start, r.dur || 0);
     const whenLine = skipped ? `${day(r.start)} · ${hm(r.start)}`
@@ -570,16 +578,16 @@
       `<div class="page-meta" data-testid="run-of">${t('run.of', { loop: esc(l.name), k })}</div>`;
     // What went wrong: a banner for a run that ended badly, the hint of a missing repo, the reason of a skipped run.
     const why = {
-      failed: () => t('run.err.failed', { msg: esc(r.repoGone ? 'Repo does not exist: ' + repo.path : r.err) }),
-      timed_out: () => t('run.err.timed_out', { d: dur(l.timeout) }),
-      cancelled: () => t('run.err.cancelled', { t: `${split(r.start)[0]} ${end}`, k }),
-      interrupted: () => t('run.err.interrupted', { t: D.crashAt, r: D.restartedAt }),
+      failed: () => t('run.banner.failed', { msg: esc(r.repoGone ? 'Repo does not exist: ' + repo.path : r.err) }),
+      timed_out: () => t('run.banner.timedOut', { d: dur(l.timeout) }),
+      cancelled: () => t('run.banner.cancelled', { t: `${split(r.start)[0]} ${end}`, k }),
+      interrupted: () => t('run.banner.interrupted', { t: D.crashAt, r: D.restartedAt }),
     }[r.st];
     let alert = why ? `<div class="banner ${r.st === 'cancelled' ? 'is-warn' : 'is-err'}" data-testid="run-banner" role="status">${icon('alert')}<span class="banner-text">${why()}</span></div>` : '';
-    if (r.repoGone) alert += `<div class="card is-pad" data-testid="run-repo-missing"><p class="page-desc">${t('run.repoMissing.hint')}</p><a class="btn" href="#" data-testid="open-repos">${t('run.repoMissing.open')}</a></div>`;
-    if (skipped) alert += `<p class="page-desc" data-testid="skip-reason">${t('run.skip.reason', { reason: t('skip.reason', { n: r.reason }) })}</p>`;
+    if (r.repoGone) alert += `<div class="card is-pad" data-testid="run-repo-missing"><p class="page-desc">${t('run.repoMissingHint')}</p><a class="btn" href="#" data-testid="open-repos">${t('act.openRepos')}</a></div>`;
+    if (skipped) alert += `<p class="page-desc" data-testid="skip-reason">${t('run.skipNote', { reason: t('skip.reason', { n: r.reason }) })}</p>`;
     const summary = running || skipped ? '' : `<p class="group-cap">${t('run.summary')}</p>` +
-      `<div class="card is-pad" data-testid="run-summary"><p class="page-desc">${r.sum ? esc(r.sum) : t('run.summary.none')}</p></div>`;
+      `<div class="card is-pad" data-testid="run-summary"><p class="page-desc">${r.sum ? esc(r.sum) : t(r.st === 'failed' ? 'runs.noSummaryFailed' : 'run.noSummary')}</p></div>`;
     const fact = (label, value, meta, id) => `<div class="cell"${id ? ` data-testid="${id}"` : ''}><span class="cell-main"><span class="cell-title is-plain">${label}</span>` +
       `${meta ? `<span class="cell-meta">${meta}</span>` : ''}</span><span class="cell-value">${value}</span></div>`;
     const facts = `<div class="group" data-testid="run-facts">${fact(t('run.startedBy'), t(r.trig === 'start' ? 'run.byStart' : 'run.bySchedule'))}` +
@@ -587,7 +595,7 @@
       (s ? `<div class="cell" data-testid="run-session" data-session-id="${s}"><span class="cell-main"><span class="cell-title is-plain">${t('run.sessionLabel')}</span>` +
         `<span class="cell-meta is-one-line">${s}</span></span><button class="iconbtn bordered" type="button" aria-label="${t('run.copySession')}">${icon('copy')}</button></div>` : '') + '</div>';
     // Resume only once the run has ended: resuming a session that is still working would tangle it (D-UI12).
-    const resume = s && !running ? `<p class="group-cap">${t('run.reopen')}</p><div class="cmd" data-testid="run-resume"><code data-testid="run-resume-cmd">claude --resume ${s}</code>` +
+    const resume = s && !running ? `<p class="group-cap">${t('run.reopen')}</p><div class="cmd is-wrap" data-testid="run-resume"><code data-testid="run-resume-cmd">claude --resume ${s}</code>` +
       `<button class="btn plain" type="button" data-testid="run-resume-copy">${t('run.copyCommand')}</button></div>` : '';
     const tx = transcript(r, s, o.tx || (s ? { mode: running ? 'following' : 'ended', data: key + r.n } : { mode: 'noSession' }));
     const lines = skipped ? [] : serverLines(key, r);
@@ -598,9 +606,9 @@
     const old = key === 'pilot' && r.n != null && r.n <= 68;
     const prompt = skipped ? '' : PHONE
       ? `<div class="group"><a class="cell" href="#" data-testid="run-prompt"><span class="cell-main"><span class="cell-title">${t('run.promptUsed')}</span><span class="cell-meta">${t('run.promptUsedSub')}</span></span>${chev}</a></div>`
-      : `<p class="group-cap">${t('run.promptUsed')}</p>${old ? `<p class="note">${t('run.promptChanged', { t: l.updated })}</p>` : ''}` +
+      : `<p class="group-cap">${t('run.promptUsed')}</p>${old ? `<p class="note">${t('run.promptEdited', { t: l.updated })}</p>` : ''}` +
         `<pre class="code" data-testid="run-prompt">${esc(old ? l.promptOld : l.prompt)}</pre>` +
-        `<p class="note" data-testid="run-executor-used">${t('run.executorUsed', { s: `${esc(repo.name)} · ${t('loop.meta.claude', l.claude)}` })}</p>`;
+        `<p class="note" data-testid="run-executor-used">${t('run.agentUsed', { s: `${esc(repo.name)} · ${t('loop.meta.claude', l.claude)}` })}</p>`;
     const page = PHONE
       ? header + alert + summary + facts + resume + tx + log + prompt
       : backlink(l.name, 'back-to-loop') + header + alert +
@@ -952,7 +960,7 @@
     'run-interrupted': () => runApp('pilot', 59),
     'run-skipped': () => runApp('debt', null, { skip: '14:00:00' }),
     'run-repo-missing': () => runApp('crash', 31),
-    'run-resume-copied': () => runApp('pilot', 68, { overlay: toast('', t('toast.copiedResume', { id: sid('pilot', 68) })) }),
+    'run-resume-copied': () => runApp('pilot', 68, { overlay: toast('', t('run.copiedCommand', { id: sid('pilot', 68) })) }),
     'run-not-found': () => notFoundApp(t('error.RUN_NOT_FOUND')),
     'run-loading': () => loadingApp(),
     'run-transcript-running': () => runApp('pilot', 69),

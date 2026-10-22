@@ -69,7 +69,7 @@
         counts: { ok: 8, err: 1, cancel: 0, skip: 0 }, rounds: 10 },
       run: { n: 69, elapsed: 42, started: '14:00:00' },
       last: { st: 'succeeded', at: '13:30', n: 68 }, next: { at: '14:30', inSec: 29 * 60 + 18 },
-      avg: 14 * 60 + 52, finished: 9, longest: { k: 1, sec: 86400 + 3 * 3600 + 8 * 60 + 26 }, execCount: 3, lifetime: 69,
+      avg: 18 * 60 + 47, finished: 9, longest: { k: 1, sec: 86400 + 3 * 3600 + 8 * 60 + 26 }, execCount: 3, lifetime: 69,
       runsTotal: 69,
     },
     crash: {
