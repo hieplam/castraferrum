@@ -1114,6 +1114,8 @@ Each stub rebuilt and run, then put back:
 - The phone controls test measures a segment of a segmented control as the control it sits in: the `.seg` is 44 tall and
   its segments are 38 tall inside its padding and border (the preview's own sizes). Every other control is measured as
   itself.
+- Both points above are recorded as one design-system gap for the owner to rule on:
+  https://github.com/hieplam/castraferrum/issues/151.
 - The Settings address shows `window.location.origin` and the version shows `__APP_VERSION__` (the `package.json`
   version through Vite `define`); both cells are masked in every comparison, as the plan says.
 - `Menu`, `Toggletip`, `Popover`, `Sheet` and `Dialog` are built as the plan lists them but no screen uses them yet; the
