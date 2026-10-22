@@ -828,6 +828,74 @@ checks of U5).
   for the name and Add repo, data in `--font-data`, the quick-access labels, the classic texts reused by the states
   without a board, and the tab-root action (castraferrum#106).
 
+## U11
+
+### Ratchet
+
+New reference shots: `0/120` before (`npm run design:states -- --design design/ds` on `main`), `120/120` after.
+Projected design bytes after the cut-over: `2358681` on `main` (no new shots), `25324824` with the 240 shots of this
+task (under the 29 500 000 of D22).
+
+### Red
+
+`npm run design:states -- --design design/ds` on `main`, exit code `1` (120 `missing:` lines, then):
+
+```
+  note: design/ds/preview/messages.js is missing (build output of shared/i18n) — run npm run design:shots
+  note: design/ds/preview/schedule.js is missing (build output of shared/domain/schedule.ts) — run npm run design:shots
+states with shots: 0/120
+```
+
+### Green
+
+(1) `npm run design:states -- --design design/ds`: `states with shots: 120/120`, exit code `0`.
+
+(2) The widths, read from the PNG header (`IHDR` width at byte 16):
+
+```
+node -e "const fs=require('fs');const d='design/ds/preview/shots/';let bad=0,n=0;const seen={};for(const f of fs.readdirSync(d)){const w=fs.readFileSync(d+f).readUInt32BE(16);const want=f.startsWith('phone-')?390:1440;n++;if(w!==want){bad++;console.log('wrong',f,w)}seen[w]=(seen[w]||0)+1}console.log('widths',JSON.stringify(seen),'files',n,'wrong',bad)"
+widths {"390":60,"1440":180} files 240 wrong 0
+```
+
+Every `phone-*` shot is 390 wide (60), every other shot 1440 wide (180).
+
+(3) `npm run design:shots -- --design design/ds --compress`: `shot 240 images`, `pixels identical: 240/240
+(22966143 → 22966143 bytes)`, exit code `0`.
+
+(4) The projection:
+
+```
+node -e "const {execSync}=require('child_process');const fs=require('fs');const del=['design/tokens.css','design/components.css','design/STATES.md','design/contrast-pairs-classic.json'];const dirs=['design/preview/','design/system/'];let n=0;for(const f of execSync('git ls-files design').toString().trim().split('
+')){if(del.includes(f)||dirs.some(d=>f.startsWith(d)))continue;n+=fs.statSync(f).size}console.log('projected design bytes: '+n)"
+projected design bytes: 25324824
+```
+
+(5) `git diff --stat main -- design/preview design/STATES.md` prints nothing.
+
+(6) `npm run verify` (now starting with `npm run design:states -- --design design/ds`): exit code `0`:
+`states with shots: 120/120`; `ratchets: ok`; unit `Tests  493 passed | 2 skipped (495)`; contract
+`Tests  114 passed (114)`; api `Tests  115 passed (115)`; e2e `71 passed (13.7m)`; `UCs with a green e2e: 32/32`.
+
+### Stub check
+
+- Without shots the check prints `states with shots: 0/120` and exits `1` (Red).
+- A wrong width fails the header check: with `form-conflict-light.png` (1440 wide) copied over
+  `phone-form-errors-light.png` in a copy of the folder, the same one-liner prints
+  `wrong width phone-form-errors-light.png 1440` and `wrong 1`, exit code `1`.
+- A lossy re-encode fails the pixel comparison: `tests/tools/design-states.test.ts` ("compressPng: a lossless
+  re-encode keeps the pixels; a lossy one fails and keeps the original") flips one bit of the decoded pixels before
+  encoding; `compressPng` returns `identical: false` and keeps the original bytes, and `design:shots --compress` counts
+  that shot as a problem and exits `1`.
+
+### Notes
+
+- The re-encode never wins: Chromium's PNGs are already about 15 % smaller than pngjs at deflate level 9 with the
+  adaptive filter (for example `form-conflict-dark.png`: 148213 bytes from Chromium, 174433 from pngjs as RGB, 193395
+  as RGBA). `--compress` keeps the smaller file, so every shot stays as Chromium wrote it; the step still proves the
+  pixels round-trip. The set is 22 966 143 bytes, about the size of the classic set (D22).
+- The owner's local `.git/info/exclude` lists `design/ds/preview/shots/` (from before the preview was approved); the
+  shots were added with `git add -f`. Once tracked, the exclude line has no effect on them.
+
 ## U12
 
 ### Ratchet

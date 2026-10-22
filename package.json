@@ -33,7 +33,7 @@
     "ratchets": "node scripts/ratchets.mjs",
     "phone:check": "node --import tsx scripts/phone-check.mts",
     "db:generate": "drizzle-kit generate",
-    "verify": "npm run typecheck && node scripts/lang-scan.mjs --check-baseline && npm run arch && npm run ratchets -- --base main && npm run test:unit && npm run test:contract && npm run test:api && npm run api-smoke && npm run build && npm run test:e2e && npm run uc-coverage -- --min 32"
+    "verify": "npm run design:states -- --design design/ds && npm run typecheck && node scripts/lang-scan.mjs --check-baseline && npm run arch && npm run ratchets -- --base main && npm run test:unit && npm run test:contract && npm run test:api && npm run api-smoke && npm run build && npm run test:e2e && npm run uc-coverage -- --min 32"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "0.3.303",
