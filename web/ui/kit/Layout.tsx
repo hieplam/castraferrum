@@ -23,6 +23,24 @@ export function useLayout(): Layout {
   );
 }
 
+/** The wide layout (the Loops table, spec 4.5) starts at 1024px; below it the same rows are cells. Literal as in the CSS. */
+const WIDE_QUERY = '(min-width: 1024px)';
+
+function subscribeWide(cb: () => void): () => void {
+  const mq = window.matchMedia(WIDE_QUERY);
+  mq.addEventListener('change', cb);
+  return () => mq.removeEventListener('change', cb);
+}
+
+/** `true` from 1024px: the layouts that show a table instead of cells. Follows a resize or a rotation. */
+export function useWide(): boolean {
+  return useSyncExternalStore(
+    subscribeWide,
+    () => window.matchMedia(WIDE_QUERY).matches,
+    () => true,
+  );
+}
+
 /** What the frame draws at the top of every page (the status banner): the page puts it first inside its `.page`. */
 const PageTopContext = createContext<ReactNode>(null);
 export const PageTopProvider = PageTopContext.Provider;

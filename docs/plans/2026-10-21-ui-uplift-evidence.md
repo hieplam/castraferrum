@@ -1125,3 +1125,49 @@ Each stub rebuilt and run, then put back:
   `Page` through `PageTopProvider`, so the banner sits where the preview draws it.
 - The theme-color updater creates `<meta name="theme-color">` when the page has none and runs only in the new UI; the
   `index.html` tag, the manifest and the icons come with the iOS task.
+
+## U15
+
+Status: not done. One state, `loops-many`, cannot reach `MAX_RATIO` because the preview's figures and the seeded sample
+world disagree (see Blocker). The other 19 states (38 pairs) are at `MAX_RATIO` or under; most at 0 mismatched pixels.
+
+### Blocker (needs the owner)
+
+`loops-many` (desktop, light and dark), page region, `0.12 %` off against `MAX_RATIO` `0.001`, with `stat-errors-24h`
+masked (the one mask the kit allows). The rest comes from the sample data, not from the UI:
+
+- Summary "runs today": preview `214` (`PV.stats.runsToday` of the many world), app `130` (the server counts the seeded
+  runs of `seedPreviewMany`).
+- Every row's agent line: the preview draws `acme-api · Claude` (the rows of `PV.many` have no `claude` model), the app
+  draws `acme-api · Claude sonnet` (`seedPreviewMany` writes `{"model":"sonnet"}`).
+- Failed in 24 h: preview `3`, app `4` (masked by `stat-errors-24h`).
+
+Neither the seed nor the shot was changed, and nothing else was masked. The owner decides on a corrected shot.
+
+### Ratchet
+
+New-UI visual pairs: `24` before (`frame.json`); `loops.json` is written only when the whole file passes, so the `40` is
+not reached yet. `npm run ratchets` before and after: `native title: 8`, `unknown classes: 0`, `dynamic classes: 4 (not
+checked)`, `literal styles: 0`, `css violations: 0`, `e2e expects: 724 (min 712)`, `ratchets: ok`. Unit tests unchanged:
+`499 passed | 2 skipped (501)`. `npm run arch`: `0 violations`, `26/26`. `node scripts/lang-scan.mjs --check-baseline`
+fails with `docs coupling 9 > 0` on a clean `main` too (not caused by U15).
+
+### Red
+
+`tests/visual/ds/loops.visual.ts` written first, nothing built, then `npm run build` and
+`npx playwright test --project=visual tests/visual/ds/loops.visual.ts`: the page rendered the placeholder, `home-empty`
+not found, `2 failed`, `9 did not run`.
+
+### Green (so far)
+
+- (1) `loops.visual.ts`: `11 passed`, `1 failed` (`12 loops`, the blocker above).
+- (2) `npm run ratchets`: `ratchets: ok`.
+- (3) classic visual tests: `23 passed`, unchanged.
+- (4) `npm run verify`: not run (it would fail on `loops-many`).
+
+### Stub check
+
+- Summary strip removed and Start or Stop removed from the table row: `loops-overview` fails (`stat-active-loops` not
+  found).
+- Round Start or Stop not rendered on the phone: `phone-loops-overview-light` `3.06 % off (13890/453960 px)`,
+  `-dark` `3.32 %`.
