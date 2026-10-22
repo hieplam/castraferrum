@@ -146,7 +146,7 @@ describe('design-states', () => {
     expect(good.identical).toBe(true);
     expect(good.after).toBeLessThan(good.before);
     expect(Png.sync.read(good.buf).data.equals(Png.sync.read(plain).data)).toBe(true);
-    const lossy = compressPng(plain, (x) => { const d = Buffer.from(x.data); d[0] ^= 1; return encodePng({ ...x, data: d }); });
+    const lossy = compressPng(plain, (x) => { const d = Buffer.from(x.data); d.writeUInt8(d.readUInt8(0) ^ 1, 0); return encodePng({ ...x, data: d }); });
     expect([lossy.identical, lossy.buf]).toEqual([false, plain]);
   });
 });
