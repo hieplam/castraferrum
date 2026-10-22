@@ -2,7 +2,7 @@
 
 - Date: 2026-10-22
 - Status: decisions approved by the owner in conversation (2026-10-22); owner reviews this document after merge
-- Epic: #138. Design-system gap: #139
+- Epic: [castraferrum#138](https://github.com/hieplam/castraferrum/issues/138). Design-system gap: [castraferrum#139](https://github.com/hieplam/castraferrum/issues/139)
 - Plan: [../plans/2026-10-22-open-in-terminal.md](../plans/2026-10-22-open-in-terminal.md)
 
 ## 1. Context
@@ -34,7 +34,7 @@ terminal setting has to live on the server, because the server reads it.
 | D10 | **The routes.** `GET /api/settings/terminal` returns `{ platform, host, apps: [{ id, label, found }], app, command, launcher, defaults: { app, command } }`. `PUT /api/settings/terminal` takes `{ app, command, launcher }` and answers with the GET shape. `POST /api/runs/:id/terminal` answers 200 `{ app, label, host, command }`. New codes: `RUN_NOT_ENDED` (409), `RUN_HAS_NO_SESSION` (409), `REPO_DIR_MISSING` (409), `TERMINAL_NOT_AVAILABLE` (409, the chosen app is not found), `TERMINAL_FAILED` (502, with `details.reason`: `notFound`, `automationDenied`, `exited`, `timeout`). | One answer gives the UI everything it shows. Each failure gets its own message and fix. |
 | D11 | **Test seam.** The environment variable `LOOPS_TERMINAL_LAUNCHER=<path to .mjs>` replaces the spawn. It is accepted only against a database named `*_test`, the same guard as `LOOPS_MOCK_EXECUTOR` in `server/config.ts`. The console then runs `<current node> <path> <json>`, where the JSON is `{ app, argv, cwd }`. The e2e fake `tests/support/fake-terminal.mjs` appends that JSON to the file named by `FAKE_TERMINAL_LOG`, and with `FAKE_TERMINAL_FAIL=<reason>` it exits 1 with that reason. No test ever opens a real window. | The same pattern as the fake executables elsewhere in the suite. A test that opened real terminals would act on the owner's machine (memory: sandbox `claude -p` tests). |
 | D12 | **No warning for `--dangerously-skip-permissions`.** | Owner, 2026-10-22. |
-| D13 | **Where the UI shows it.** Settings gains a **Terminal** group between Appearance and Connection, on the desktop and the phone, with the *Terminal app* row, the *Command* field with the resolved line for a sample id, and the *Launcher* field when the app is Custom. The run page's resume block gains **Open in terminal** (`.btn.primary`) next to *Copy command* (`.btn.plain`). The editor gains *Resume command*. How these look is decided by the preview and #139, and approved by the owner. | Owner, 2026-10-22: the button sits next to *Copy command* as the main action. |
+| D13 | **Where the UI shows it.** Settings gains a **Terminal** group between Appearance and Connection, on the desktop and the phone, with the *Terminal app* row, the *Command* field with the resolved line for a sample id, and the *Launcher* field when the app is Custom. The run page's resume block gains **Open in terminal** (`.btn.primary`) next to *Copy command* (`.btn.plain`). The editor gains *Resume command*. How these look is decided by the preview and castraferrum#139, and approved by the owner. | Owner, 2026-10-22: the button sits next to *Copy command* as the main action. |
 
 ### D6: launch argv per app
 
