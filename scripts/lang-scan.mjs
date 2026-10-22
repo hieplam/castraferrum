@@ -26,6 +26,9 @@ export const SKIP_PATHS = ['shared/i18n/vi.ts'];
  */
 export const HISTORY_ALLOWLIST_FILE = 'scripts/lang-history-allowlist.json';
 
+/** The repository this scanner guards. A reference that names it is not coupling to another repository. */
+export const REPO_SLUG = 'hieplam/castraferrum';
+
 /** Home-folder user names that are neutral (compared case-insensitively). */
 export const NEUTRAL_USERS = ['alice', 'bob', 'user', 'runner', 'Shared', 'Public', 'Default'];
 
@@ -355,6 +358,10 @@ const ENCODED_HOME_RE = /(?<![A-Za-z0-9])[A-Za-z]--Users-([^-\s\/'"`]+)-/g;
 const DOCS_REF_RE = new RegExp(['docs/loop', '-console'].join('') + '|' + "'\\.\\.',\\s*'docs'" + '|' + '"\\.\\.",\\s*"docs"');
 const TICKET_RE = new RegExp('\\bLC' + '-\\d+');
 const ISSUE_RE = /(?<![\w&])#(\d{3,})(?!\w)/g;
+// A markdown link into this repository whose text is the number it points at (issues or pull, same number twice).
+const OWN_LINK_RE = new RegExp(String.raw`\[#(\d+)\]\(https://github\.com/${REPO_SLUG.replace(/[./]/g, '\\$&')}/(?:issues|pull)/\1\)`, 'g');
+// The pull request number that a squash merge appends to a commit subject.
+const SQUASH_SUFFIX_RE = / \(#\d+\)$/;
 const PLACEHOLDER_RE = /\{\s*\w+\s*\}/;
 
 function insidePlaceholderString(line, index) {
@@ -365,6 +372,11 @@ function insidePlaceholderString(line, index) {
     if (index > m.index && index < m.index + m[0].length && PLACEHOLDER_RE.test(m[2])) return true;
   }
   return false;
+}
+
+/** The lines of one commit message with the squash-merge suffix removed from the subject (the first line). */
+function withoutSquashSuffix(lines) {
+  return lines.map((text, i) => (i === 0 ? text.replace(SQUASH_SUFFIX_RE, '') : text));
 }
 
 /** Loads the owner-specific patterns from `<root>/.lang-scan.local.json` ({ "patterns": [regex source, ...] }). */
@@ -387,10 +399,11 @@ export function findCoupling(line, localPatterns = []) {
   if (d) return { kind: 'docs-ref', match: d[0] };
   const t = TICKET_RE.exec(line);
   if (t) return { kind: 'ticket', match: t[0] };
-  for (const m of line.matchAll(ISSUE_RE)) {
+  const refs = line.replace(OWN_LINK_RE, '');
+  for (const m of refs.matchAll(ISSUE_RE)) {
     const digits = m[1];
     if (digits.length === 6 || digits.length === 8) continue; // CSS hex colour made of digits
-    if (insidePlaceholderString(line, m.index)) continue;
+    if (insidePlaceholderString(refs, m.index)) continue;
     return { kind: 'issue-ref', match: m[0] };
   }
   for (const re of localPatterns) {
@@ -575,7 +588,7 @@ function scanStaged(root, acc, opts) {
 
 function scanMessage(file, acc, opts) {
   const text = fs.readFileSync(file, 'utf8');
-  const lines = text.split(/\r?\n/).filter((l) => !l.startsWith('#'));
+  const lines = withoutSquashSuffix(text.split(/\r?\n/).filter((l) => !l.startsWith('#')));
   scanLines('(commit message)', '(commit message)', lines, acc, opts);
 }
 
@@ -645,8 +658,9 @@ function scanHistory(root, acc, baseOpts) {
       }
     }
   }
+  // Each message ends in a NUL and git adds a newline after it, so the next message starts with a blank line.
   const log = git(root, ['log', '--all', '--format=%B%x00']).toString('utf8').split('\0');
-  for (const msg of log) scanLines('(commit message)', '(commit message)', msg.split(/\r?\n/), acc, opts);
+  for (const msg of log) scanLines('(commit message)', '(commit message)', withoutSquashSuffix(msg.replace(/^\r?\n/, '').split(/\r?\n/)), acc, opts);
 }
 
 // ---- reporting -------------------------------------------------------------------------------------------------

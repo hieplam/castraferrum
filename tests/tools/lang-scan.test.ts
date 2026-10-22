@@ -232,6 +232,44 @@ describe('coupling', () => {
     expect(findCoupling(`// fixes ${'#' + '12'}`)).toBeNull();
   });
 
+  it('issue refs: a reference that names this repository is not a hit, a bare ref or another repository still is', () => {
+    const n = '#' + '102';
+    const bare = '#' + '287';
+    // the generated changelog link and the short cross-repository form
+    expect(findCoupling(`* x ([${n}](https://github.com/hieplam/castraferrum/issues/102))`)).toBeNull();
+    expect(findCoupling(`* y ([${n}](https://github.com/hieplam/castraferrum/pull/102))`)).toBeNull();
+    expect(findCoupling(`epic castraferrum${'#' + '117'}`)).toBeNull();
+    // a bare ref is still a hit, also when the same line carries an own-repository link
+    expect(findCoupling(`see ${bare} for details`)?.kind).toBe('issue-ref');
+    expect(findCoupling(`([${n}](https://github.com/hieplam/castraferrum/issues/102)) and ${bare}`)?.kind).toBe('issue-ref');
+    // a link into another repository, or a link text that does not match its target, is still a hit
+    expect(findCoupling(`([${bare}](https://github.com/other/repo/issues/287))`)?.kind).toBe('issue-ref');
+    expect(findCoupling(`([${bare}](https://github.com/hieplam/castraferrum/issues/102))`)?.kind).toBe('issue-ref');
+  });
+
+  it('issue refs: the squash suffix of a commit subject is exempt, in --message and --history, and only there', () => {
+    const suffix = ' (' + '#' + '117)';
+    const dir = tmp();
+    const subject = path.join(dir, 'subject.txt');
+    const body = path.join(dir, 'body.txt');
+    fs.writeFileSync(subject, `feat: thing${suffix}\n\nbody\n`);
+    fs.writeFileSync(body, `feat: thing\n\nsee${suffix}\n`);
+    expect(run(['--message', subject, '--coupling'], { root: dir }).code).toBe(0);
+    expect(run(['--message', body, '--coupling'], { root: dir }).code).toBe(1);
+
+    const root = repo({ 'a.txt': 'plain\n' });
+    write(root, 'b.txt', 'plain\n');
+    git(root, 'add', '-A');
+    git(root, 'commit', '-q', '-m', `feat: thing${suffix}`);
+    expect(run(['--history', '--coupling'], { root }).code).toBe(0);
+    write(root, 'c.txt', 'plain\n');
+    git(root, 'add', '-A');
+    git(root, 'commit', '-q', '-m', `feat: thing${suffix} and more`);
+    expect(run(['--history', '--coupling'], { root }).code).toBe(1);
+    // the same suffix in a file line is a hit
+    expect(findCoupling(`feat: thing${suffix}`)?.kind).toBe('issue-ref');
+  }, 30_000);
+
   it('owner-specific patterns come only from the gitignored local file', () => {
     const marker = word(122, 122, 113, 113, 120); // arbitrary word, not a real name
     const root = repo({ 'server/a.ts': `// the ${marker} project\n` });
