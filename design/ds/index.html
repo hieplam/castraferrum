@@ -679,6 +679,20 @@ Keep every change small.</pre>
       </span>
     </div>
     <div class="def"><b>Active period</b><span>From Start until Stop, or until the server shuts down.</span></div>
+    <div class="card is-pad">
+      <div class="section-head"><h2>Settings and prompt</h2></div>
+      <div class="def is-compact"><b>Repo</b><strong>acme-api</strong><span class="data">C:\Users\alice\work\acme-api</span></div>
+      <div class="def is-compact"><b>Schedule</b><span>Every 30 minutes · Asia/Ho_Chi_Minh</span></div>
+      <div class="def is-compact"><b>Time limit per run</b><span>None</span></div>
+      <div class="def is-compact"><b>Prompt</b><pre class="code is-clamped">Run node scripts/backlog.js next - claim exactly one open issue (skip issues labelled in-progress).
+Follow its brief in the background, on the staging account - never ask the user for input.
+node scripts/backlog.js check must pass before you release.
+If no issue is left, stop right away.
+Write one line to the log for each step.
+Keep every change small.</pre></div>
+      <a class="link" href="#">Show the full prompt</a>
+      <button class="btn block" type="button">Edit settings</button>
+    </div>
     <ol class="steps">
       <li class="step"><div><b>Add a repo</b>The folder the agent works in.</div></li>
       <li class="step"><div><b>Create a loop</b>A prompt and a schedule.</div></li>

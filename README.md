@@ -51,6 +51,7 @@ repository on the Repo page (the **Browse...** button picks a folder), then crea
 | `npm run design:tokens -- <tokens.css>` | Checks one design token file: empty or swallowed values, tokens missing in dark, contrast pairs, required tokens |
 | `npm run design:lint` | The design-system rule as a check: native `title` tooltips, classes the design CSS does not define, literal values in `style` |
 | `npm run design:fit` | Every demo of the design-system page fits its frame at 1440 and 390 px wide, and the page has no sideways scroll |
+| `npm run design:card` | The settings side card of the loop page (preview state `loop-running`, 1440 x 900) is within 40 px of the approved board's 528 px |
 | `npm run phone:check` | Starts a test-mode server and checks whether any of six screens scrolls sideways at phone and tablet widths (run `npm run build` first) |
 | `npm run design:compare` | Real app next to the approved reference screens, with per-region pixel diffs |
 | `npm run design:shots` / `design:states` | Regenerate and check the reference screens |

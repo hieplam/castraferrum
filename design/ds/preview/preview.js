@@ -410,12 +410,16 @@
       ['config-executor', 'loopSettings.agent', t('loop.meta.claude', l.claude)], ['', 'loopSettings.parallel', t('loopSettings.atMost', { n: 1 })],
       ['config-timeout', 'loopSettings.limit', l.timeout == null ? t('loopSettings.noLimit') : dur(l.timeout)]];
     const tid = (id) => (id ? ` data-testid="${id}"` : '');
+    // The card shows compact rows (a small bold label, the value under it); the repo name is bold mono with its path under
+    // it, and the schedule is one line with its time zone.
+    const cardValue = (id, v, m) => (id === 'config-repo' ? `<strong>${v}</strong>${m ? `<span class="data">${esc(m)}</span>` : ''}` : `<span>${v}${m ? ` · ${esc(m)}` : ''}</span>`);
     const list = card
-      ? rows.map(([id, k, v, m]) => `<div class="def"${tid(id)}><b>${t(k)}</b><span>${v}</span>${m ? `<span>${esc(m)}</span>` : ''}</div>`).join('')
+      ? rows.map(([id, k, v, m]) => `<div class="def is-compact"${tid(id)}><b>${t(k)}</b>${cardValue(id, v, m)}</div>`).join('')
       : `<div class="group">${rows.map(([id, k, v, m]) => `<div class="cell"${tid(id)}><span class="cell-main"><span class="cell-title is-plain">${t(k)}</span>${m ? `<span class="cell-meta">${esc(m)}</span>` : ''}</span><span class="cell-value">${v}</span></div>`).join('')}</div>`;
     // The side card shows the prompt cut after five lines with a fade and a link to the full text (spec 5.3).
-    return list + `<p class="group-cap">${t('loopSettings.prompt')}</p><pre class="code${card ? ' is-clamped' : ''}" data-testid="loop-prompt">${esc(l.prompt)}</pre>` +
-      (card ? `<a class="link" href="#" data-testid="loop-prompt-full">${t('loopSettings.fullPrompt')}</a>` : '');
+    return list + (card
+      ? `<div class="def is-compact"><b>${t('loopSettings.prompt')}</b><pre class="code is-clamped" data-testid="loop-prompt">${esc(l.prompt)}</pre></div><a class="link" href="#" data-testid="loop-prompt-full">${t('loopSettings.fullPrompt')}</a>`
+      : `<p class="group-cap">${t('loopSettings.prompt')}</p><pre class="code" data-testid="loop-prompt">${esc(l.prompt)}</pre>`);
   }
   const settingsCard = (key) => `<div class="card is-pad"><div class="section-head"><h2>${t('loopSettings.title')}</h2></div>${settings(key, true)}<button class="btn block" type="button">${t('loopSettings.edit')}</button></div>`;
 
