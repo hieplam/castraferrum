@@ -1,7 +1,7 @@
 # Plan: open a run's Claude session in a terminal
 
 - Date: 2026-10-22
-- Epic: #138. Design-system gap: #139
+- Epic: [castraferrum#138](https://github.com/hieplam/castraferrum/issues/138). Design-system gap: [castraferrum#139](https://github.com/hieplam/castraferrum/issues/139)
 - Spec: [../specs/2026-10-22-open-in-terminal.md](../specs/2026-10-22-open-in-terminal.md) (decisions D1 to D13,
   goals G1 to G6, UC-37)
 - Evidence log: `docs/plans/2026-10-22-open-in-terminal-evidence.md`. OT0 creates it. Every task appends a section
@@ -32,7 +32,7 @@
 | OT0 | Baseline numbers | all (baseline) |
 | OT1 | Server: the settings store, the terminal settings routes, the per-loop `resumeCommand` | G2, G3, G4 (server) |
 | OT2 | Server: detection, the launcher, `POST /runs/:id/terminal`, the fake launcher | G1, G5 (server) |
-| OT3 | Design system and preview: the Terminal group, the editor field, the run page action, the toasts (#139) | G6 (drawn) |
+| OT3 | Design system and preview: the Terminal group, the editor field, the run page action, the toasts (castraferrum#139) | G6 (drawn) |
 | OT4 | **Owner approval of the preview** (`loop:needs-human`) | G6 |
 | OT5 | UI: the Terminal group on Settings | G2, G4, G6 |
 | OT6 | UI: *Resume command* in the editor and in the loop's settings | G3, G6 |
@@ -163,15 +163,15 @@ On `main`, run `npm run verify` and record in a new evidence log, section `## OT
   that ignores the loop's command fails the `--verbose` case. Hard-coded argv fails the quoting snapshots.
 - **Ratchet:** unit and api counts above OT1.
 
-## OT3 - Design system and preview (#139)
+## OT3 - Design system and preview (castraferrum#139)
 
 **Files:** `design/ds/preview/preview.js`, `design/ds/preview/data.js`, `design/ds/STATES.md`,
-`design/ds/SYSTEM.md`, `design/ds/index.html`, `design/ds/components.css` (only if #139 needs a new rule),
+`design/ds/SYSTEM.md`, `design/ds/index.html`, `design/ds/components.css` (only if castraferrum#139 needs a new rule),
 `shared/i18n/en.ts` and `shared/i18n/vi.ts` (the new keys), `docs/specs/2026-10-21-ui-uplift.md` Appendix B (the
 new texts).
 
 Draw, from existing components first (`.group`, `.cell`, `.fcell.is-row`, `.select`, `.field`, `.input.is-data`,
-`.hint`, `.cmd`, `.btn.primary`, `.btn.plain`, `.toast`), the parts that #139 lists:
+`.hint`, `.cmd`, `.btn.primary`, `.btn.plain`, `.toast`), the parts that castraferrum#139 lists:
 
 - the Settings **Terminal** group between Appearance and Connection;
 - the editor's *Resume command* field (empty, with the default as placeholder);
@@ -210,7 +210,7 @@ The Windows sample world lists Windows Terminal, PowerShell 7, Windows PowerShel
 
 The owner pulls `main`, runs `npm ci` and `npm run design:shots -- --design design/ds --dry`, and opens
 `design/ds/preview/index.html` (the 10 new states, desktop and phone, light and dark) and `design/ds/index.html`.
-On approval an entry "open in terminal" goes into `design/APPROVED.md`, quoting the owner in English, and #139 is
+On approval an entry "open in terminal" goes into `design/APPROVED.md`, quoting the owner in English, and castraferrum#139 is
 closed. Requested changes reopen OT3.
 
 **Verify**
@@ -324,5 +324,5 @@ with the approved preview states.
 - **Goal:** all.
 - **Red:** not applicable. Acceptance is a human judgement.
 - **Green:** the owner closes this issue with a sign-off comment. What they reject becomes a follow-up sub-issue of
-  #138.
+  castraferrum#138.
 - **Stub check:** only the owner's own comment counts.

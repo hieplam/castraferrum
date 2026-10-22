@@ -21,8 +21,9 @@ import { fileURLToPath } from 'node:url';
 export const SKIP_PATHS = ['shared/i18n/vi.ts'];
 
 /**
- * Known historical hits, pinned by blob. Only --history reads this file, and only for exactly these (blob, line)
- * pairs. Nothing else is ever skipped: not a folder, not a path.
+ * Known historical hits, pinned by blob or by commit. Only --history reads this file, and only for exactly these
+ * (blob, line, kind) triples of file contents and (commit, line, kind) triples of commit messages, each named by its
+ * full 40-character SHA. Nothing else is ever skipped: not a folder, not a path, not a message pattern.
  */
 export const HISTORY_ALLOWLIST_FILE = 'scripts/lang-history-allowlist.json';
 
@@ -508,23 +509,38 @@ function scanName(rel, folder, acc) {
   // Coupling is applied to file content only.
 }
 
-/** Exact (blob, line, class) triples the history scan may skip. Empty for every other mode. */
-function loadHistoryAllowlist(root) {
+const FULL_SHA_RE = /^[0-9a-f]{40}$/;
+
+/**
+ * Exact triples the history scan may skip: `blob|<sha>|line|class` for file contents, `commit|<sha>|line|class` for
+ * commit messages. An entry names exactly one of blob or commit by its full SHA; anything else is an error, so that
+ * a short or malformed SHA can never match more than the one object it names. Empty for every other mode.
+ */
+export function loadHistoryAllowlist(root) {
   const file = path.join(root, HISTORY_ALLOWLIST_FILE);
   if (!fs.existsSync(file)) return new Set();
   const list = JSON.parse(fs.readFileSync(file, 'utf8'));
-  return new Set(list.map((e) => `${e.blob}|${e.line}|${e.kind}`));
+  return new Set(
+    list.map((e) => {
+      const target = 'blob' in e ? 'blob' : 'commit' in e ? 'commit' : null;
+      const ok = target && !('blob' in e && 'commit' in e) && FULL_SHA_RE.test(String(e[target])) && Number.isInteger(e.line) && ['text', 'coupling'].includes(e.kind);
+      if (!ok) throw new Error(`${HISTORY_ALLOWLIST_FILE}: bad entry ${JSON.stringify(e)} (want one full blob or commit SHA, an integer line, kind text or coupling)`);
+      return `${target}|${e[target]}|${e.line}|${e.kind}`;
+    }),
+  );
 }
 
-function scanLines(rel, folder, lines, acc, opts, startLine = 1, blob = null) {
-  const allowed = (line, cls) => blob !== null && opts.historyAllow?.has(`${blob}|${line}|${cls}`);
+function scanLines(rel, folder, lines, acc, opts, startLine = 1, blob = null, commit = null) {
+  const allowed = (line, cls) =>
+    (blob !== null && opts.historyAllow?.has(`blob|${blob}|${line}|${cls}`)) ||
+    (commit !== null && opts.historyAllow?.has(`commit|${commit}|${line}|${cls}`));
   lines.forEach((text, i) => {
     const line = startLine + i;
     const v = findVietnamese(text);
-    if (v && !allowed(line, 'text')) acc.hits.push({ folder, path: rel, line, cls: 'text', kind: v.kind, match: v.match, text, blob });
+    if (v && !allowed(line, 'text')) acc.hits.push({ folder, path: rel, line, cls: 'text', kind: v.kind, match: v.match, text, blob, commit });
     if (opts.coupling) {
       const c = findCoupling(text, opts.localPatterns);
-      if (c && !allowed(line, 'coupling')) acc.hits.push({ folder, path: rel, line, cls: 'coupling', kind: c.kind, match: c.match, coupling: true, text, blob });
+      if (c && !allowed(line, 'coupling')) acc.hits.push({ folder, path: rel, line, cls: 'coupling', kind: c.kind, match: c.match, coupling: true, text, blob, commit });
     }
   });
 }
@@ -658,9 +674,14 @@ function scanHistory(root, acc, baseOpts) {
       }
     }
   }
-  // Each message ends in a NUL and git adds a newline after it, so the next message starts with a blank line.
-  const log = git(root, ['log', '--all', '--format=%B%x00']).toString('utf8').split('\0');
-  for (const msg of log) scanLines('(commit message)', '(commit message)', withoutSquashSuffix(msg.replace(/^\r?\n/, '').split(/\r?\n/)), acc, opts);
+  // Each record is the commit SHA, a newline, the message and a NUL; git adds a newline after the NUL, so every record
+  // after the first starts with a blank line.
+  const log = git(root, ['log', '--all', '--format=%H%n%B%x00']).toString('utf8').split('\0');
+  for (const rec of log) {
+    const m = /^\r?\n?([0-9a-f]{40})\r?\n([\s\S]*)$/.exec(rec);
+    if (!m) continue;
+    scanLines('(commit message)', '(commit message)', withoutSquashSuffix(m[2].split(/\r?\n/)), acc, opts, 1, null, m[1]);
+  }
 }
 
 // ---- reporting -------------------------------------------------------------------------------------------------
@@ -796,12 +817,12 @@ export function run(argv, { root: rootOverride } = {}) {
   if (o.list || hookMode) {
     const seen = new Set();
     for (const h of acc.hits) {
-      const key = `${h.coupling ? 'c' : 'v'}|${h.path}|${h.line}|${h.blob ?? ''}`;
+      const key = `${h.coupling ? 'c' : 'v'}|${h.path}|${h.line}|${h.blob ?? ''}|${h.commit ?? ''}`;
       if (seen.has(key)) continue;
       seen.add(key);
       const tag = h.coupling ? `coupling/${h.kind}` : `${h.cls}/${h.kind}`;
       const extra = hookMode && h.text ? `  ${h.text.trim().slice(0, 160)}` : '';
-      lines.push(`${h.path}:${h.line}  [${tag}] ${h.match}${h.blob ? ` blob=${h.blob}` : ''}${extra}`);
+      lines.push(`${h.path}:${h.line}  [${tag}] ${h.match}${h.blob ? ` blob=${h.blob}` : ''}${h.commit ? ` commit=${h.commit}` : ''}${extra}`);
     }
   }
   if (o.writeBaseline) {

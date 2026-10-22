@@ -328,6 +328,78 @@ describe('history allowlist', () => {
     git(root, 'add', 'docs/plans/q.md');
     expect(run(['--staged'], { root }).code).toBe(1);
   });
+
+  describe('commit messages, pinned by full commit SHA', () => {
+    const subject = `docs: a plan (epic ${'#' + '287'})`;
+    const headOf = (root: string) => git(root, 'rev-parse', 'HEAD').trim();
+    type Entry = { blob?: string; commit?: string; line?: unknown; kind?: string };
+    const allowAny = (root: string, entries: Entry[]) => write(root, ALLOW, JSON.stringify(entries));
+
+    /** A repo whose second commit has a message with a bare issue reference. Returns the root and that commit. */
+    function withBadMessage(): { root: string; sha: string } {
+      const root = repo({ 'a.txt': 'plain\n' });
+      write(root, 'b.txt', 'plain\n');
+      git(root, 'add', 'b.txt');
+      git(root, 'commit', '-q', '-m', subject);
+      return { root, sha: headOf(root) };
+    }
+
+    it('skips exactly the allowlisted (commit, line, kind) of a commit message, and nothing else', () => {
+      const { root, sha } = withBadMessage();
+      expect(run(['--history', '--coupling'], { root }).code).toBe(1);
+      allowAny(root, [{ commit: sha, line: 1, kind: 'coupling' }]);
+      const out = run(['--history', '--coupling'], { root });
+      expect(out.code).toBe(0);
+      expect(value(out, 'coupling')).toBe(0);
+      allowAny(root, [{ commit: sha, line: 2, kind: 'coupling' }]);
+      expect(run(['--history', '--coupling'], { root }).code).toBe(1);
+      allowAny(root, [{ commit: sha, line: 1, kind: 'text' }]);
+      expect(run(['--history', '--coupling'], { root }).code).toBe(1);
+      // a blob entry that names the commit SHA does not exempt the message
+      allowAny(root, [{ blob: sha, line: 1, kind: 'coupling' }]);
+      expect(run(['--history', '--coupling'], { root }).code).toBe(1);
+    }, 30_000);
+
+    it('another commit with the same message is still flagged', () => {
+      const { root, sha } = withBadMessage();
+      allowAny(root, [{ commit: sha, line: 1, kind: 'coupling' }]);
+      expect(run(['--history', '--coupling'], { root }).code).toBe(0);
+      write(root, 'c.txt', 'plain\n');
+      git(root, 'add', 'c.txt');
+      git(root, 'commit', '-q', '-m', subject);
+      const out = run(['--history', '--coupling', '--list'], { root });
+      expect(out.code).toBe(1);
+      expect(out.lines.some((l) => l.includes(`commit=${headOf(root)}`))).toBe(true);
+      expect(out.lines.some((l) => l.includes(`commit=${sha}`))).toBe(false);
+    }, 30_000);
+
+    it('a short, wildcard or malformed entry is refused instead of matching more than one object', () => {
+      const { root, sha } = withBadMessage();
+      const bad: Entry[] = [
+        { commit: sha.slice(0, 7), line: 1, kind: 'coupling' },
+        { commit: '*', line: 1, kind: 'coupling' },
+        { commit: '', line: 1, kind: 'coupling' },
+        { commit: sha.toUpperCase(), line: 1, kind: 'coupling' },
+        { commit: sha, kind: 'coupling' },
+        { commit: sha, line: '*', kind: 'coupling' },
+        { commit: sha, line: 1, kind: '*' },
+        { commit: sha, blob: sha, line: 1, kind: 'coupling' },
+        { line: 1, kind: 'coupling' },
+      ];
+      for (const entry of bad) {
+        allowAny(root, [entry]);
+        const out = run(['--history', '--coupling'], { root });
+        expect(out.code, JSON.stringify(entry)).toBe(2);
+        expect(out.lines.join('\n')).toContain('bad entry');
+      }
+    }, 30_000);
+  });
+
+  it('the repository allowlist pins the open-in-terminal squash commit by its full SHA, and only that commit', () => {
+    const entries = JSON.parse(fs.readFileSync(path.join(scripts, 'lang-history-allowlist.json'), 'utf8')) as Array<Record<string, unknown>>;
+    const commits = entries.filter((e) => 'commit' in e);
+    expect(commits).toEqual([{ commit: '066e95c3ddf1ef1118231a13765fd3b279f61556', line: 1, kind: 'coupling' }]);
+  });
 });
 
 describe('output and exit codes', () => {

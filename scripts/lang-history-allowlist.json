@@ -143,4 +143,14 @@
 {"blob":"f82974f51ba8c317e141e9a91deee98bb4e6e912","line":36,"kind":"coupling"},
 {"blob":"f82974f51ba8c317e141e9a91deee98bb4e6e912","line":57,"kind":"coupling"},
 {"blob":"f82974f51ba8c317e141e9a91deee98bb4e6e912","line":89,"kind":"text"},
-{"blob":"f82974f51ba8c317e141e9a91deee98bb4e6e912","line":91,"kind":"text"}]
+{"blob":"f82974f51ba8c317e141e9a91deee98bb4e6e912","line":91,"kind":"text"},
+{"blob":"f5bf33568989afd9d01f3e50a1da2c7809b99aa9","line":4,"kind":"coupling"},
+{"blob":"f5bf33568989afd9d01f3e50a1da2c7809b99aa9","line":35,"kind":"coupling"},
+{"blob":"f5bf33568989afd9d01f3e50a1da2c7809b99aa9","line":166,"kind":"coupling"},
+{"blob":"f5bf33568989afd9d01f3e50a1da2c7809b99aa9","line":169,"kind":"coupling"},
+{"blob":"f5bf33568989afd9d01f3e50a1da2c7809b99aa9","line":174,"kind":"coupling"},
+{"blob":"f5bf33568989afd9d01f3e50a1da2c7809b99aa9","line":213,"kind":"coupling"},
+{"blob":"f5bf33568989afd9d01f3e50a1da2c7809b99aa9","line":327,"kind":"coupling"},
+{"blob":"b03ceec78b1711d8d2709309d58ff5c9a5ff4b20","line":5,"kind":"coupling"},
+{"blob":"b03ceec78b1711d8d2709309d58ff5c9a5ff4b20","line":37,"kind":"coupling"},
+{"commit":"066e95c3ddf1ef1118231a13765fd3b279f61556","line":1,"kind":"coupling"}]
