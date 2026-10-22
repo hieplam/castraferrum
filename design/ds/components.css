@@ -417,6 +417,7 @@ body {
   .stat-value { margin-top: var(--space-1); font-weight: var(--fw-semibold); }
   .stat-sub { font-size: var(--fs-cap); line-height: var(--lh-cap); }
   .now { flex-wrap: wrap; }
+  .now-actions { flex: 1 0 100%; }
 }
 
 /* ── Section head: a title, its help and its link ─────────────────────────────────────────────────── */
