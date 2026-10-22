@@ -5,6 +5,7 @@ import { describe as group, expect, test } from 'vitest';
 import { viAdvancedGolden, viSchedule, viScheduleGolden } from '../i18n/vi';
 import {
   describe,
+  describeShort,
   fromCron,
   isValidTimeZone,
   nextRuns,
@@ -172,6 +173,30 @@ const BUILDER: Row[] = [
     next: ['2026-10-19 09:00', '2026-10-20 09:00', '2026-10-21 09:00', '2026-10-22 09:00', '2026-10-23 09:00'],
   },
 ];
+
+group('describeShort: the one-line form of a loop row', () => {
+  const short = viSchedule.short;
+  test.each([
+    ['*/10 * * * *', 'every 10 min', short.everyMinutes(10)],
+    ['*/1 * * * *', 'every minute', short.everyMinutes(1)],
+    ['5 */2 * * *', 'every 2 hours at :05', short.everyHours(2, '05')],
+    ['0 */1 * * *', 'every hour at :00', short.everyHours(1, '00')],
+    ['0 3 * * *', 'every day at 03:00', short.daily('03:00')],
+    ['30 8 * * 1,3,5', 'Mon, Wed, Fri at 08:30', short.weekly('08:30', [short.weekday[1], short.weekday[3], short.weekday[5]].join(', '))],
+    ['0 10 * * 0,6', 'Sat, Sun at 10:00', short.weekly('10:00', [short.weekday[6], short.weekday[0]].join(', '))],
+    ['0 9 31 * *', 'day 31 monthly at 09:00', short.monthly(31, '09:00')],
+  ])('%s', (cron, en, vi) => {
+    expect(describeShort(cron)).toBe(en);
+    expect(describeShort(cron, 'en')).toBe(en);
+    expect(describeShort(cron, 'vi')).toBe(vi);
+  });
+
+  test('a cron with no builder kind gives the full sentence, an invalid one the error', () => {
+    expect(describeShort('0 9-17/2 * * 1-5')).toBe(describe('0 9-17/2 * * 1-5'));
+    expect(describeShort('0 9-17/2 * * 1-5', 'vi')).toBe(describe('0 9-17/2 * * 1-5', 'vi'));
+    expect(describeShort('61 8 * * 1-5')).toBe(describe('61 8 * * 1-5'));
+  });
+});
 
 group('schedule builder -> cron + sentence + 5 next runs + warnings', () => {
   test.each(BUILDER)('$name', ({ spec, cron, en, next, warn }) => {

@@ -72,12 +72,13 @@ function wallClock(date, tz) {
  */
 export function scheduleJs(pv, d) {
   const crons = new Set([...Object.values(pv.loops).map((l) => l.cron), ...pv.many.map((m) => m[1]), ...pv.schedules.map((x) => x.cron)]);
-  const out = { desc: {}, warn: {}, error: {}, next: {} };
+  const out = { desc: {}, short: {}, warn: {}, error: {}, next: {} };
   for (const cron of [...crons].sort()) {
     const ok = d.validate(cron).ok;
     const by = (fn) => ({ en: fn('en'), vi: fn('vi') });
     if (ok) {
       out.desc[cron] = by((l) => d.describe(cron, l));
+      out.short[cron] = by((l) => d.describeShort(cron, l));
       out.warn[cron] = by((l) => d.warnings(cron, l).map((w) => w.message));
     } else out.error[cron] = by((l) => d.validate(cron, l).error.message);
   }
