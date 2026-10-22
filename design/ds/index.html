@@ -16,8 +16,11 @@
     background: var(--surface); border-bottom: var(--border-w) solid var(--border);
   }
   .ds-top h1 { flex: 1; margin: 0; font-size: var(--fs-h2); line-height: var(--lh-h2); }
-  .ds-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* One theme after the other, each as wide as the window: a component answers to the width of the window (its media
+     queries), so a half-width column would draw the desktop components at a width they are not made for. */
+  .ds-cols { display: grid; grid-template-columns: minmax(0, 1fr); }
   .ds-col { min-width: 0; padding: var(--space-6) var(--space-6) var(--space-12); background: var(--bg); color: var(--text); }
+  .ds-col > * { max-width: var(--size-page); margin-left: auto; margin-right: auto; }
   .ds-theme { margin: 0 0 var(--space-4); font-size: var(--fs-title); line-height: var(--lh-title); }
   .ds-sec { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-6) 0; border-top: var(--border-w) solid var(--border); }
   .ds-sec > h2 { margin: 0; font-size: var(--fs-h2); line-height: var(--lh-h2); }
@@ -30,16 +33,23 @@
     border: var(--border-w) dashed var(--border-strong); border-radius: var(--radius-card); background: var(--bg);
   }
   .ds-stage.is-tall { min-height: var(--size-tx); }
-  .ds-tipbox { position: relative; display: flex; align-items: flex-end; gap: var(--space-12); min-height: var(--space-12); padding: var(--space-10) var(--space-12) var(--space-10); }
+  .ds-stage.is-sheet { min-height: calc(var(--size-log) + 2 * var(--size-row)); }
+  .ds-tipbox { position: relative; display: flex; align-items: flex-end; justify-content: space-around; gap: var(--space-12); min-height: var(--space-12); padding: var(--space-10) var(--space-12) var(--space-10); }
   .ds-tipbox > span { position: relative; display: inline-flex; }
   .ds-pad { padding: var(--space-4); }
   .ds-phone { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-6); padding: var(--space-6); }
   .ds-phone iframe { width: 390px; height: 844px; border: var(--border-w) solid var(--border-strong); border-radius: var(--radius-sheet); background: var(--bg); }
   .ds-frame .ds-top { display: none; }
-  .ds-frame .ds-cols { grid-template-columns: minmax(0, 1fr); }
-  @media (max-width: 1023.98px) {
-    .ds-cols { grid-template-columns: minmax(0, 1fr); }
-  }
+  /* Frames of the demos: the app frame is as tall as its bars, and the phone-only bars, the action bar and the folder
+     picker sheet are drawn at every window width (a stage holds them, fixed bars included). */
+  .ds-sec .app { min-height: 0; }
+  .ds-stage .navbar, .ds-stage .tabbar { display: grid; }
+  .ds-stage .actionbar { display: flex; }
+  .ds-stage .fullsheet .picker { display: flex; align-items: stretch; }
+  .ds-stage .fullsheet .picker-target { margin-top: auto; }
+  .ds-stage .fullsheet .picker-places { flex-direction: row; }
+  .ds-stage .fullsheet .picker-places .chip { justify-content: center; border-radius: var(--radius-pill); }
+  .ds-stage .fullsheet .picker-list { max-height: none; }
   @media (max-width: 639.98px) {
     .ds-col { padding: var(--space-4) var(--space-3) var(--space-12); }
     .ds-grid { grid-template-columns: minmax(0, 1fr); }
@@ -553,7 +563,7 @@
       </div>
     </div>
     <p class="ds-cap">Full-height sheet (phone folder picker):</p>
-    <div class="ds-stage is-tall">
+    <div class="ds-stage is-sheet">
       <div class="fullsheet" role="dialog" aria-label="Choose a folder">
         <div class="navbar"><button class="navbar-back" type="button">Cancel</button><span class="navbar-title">Choose a folder</span><div class="navbar-actions"><button class="btn plain" type="button">Add</button></div></div>
         <div class="picker">
