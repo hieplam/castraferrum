@@ -316,3 +316,46 @@ Cut-over. The old console was not running (nothing listening on 7070), so step 1
 - Scanner ratchet (`node scripts/lang-scan.mjs --tree --coupling`, baseline file empty): before vietnamese 0 / coupling 0, after vietnamese 0 / coupling 0. `--history`: 0 / 0. The owner's local pattern file was trimmed to the names that still make sense after the move; the repo owner's account name and the source repo name are now legitimate words in this repo (URLs, history). Two evidence lines that quoted the old pattern list were reworded.
 - `npm run verify` exit 0 in the worktree: unit 427 passed / 2 skipped, contract 114, api 115, e2e 58, `UCs with a green e2e: 32/32`, `dependency-cruiser: 0 violations`, `arch-fixtures: 25/25 violations caught`. All at least T0.
 - Memory notes (step 4) are not touched here; the coordinator owns them.
+
+## T14
+
+Owner acceptance, delegated. The owner's comment on castraferrum#19 (2026-10-22), quoted:
+
+> **Delegated.** I delegate the T14 acceptance to a Claude Code session, under the following conditions:
+>
+> - The session checks what T14 lists: the T0 "before" pictures (the `castraferrum-evidence` folder: `before-app/shots` and `before-preview`) next to the current English shots in `design/preview/shots/`, screen by screen; the console running from this repository with the language toggle in both positions; `README.md`, `docs/ARCHITECTURE.md` and `docs/USE-CASES.md`; and the evidence log `docs/plans/2026-10-20-extraction-evidence.md`.
+> - Two independent verifiers must each pass that check: one Claude agent and one OpenAI model (Codex).
+> - If either verifier fails something, the session opens an issue for each problem, fixes it, and has the fix verified once. There is no repeated fix-and-verify loop.
+> - When both verifiers pass, the session adds a `## T14` section to the evidence log (quoting this delegation) and closes this issue.
+>
+> I will look at the result after the fact and ask for changes here if needed.
+
+- Red: not applicable (acceptance is a judgement, plan T14).
+- Round 1, Claude (sonnet): FAIL, 4 problems.
+  - 122 before/now shot pairs, plus the live console in EN and VI: `<html lang>`, and the choice surviving reload, navigation and a new tab.
+  - Problems: the CI `lang-scan` job red on `main` since U2; docs quoting texts the UI does not show; the old name "Loop Console" and folder `loop-console/` in docs and server messages; README grammar and scripts table.
+- Round 1, Codex: FAIL, 2 problems.
+  - 54 shot pairs.
+  - Problems: the `db:generate` output path in ARCHITECTURE; UC-12 contradicting UC-32 on parallel runs.
+  - Its sandbox could not launch Chromium, so the live console was checked by the Claude verifier only.
+- Issues: castraferrum#118 (scanner), castraferrum#119 (quoted texts and the two Codex problems), castraferrum#120 (old name and folder), castraferrum#121 (README).
+- Fixes: castraferrum#126 (scanner: own-repo links and the squash `(#N)` suffix of a commit subject are exempt, with tests) and castraferrum#127 (docs, server messages, README).
+- Round 2, both verifiers, once each: PASS.
+  - Claude: all 4 problems fixed, no regressions.
+    - `node scripts/lang-scan.mjs --history --coupling`: vietnamese 0, coupling 0, exit 0, also in a fresh clone.
+    - CI on `main` green for both jobs.
+    - `npm run typecheck` passes.
+  - Codex: all 6 problems fixed, no regressions.
+    - The same scanner fed with git output captured outside its sandbox: history vietnamese 0, coupling 0.
+    - 12 scanner assertions pass.
+    - `npm run typecheck` exit 0.
+    - 14 doc links resolve.
+    - 12 before/now pairs spot-checked.
+- Green: both round-2 verdicts PASS; castraferrum#118 to castraferrum#121 closed; CI on `main` green at 72e3a0c.
+- Stub check: the round-1 verdicts failed the same check list on `main` before the fixes, so a check that passes everything would not have produced them.
+- Scanner (`node scripts/lang-scan.mjs --history --coupling`): before (round 1) vietnamese 0 / coupling 8, exit 1; after vietnamese 0 / coupling 0, exit 0.
+- Not defects, left as they are:
+  - plural forms such as "1 runs in progress";
+  - the UI says "Run #N" where server log and skip texts say "round #N";
+  - the `loop-console.*` storage keys (spec D10);
+  - server-written texts stay English with the VI toggle.
