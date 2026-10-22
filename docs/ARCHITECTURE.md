@@ -88,6 +88,7 @@ See [ADR 0002](adr/0002-ports-and-adapters.md) for the reasoning.
 | `web/data/` | TanStack Query hooks and the live-event to cache bridge | `pages`, `features`, concrete `http-*` / `sse-*` files |
 | `web/features/` | business components: loop table, form with schedule builder, detail screens, transcript | `pages`, concrete api files, direct `fetch` |
 | `web/pages/` | features assembled per route | `web/api/*` |
+| every `web/` file not on the classic list | the new UI and the code both UIs share (UI uplift, task U13); the classic files are listed in `scripts/classic-ui-files.json`, which the cut-over deletes. Rule `no-new-ui-to-classic`; only `web/app/App.tsx` (the switch) and `web/main.tsx` are exempt | any file of `scripts/classic-ui-files.json` |
 
 Every `web/` folder is barred from `server/` and server libraries; nothing outside `web/api/` touches the
 network. Component tests plug `FakeLoopsApi` and `FakeLiveEvents` into the same providers instead of mocking

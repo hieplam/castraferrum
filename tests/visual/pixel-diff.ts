@@ -6,6 +6,9 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
 
+/** Mismatch threshold per region (mismatched pixels / compared pixels), for the classic and the new UI. Ratchet: may only go down. */
+export const MAX_RATIO = 0.001;
+
 export type Rect = { x: number; y: number; width: number; height: number };
 export type Region = { name: string; rect: Rect; mask?: Rect[] };
 export type RegionResult = { name: string; rect: Rect; pixels: number; mismatched: number; ratio: number };

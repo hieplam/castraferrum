@@ -1,7 +1,7 @@
 // Toast in the bottom-right corner (D-UI3: an action the server refused -> a red toast; UC-08: session id copied). Just UI state,
 // giving no business knowledge: `useToast().show('✗ …', 'err')`.
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
-import { cx } from './components';
+import { cx } from './kit/cx';
 
 export type ToastTone = 'default' | 'err';
 type Item = { id: number; text: ReactNode; tone: ToastTone };

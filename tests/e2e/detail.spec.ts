@@ -8,7 +8,7 @@ import pg from 'pg';
 import { databaseUrl, loadDotEnv } from '../../server/config';
 import { ensureTestRepo } from '../support/test-repo';
 import { t } from '../support/ui-text';
-import { executionRows, lampState, loopRowOnList, runHistory } from '../support/ui';
+import { executionRows, gotoApp, lampState, loopRowOnList, runHistory } from '../support/ui';
 
 loadDotEnv();
 const db = new pg.Pool({ connectionString: databaseUrl(process.env, 'test'), max: 2 });
@@ -47,7 +47,7 @@ async function until<T>(read: () => Promise<T>, ok: (v: T) => boolean, ms = 15_0
 }
 const runStatus = (id: string) => rows<{ status: string }>('SELECT status FROM runs WHERE id = $1', [id]).then((r) => r[0]?.status);
 async function open(page: Page, path: string) {
-  await page.goto(path);
+  await gotoApp(page, path);
   await expect(lampState(page, 'server')).toHaveAttribute('data-state', 'ok');
 }
 

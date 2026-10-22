@@ -1,0 +1,5 @@
+/* The new UI (UI uplift, epic #63) uses the design system's files AS THEY ARE, as web/ui/styles.css does for the classic UI:
+   design/ds/tokens.css picks the token set by data-theme on <html>, design/ds/components.css is the CSS of every component.
+   The fonts come from web/ui/kit/fonts.ts (self-hosted @fontsource, no web font). */
+@import "../../../design/ds/tokens.css";
+@import "../../../design/ds/components.css";

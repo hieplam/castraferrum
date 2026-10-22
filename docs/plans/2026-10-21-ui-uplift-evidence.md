@@ -893,3 +893,62 @@ classic branch fails the fixture case of `ui-branches.test.ts`.
   UC-14, UC-32). `row-right` carries the last run's status itself, as `data-status`.
 - `Field` gets `errorFor`, which names the error element `error-<id>` for the repo combobox, which has no `htmlFor`.
 - `loop-repo` is a span around the header's `RepoTag`, so the tag's own `repo-tag` id stays.
+
+## U13
+
+### Ratchet
+
+Arch fixtures (`npm run arch`): `25/25` before, `26/26` after. Unit tests (`npx vitest run --project unit`):
+`Tests  476 passed | 2 skipped (478)` before, `Tests  481 passed | 2 skipped (483)` after. Chromium e2e
+(`npx playwright test --project chromium`): `37 passed` before (on `main`), `40 passed` after. `chromium-new`: no project
+before, `4 passed` after. e2e expects (`npm run ratchets`): `712` minimum, `724` after.
+
+### Red
+
+Tests and fixture first, nothing built:
+
+- `npx vitest run --project unit web/prefs/ui-version.test.ts tests/tools/pixel-diff.test.ts`:
+  `Error: Cannot find module './ui-version'` and `AssertionError: expected undefined to be 0.001`,
+  `Test Files  2 failed (2)`.
+- `npx playwright test --project chromium-new`:
+  `Error: Project(s) "chromium-new" not found. Available projects: "chromium", "visual"`.
+- `npm run arch` with the fixture and no rule (exit code `1`):
+
+  ```
+  arch-fixtures: 25/26 violations caught
+    ✗ not caught: no-new-ui-to-classic ← web/pages/violates-imports-classic.tsx
+  ```
+
+### Green
+
+- (1) The vitest command: `Test Files  2 passed (2)`, `Tests  5 passed (5)` (four `uiVersion()` cases, `MAX_RATIO`).
+- (2) `npm run build`, then `npx playwright test --project chromium-new`: `4 passed (17.2s)`.
+- (3) `npx playwright test --project chromium`: `40 passed (5.3m)` (37 + the three ui-switch tests).
+- (4) The classic visual tests, inside `npm run verify`: all 27 `visual` tests pass, unchanged.
+- (5) `npm run arch`: `dependency-cruiser: 0 violations`, `arch-fixtures: 26/26 violations caught`.
+- (6) `node -e` over `dist/web/assets/*.css`: `mixed stylesheets: 0`. The build writes two stylesheets and two font
+  files; each holds one family only (IBM Plex or Be Vietnam Pro).
+- (7) `npm run ratchets`: `ratchets: ok`. `npm run verify`: exit code `0`; e2e `71 passed (9.8m)` (40 `chromium`,
+  4 `chromium-new`, 27 `visual`), contract `114 passed`, api `115 passed`, `UCs with a green e2e: 32/32`.
+
+### Stub check
+
+Each stub rebuilt and run, then put back:
+
+- Flag read, not applied (`dataset.ui` line removed): `npx playwright test ui-switch --project chromium-new` gives
+  `3 failed`, each `Expected: "new"`, `Received: ""`.
+- `ServerProcess` page opened with `page.goto` instead of `gotoApp`: `1 failed`, `2 passed`;
+  `Expected: "new"`, `Received: "classic"`.
+- Classic branch loading the new CSS and fonts: `npx playwright test --project visual` gives `6 failed`.
+- The rule pointed at a path that matches nothing: `arch-fixtures: 25/26 violations caught`, exit code `1`.
+
+### Notes
+
+- The rule found two real dependencies of shared models on classic files, both type-only:
+  `web/features/loop-list/row-model.ts` took `StatusKind` from `web/ui/components.tsx`, and
+  `web/features/loop-detail/format.ts` took `LogViewLine` from `web/ui/LogView.tsx`. The row model now uses the run
+  status type of the API contract, and `format.ts` declares the line shape it returns (the classic `LogView` accepts it
+  as it is). With those two changes, the real code has 0 violations.
+- `concurrency.spec.ts` and `list.spec.ts` open no `ServerProcess` page. Their navigations still go through `gotoApp`,
+  like the other three files, so a new-UI project can run them later without changes.
+- The new routes all show `MissingRoute` (the path as the page title) until each screen's task builds it.

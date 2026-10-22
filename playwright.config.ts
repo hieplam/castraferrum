@@ -15,6 +15,17 @@ export default defineConfig({
   projects: [
     // e2e tests carry @UC-xx tags (counted by uc-coverage) plus @smoke / @shell
     { name: 'chromium', testDir: 'tests/e2e', use: { ...devices['Desktop Chrome'] } },
+    // The new UI (UI uplift, task U13): the same server with `castraferrum.ui=new` stored for its origin; a screen task adds its
+    // specs to testMatch once its screen is built.
+    {
+      name: 'chromium-new',
+      testDir: 'tests/e2e',
+      testMatch: ['**/smoke.spec.ts', '**/ui-switch.spec.ts'],
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: { cookies: [], origins: [{ origin: `http://127.0.0.1:${port}`, localStorage: [{ name: 'castraferrum.ui', value: 'new' }] }] },
+      },
+    },
     // screenshots of the real app next to the approved preview + pixel diff (tests/visual/shell.visual.ts); written to reports/compare/ or
     // design/compare/ (npm run design:compare)
     { name: 'visual', testDir: 'tests/visual', testMatch: '*.visual.ts', use: { ...devices['Desktop Chrome'] } },

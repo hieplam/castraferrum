@@ -27,7 +27,10 @@ import type pg from 'pg';
 import { REPO_MISSING_PREFIX } from '../../shared/domain/cost';
 import { en } from '../../shared/i18n/en';
 
+/** The classic preview's data (the default of every function below). */
 const DATA_JS = fileURLToPath(new URL('../../design/preview/data.js', import.meta.url));
+/** The new preview's data (UI uplift, design/ds/preview/data.js): the world of the new UI's visual tests. */
+export const DS_DATA_JS = fileURLToPath(new URL('../../design/ds/preview/data.js', import.meta.url));
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Any = any;
@@ -47,14 +50,16 @@ export type PreviewData = {
 };
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-let cached: PreviewData | null = null;
-export function previewData(): PreviewData {
-  if (cached) return cached;
+const cached = new Map<string, PreviewData>();
+/** The `window.PV` of a preview's data.js (`file`: DATA_JS by default, DS_DATA_JS for the new UI). */
+export function previewData(file = DATA_JS): PreviewData {
+  const hit = cached.get(file);
+  if (hit) return hit;
   const sandbox = { window: {} as { PV?: PreviewData } };
-  runInNewContext(readFileSync(DATA_JS, 'utf8'), sandbox);
-  if (!sandbox.window.PV) throw new Error('design/preview/data.js does not set window.PV');
-  cached = sandbox.window.PV;
-  return cached;
+  runInNewContext(readFileSync(file, 'utf8'), sandbox);
+  if (!sandbox.window.PV) throw new Error(`${file} does not set window.PV`);
+  cached.set(file, sandbox.window.PV);
+  return sandbox.window.PV;
 }
 
 /** 18/10/2026 14:00:42 Vietnam time. */
@@ -96,16 +101,16 @@ export const sid = (key: string, n: number) => uuid(`${key}#${n}`);
 /** Id of a run (`n` = run number; a skipped run: by its start time, in the data.js format). */
 export const runId = (key: string, n: number | null, start: string) => uuid(`${key}run${n ?? `skip ${start}`}`);
 /** Id of execution #k: the current / latest execution carries the id of data.js, the others as in preview `execDetail`. */
-export function execId(key: string, k: number): string {
-  const l = previewData().loops[key];
+export function execId(key: string, k: number, file = DATA_JS): string {
+  const l = previewData(file).loops[key];
   return l?.exec && l.exec.k === k && l.exec.id ? l.exec.id : uuid(`${key}exec${k}`);
 }
-export const loopId = (key: string): string => previewData().loops[key].id;
-export const repoId = (key: string): string => previewData().repos[key]!.id;
+export const loopId = (key: string, file = DATA_JS): string => previewData(file).loops[key].id;
+export const repoId = (key: string, file = DATA_JS): string => previewData(file).repos[key]!.id;
 
 /** Folders of the sample repos present / missing as in the preview (D-UI11): send `POST /api/__test/dirs { paths }` after every reset. */
-export function previewDirs(): Record<string, boolean> {
-  const pv = previewData();
+export function previewDirs(file = DATA_JS): Record<string, boolean> {
+  const pv = previewData(file);
   return Object.fromEntries(Object.values(pv.repos).map((r) => [r.path, !r.gone]));
 }
 
@@ -135,8 +140,8 @@ export type FolderWorldBody = {
  * `POST /api/__test/folders`: subfolders of `at` (`git` → adds `.git` inside), drives (Windows) / volumes under `/Volumes`
  * (Mac — the boot volume is a link to `/`), the default Desktop / Documents / Downloads of the Mac, folders that deny access.
  */
-export function previewFolderWorld(kind: 'win' | 'mac'): FolderWorldBody {
-  const m = (previewData() as unknown as { folders: Record<'win' | 'mac', FolderMachine> }).folders[kind];
+export function previewFolderWorld(kind: 'win' | 'mac', file = DATA_JS): FolderWorldBody {
+  const m = (previewData(file) as unknown as { folders: Record<'win' | 'mac', FolderMachine> }).folders[kind];
   const sep = m.platform === 'win32' ? '\\' : '/';
   const dirs = m.entries.flatMap(([name, flag]) => (flag === 'git' ? [`${m.at}${sep}${name}${sep}.git`] : [`${m.at}${sep}${name}`]));
   const links: Record<string, string> = {};
@@ -159,8 +164,8 @@ export function previewFolderWorld(kind: 'win' | 'mac'): FolderWorldBody {
 }
 
 /** Repos of the Mac in the preview (its own console, Mac paths) → DB; their folders forced "present" through `/api/__test/dirs`. */
-export async function seedMacRepos(db: pg.Pool): Promise<Record<string, boolean>> {
-  const m = (previewData() as unknown as { folders: Record<'mac', FolderMachine> }).folders.mac;
+export async function seedMacRepos(db: pg.Pool, file = DATA_JS): Promise<Record<string, boolean>> {
+  const m = (previewData(file) as unknown as { folders: Record<'mac', FolderMachine> }).folders.mac;
   const dirs: Record<string, boolean> = {};
   for (const k of m.repoOrder ?? []) {
     const r = m.repos![k]!;
@@ -220,8 +225,8 @@ const skipReason = (n: number) => en['skip.reason'].replace('{n}', String(n));
  * Runs of one execution: the runs the preview lists + runs added so the ✓ ✗ ⊘ ↷ of the execution add up. `lastIter` =
  * last run number of the execution (the number of the run in progress, if any).
  */
-function executionRuns(key: string, e: Any, lastIter: number, running: boolean): RunRow[] {
-  const pv = previewData();
+function executionRuns(key: string, e: Any, lastIter: number, running: boolean, file: string): RunRow[] {
+  const pv = previewData(file);
   const l = pv.loops[key];
   const start = pvTime(e.start);
   const end = e.end ? pvTime(e.end) : PREVIEW_NOW;
@@ -307,8 +312,8 @@ export async function wipe(db: pg.Pool): Promise<void> {
 }
 
 /** Writes the sample repos (`keys` empty = all 4) — registration time = the `added` column of data.js. */
-export async function seedRepos(db: pg.Pool | pg.PoolClient, keys?: readonly string[]): Promise<void> {
-  const pv = previewData();
+export async function seedRepos(db: pg.Pool | pg.PoolClient, keys?: readonly string[], file = DATA_JS): Promise<void> {
+  const pv = previewData(file);
   for (const k of keys ?? pv.repoOrder) {
     const r = pv.repos[k]!;
     await db.query('INSERT INTO repos (id, name, path, created_at) VALUES ($1,$2,$3,$4)', [r.id, r.name, r.path, pvTime(r.added)]);
@@ -316,8 +321,8 @@ export async function seedRepos(db: pg.Pool | pg.PoolClient, keys?: readonly str
 }
 
 /** Creation time of a loop: the list sorts newest first (spec Q15) while the preview row order does not follow creation → step back one minute each. */
-export function createdOf(): Record<string, Date> {
-  const pv = previewData();
+export function createdOf(file = DATA_JS): Record<string, Date> {
+  const pv = previewData(file);
   const out: Record<string, Date> = {};
   let prev = Infinity;
   for (const key of pv.order) {
@@ -334,13 +339,13 @@ export function createdOf(): Record<string, Date> {
  * Seeds the `list-overview` world (4 repos, 7 loops + 1 archived) into an empty DB. `history: true` adds the runs of the
  * older executions (detail screens). One transaction.
  */
-export async function seedPreviewWorld(db: pg.Pool, opts: { history?: boolean } = {}): Promise<PreviewData> {
-  const pv = previewData();
-  const created = createdOf();
+export async function seedPreviewWorld(db: pg.Pool, opts: { history?: boolean } = {}, file = DATA_JS): Promise<PreviewData> {
+  const pv = previewData(file);
+  const created = createdOf(file);
   const c = await db.connect();
   try {
     await c.query('BEGIN');
-    await seedRepos(c);
+    await seedRepos(c, undefined, file);
     for (const key of [...pv.order, 'oldsched']) {
       const l = pv.loops[key];
       const config = { model: l.claude.model, effort: l.claude.effort };
@@ -355,16 +360,16 @@ export async function seedPreviewWorld(db: pg.Pool, opts: { history?: boolean } 
       // Executions: newest first → the last run of the previous execution = the first run of the next one − 1.
       let lastIter = l.lifetime as number;
       for (const e of pv.executions[key] ?? []) {
-        const eid = execId(key, e.k);
+        const eid = execId(key, e.k, file);
         await c.query('INSERT INTO loop_executions (id, loop_id, seq, started_at, ended_at, end_reason) VALUES ($1,$2,$3,$4,$5,$6)', [
           eid, l.id, e.k, pvTime(e.start), e.end ? pvTime(e.end) : null, e.st === 'active' ? null : e.st,
         ]);
         const current = l.exec && l.exec.k === e.k;
         const running = current && !!l.run;
-        const runs = executionRuns(key, e, lastIter, running);
+        const runs = executionRuns(key, e, lastIter, running, file);
         lastIter -= runs.filter((r) => r.n !== null).length;
         if (!current && !opts.history) continue;
-        for (const r of runs) await insertRun(c, key, l, eid, r, repoPath);
+        for (const r of runs) await insertRun(c, key, l, eid, r, repoPath, pv);
       }
     }
     await c.query('COMMIT');
@@ -377,7 +382,7 @@ export async function seedPreviewWorld(db: pg.Pool, opts: { history?: boolean } 
   return pv;
 }
 
-async function insertRun(c: pg.PoolClient, key: string, l: Any, eid: string, r: RunRow, repoPath: string): Promise<void> {
+async function insertRun(c: pg.PoolClient, key: string, l: Any, eid: string, r: RunRow, repoPath: string, pv: PreviewData): Promise<void> {
   const config = { model: l.claude.model, effort: l.claude.effort };
   const id = runId(key, r.n, r.startText || r.start.toISOString());
   // old prompt snapshot: run-succeeded (#68) + vi-run-transcript (#63) — the preview draws these two runs with oldPrompt
@@ -392,7 +397,7 @@ async function insertRun(c: pg.PoolClient, key: string, l: Any, eid: string, r: 
     return;
   }
   const running = r.st === 'running';
-  const finished = running ? null : r.st === 'interrupted' ? pvTime(previewData().restartedAt) : addSec(r.start, r.dur);
+  const finished = running ? null : r.st === 'interrupted' ? pvTime(pv.restartedAt) : addSec(r.start, r.dur);
   await c.query(
     `INSERT INTO runs (id, loop_id, execution_id, iteration, trigger, status, scheduled_for, started_at, deadline_at, finished_at,
                        duration_ms, prompt_snapshot, executor_kind, executor_config, summary, error, cost_usd, session_id)
@@ -416,9 +421,9 @@ async function insertRun(c: pg.PoolClient, key: string, l: Any, eid: string, r: 
  * for the Archived tab. The top bar of the preview contradicts itself in this state ("3 errors 24h" while the ✗ of the
  * open executions — all opened in the last 24 hours — add up to 4) → the visual test only compares the list pane.
  */
-export async function seedPreviewMany(db: pg.Pool): Promise<PreviewData> {
-  const pv = previewData();
-  await seedRepos(db);
+export async function seedPreviewMany(db: pg.Pool, file = DATA_JS): Promise<PreviewData> {
+  const pv = previewData(file);
+  await seedRepos(db, undefined, file);
   const now = PREVIEW_NOW.getTime();
   const rows = pv.many;
   let seq = 0;

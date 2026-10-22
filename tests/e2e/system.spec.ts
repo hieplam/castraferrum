@@ -10,7 +10,7 @@ import { liveDbUrl, ServerProcess } from '../support/server-process';
 import { MOCK_DONE_LOG, MOCK_FAIL_ERROR, skipSingle, timeoutError } from '../support/server-text';
 import { ensureTestRepo } from '../support/test-repo';
 import { t } from '../support/ui-text';
-import { executionRows, lampState, runHistory, statValue } from '../support/ui';
+import { executionRows, gotoApp, lampState, runHistory, statValue } from '../support/ui';
 
 loadDotEnv();
 const TZ = 'Asia/Ho_Chi_Minh';
@@ -72,7 +72,7 @@ async function setClock(api: Api, at: string) {
   expect((await api('POST', '/api/__test/clock', { at })).status).toBe(200);
 }
 async function open(page: Page, url: string) {
-  await page.goto(url);
+  await gotoApp(page, url);
   await expect(lampState(page, 'server')).toHaveAttribute('data-state', 'ok');
 }
 const loopRow = (page: Page, name: string) =>
