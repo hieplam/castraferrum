@@ -38,3 +38,16 @@ export function formatParts<N>(template: string, params: Record<string, N | stri
   if (last < template.length) out.push(template.slice(last));
   return out;
 }
+
+/** The plural bases of the locale files: a key `<base>.one` (and `<base>.other`, and optionally `<base>.zero`). */
+export type PluralBase = MessageKey extends infer K ? (K extends `${infer B}.one` ? B : never) : never;
+
+/**
+ * A plural text (spec D16): `<base>.zero` when `n` is 0 and the key exists, `<base>.one` for 1, `<base>.other` for the rest.
+ * `{n}` is filled in; `params` adds the other parameters.
+ */
+export function tn(lang: Lang, base: PluralBase, n: number, params?: Params): string {
+  const zero = `${base}.zero` as MessageKey;
+  const key = (n === 0 && zero in MESSAGES[lang] ? zero : n === 1 ? `${base}.one` : `${base}.other`) as MessageKey;
+  return format(MESSAGES[lang][key], { n, ...params });
+}

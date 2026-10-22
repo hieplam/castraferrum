@@ -2,11 +2,12 @@
 // the browser (localStorage - only a convenience of one viewer, if reading / writing breaks it still runs with the defaults).
 // The mode is applied with `data-theme` on <html> - exactly how design/tokens.css picks the token set; the language goes in `lang` of <html>.
 import { createContext, Fragment, createElement, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
-import { formatParts, MESSAGES, translate, type Lang, type MessageKey, type Params } from './messages';
+import { formatParts, MESSAGES, tn as plural, translate, type Lang, type MessageKey, type Params, type PluralBase } from './messages';
+import { applyThemeColor, THEME_STORAGE_KEY, writeThemeChoice, type Theme } from './theme';
 
-export type Theme = 'light' | 'dark';
+export type { Theme };
 
-export const STORAGE_KEYS = { lang: 'loop-console.lang', theme: 'loop-console.theme' } as const;
+export const STORAGE_KEYS = { lang: 'loop-console.lang', theme: THEME_STORAGE_KEY } as const;
 
 export type Prefs = {
   lang: Lang;
@@ -16,10 +17,14 @@ export type Prefs = {
   themeChoice: Theme | null;
   setLang(lang: Lang): void;
   setTheme(theme: Theme): void;
+  /** The Appearance setting of the new UI: `null` = Automatic (follow the system again). */
+  setThemeChoice(choice: Theme | null): void;
 };
 
 type TFn = {
   (key: MessageKey, params?: Params): string;
+  /** Plural text (spec D16): `tn('summary.runs', 2)` reads `summary.runs.one`, `.other` or `.zero`, with `{n}` filled in. */
+  tn(base: PluralBase, n: number, params?: Params): string;
   /** The parameters are React elements (a bold number, a status tag...). */
   node(key: MessageKey, params: Record<string, ReactNode | string | number>): ReactNode;
   lang: Lang;
@@ -78,6 +83,7 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
   const theme = themeChoice ?? system;
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
+    if (document.documentElement.dataset.ui === 'new') applyThemeColor();
   }, [theme]);
   useLayoutEffect(() => {
     document.documentElement.lang = lang;
@@ -92,7 +98,19 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
     setThemeChoice(th);
   }, []);
 
-  const value = useMemo<Prefs>(() => ({ lang, theme, themeChoice, setLang, setTheme }), [lang, theme, themeChoice, setLang, setTheme]);
+  const setThemeChoiceBoth = useCallback((choice: Theme | null) => {
+    try {
+      writeThemeChoice(window.localStorage, choice);
+    } catch {
+      // storage blocked
+    }
+    setThemeChoice(choice);
+  }, []);
+
+  const value = useMemo<Prefs>(
+    () => ({ lang, theme, themeChoice, setLang, setTheme, setThemeChoice: setThemeChoiceBoth }),
+    [lang, theme, themeChoice, setLang, setTheme, setThemeChoiceBoth],
+  );
   return <PrefsContext.Provider value={value}>{children}</PrefsContext.Provider>;
 }
 
@@ -107,6 +125,7 @@ export function useT(): TFn {
   const { lang } = usePrefs();
   return useMemo(() => {
     const fn = ((key: MessageKey, params?: Params) => translate(lang, key, params)) as TFn;
+    fn.tn = (base, n, params) => plural(lang, base, n, params);
     fn.node = (key, params) =>
       createElement(Fragment, null, ...formatParts(MESSAGES[lang][key], params).map((part, i) => createElement(Fragment, { key: i }, part)));
     fn.lang = lang;

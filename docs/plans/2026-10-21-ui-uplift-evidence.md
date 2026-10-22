@@ -1020,3 +1020,108 @@ Each stub rebuilt and run, then put back:
 - `concurrency.spec.ts` and `list.spec.ts` open no `ServerProcess` page. Their navigations still go through `gotoApp`,
   like the other three files, so a new-UI project can run them later without changes.
 - The new routes all show `MissingRoute` (the path as the page title) until each screen's task builds it.
+
+## U14
+
+### Ratchet
+
+New-UI visual pairs (`reports/compare/ds/results/frame.json`): `0` before, `24` after, worst region ratio `0` against
+`MAX_RATIO` `0.001`. Behaviour tests (`tests/visual/ds/behaviour.visual.ts`): `0` before, `4` after. Unit tests
+(`npx vitest run --project unit`): `Tests  493 passed | 2 skipped (495)` before, `Tests  499 passed | 2 skipped (501)`
+after (three `tn()` cases, three `writeThemeChoice` cases). `visual` project: `27` tests before, `38` after (7 frame, 4
+behaviour). `chromium` `40` and `chromium-new` `4` unchanged. Arch fixtures `26/26` before and after. `npm run ratchets`
+before and after: `native title: 8`, `unknown classes: 0`, `dynamic classes: 4 (not checked)`, `literal styles: 0`,
+`css violations: 0`, `e2e expects: 724 (min 712)`, `ratchets: ok`.
+
+### Red
+
+Tests first, nothing built (the plan writes `--project visual <files>`; Playwright reads that as two more projects, so the
+runs use `--project=visual`):
+
+- `npx vitest run --project unit web/prefs`:
+
+  ```
+  FAIL  |unit| web/prefs/theme.test.ts [ web/prefs/theme.test.ts ]
+  Error: Cannot find module './theme' imported from .../web/prefs/theme.test.ts
+  FAIL  |unit| web/prefs/messages.test.ts > tn() - plural texts (spec D16) > English: ...
+  TypeError: tn is not a function
+  (the same for the Vietnamese case and the parameters case)
+  Test Files  2 failed | 1 passed (3)
+       Tests  3 failed | 8 passed (11)
+  ```
+
+- `npm run build`, then
+  `npx playwright test --project=visual tests/visual/ds/frame.visual.ts tests/visual/ds/behaviour.visual.ts`:
+
+  ```
+  1) behaviour.visual.ts:15 the theme button's tooltip ...      Error: expect(locator).toBeVisible() failed ... element(s) not found
+  2) behaviour.visual.ts:46 tapping the theme button ...        Error: expect(locator).toBeVisible() failed ... element(s) not found
+  3) behaviour.visual.ts:65 /settings and an unknown URL ...    Error: expect(locator).toBeVisible() failed ... element(s) not found
+  4) behaviour.visual.ts:81 the tab bar marks the current tab   Error: expect(locator).toBeVisible() failed ... element(s) not found
+  5) frame.visual.ts:57 settings and not found                  Expected: "ok" ... element(s) not found
+  6) frame.visual.ts:133 settings, Vietnamese settings and not found   Expected: "ok" ... element(s) not found
+  6 failed
+  5 did not run
+  ```
+
+### Green
+
+- (1) `npx playwright test --project=visual tests/visual/ds/frame.visual.ts`: `7 passed (1.1m)`, exit code `0`;
+  `node -e "console.log(require('./reports/compare/ds/results/frame.json').length)"` prints `24`. Every region has `0`
+  mismatched pixels (`worstRatio 0`, `maxRatio 0.001`): `settings`, `settings-db-down`, `not-found`, `phone-settings`,
+  `phone-vi-settings`, `phone-not-found` compare the top bar (desktop) or the tab bar (phone) and the page, with only
+  `settings-address` and `settings-version` masked; `frame-loading`, `frame-disconnected`, `frame-reconnected`,
+  `frame-db-down` compare the top bar and the banner; `phone-frame-loading`, `phone-frame-disconnected` compare the tab
+  bar and the banner. `frame-loading` and `phone-frame-loading` have no banner in the preview, so their regions are the top
+  bar and the tab bar.
+- (2) `npx playwright test --project=visual tests/visual/ds/behaviour.visual.ts`: `4 passed (12.6s)`.
+- (3) `npx vitest run --project unit web/prefs`: `Test Files  3 passed (3)`, `Tests  14 passed (14)`.
+- (4) `npm run ratchets`: `ratchets: ok`.
+- (5) The classic visual tests, inside `npm run verify`: all 23 classic `visual` tests pass, unchanged (38 `visual` tests in
+  all: 23 classic, 4 design-system page, 7 frame, 4 behaviour).
+- (6) `npm run verify`: exit code `0`; design states `120/120`, `dependency-cruiser: 0 violations`,
+  `arch-fixtures: 26/26 violations caught`, unit `499 passed | 2 skipped`, contract `114 passed`, api `115 passed`,
+  e2e `82 passed (9.0m)` (40 `chromium`, 4 `chromium-new`, 38 `visual`), `UCs with a green e2e: 32/32`.
+
+### Stub check
+
+Each stub rebuilt and run, then put back:
+
+- Empty frame (`Frame` renders only `<Outlet />`): the same two Playwright files give `6 failed`, `5 did not run`; every
+  behaviour test fails on `element(s) not found` and both frame tests fail on `Expected: "ok"` (`conn` is missing).
+- A tooltip that shows on `mouseenter` and not on a pointer type (hover only): `npx playwright test --project=visual
+  tests/visual/ds/behaviour.visual.ts` gives `1 failed`, `3 passed`; the touch test fails with
+  `Expected: 0`, `Received: 1` on the tooltip count after the tap.
+- A native `title={label}` on the icon button: `npm run ratchets` prints `web/ui/kit/Button.tsx:47 title on <button>`,
+  `native title: 9`, `ratchets: failed`, exit code `1`.
+- `tn()` that always reads the `.other` text: `3 failed | 11 passed`, for example
+  `AssertionError: expected '1 runs' to be '1 run'` and `expected 'Show 1 more runs from this period' to be 'Show 1 more run from this period'`;
+  the Vietnamese case fails on the `.zero` text of `repos.loops`.
+
+### Notes
+
+- Two classic tests flaked during `npm run verify`, both outside U14. `tests/e2e/concurrency.spec.ts` UC-32 timed out
+  waiting for runs on the first attempt and passes alone and on the next attempt. The classic
+  `tests/visual/list.visual.ts` "LOOP_ALREADY_ACTIVE toast" test failed on the second attempt; the same file on a clean
+  `main` build fails 3 times in 4 runs and passes alone, so it is flaky already. The third `npm run verify` is the one
+  recorded above.
+- A font face is fetched the first time text needs it. The first phone `frame-disconnected` run drew the banner in the
+  fallback font because the server was killed before the regular face had been fetched. `frame.visual.ts` loads the faces
+  (`document.fonts.load`) before it kills the server, so the shot shows the font the page has when it is online.
+- Not found has no `h1` element in the approved preview (a bold line in `.empty`), and spec D28 asks for one `h1` per page.
+  To keep the preview's pixels, the bold line carries `role="heading" aria-level="1"`. The behaviour test counts
+  `getByRole('heading', { level: 1 })`, which matches both an `h1` and that.
+- The phone controls test measures a segment of a segmented control as the control it sits in: the `.seg` is 44 tall and
+  its segments are 38 tall inside its padding and border (the preview's own sizes). Every other control is measured as
+  itself.
+- Both points above are recorded as one design-system gap for the owner to rule on:
+  https://github.com/hieplam/castraferrum/issues/151.
+- The Settings address shows `window.location.origin` and the version shows `__APP_VERSION__` (the `package.json`
+  version through Vite `define`); both cells are masked in every comparison, as the plan says.
+- `Menu`, `Toggletip`, `Popover`, `Sheet` and `Dialog` are built as the plan lists them but no screen uses them yet; the
+  Loops task (U15) is their first user. `Tooltip` is used by the theme button.
+- `/` and the other paths whose screen is not built yet show `PendingRoute` (the path as the title); only an unknown path
+  shows Not found (`MissingRoute`). The status banner is the first child of each page's `.page`: the frame gives it to
+  `Page` through `PageTopProvider`, so the banner sits where the preview draws it.
+- The theme-color updater creates `<meta name="theme-color">` when the page has none and runs only in the new UI; the
+  `index.html` tag, the manifest and the icons come with the iOS task.

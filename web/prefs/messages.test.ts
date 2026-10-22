@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fmtClock, fmtDuration, fmtNumber, fmtTime } from './format';
-import { format, formatParts, translate } from './messages';
+import { format, formatParts, tn, translate } from './messages';
 import { en } from '../../shared/i18n/en';
 import { vi } from '../../shared/i18n/vi';
 
@@ -39,5 +39,30 @@ describe('formatting', () => {
     expect(fmtNumber('vi', 1234567)).toBe('1 234 567');
     expect(fmtNumber('en', 1234567)).toBe('1,234,567');
     expect(fmtTime(new Date('2026-10-18T07:00:42Z'), 'Asia/Ho_Chi_Minh')).toBe('14:00:42');
+  });
+});
+
+describe('tn() - plural texts (spec D16)', () => {
+  it('English: zero uses the .zero text when the key has one, otherwise .other; one and two', () => {
+    expect(tn('en', 'period.runs', 0)).toBe('0 runs');
+    expect(tn('en', 'period.runs', 1)).toBe('1 run');
+    expect(tn('en', 'period.runs', 2)).toBe('2 runs');
+    expect(tn('en', 'repos.loops', 0)).toBe('No loops');
+    expect(tn('en', 'repos.loops', 1)).toBe('1 loop');
+    expect(tn('en', 'repos.loops', 2)).toBe('2 loops');
+  });
+
+  it('Vietnamese: the same three cases, read from vi.ts', () => {
+    expect(tn('vi', 'period.runs', 0)).toBe(fill(vi['period.runs.other'], { n: 0 }));
+    expect(tn('vi', 'period.runs', 1)).toBe(vi['period.runs.one']);
+    expect(tn('vi', 'period.runs', 2)).toBe(fill(vi['period.runs.other'], { n: 2 }));
+    expect(tn('vi', 'repos.loops', 0)).toBe(vi['repos.loops.zero']);
+    expect(tn('vi', 'repos.loops', 1)).toBe(vi['repos.loops.one']);
+    expect(tn('vi', 'repos.loops', 2)).toBe(fill(vi['repos.loops.other'], { n: 2 }));
+  });
+
+  it('fills {n} and the extra parameters', () => {
+    expect(tn('en', 'runs.showMore', 3)).toBe('Show 3 more runs from this period');
+    expect(tn('en', 'runs.showMore', 1)).toBe('Show 1 more run from this period');
   });
 });
