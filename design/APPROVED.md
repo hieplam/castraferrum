@@ -117,3 +117,48 @@ adjustments of spec D2, so every pair passes WCAG AA with the new pressed state:
 `--border-strong` `#6a7b75` becomes `#74867f`. Where the reference and
 [the spec](../docs/specs/2026-10-21-ui-uplift.md) differ, the spec wins. The rules of the new system are written in
 [`ds/SYSTEM.md`](ds/SYSTEM.md). The owner approves the system and its preview against this reference at task U10.
+
+## new design system and preview - U10: the new design system and its preview, 2026-10-22
+
+Approved by a Claude Code session under the owner's delegation on castraferrum#77 (2026-10-22), quoted (issue numbers written as castraferrum#N for the language scan):
+
+> **Delegated.** I delegate the U10 approval to a Claude Code session, under the following conditions:
+>
+> - The session compares every state of the new preview (`design/ds/preview/`, light and dark, phone and desktop) and the design-system page (`design/ds/index.html`) with the approved reference in `design/reference/`.
+> - Two independent verifiers must each pass the comparison: one Claude agent and one OpenAI model (Codex). Each checks the states the reference shows (do they match it?) and the states it does not show, including the five design-system gaps castraferrum#106, castraferrum#108, castraferrum#110, castraferrum#112 and castraferrum#114 (do they follow the look and the rules of `design/ds/SYSTEM.md`?).
+> - If either verifier fails something, the session opens an issue for each problem, fixes it, and has the fix verified once. There is no repeated fix-and-verify loop.
+> - When both verifiers pass, the session adds the entry "new design system and preview" to `design/APPROVED.md` (quoting this delegation), approves the five gap issues on the same terms, and closes them and this issue.
+>
+> I will look at the result after the fact and ask for changes here if needed.
+
+Approved:
+- the system in [`ds/`](ds/): [`SYSTEM.md`](ds/SYSTEM.md), [`tokens.css`](ds/tokens.css), [`components.css`](ds/components.css), and the design-system page [`ds/index.html`](ds/index.html) at 1440 and 390 px, light and dark;
+- the preview in [`ds/preview/`](ds/preview/): 120 states x light and dark = 240 shots, mapped to the boards in [`ds/STATES.md`](ds/STATES.md).
+
+This is the reference for the build tasks U14 to U19 of epic #63.
+
+How it was approved:
+- **Round 1, both verifiers FAIL.**
+  - Claude: 13 problems; Codex: 8.
+  - The five gap issues were decided under the delegation, each by the approved board where the issue left a choice. Decisions are in the last comment of castraferrum#106, castraferrum#108, castraferrum#110, castraferrum#112 and castraferrum#114.
+  - The remaining problems became castraferrum#122 to castraferrum#125.
+  - Fixed by castraferrum#128 (editor, field rows, combobox, design-system page), castraferrum#129 (loop, active period and run pages) and castraferrum#130 (Loops, Repos, Settings).
+- **Round 2, one check each.**
+  - Claude: every problem fixed except two demos clipped by their frame on the design-system page. Fixed by castraferrum#132 (castraferrum#131), measured by `npm run design:fit`: 14 / 30 elements outside their stage before, 0 / 0 after.
+  - Codex: every problem fixed except the desktop loop page's settings card, still about 170 px taller than `d-loop-*` with divided rows. Fixed by castraferrum#135 (castraferrum#134) with the variant `.def.is-compact`, measured by `npm run design:card`: 696 px before, 564 px after (board 528, tolerance 40).
+  - Each fix was checked once against its board; no further round.
+
+Choices made during the fixes, approved with the system:
+- **Editor:** the time field is a 24-hour text field (`inputmode="numeric"`), as on the board; on the phone, Effort is a row that opens a menu of the five values.
+- **Loop page:**
+  - the side card keeps the heading "Settings and prompt" (Appendix B wins on texts) and the prompt clamp with "Show the full prompt" (castraferrum#108);
+  - a failed run without a summary reads "No summary: the session ended with an error.";
+  - a missing repo shows Open Repos next to Open run.
+- **Folder picker:** a repeated quick-access label is told apart by its parent folder in the data font.
+- **Run page:** the developer API line no longer shows on the active period page.
+
+Known differences, not defects:
+- phone full-page shots show the fixed tab and action bars mid-page (a capture artifact of `position: fixed`; U11 takes the frozen shots);
+- the tab-bar Settings glyph differs from the board's sliders;
+- durations read `4h 13m` where the boards read `4 h 13 m`;
+- the sample data stays English in the `vi-*` states.
