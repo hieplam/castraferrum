@@ -226,8 +226,9 @@ Screens put kit components together in `web/features/`. Never add a class that i
 ### Navigation bar
 
 - **Classes:** `.navbar`, `.navbar-back`, `.navbar-title`, `.navbar-actions`.
-- **Use it** on pushed pages on the phone: a back button, the page name and at most two icon actions. The title is not
-  a heading (the page keeps its one `h1`).
+- **Use it** on pushed pages on the phone: a back button (or Cancel, in the accent colour), the page name and at most
+  two icon actions. The title is not a heading (the page keeps its one `h1`), except on the editor: there the phone page
+  shows no title of its own and the bar title is the `h1` (`<h1 class="navbar-title">`).
 - **Do not** use it on tab roots; they show a large title instead.
 - **Phone:** `--size-navbar` tall plus `--safe-top`, translucent with `--blur-bar`. **Desktop:** hidden; a back link
   above the page title replaces it.
@@ -354,13 +355,28 @@ Screens put kit components together in `web/features/`. Never add a class that i
 ### Fields
 
 - **Classes:** `.field`, `.label`, `.input`, `.textarea`, `.select`, `.hint` (`.is-err`, `.is-warn`), `.count`,
-  `.search`, `.seg` (`button.is-on`), `.stepper`, `.chip` (`.is-on`), `.fcell`, `.form-foot`, `.sched-desc`,
-  `.next-runs`.
-- **Use** `.field` with a visible `.label` for every form control; `.hint` under it for help and errors; `.seg` for two
-  to four exclusive choices; `.chip` for filters; `.stepper` for small numbers; `.fcell` for a field as a row of a
-  group on the phone; `.form-foot` for the editor's Save and Cancel.
+  `.search`, `.seg` (`button.is-on`), `.stepper`, `.chip` (`.is-on`), `.chips`, `.combo`, `.fcell` (`.is-row`),
+  `.form-foot`, `.sched-desc`, `.next-runs`.
+- **Use** `.field` with a visible `.label` for every form control outside a card; `.hint` under it for help and errors;
+  `.seg` for two to five exclusive choices that fit; `.chip` for filters; `.stepper` for small numbers; `.fcell` for a
+  field as a row of a `.group` (the editor uses these groups on every screen size); `.form-foot` for the editor's Save
+  and Cancel.
+- **Stepper:** `.stepper` holds Fewer, the value and More. The value is an `output`, or an `input type="number"`
+  (`.stepper input`: `--size-stepper-value` wide, no border, centred, `--font-data`, no browser spin buttons). In a
+  `.field` the stepper keeps its own width; in a `.cell` it sits at the trailing edge.
+- **Row:** `.fcell.is-row` puts the label at the start and the value (a `select`, an `input`, or a `button.select`,
+  right-aligned) and a `.chev` at the end; a `.hint` wraps under the row. The editor uses it for Repeat, At, Time zone,
+  At minute, Day of the month, the time limit and, on the phone, Effort (the value opens the list of five).
+- **Combobox:** `.combo` wraps a select-like button (`button.select`: the text at the start, cut with an ellipsis) and its
+  `.menu`, which is as wide as the field. A `.group` that holds an open combobox menu stops clipping, so the menu is
+  not cut by the card. A `.menu-item` may hold a `.cell-main` (a name over a path); its meta line is cut, never overlaps.
+- **Chips:** `.chips` is a wrapping row of `.chip` with a `--space-2` gap (the seven weekdays).
+- **Time:** a time of day is a text field showing 24-hour `HH:MM` (`inputmode="numeric"` and a `pattern`), because the
+  browser's `type="time"` shows "02:30 AM" in an English browser.
+- **Prompt:** `.textarea` is in `--font-data`.
 - **Do not** use a placeholder as the label, or make a field smaller than `--fs-field`.
-- **Phone:** controls 44px tall, 16px text, `.fcell` rows in a `.group`. **Desktop:** 36px tall, 16px text.
+- **Phone:** controls 44px tall, 16px text, `.fcell` rows in a `.group`. **Desktop:** 36px tall, 16px text, the same
+  groups in `.page.is-narrow`.
 - **States:** rest, hover, focus, error, disabled.
 - **Wrapper:** `web/ui/kit/Field.tsx`: `Segmented`, `Search` (U14); `Input`, `Textarea`, `Select`, `Stepper`, `Chip`,
   `FieldCell` (U18).
@@ -461,7 +477,8 @@ Screens put kit components together in `web/features/`. Never add a class that i
 - Icon-only buttons get an `aria-label` everywhere and the tooltip on pointer devices.
 - Sheets and dialogs trap focus, close on Escape and give focus back to the opener.
 - The tab bar is a `nav` with `aria-current="page"` on the active tab.
-- Every page has exactly one `h1`; the phone navigation bar title is not a heading.
+- Every page has exactly one `h1`; the phone navigation bar title is not a heading (except on the editor, where it is
+  the page's `h1` and the page shows no other).
 - Status pills are text, not colour alone.
 - Animations stop under `prefers-reduced-motion: reduce` (the duration tokens become 0).
 

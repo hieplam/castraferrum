@@ -32,6 +32,7 @@
   .ds-stage.is-tall { min-height: var(--size-tx); }
   .ds-tipbox { position: relative; display: flex; align-items: flex-end; gap: var(--space-12); min-height: var(--space-12); padding: var(--space-10) var(--space-12) var(--space-10); }
   .ds-tipbox > span { position: relative; display: inline-flex; }
+  .ds-pad { padding: var(--space-4); }
   .ds-phone { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-6); padding: var(--space-6); }
   .ds-phone iframe { width: 390px; height: 844px; border: var(--border-w) solid var(--border-strong); border-radius: var(--radius-sheet); background: var(--bg); }
   .ds-frame .ds-top { display: none; }
@@ -112,6 +113,11 @@
           <button class="btn plain" type="button">Edit</button>
           <button class="iconbtn" type="button" aria-label="More"><svg class="icon"><use href="#i-more"/></svg></button>
         </div>
+      </div>
+      <div class="navbar">
+        <a class="navbar-back" href="#">Cancel</a>
+        <h1 class="navbar-title">New loop</h1>
+        <div class="navbar-actions"></div>
       </div>
       <nav class="tabbar">
         <a class="tabbar-item is-on" href="#" aria-current="page"><svg class="icon"><use href="#i-loops"/></svg>Loops</a>
@@ -435,6 +441,12 @@
     <div class="ds-row">
       <div class="stepper"><button type="button" aria-label="Fewer">-</button><output>1</output><button type="button" aria-label="More">+</button></div>
       <div class="stepper"><button type="button" aria-label="Fewer" disabled>-</button><output>1</output><button class="is-hover" type="button" aria-label="More">+</button></div>
+      <span class="ds-cap">output</span>
+    </div>
+    <div class="ds-row">
+      <div class="stepper"><button type="button" aria-label="Fewer">-</button><input type="number" value="30" aria-label="Every (minutes)"><button type="button" aria-label="More">+</button></div>
+      <div class="stepper"><button type="button" aria-label="Fewer" disabled>-</button><input class="is-focus" type="number" value="1" aria-label="Runs at the same time"><button type="button" aria-label="More">+</button></div>
+      <span class="ds-cap">.stepper input: a number field</span>
     </div>
     <div class="ds-row">
       <button class="chip is-on" type="button">Home</button>
@@ -443,11 +455,35 @@
       <button class="chip is-pressed" type="button">work</button>
       <button class="chip is-focus" type="button">Focused</button>
     </div>
+    <p class="ds-cap">.chips: a wrapping row of chips (weekdays).</p>
+    <div class="chips" role="group" aria-label="On">
+      <button class="chip is-on" type="button" role="checkbox" aria-checked="true">Mon</button><button class="chip" type="button" role="checkbox" aria-checked="false">Tue</button><button class="chip is-on" type="button" role="checkbox" aria-checked="true">Wed</button><button class="chip" type="button" role="checkbox" aria-checked="false">Thu</button><button class="chip is-on" type="button" role="checkbox" aria-checked="true">Fri</button><button class="chip" type="button" role="checkbox" aria-checked="false">Sat</button><button class="chip" type="button" role="checkbox" aria-checked="false">Sun</button>
+    </div>
+    <p class="ds-cap">.fcell, .fcell.is-row (label at the start, value and chevron at the end), .cell with a stepper.</p>
     <div class="group">
       <div class="fcell"><label class="label" for="f-pname">Name</label><input class="input" id="f-pname" value="Issue backlog worker"></div>
       <div class="fcell"><label class="label" for="f-pprompt">Prompt</label><textarea class="textarea" id="f-pprompt">Run node scripts/backlog.js next</textarea><span class="count">33 / 4000</span></div>
-      <div class="cell"><span class="cell-title is-plain">Runs at the same time</span><div class="stepper"><button type="button" aria-label="Fewer">-</button><output>1</output><button type="button" aria-label="More">+</button></div></div>
+      <div class="fcell"><span class="label">Model</span><div class="seg" role="radiogroup" aria-label="Model"><button type="button" role="radio" aria-checked="false">haiku</button><button type="button" role="radio" aria-checked="false">sonnet</button><button class="is-on" type="button" role="radio" aria-checked="true">opus</button></div></div>
+      <div class="fcell is-row"><label class="label" for="f-repeat">Repeat</label><select class="select" id="f-repeat"><option>Every day</option><option>Every N minutes</option></select><svg class="chev icon"><use href="#i-chev"/></svg></div>
+      <div class="fcell is-row"><label class="label" for="f-at">At</label><input class="input" id="f-at" type="text" inputmode="numeric" maxlength="5" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" value="02:30"><svg class="chev icon"><use href="#i-chev"/></svg></div>
+      <div class="fcell is-row"><span class="label" id="l-effort">Effort</span><button class="select" type="button" id="f-effort" aria-haspopup="dialog" aria-labelledby="l-effort f-effort">medium</button><svg class="chev icon"><use href="#i-chev"/></svg></div>
+      <div class="cell"><span class="cell-main"><span class="cell-title is-plain">Runs at the same time</span><span class="cell-meta">at most</span></span><div class="stepper"><button type="button" aria-label="Fewer" disabled>-</button><input type="number" value="1" aria-label="Runs at the same time"><button type="button" aria-label="More">+</button></div></div>
+      <div class="fcell is-row"><label class="label" for="f-limit">Time limit per run</label><input class="input" id="f-limit" type="number" placeholder="None"><svg class="chev icon"><use href="#i-chev"/></svg><p class="hint">seconds, empty for none</p></div>
     </div>
+    <p class="ds-cap">Combobox: .combo holds a select-like button (button.select, the text at the start) and its menu, as wide as the field.</p>
+    <div class="ds-stage"><div class="ds-pad"><div class="group">
+      <div class="fcell"><label class="label" for="f-repo">Repo</label>
+        <div class="combo">
+          <button class="select" type="button" id="f-repo" aria-haspopup="menu" aria-expanded="true">acme-api</button>
+          <div class="menu" role="menu">
+            <button class="menu-item is-on" type="button" role="menuitemradio" aria-checked="true"><span class="cell-main"><span class="cell-title is-plain">acme-api</span><span class="cell-meta">C:\Users\alice\work\acme-api</span></span></button>
+            <button class="menu-item" type="button" role="menuitemradio" aria-checked="false"><span class="cell-main"><span class="cell-title is-plain">acme-api (old)</span><span class="cell-meta">C:\Users\alice\acme-api</span><span class="hint is-warn">Folder is gone. Runs will fail.</span></span></button>
+            <hr>
+            <a class="menu-item" href="#">Manage repos</a>
+          </div>
+        </div>
+      </div>
+    </div></div></div>
     <div class="card is-pad">
       <p class="sched-desc">Every 30 minutes</p>
       <ol class="next-runs"><li><span>Sun 18/10 14:30</span><span>in 29 min</span></li><li><span>Sun 18/10 15:00</span><span>in 59 min</span></li></ol>
