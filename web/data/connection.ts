@@ -2,7 +2,7 @@
 // Server: from the SSE connection `/api/events` (a loss is known at once - a dead server breaks the TCP link). DB: `/api/health` every 5 seconds
 // (one light request; the spec forbids "dense polling" for data, and health carries no data).
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { ConnectionState } from '../api/live-events';
 import { useApi, useLive } from './provider';
 import { qk } from './query-keys';
@@ -80,6 +80,15 @@ export function useServerStatus(): ServerStatus {
   }, [connection.status]);
 
   return { connection, server, db, dbDownSince: db === 'down' ? dbDownSince : null, reconnected, stale: server === 'down' || db === 'down' };
+}
+
+/** The frame of the new UI reads the status once and shares it: the pages under it (Settings) read it with `useSharedServerStatus()`. */
+export const ServerStatusContext = createContext<ServerStatus | null>(null);
+
+export function useSharedServerStatus(): ServerStatus {
+  const status = useContext(ServerStatusContext);
+  if (!status) throw new Error('useSharedServerStatus() must be inside the frame (<ServerStatusContext.Provider>)');
+  return status;
 }
 
 /** Now, self-updating every `everyMs` (countdown, "running for how long"). */
