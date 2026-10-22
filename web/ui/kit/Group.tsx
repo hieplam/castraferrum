@@ -20,6 +20,18 @@ export function Group({ caption, testId, children }: { caption?: ReactNode; test
   );
 }
 
+/**
+ * A row of a group that the caller fills: a link or button for its main part, an action at the trailing edge (a loop of the Loops
+ * page). `data` adds the `data-*` attributes the tests read.
+ */
+export function RowCell({ testId, data, children }: { testId?: string; data?: Record<`data-${string}`, string | undefined>; children: ReactNode }) {
+  return (
+    <div className="cell" data-testid={testId} {...data}>
+      {children}
+    </div>
+  );
+}
+
 export type CellProps = {
   title: ReactNode;
   /** The title in body size and regular weight, as a settings row (`is-plain`). */

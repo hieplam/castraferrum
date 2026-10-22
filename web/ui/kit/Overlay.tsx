@@ -7,7 +7,7 @@
 //   Sheet / Dialog  modal surfaces; a Dialog is a sheet on the phone. Focus is trapped inside, Escape closes, and focus goes back
 //             to the opener.
 // Every text is a prop (no i18n in the kit).
-import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
+import { Fragment, useCallback, useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
 import { cx } from './cx';
 import { Icon } from './Icon';
 import { useLayout } from './Layout';
@@ -181,6 +181,9 @@ export function Dialog({
 /** The wrapper that positions a popover or a menu under the control that opened it. */
 const POP_STYLE = { position: 'relative', display: 'inline-flex' } as const;
 const BELOW_STYLE = { position: 'absolute', top: 'calc(100% + var(--space-1))', right: 0 } as const;
+/** A menu of a table row hangs from the row (the row is its positioned parent), over the row's trailing padding. */
+const ROW_WRAP_STYLE = { display: 'inline-flex' } as const;
+const ROW_STYLE = { position: 'absolute', top: 'calc(100% - var(--space-3))', right: 'var(--space-4)' } as const;
 
 /** Closes on Escape (and gives the focus back to the control) and on a pointer press outside `box` and `opener`. */
 function useDismiss(open: boolean, close: () => void, box: RefObject<HTMLElement | null>, opener: RefObject<HTMLElement | null>) {
@@ -276,6 +279,8 @@ export type MenuItem = {
   disabled?: boolean;
   /** The chosen one of a list of choices (a filter). */
   on?: boolean;
+  /** A rule above this item, on the desktop's menu (the phone's sheet lists the cells without one). */
+  separatorBefore?: boolean;
 };
 
 /**
@@ -286,11 +291,14 @@ export function Menu({
   label,
   items,
   testId,
+  hangsFrom = 'button',
   trigger,
 }: {
   label: string;
   items: MenuItem[];
   testId?: string;
+  /** Where the desktop's menu hangs: under its button (default), or from the table row that holds the button. */
+  hangsFrom?: 'button' | 'row';
   trigger: (props: { ref: RefObject<HTMLButtonElement | null>; onClick: () => void; 'aria-haspopup': 'menu' | 'dialog'; 'aria-expanded': boolean }) => ReactNode;
 }) {
   const layout = useLayout();
@@ -316,27 +324,11 @@ export function Menu({
     next?.focus();
   };
   const props = { ref: opener, onClick: () => setOpen((v) => !v), 'aria-haspopup': layout === 'phone' ? ('dialog' as const) : ('menu' as const), 'aria-expanded': open };
-  return (
-    <span style={POP_STYLE}>
-      {trigger(props)}
-      {layout === 'desktop' && open ? (
-        <div ref={box} className="menu" role="menu" aria-label={label} style={BELOW_STYLE} data-testid={testId} onKeyDown={onKeyDown}>
-          {items.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              role="menuitem"
-              className={cx('menu-item', item.danger && 'is-danger', item.on && 'is-on')}
-              aria-disabled={item.disabled || undefined}
-              data-testid={item.testId}
-              onClick={() => choose(item)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
-      {layout === 'phone' ? (
+  // On the phone the trigger stays a direct child of its parent (a toolbar's grid places it), so there is no wrapper.
+  if (layout === 'phone') {
+    return (
+      <>
+        {trigger(props)}
         <Sheet open={open} onClose={close} title={label} testId={testId}>
           <div className="group">
             {items.map((item) => (
@@ -353,6 +345,30 @@ export function Menu({
             ))}
           </div>
         </Sheet>
+      </>
+    );
+  }
+  return (
+    <span style={hangsFrom === 'row' ? ROW_WRAP_STYLE : POP_STYLE}>
+      {trigger(props)}
+      {open ? (
+        <div ref={box} className="menu" role="menu" aria-label={label} style={hangsFrom === 'row' ? ROW_STYLE : BELOW_STYLE} data-testid={testId} onKeyDown={onKeyDown}>
+          {items.map((item) => (
+            <Fragment key={item.id}>
+              {item.separatorBefore ? <hr /> : null}
+              <button
+                type="button"
+                role="menuitem"
+                className={cx('menu-item', item.danger && 'is-danger', item.on && 'is-on')}
+                aria-disabled={item.disabled || undefined}
+                data-testid={item.testId}
+                onClick={() => choose(item)}
+              >
+                {item.label}
+              </button>
+            </Fragment>
+          ))}
+        </div>
       ) : null}
     </span>
   );

@@ -13,12 +13,14 @@ export function Segmented<V extends string>({
   options,
   onChange,
   testId,
+  disabled,
 }: {
   label: string;
   value: V;
   options: SegmentOption<V>[];
   onChange: (value: V) => void;
   testId?: string;
+  disabled?: boolean;
 }) {
   return (
     <div className="seg" role="radiogroup" aria-label={label} data-testid={testId} data-value={value}>
@@ -30,6 +32,7 @@ export function Segmented<V extends string>({
           aria-checked={o.value === value}
           className={cx(o.value === value && 'is-on')}
           data-testid={o.testId}
+          disabled={disabled}
           onClick={() => onChange(o.value)}
         >
           {o.label}

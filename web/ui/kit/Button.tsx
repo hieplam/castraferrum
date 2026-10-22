@@ -1,11 +1,11 @@
 // Buttons (`.btn`, `.iconbtn`, `.act`). An icon-only button always has an `aria-label` (its `label`) and, on a pointer device, the
 // tooltip of the same text. Never a native `title`: the lint (`npm run design:lint`) fails on it.
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react';
 import { cx } from './cx';
 import { Icon, type IconName } from './Icon';
 import { Tooltip } from './Overlay';
 
-type Native = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'title' | 'className' | 'children' | 'aria-label'>;
+type Native = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'title' | 'className' | 'children' | 'aria-label'> & { ref?: Ref<HTMLButtonElement> };
 
 export type ButtonVariant = 'default' | 'primary' | 'danger' | 'danger-solid' | 'ghost' | 'plain';
 const VARIANT: Record<ButtonVariant, string | false> = {
