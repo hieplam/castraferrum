@@ -8,6 +8,7 @@ import { basename, join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { api, closeDb, db } from '../support/form-kit';
 import { t } from '../support/ui-text';
+import { openFolderPicker } from '../support/ui';
 
 test.use({ timezoneId: 'Asia/Ho_Chi_Minh' });
 test.afterAll(closeDb);
@@ -35,7 +36,7 @@ test.describe('browse folders when registering a repo', () => {
 
     // The path field holds the tree root -> the box opens exactly there.
     await page.getByTestId('repo-path').fill(root);
-    await page.getByTestId('repo-browse').click();
+    await openFolderPicker(page);
     await expect(page.getByTestId('folder-picker')).toBeVisible();
     await listAt(page, root);
     await expect(page.getByTestId('folder-row')).toHaveText([/proj-a/, /proj-b/]); // `.an` is hidden by default
@@ -50,7 +51,7 @@ test.describe('browse folders when registering a repo', () => {
     await row(page, 'sub').getByTestId('folder-open').click();
     await listAt(page, join(root, 'proj-b', 'sub'));
     await page.getByTestId('folder-filter').press('ArrowDown');
-    await expect(row(page, 'deep')).toHaveClass(/is-sel/);
+    await expect(row(page, 'deep')).toHaveAttribute('aria-selected', 'true');
     await page.getByTestId('folder-filter').press('Enter');
     await listAt(page, deep);
     await expect(page.getByTestId('folder-empty')).toBeVisible(); // deep has no subfolders
@@ -58,7 +59,7 @@ test.describe('browse folders when registering a repo', () => {
     // ⌫ (empty filter) = up to the parent, the folder just left is pre-selected -> "Will choose" = deep.
     await page.getByTestId('folder-filter').press('Backspace');
     await listAt(page, join(root, 'proj-b', 'sub'));
-    await expect(row(page, 'deep')).toHaveClass(/is-sel/);
+    await expect(row(page, 'deep')).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByTestId('folder-target')).toHaveAttribute('data-path', deep);
 
     // Breadcrumb to the tree root then back in through the cache history - still the right folder.
@@ -79,7 +80,7 @@ test.describe('browse folders when registering a repo', () => {
     expect((await db().query('SELECT name, path FROM repos')).rows).toEqual([{ name: 'deep', path: deep }]);
 
     // Reopen (empty path field) -> back to the folder opened last time; the folder just registered carries the repo tag, choose it -> the Choose button is locked.
-    await page.getByTestId('repo-browse').click();
+    await openFolderPicker(page);
     await listAt(page, join(root, 'proj-b', 'sub'));
     await expect(row(page, 'deep')).toContainText(t('folder.tag.repo', { name: 'deep' }));
     await row(page, 'deep').click();

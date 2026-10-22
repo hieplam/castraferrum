@@ -10,6 +10,7 @@ import { liveDbUrl, ServerProcess } from '../support/server-process';
 import { MOCK_DONE_LOG, MOCK_FAIL_ERROR, skipSingle, timeoutError } from '../support/server-text';
 import { ensureTestRepo } from '../support/test-repo';
 import { t } from '../support/ui-text';
+import { executionRows, lampState, runHistory, statValue } from '../support/ui';
 
 loadDotEnv();
 const TZ = 'Asia/Ho_Chi_Minh';
@@ -72,10 +73,10 @@ async function setClock(api: Api, at: string) {
 }
 async function open(page: Page, url: string) {
   await page.goto(url);
-  await expect(page.getByTestId('lamp-server')).toHaveAttribute('data-state', 'ok');
+  await expect(lampState(page, 'server')).toHaveAttribute('data-state', 'ok');
 }
 const loopRow = (page: Page, name: string) =>
-  page.getByTestId('loop-row').filter({ has: page.locator('.row-name .nm', { hasText: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) }) });
+  page.getByTestId('loop-row').filter({ has: page.getByTestId('loop-name').filter({ hasText: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) }) });
 /** The ✓ ✗ ⊘ ↷ counts of the open / latest execution = SELECT. */
 async function execCounts(executionId: string, pool = db): Promise<string> {
   const [c] = await rowsOf<Record<string, number>>(
@@ -102,7 +103,7 @@ test.describe('system - the shared e2e server', () => {
     const loop = await createLoop(api, 'UC-12 skip on overlap');
     await open(page, `/loops/${loop.id}`);
     await page.getByTestId('loop-start').click();
-    await expect(page.locator('.ph .st.running')).toContainText('Run #1 in progress');
+    await expect(page.locator('[data-testid="loop-status"][data-status="running"]')).toContainText('Run #1 in progress');
     const [first] = await until(() => runsOf(loop.id), (r) => r.length === 1 && r[0]!.status === 'running');
 
     // Two cron ticks (03:01, 03:02) arrive while run #1 (600 seconds) is going -> two skipped runs.
@@ -134,7 +135,7 @@ test.describe('system - the shared e2e server', () => {
     expect(dup).toBe('23514 runs_max_concurrent_per_loop');
 
     // Detail screen: the run table has two skipped rows with the reason from the DB, no F5; the list row counts ↷2.
-    const table = page.getByTestId('runs-table');
+    const table = runHistory(page);
     await expect(table.locator('[data-status="skipped"]')).toHaveCount(2, { timeout: 2_000 });
     await expect(table.locator('[data-status="skipped"]').first()).toContainText(skipSingle('#1'));
     await expect(table.locator('[data-status="running"]')).toHaveCount(1);
@@ -174,7 +175,7 @@ test.describe('system - the shared e2e server', () => {
     );
     expect(state).toEqual({ status: 'active', ended_at: null });
     await expect(page.getByTestId('loop-header')).toHaveAttribute('data-status', 'active');
-    await expect(page.getByTestId('runs-table').locator('[data-status="timed_out"]')).toHaveCount(1, { timeout: 2_000 });
+    await expect(runHistory(page).locator('[data-status="timed_out"]')).toHaveCount(1, { timeout: 2_000 });
 
     // The next tick (03:05) runs normally: run #2 on schedule, runs the full 8 seconds -> succeeded, same execution.
     await setClock(api, '2026-11-02T03:05:01Z');
@@ -184,7 +185,7 @@ test.describe('system - the shared e2e server', () => {
       [2, 'schedule', 'succeeded'],
     ]);
     expect(done[1]!.execution_id).toBe(done[0]!.execution_id);
-    await expect(page.getByTestId('runs-table').locator('[data-status="succeeded"]')).toHaveCount(1, { timeout: 2_000 });
+    await expect(runHistory(page).locator('[data-status="succeeded"]')).toHaveCount(1, { timeout: 2_000 });
     await expect(loopRow(page, 'UC-13 timeout').getByTestId('row-counts')).toHaveText(await execCounts(done[0]!.execution_id), { timeout: 2_000 });
     await expect(loopRow(page, 'UC-13 timeout').getByTestId('row-counts')).toHaveText('✓1 ✗1 ⊘0 ↷0');
     // Timed-out run screen: the error = the error column.
@@ -227,8 +228,8 @@ test.describe('system - the shared e2e server', () => {
     expect(still!.ended_at).toBeNull();
     await expect(loopRow(page, 'UC-14 failed run').getByTestId('row-counts')).toHaveText(await execCounts(ex!.id), { timeout: 2_000 });
     await expect(loopRow(page, 'UC-14 failed run').getByTestId('row-counts')).toHaveText('✓1 ✗1 ⊘0 ↷0');
-    await expect(page.getByTestId('runs-table').locator('[data-status="failed"]')).toHaveCount(1);
-    await expect(page.getByTestId('runs-table').locator('[data-status="succeeded"]')).toHaveCount(1);
+    await expect(runHistory(page).locator('[data-status="failed"]')).toHaveCount(1);
+    await expect(runHistory(page).locator('[data-status="succeeded"]')).toHaveCount(1);
     // Failed run screen: the error message = the error column.
     await open(page, `/runs/${r1!.id}`);
     await expect(page.getByTestId('run-header')).toHaveAttribute('data-status', 'failed');
@@ -276,9 +277,9 @@ test.describe('system - the shared e2e server', () => {
     );
     expect(running[0]!.n).toBe(10);
     // UI: the overview bar + every row update themselves within 2 seconds, no F5.
-    await expect(page.getByTestId('stat-active-loops')).toHaveText(t('top.stats.activeLoops', { n: 10 }), { timeout: 2_000 });
-    await expect(page.getByTestId('stat-running-runs')).toHaveText(t('top.stats.runningRuns', { n: 10 }), { timeout: 2_000 });
-    for (const name of names) await expect(loopRow(page, name).locator('.st.running')).toHaveText(/^#1 00:\d\d$/, { timeout: 2_000 });
+    await expect(statValue(page, 'active-loops')).toHaveText(t('top.stats.activeLoops', { n: 10 }), { timeout: 2_000 });
+    await expect(statValue(page, 'running-runs')).toHaveText(t('top.stats.runningRuns', { n: 10 }), { timeout: 2_000 });
+    for (const name of names) await expect(loopRow(page, name).locator('[data-testid="row-status"][data-status="running"]')).toHaveText(/^#1 00:\d\d$/, { timeout: 2_000 });
 
     // The runs really overlap: the latest-starting run still starts before the earliest-ending run.
     await until(() => rows<{ n: number }>(`SELECT count(*)::int n FROM runs WHERE status = 'succeeded'`), (r) => r[0]!.n === 10, 30_000);
@@ -291,7 +292,7 @@ test.describe('system - the shared e2e server', () => {
     expect(span!.execs).toBe(10);
 
     // Every loop's figures = SELECT (each loop has exactly one succeeded run in its own execution #1, none mixed with another loop's).
-    await expect(page.getByTestId('stat-running-runs')).toHaveText(t('top.stats.runningRuns', { n: 0 }), { timeout: 2_000 });
+    await expect(statValue(page, 'running-runs')).toHaveText(t('top.stats.runningRuns', { n: 0 }), { timeout: 2_000 });
     for (const l of loops) {
       const [ex] = await rows<{ id: string; seq: number }>('SELECT id, seq FROM loop_executions WHERE loop_id = $1 AND ended_at IS NULL', [l.id]);
       expect(ex!.seq).toBe(1);
@@ -301,7 +302,7 @@ test.describe('system - the shared e2e server', () => {
       await expect(r.getByTestId('row-exec')).toHaveText(/^exec #1 /);
     }
     const today = (await rows<{ n: number }>(`SELECT count(*)::int n FROM runs WHERE status <> 'skipped'`))[0]!.n;
-    await expect(page.getByTestId('stat-runs-today')).toHaveText(t('top.stats.runsToday', { n: today }));
+    await expect(statValue(page, 'runs-today')).toHaveText(t('top.stats.runsToday', { n: today }));
 
     // Smooth: for ~15 seconds 10 runs print logs together, the main thread is never blocked over 200 ms, no frame gap over 250 ms.
     const smooth = await page.evaluate(() => {
@@ -346,7 +347,7 @@ test.describe('system - a dedicated server process', () => {
 
       await open(page, `${sp.baseUrl}/loops/${a.id}`);
       await expect(page.getByTestId('loop-header')).toHaveAttribute('data-status', 'active');
-      await expect(page.locator('.ph .st.running')).toContainText('Run #1 in progress');
+      await expect(page.locator('[data-testid="loop-status"][data-status="running"]')).toContainText('Run #1 in progress');
       await page.evaluate(() => ((window as unknown as { __noReload: boolean }).__noReload = true));
 
       const before = await snapshot(live);
@@ -398,13 +399,13 @@ test.describe('system - a dedicated server process', () => {
       await expect(page.getByTestId('banner-reconnected')).toBeVisible({ timeout: 12_000 });
       await expect(page.getByTestId('loop-header')).toHaveAttribute('data-status', 'stopped', { timeout: 2_000 });
       await expect(page.getByTestId('server-down-banner')).toBeVisible();
-      await expect(page.getByTestId('runs-table').locator(`[data-testid=run-row][data-run-id="${runA!.id}"]`)).toHaveAttribute('data-status', 'interrupted');
-      await expect(page.getByTestId('exec-row')).toHaveCount(1);
+      await expect(runHistory(page).locator(`[data-testid=run-row][data-run-id="${runA!.id}"]`)).toHaveAttribute('data-status', 'interrupted');
+      await expect(executionRows(page)).toHaveCount(1);
       expect(await page.evaluate(() => (window as unknown as { __noReload?: boolean }).__noReload)).toBe(true);
 
       // Press Start -> a new execution (#2), the first `start` run runs at once.
       await page.getByTestId('loop-start').click();
-      await expect(page.locator('.ph .st.running')).toContainText('Run #2 in progress');
+      await expect(page.locator('[data-testid="loop-status"][data-status="running"]')).toContainText('Run #2 in progress');
       const execs = await rowsOf<{ seq: number; end_reason: string | null }>(live, 'SELECT seq, end_reason FROM loop_executions WHERE loop_id = $1 ORDER BY seq', [a.id]);
       expect(execs).toEqual([
         { seq: 1, end_reason: 'server_down' },

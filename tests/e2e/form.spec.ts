@@ -10,6 +10,7 @@ import { PREVIEW_NOW, api, closeDb, createLoop, db, fill, loopRow, loopRows, pic
 import { TEST_REPO } from '../support/test-repo';
 import { copyName as serverCopyName } from '../support/server-text';
 import { t } from '../support/ui-text';
+import { pickScheduleKind } from '../support/ui';
 
 const TZ = 'Asia/Ho_Chi_Minh';
 
@@ -52,10 +53,10 @@ test.describe('create / edit form', () => {
     // Empty name + repo + prompt -> errors at three fields, summary "3 fields", nothing in the DB.
     await submit(page);
     await expect(fieldError(page, 'f-name')).toHaveText(t('val.required'));
-    await expect(page.getByTestId('f-repo').locator('xpath=../..')).toContainText(t('val.repoRequired'));
+    await expect(page.getByTestId('error-f-repo')).toContainText(t('val.repoRequired'));
     await expect(fieldError(page, 'f-prompt')).toHaveText(t('val.required'));
     await expect(page.getByTestId('form-errors')).toHaveText(t('form.errSummary', { n: 3 }));
-    await expect(page.getByTestId('f-name')).toHaveClass(/is-error/);
+    await expect(page.getByTestId('f-name')).toHaveAttribute('aria-invalid', 'true');
     expect(await loopRows()).toHaveLength(0);
 
     // Typing into a field with an error -> that field's error clears at once.
@@ -78,7 +79,7 @@ test.describe('create / edit form', () => {
     expect(await loopRows()).toHaveLength(0);
 
     await fill(page, 'f-timeout', '900');
-    await expect(page.getByTestId('f-timeout').locator('xpath=../..')).toContainText(`= ${t('dur.m', { m: 15 })}`);
+    await expect(page.getByTestId('hint-f-timeout')).toContainText(`= ${t('dur.m', { m: 15 })}`);
     await fill(page, 'f-duration', '20');
     await fill(page, 'f-fail', '5');
     await submit(page);
@@ -130,13 +131,13 @@ test.describe('create / edit form', () => {
     await fill(page, 'f-prompt', 'gh pr list');
     await pickRepo(page, TEST_REPO.name);
 
-    await page.getByTestId('sched-kind-weekly').click();
+    await pickScheduleKind(page, 'weekly');
     await pickDays(page, [1, 3, 5]);
     await fill(page, 'sched-time', '08:30');
     await expect(page.getByTestId('sched-desc')).toHaveText(describe('30 8 * * 1,3,5', 'en'));
     await expect(page.getByTestId('sched-desc')).toHaveText('At 08:30 on Monday, Wednesday, Friday');
     await expect(page.getByTestId('sched-cron-out')).toHaveText('30 8 * * 1,3,5');
-    const shown = (await page.getByTestId('sched-next').locator('li > span:first-child').allInnerTexts()).map((s) => s.replace(/\s+/g, ' ').trim());
+    const shown = (await page.getByTestId('sched-next-when').allInnerTexts()).map((s) => s.replace(/\s+/g, ' ').trim());
     expect(shown).toEqual(expectedRuns('30 8 * * 1,3,5', PREVIEW_NOW));
     expect(shown[0]).toBe(`${en['day.short.1']} 19/10 · 08:30`);
     await expect(page.getByTestId('sched-next').locator('li').first()).toContainText(t('rel.in', { d: t('dur.hm', { h: 18, m: 29 }) }));
@@ -172,7 +173,7 @@ test.describe('create / edit form', () => {
     // Mistyped Advanced -> error at the right field, no next runs, cannot save (even with Enter).
     await fill(page, 'f-name', 'Bad cron');
     await fill(page, 'f-prompt', 'p');
-    await page.getByTestId('sched-kind-advanced').click();
+    await pickScheduleKind(page, 'advanced');
     await expect(page.getByTestId('sched-cron')).toHaveValue('*/7 * * * *');
     await fill(page, 'sched-cron', '61 8 * * 1-5');
     const bad = validate('61 8 * * 1-5');
@@ -210,7 +211,7 @@ test.describe('create / edit form', () => {
     await expect(page.getByTestId('f-duration')).toHaveValue('600');
 
     await fill(page, 'f-prompt', 'New prompt');
-    await page.getByTestId('sched-kind-minutes').click();
+    await pickScheduleKind(page, 'minutes');
     await fill(page, 'sched-minutes', '15');
     await fill(page, 'f-fail', '7');
     await submit(page);

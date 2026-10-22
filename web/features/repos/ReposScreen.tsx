@@ -145,7 +145,7 @@ export function ReposScreen() {
           {list.map((r) => (
             <tr key={r.id} data-testid="repo-row" data-repo-id={r.id} data-exists={String(r.exists)}>
               <td>
-                <span className="repo-tag" data-raw="">{r.name}</span>
+                <span className="repo-tag" data-raw="" data-testid="repo-row-name">{r.name}</span>
               </td>
               <td>
                 <span data-raw="">{r.path}</span>

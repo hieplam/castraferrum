@@ -231,10 +231,11 @@ export function LoopForm({ base, latest, duplicated, saving, onSave, onSaved, on
       <SectionTitle title={t('form.section.info')} />
       <div className="form-grid">
         <Field label={t('form.name')} htmlFor="f-name" error={err('name')} hint={hint(t('form.name.hint'))}>
-          <input form={FORM_ID} id="f-name" className={cx('input', shown.name && 'is-error')} value={values.name} onChange={(e) => set('name', e.target.value)} autoComplete="off" data-testid="f-name" data-raw />
+          <input form={FORM_ID} id="f-name" className={cx('input', shown.name && 'is-error')} aria-invalid={shown.name ? true : undefined} value={values.name} onChange={(e) => set('name', e.target.value)} autoComplete="off" data-testid="f-name" data-raw />
         </Field>
         <Field
           label={t('form.repo')}
+          errorFor="f-repo"
           error={err('repo')}
           hint={
             noRepos ? (
@@ -275,7 +276,7 @@ export function LoopForm({ base, latest, duplicated, saving, onSave, onSaved, on
               testId: `repo-opt-${r.id}`,
               content: (
                 <>
-                  <b data-raw="">{r.name}</b>
+                  <b data-raw="" data-testid="repo-opt-name">{r.name}</b>
                   <span className="opt-path" data-raw="">
                     {r.path}
                   </span>
@@ -292,7 +293,7 @@ export function LoopForm({ base, latest, duplicated, saving, onSave, onSaved, on
           />
         </Field>
         <Field label={t('form.desc')} htmlFor="f-description" className="span-all" error={err('description')} hint={hint(t('form.desc.hint'))}>
-          <input form={FORM_ID} id="f-description" className={cx('input', shown.description && 'is-error')} value={values.description} onChange={(e) => set('description', e.target.value)} autoComplete="off" data-testid="f-description" data-raw />
+          <input form={FORM_ID} id="f-description" className={cx('input', shown.description && 'is-error')} aria-invalid={shown.description ? true : undefined} value={values.description} onChange={(e) => set('description', e.target.value)} autoComplete="off" data-testid="f-description" data-raw />
         </Field>
         <Field
           label={t('form.prompt')}
@@ -304,6 +305,7 @@ export function LoopForm({ base, latest, duplicated, saving, onSave, onSaved, on
           <textarea
             id="f-prompt"
             className={cx('textarea mono', shown.prompt && 'is-error')}
+            aria-invalid={shown.prompt ? true : undefined}
             placeholder={t('form.prompt.placeholder')}
             value={values.prompt}
             onChange={(e) => set('prompt', e.target.value)}
@@ -386,9 +388,9 @@ export function LoopForm({ base, latest, duplicated, saving, onSave, onSaved, on
 
 function NumberField({ id, label, unit, value, onChange, error, hint, placeholder }: { id: string; label: string; unit: string; value: string; onChange(v: string): void; error?: string | undefined; hint: string; placeholder?: string }) {
   return (
-    <Field label={label} htmlFor={id} error={error} hint={<span className="hint">{hint}</span>}>
+    <Field label={label} htmlFor={id} error={error} hint={<span className="hint" data-testid={`hint-${id}`}>{hint}</span>}>
       <div className="affix">
-        <input form={FORM_ID} id={id} className={cx('input mono', error && 'is-error')} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} inputMode="numeric" autoComplete="off" data-testid={id} />
+        <input form={FORM_ID} id={id} className={cx('input mono', error && 'is-error')} aria-invalid={error ? true : undefined} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} inputMode="numeric" autoComplete="off" data-testid={id} />
         <span>{unit}</span>
       </div>
     </Field>

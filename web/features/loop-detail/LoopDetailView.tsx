@@ -113,7 +113,7 @@ function LoopHeader({ loop, now, offline, actions }: { loop: LoopDetailDto; now:
   let status;
   let buttons;
   if (actions.stopping && run) {
-    status = <StatusTag kind="cancelled" pulse>{t('loop.stoppingNow', { n: run.iteration ?? '' })}</StatusTag>;
+    status = <StatusTag kind="cancelled" pulse testId="loop-status">{t('loop.stoppingNow', { n: run.iteration ?? '' })}</StatusTag>;
     buttons = (
       <>
         {edit}
@@ -123,7 +123,7 @@ function LoopHeader({ loop, now, offline, actions }: { loop: LoopDetailDto; now:
       </>
     );
   } else if (loop.archivedAt) {
-    status = <StatusTag kind="archived">{t('loop.status.archived')}</StatusTag>;
+    status = <StatusTag kind="archived" testId="loop-status">{t('loop.status.archived')}</StatusTag>;
     buttons = (
       <>
         <LoopMenu loop={loop} actions={actions} disabled={offline} />
@@ -138,15 +138,15 @@ function LoopHeader({ loop, now, offline, actions }: { loop: LoopDetailDto; now:
   } else if (loop.status === 'active') {
     status = loop.activeRuns.length > 1 ? (
       // several parallel runs -> count + the iterations (newest first)
-      <StatusTag kind="running" pulse>
+      <StatusTag kind="running" pulse testId="loop-status">
         {t('loop.runningMany', { c: loop.activeRuns.length, list: roundList(loop.activeRuns) })}
       </StatusTag>
     ) : run ? (
-      <StatusTag kind="running" pulse>
+      <StatusTag kind="running" pulse testId="loop-status">
         {t('loop.runningNow', { n: run.iteration ?? '', t: fmtClock(secBetween(run.startedAt, now)) })}
       </StatusTag>
     ) : (
-      <StatusTag kind="active">{t('loop.idleNext', { at: loop.nextRunAt ? fmtStampHm(loop.nextRunAt, loop.timezone, now) : '—' })}</StatusTag>
+      <StatusTag kind="active" testId="loop-status">{t('loop.idleNext', { at: loop.nextRunAt ? fmtStampHm(loop.nextRunAt, loop.timezone, now) : '—' })}</StatusTag>
     );
     buttons = (
       <>
@@ -159,9 +159,9 @@ function LoopHeader({ loop, now, offline, actions }: { loop: LoopDetailDto; now:
   } else {
     status =
       exec?.endReason === 'server_down' ? (
-        <StatusTag kind="server_down">{t('loop.status.server_down')}</StatusTag>
+        <StatusTag kind="server_down" testId="loop-status">{t('loop.status.server_down')}</StatusTag>
       ) : (
-        <StatusTag kind="stopped">{t('loop.status.stopped')}</StatusTag>
+        <StatusTag kind="stopped" testId="loop-status">{t('loop.status.stopped')}</StatusTag>
       );
     buttons = (
       <>
@@ -191,7 +191,9 @@ function LoopHeader({ loop, now, offline, actions }: { loop: LoopDetailDto; now:
           </>
         )}
         <span className="mono">
-          <RepoTag name={loop.repo.name} />
+          <span data-testid="loop-repo">
+            <RepoTag name={loop.repo.name} />
+          </span>
           {` · ${meta.join(' · ')}`}
         </span>
       </div>

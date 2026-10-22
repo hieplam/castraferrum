@@ -101,7 +101,7 @@ export function TranscriptView({ left, right, rows, edge, live, paused, onNearTo
         <span>{right}</span>
       </div>
       {/* overflow-anchor: none - keeps its place itself on insert-on-top (the browser's scroll anchor would compensate a second time) */}
-      <div className="log-scroll" ref={scroll} onScroll={onScroll} style={{ overflowAnchor: 'none' }} data-raw="">
+      <div className="log-scroll" ref={scroll} onScroll={onScroll} style={{ overflowAnchor: 'none' }} data-raw="" data-testid={testId ? `${testId}-scroll` : undefined}>
         {edge !== null && <div className="tx-edge" data-testid={testId ? `${testId}-edge` : undefined}>{edge}</div>}
         {rows.map((r) => (
           <div key={r.key} className={cx('tx-row', `k-${r.kind}`, r.err && 'is-err')} data-cursor={r.cursor} data-at={r.at ?? undefined} data-kind={r.kind}>

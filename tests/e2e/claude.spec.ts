@@ -15,6 +15,7 @@ import { formatUsd } from '../../shared/domain/cost';
 import { api, closeDb, db, fill, pickRepo } from '../support/form-kit';
 import { CLAUDE_END_OK_PREFIX, claudeStartLog } from '../support/server-text';
 import { t } from '../support/ui-text';
+import { pickScheduleKind, registerRepo } from '../support/ui';
 
 test.use({ timezoneId: 'Asia/Ho_Chi_Minh', permissions: ['clipboard-read', 'clipboard-write'] });
 test.afterAll(closeDb);
@@ -38,8 +39,7 @@ test('UC-22: a real Claude run - session id on screen = SELECT = the .jsonl file
 
   // Register the repo on the Repos page.
   await page.goto('/repos');
-  await page.getByTestId('repo-path').fill(dir);
-  await page.getByTestId('repo-submit').click();
+  await registerRepo(page, dir);
   await expect(page.getByTestId('repo-row')).toHaveCount(1);
 
   // Create a Claude haiku / low loop on the form, yearly schedule (only the first run at Start runs).
@@ -49,7 +49,7 @@ test('UC-22: a real Claude run - session id on screen = SELECT = the .jsonl file
   await pickRepo(page, basename(dir));
   await page.getByTestId('f-model-haiku').click();
   await page.getByTestId('f-effort-low').click();
-  await page.getByTestId('sched-kind-advanced').click();
+  await pickScheduleKind(page, 'advanced');
   await fill(page, 'sched-cron', '0 0 1 1 *');
   await page.getByTestId('form-submit').click();
   await expect(page).toHaveURL(/\/loops\/[0-9a-f-]{36}$/);
@@ -101,8 +101,7 @@ test('UC-30: a run waiting for a background task - the agent runs a background c
 
   // Register the repo, create a Claude haiku / low loop on the form, yearly schedule (only the first run at Start runs).
   await page.goto('/repos');
-  await page.getByTestId('repo-path').fill(dir);
-  await page.getByTestId('repo-submit').click();
+  await registerRepo(page, dir);
   await expect(page.getByTestId('repo-row')).toHaveCount(1);
   await page.goto('/loops/new');
   await fill(page, 'f-name', 'UC-30 wait for background task');
@@ -117,7 +116,7 @@ test('UC-30: a run waiting for a background task - the agent runs a background c
   await pickRepo(page, basename(dir));
   await page.getByTestId('f-model-haiku').click();
   await page.getByTestId('f-effort-low').click();
-  await page.getByTestId('sched-kind-advanced').click();
+  await pickScheduleKind(page, 'advanced');
   await fill(page, 'sched-cron', '0 0 1 1 *');
   await page.getByTestId('form-submit').click();
   await expect(page).toHaveURL(/\/loops\/[0-9a-f-]{36}$/);
@@ -156,7 +155,7 @@ test('UC-30: a run waiting for a background task - the agent runs a background c
   await page.goto(`/runs/${row.id}`);
   await expect(page.getByTestId('run-header')).toHaveAttribute('data-status', 'succeeded');
   await expect(page.getByTestId('run-summary')).toHaveText(row.summary);
-  await expect(page.getByTestId('run-log').locator('.log-scroll > div[data-seq]')).toHaveCount(2);
+  await expect(page.getByTestId('run-log').locator('[data-seq]')).toHaveCount(2);
   await expect(page.getByTestId('run-log')).toContainText(claudeStartLog(1, row.session_id));
   await expect(page.getByTestId('run-log')).toContainText(`${CLAUDE_END_OK_PREFIX}$`);
   console.log(`[UC-30] session ${row.session_id} · ${(ms / 1000).toFixed(1)} s · cost $${Number(row.cost_usd)} · summary «${row.summary}» · ${file}`);

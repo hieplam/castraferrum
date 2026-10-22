@@ -9,6 +9,7 @@ import { databaseUrl, loadDotEnv } from '../../server/config';
 import { nextRuns } from '../../shared/domain/schedule';
 import { ensureTestRepo } from '../support/test-repo';
 import { t } from '../support/ui-text';
+import { revealRowActions, statValue } from '../support/ui';
 
 loadDotEnv();
 const TZ = 'Asia/Ho_Chi_Minh';
@@ -40,7 +41,7 @@ async function createLoop(request: APIRequestContext, name: string, over: Json =
 const post = async (request: APIRequestContext, path: string) => (await request.post(path)).status();
 const one = async <T = Json>(sql: string, params: unknown[] = []) => (await db.query(sql, params)).rows[0] as T;
 const n = async (sql: string, params: unknown[] = []) => Number((await one<{ n: string }>(sql, params)).n);
-const row = (page: Page, name: string): Locator => page.getByTestId('loop-row').filter({ has: page.locator('.row-name .nm', { hasText: new RegExp(`^${name}$`) }) });
+const row = (page: Page, name: string): Locator => page.getByTestId('loop-row').filter({ has: page.getByTestId('loop-name').filter({ hasText: new RegExp(`^${name}$`) }) });
 const hm = (d: Date) => new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: TZ }).format(d);
 /** Midnight today in Vietnam time (computed independently of the server). */
 const midnightVn = () => new Date(`${new Date().toLocaleDateString('en-CA', { timeZone: TZ })}T00:00:00+07:00`);
@@ -106,22 +107,22 @@ test.describe('list screen', () => {
     expect(`✓${st.ok} ✗${st.err} ⊘${st.cancel} ↷${st.skip}`).toBe('✓2 ✗2 ⊘1 ↷1');
     await expect(rowA.getByTestId('row-exec')).toHaveText(new RegExp(`^exec #${st.seq} \\d+\\ss$`)); // \s: the duration uses a non-breaking space
     const running = await one<{ iteration: number }>(`SELECT iteration FROM runs WHERE loop_id = $1 AND status = 'running'`, [a]);
-    await expect(rowA.locator('.st.running')).toHaveText(new RegExp(`^#${running.iteration} 00:\\d\\d$`));
+    await expect(rowA.locator('[data-testid="row-status"][data-status="running"]')).toHaveText(new RegExp(`^#${running.iteration} 00:\\d\\d$`));
     const last = await one<{ status: string; started_at: Date }>(
       `SELECT status, started_at FROM runs WHERE loop_id = $1 AND status NOT IN ('running','skipped') ORDER BY started_at DESC LIMIT 1`,
       [a],
     );
     const loopA = await one<{ next_run_at: Date }>(`SELECT next_run_at FROM loops WHERE id = $1`, [a]);
     await expect(rowA.getByTestId('row-right')).toHaveText(`${hm(last.started_at)} → ${hm(loopA.next_run_at)}`);
-    await expect(rowA.getByTestId('row-right').locator(`.st.${last.status}`)).toHaveCount(1);
+    await expect(rowA.locator(`[data-testid="row-right"][data-status="${last.status}"]`)).toHaveCount(1);
     await expect(rowA.getByTestId('row-meta')).toContainText('Every 30 minutes · exec #1');
 
     // -- stopped loop / loop never started
     const rowB = row(page, 'Beta stopped');
-    await expect(rowB.locator('.st.stopped')).toHaveText(t('list.row.stopped'));
+    await expect(rowB.locator('[data-testid="row-status"][data-status="stopped"]')).toHaveText(t('list.row.stopped'));
     await expect(rowB.getByTestId('row-exec')).toHaveText(/^exec #1 \d+\ss$/);
     await expect(rowB.getByTestId('row-counts')).toHaveCount(0);
-    await expect(rowB.getByTestId('row-right').locator('.st.cancelled')).toHaveCount(1); // the first run was cancelled by Stop
+    await expect(rowB.locator('[data-testid="row-right"][data-status="cancelled"]')).toHaveCount(1); // the first run was cancelled by Stop
     await expect(row(page, 'Gamma new').getByTestId('row-exec')).toHaveText(t('list.row.never'));
 
     // -- overview bar + count on each tab = SELECT
@@ -136,10 +137,10 @@ test.describe('list screen', () => {
         stopped: await n(`SELECT count(*) n FROM loops WHERE archived_at IS NULL AND status = 'stopped'`),
         archived: await n(`SELECT count(*) n FROM loops WHERE archived_at IS NOT NULL`),
       };
-      await expect(page.getByTestId('stat-active-loops')).toHaveText(t('top.stats.activeLoops', { n: s.active }), { timeout: 2_000 });
-      await expect(page.getByTestId('stat-running-runs')).toHaveText(t('top.stats.runningRuns', { n: s.running }), { timeout: 2_000 });
-      await expect(page.getByTestId('stat-runs-today')).toHaveText(t('top.stats.runsToday', { n: s.today }), { timeout: 2_000 });
-      await expect(page.getByTestId('stat-errors-24h')).toHaveText(t('top.stats.errors24h', { n: s.errors }), { timeout: 2_000 });
+      await expect(statValue(page, 'active-loops')).toHaveText(t('top.stats.activeLoops', { n: s.active }), { timeout: 2_000 });
+      await expect(statValue(page, 'running-runs')).toHaveText(t('top.stats.runningRuns', { n: s.running }), { timeout: 2_000 });
+      await expect(statValue(page, 'runs-today')).toHaveText(t('top.stats.runsToday', { n: s.today }), { timeout: 2_000 });
+      await expect(statValue(page, 'errors-24h')).toHaveText(t('top.stats.errors24h', { n: s.errors }), { timeout: 2_000 });
       await expect(page.getByTestId('tab-all')).toHaveText(`${t('list.filter.all')}${s.all}`, { timeout: 2_000 });
       await expect(page.getByTestId('tab-active')).toHaveText(`${t('list.filter.active')}${s.active}`, { timeout: 2_000 });
       await expect(page.getByTestId('tab-stopped')).toHaveText(`${t('list.filter.stopped')}${s.stopped}`, { timeout: 2_000 });
@@ -147,19 +148,19 @@ test.describe('list screen', () => {
       return s;
     };
     expect(await expectStats()).toEqual({ active: 1, running: 1, today: 7, errors: 2, all: 3, stopped: 2, archived: 1 });
-    await expect(page.getByTestId('stat-errors-24h')).toHaveClass('is-err');
+    await expect(statValue(page, 'errors-24h')).toHaveAttribute('data-alert', 'true');
 
     // -- live update: the "running for" clock keeps ticking
-    const clock0 = await rowA.locator('.st.running').textContent();
-    await expect(rowA.locator('.st.running')).not.toHaveText(clock0!, { timeout: 2_000 });
+    const clock0 = await rowA.locator('[data-testid="row-status"][data-status="running"]').textContent();
+    await expect(rowA.locator('[data-testid="row-status"][data-status="running"]')).not.toHaveText(clock0!, { timeout: 2_000 });
 
     // -- live update through events (Start / Stop / create from "another tab" = API), <= 2 seconds, no F5
     expect(await post(request, `/api/loops/${c}/start`)).toBe(200);
-    await expect(row(page, 'Gamma new').locator('.st.running')).toHaveText(/^#1 00:0\d$/, { timeout: 2_000 });
+    await expect(row(page, 'Gamma new').locator('[data-testid="row-status"][data-status="running"]')).toHaveText(/^#1 00:0\d$/, { timeout: 2_000 });
     await expect(row(page, 'Gamma new').getByTestId('row-counts')).toHaveText('✓0 ✗0 ⊘0 ↷0', { timeout: 2_000 });
     expect((await expectStats()).active).toBe(2);
     expect(await post(request, `/api/loops/${a}/stop`)).toBe(200);
-    await expect(rowA.locator('.st.stopped')).toHaveText(t('list.row.stopped'), { timeout: 2_000 });
+    await expect(rowA.locator('[data-testid="row-status"][data-status="stopped"]')).toHaveText(t('list.row.stopped'), { timeout: 2_000 });
     expect(await expectStats()).toMatchObject({ active: 1, running: 1, stopped: 2 });
     await createLoop(request, 'Epsilon just created');
     await expect(page.getByTestId('loop-row')).toHaveCount(4, { timeout: 2_000 });
@@ -176,19 +177,19 @@ test.describe('list screen', () => {
     await page.getByTestId('list-no-match').getByRole('button', { name: t('list.noMatch.clear') }).click();
     await expect(page.getByTestId('loop-row')).toHaveCount(4);
     await page.getByTestId('tab-active').click();
-    await expect(page.getByTestId('loop-row').locator('.row-name .nm')).toHaveText(['Gamma new']);
+    await expect(page.getByTestId('loop-name')).toHaveText(['Gamma new']);
     await page.getByTestId('tab-stopped').click();
-    await expect(page.getByTestId('loop-row').locator('.row-name .nm')).toHaveText(['Epsilon just created', 'Beta stopped', 'Alpha running']);
+    await expect(page.getByTestId('loop-name')).toHaveText(['Epsilon just created', 'Beta stopped', 'Alpha running']);
     await page.getByTestId('tab-archived').click();
-    await expect(page.getByTestId('loop-row').locator('.row-name .nm')).toHaveText(['Delta archived']);
-    await expect(page.getByTestId('loop-row').locator('.st.archived')).toHaveText(t('list.row.archived'));
+    await expect(page.getByTestId('loop-name')).toHaveText(['Delta archived']);
+    await expect(page.getByTestId('loop-row').locator('[data-testid="row-status"][data-status="archived"]')).toHaveText(t('list.row.archived'));
     await page.getByTestId('tab-all').click();
     await expect(page.getByTestId('loop-row')).toHaveCount(4);
 
     // -- click a row -> loop detail (the row is selected)
     await row(page, 'Beta stopped').click();
     await expect(page).toHaveURL(new RegExp(`/loops/${b}$`));
-    await expect(row(page, 'Beta stopped')).toHaveClass(/is-sel/);
+    await expect(row(page, 'Beta stopped')).toHaveAttribute('aria-current', 'true');
     await stillNoReload(page);
   });
 
@@ -197,15 +198,15 @@ test.describe('list screen', () => {
     const id = await createLoop(request, 'Loop Start');
     await page.goto('/');
     const r = row(page, 'Loop Start');
-    await expect(r.locator('.st.stopped')).toBeVisible();
+    await expect(r.locator('[data-testid="row-status"][data-status="stopped"]')).toBeVisible();
     await markNoReload(page);
 
     // Actions only show on hover (D-UI2).
     await expect(r.getByTestId('row-start')).toBeHidden();
-    await r.hover();
+    await revealRowActions(r);
     await expect(r.getByTestId('row-start')).toBeVisible();
     await r.getByTestId('row-start').click();
-    await expect(r.locator('.st.running')).toHaveText(/^#1 00:0\d$/, { timeout: 2_000 });
+    await expect(r.locator('[data-testid="row-status"][data-status="running"]')).toHaveText(/^#1 00:0\d$/, { timeout: 2_000 });
 
     const ex = await one<{ id: string; seq: number; started_at: Date; ended_at: Date | null }>(
       `SELECT id, seq, started_at, ended_at FROM loop_executions WHERE loop_id = $1`, [id]);
@@ -221,7 +222,7 @@ test.describe('list screen', () => {
     await expect(r.getByTestId('row-exec')).toHaveText(/^exec #1 /);
 
     // Running: no Start button on the row any more, only Stop; the API rejects a second Start.
-    await r.hover();
+    await revealRowActions(r);
     await expect(r.getByTestId('row-start')).toHaveCount(0);
     await expect(r.getByTestId('row-stop')).toBeVisible();
     const again = await request.post(`/api/loops/${id}/start`);
@@ -236,12 +237,12 @@ test.describe('list screen', () => {
       await stale.route('**/api/events**', () => {}); // SSE hangs: no live events
       await stale.goto('/');
       const sr = row(stale, 'Loop Start');
-      await expect(sr.locator('.st.stopped')).toBeVisible();
+      await expect(sr.locator('[data-testid="row-status"][data-status="stopped"]')).toBeVisible();
       expect(await post(request, `/api/loops/${id}/start`)).toBe(200); // execution #2 opened in "another tab"
-      await sr.hover();
+      await revealRowActions(sr);
       await sr.getByTestId('row-start').click();
       await expect(stale.locator('.toast.is-err')).toHaveText(t('toast.failed', { msg: t('error.LOOP_ALREADY_ACTIVE') }));
-      await expect(sr.locator('.st.running')).toBeVisible({ timeout: 2_000 }); // rejected -> reload, sees the true state
+      await expect(sr.locator('[data-testid="row-status"][data-status="running"]')).toBeVisible({ timeout: 2_000 }); // rejected -> reload, sees the true state
     } finally {
       await ctx.close();
     }
@@ -250,7 +251,7 @@ test.describe('list screen', () => {
 
     // The main screen (with live) sees execution #2, run #2 (the loop's lifetime run number) without F5.
     await expect(r.getByTestId('row-exec')).toHaveText(/^exec #2 /, { timeout: 2_000 });
-    await expect(r.locator('.st.running')).toHaveText(/^#2 /);
+    await expect(r.locator('[data-testid="row-status"][data-status="running"]')).toHaveText(/^#2 /);
     await stillNoReload(page);
   });
 
@@ -260,10 +261,10 @@ test.describe('list screen', () => {
     expect(await post(request, `/api/loops/${id}/start`)).toBe(200);
     await page.goto('/');
     const r = row(page, 'Loop Stop');
-    await expect(r.locator('.st.running')).toBeVisible();
+    await expect(r.locator('[data-testid="row-status"][data-status="running"]')).toBeVisible();
     await markNoReload(page);
 
-    await r.hover();
+    await revealRowActions(r);
     await r.getByTestId('row-stop').click();
     const dialog = page.getByTestId('stop-dialog');
     await expect(dialog).toContainText(t('dialog.stop.title', { name: 'Loop Stop' }));
@@ -273,11 +274,11 @@ test.describe('list screen', () => {
     await expect(dialog).toHaveCount(0);
     expect((await one<{ status: string }>(`SELECT status FROM loops WHERE id = $1`, [id])).status).toBe('active');
 
-    await r.hover();
+    await revealRowActions(r);
     await r.getByTestId('row-stop').click();
     const clickedAt = Date.now();
     await page.getByTestId('stop-confirm').click();
-    await expect(r.locator('.st.stopped')).toHaveText(t('list.row.stopped'), { timeout: 5_000 });
+    await expect(r.locator('[data-testid="row-status"][data-status="stopped"]')).toHaveText(t('list.row.stopped'), { timeout: 5_000 });
 
     const run = await one<{ status: string; finished_at: Date }>(`SELECT status, finished_at FROM runs WHERE loop_id = $1`, [id]);
     expect(run.status).toBe('cancelled');
@@ -286,7 +287,7 @@ test.describe('list screen', () => {
     expect(ex.end_reason).toBe('stopped');
     expect(Math.abs(ex.ended_at.getTime() - clickedAt)).toBeLessThan(2_000); // endedAt = the moment of the press
     expect(await one(`SELECT status, next_run_at FROM loops WHERE id = $1`, [id])).toEqual({ status: 'stopped', next_run_at: null });
-    await expect(r.getByTestId('row-right').locator('.st.cancelled')).toHaveCount(1);
+    await expect(r.locator('[data-testid="row-right"][data-status="cancelled"]')).toHaveCount(1);
     await expect(r.getByTestId('row-counts')).toHaveCount(0);
 
     // No new scheduled run: advance the server clock past 4 */30 boundaries -> still exactly 1 run.
@@ -301,11 +302,11 @@ test.describe('list screen', () => {
     // The first run (1 second) that starts at once on Start must be done first: between the moment the loop becomes active and
     // the moment the run is written, the row briefly shows "waiting for next run" - pressing Stop then opens the confirmation
     // box because the run is going.
-    await expect(ri.getByTestId('row-right').locator('.st.succeeded')).toHaveCount(1, { timeout: 5_000 });
-    await expect(ri.locator('.st.active')).toHaveText(t('list.row.idle'), { timeout: 5_000 });
-    await ri.hover();
+    await expect(ri.locator('[data-testid="row-right"][data-status="succeeded"]')).toHaveCount(1, { timeout: 5_000 });
+    await expect(ri.locator('[data-testid="row-status"][data-status="active"]')).toHaveText(t('list.row.idle'), { timeout: 5_000 });
+    await revealRowActions(ri);
     await ri.getByTestId('row-stop').click();
-    await expect(ri.locator('.st.stopped')).toHaveText(t('list.row.stopped'), { timeout: 2_000 });
+    await expect(ri.locator('[data-testid="row-status"][data-status="stopped"]')).toHaveText(t('list.row.stopped'), { timeout: 2_000 });
     await expect(page.getByTestId('stop-dialog')).toHaveCount(0);
     expect(await one(`SELECT end_reason FROM loop_executions WHERE loop_id = $1`, [idle])).toEqual({ end_reason: 'stopped' });
     await stillNoReload(page);

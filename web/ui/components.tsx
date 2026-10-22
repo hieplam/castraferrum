@@ -122,8 +122,8 @@ export function EmptyState({ glyph, title, children, action, size, error, testId
 export type StatusKind =
   | 'running' | 'succeeded' | 'failed' | 'timed_out' | 'interrupted' | 'cancelled' | 'skipped'
   | 'active' | 'stopped' | 'archived' | 'server_down';
-export function StatusTag({ kind, boxed, pulse, children }: { kind: StatusKind; boxed?: boolean; pulse?: boolean; children: ReactNode }) {
-  return <span className={cx('st', kind, boxed && 'boxed', pulse && 'pulse')}>{children}</span>;
+export function StatusTag({ kind, boxed, pulse, testId, children }: { kind: StatusKind; boxed?: boolean; pulse?: boolean; testId?: string; children: ReactNode }) {
+  return <span className={cx('st', kind, boxed && 'boxed', pulse && 'pulse')} data-status={testId ? kind : undefined} data-testid={testId}>{children}</span>;
 }
 
 // ── Skeleton ──────────────────────────────────────────────────────────
