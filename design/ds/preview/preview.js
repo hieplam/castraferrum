@@ -37,6 +37,14 @@
     if (!d) { problems.push('schedule.js has no sentence for cron: ' + cron); return cron; }
     return d[LANG];
   }
+  // The short form of a schedule for one line of a loop row (shared/domain describeShort).
+  function schedShort(cron) {
+    const d = (SCH.short || {})[cron];
+    if (!d) { problems.push('schedule.js has no short form for cron: ' + cron); return cron; }
+    return d[LANG];
+  }
+  // t() with every parameter drawn in the data font (times, run numbers, durations).
+  const td = (key, p) => t(key, Object.fromEntries(Object.entries(p).map(([k, v]) => [k, `<span class="data">${esc(v)}</span>`])));
   const icon = (name) => `<svg class="icon" aria-hidden="true"><use href="#i-${name}"/></svg>`;
   const SPRITE = `<svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
@@ -98,13 +106,20 @@
     return l.endReason === 'server_down' ? 'server_down' : 'stopped';
   }
   const PILL = { running: ['s-run', 'status.running'], active: ['s-wait', 'status.waiting'], stopped: ['s-stop', 'status.stopped'], server_down: ['s-int', 'status.serverDown'], archived: ['s-stop', 'status.archived'] };
-  const LAST = { failed: 'row.lastFailed', timed_out: 'row.lastTimedOut', succeeded: 'row.lastOk', cancelled: 'row.lastCancelled' };
-  function lastText(l) {
-    if (l.run) return t('row.runningFor', { n: l.run.n, d: mmss(l.run.elapsed) });
-    if (!l.last) return t('row.neverStarted');
-    if (!LAST[l.last.st]) { problems.push('no row text for a last run that is ' + l.last.st); return l.last.st; }
-    return t(LAST[l.last.st], { t: l.last.at });
+  // The last run of a row: its text key and the colour class of its result (the status colours of the pills).
+  const LAST = {
+    failed: ['row.lastFailed', 's-fail'], timed_out: ['row.lastTimedOut', 's-fail'], succeeded: ['row.lastOk', 's-ok'],
+    cancelled: ['row.lastCancelled', 's-skip'], interrupted: ['row.lastInterrupted', 's-int'], skipped: ['row.lastSkipped', 's-skip'],
+  };
+  // { cls, html } of the row-last text: the run working (its numbers in the data font), the last result (coloured, its time in the data
+  // font) or "never started".
+  function lastOf(l) {
+    if (l.run) return { cls: 'result', html: td('row.runningFor', { n: l.run.n, d: mmss(l.run.elapsed) }) };
+    if (!l.last) return { cls: 'result', html: t('row.neverStarted') };
+    if (!LAST[l.last.st]) { problems.push('no row text for a last run that is ' + l.last.st); return { cls: 'result', html: l.last.st }; }
+    return { cls: 'result ' + LAST[l.last.st][1], html: td(LAST[l.last.st][0], { t: l.last.at }) };
   }
+  const agentOf = (l) => t('row.agent', { model: l.claude ? l.claude.model : '' });
   const pill = (kind) => `<span class="pill ${PILL[kind][0]}" data-testid="row-status" data-status="${kind}">${t(PILL[kind][1])}</span>`;
   function rowAction(l, kind) {
     const stop = kind === 'running' || kind === 'active';
@@ -119,15 +134,17 @@
     const kind = kindOf(l), repo = D.repos[l.repo].name;
     const attrs = `data-testid="loop-row" data-loop-id="${l.id}" data-status="${kind}"`;
     if (!WIDE) {
-      const next = l.next ? t('row.next', { t: l.next.at }) : t('row.notScheduled');
+      const next = l.next ? td('row.next', { t: l.next.at }) : t('row.notScheduled');
+      const last = lastOf(l);
       return `<div class="cell" ${attrs}><a class="cell-main" href="#"><span class="cell-title" data-testid="loop-name">${esc(l.name)}</span>` +
-        `<span class="cell-row">${pill(kind)}<span data-testid="row-last">${lastText(l)}</span></span>` +
-        `<span class="cell-meta is-one-line"><span data-testid="row-repo">${esc(repo)}</span> · ${esc(schedDesc(l.cron))} · <span data-testid="row-next">${next}</span></span></a>` +
+        `<span class="cell-row">${pill(kind)}<span class="${last.cls}" data-testid="row-last">${last.html}</span></span>` +
+        `<span class="cell-meta"><span data-testid="row-repo">${esc(repo)}</span> · ${esc(schedShort(l.cron))} · <span data-testid="row-next">${next}</span></span></a>` +
         `${rowAction(l, kind)}</div>`;
     }
-    return `<div class="ltable-row" role="row" ${attrs}><a class="ltable-name" href="#"><b data-testid="loop-name">${esc(l.name)}</b><span data-testid="row-repo">${esc(repo)}</span></a>` +
+    const last = lastOf(l);
+    return `<div class="ltable-row" role="row" ${attrs}><a class="ltable-name" href="#"><b data-testid="loop-name">${esc(l.name)}</b><span><span data-testid="row-repo">${esc(repo)}</span> · ${esc(agentOf(l))}</span></a>` +
       `<span class="ltable-cell">${pill(kind)}</span><span class="ltable-cell">${esc(schedDesc(l.cron))}</span>` +
-      `<span class="ltable-cell" data-testid="row-last">${lastText(l)}</span><span class="ltable-cell" data-testid="row-next">${l.next ? l.next.at : t('row.notScheduled')}</span>` +
+      `<span class="ltable-cell ${last.cls}" data-testid="row-last">${last.html}</span><span class="ltable-cell${l.next ? ' data' : ''}" data-testid="row-next">${l.next ? esc(l.next.at) : t('row.notScheduled')}</span>` +
       `<span class="ltable-act">${rowAction(l, kind)}<button class="iconbtn" type="button" data-testid="row-menu" aria-label="${t('act.more')}" aria-haspopup="menu"${o.menu ? ' aria-expanded="true"' : ''}>${icon('more')}</button></span>` +
       `${o.menu ? rowMenu(l) : ''}</div>`;
   }
@@ -177,9 +194,9 @@
   const repoSheet = () => `<div class="scrim"></div><div class="sheet" role="dialog" aria-label="${t('loops.repoFilter')}"><span class="sheet-grab"></span><h2>${t('loops.repoFilter')}</h2><div class="group">${repoItems('cell')}</div></div>`;
   // Page head: the large title of the tab root (phone) or the page title (from 640px) and New loop, rendered once (the
   // empty state carries New loop itself: one primary action per view).
-  const head = (action = true) => (!action ? `<div class="page-head"><h1 class="${PHONE ? 'large-title' : 'page-title'}">${t('loops.title')}</h1></div>` : PHONE
-    ? `<div class="page-head"><h1 class="large-title">${t('loops.title')}</h1><button class="iconbtn" type="button" data-testid="list-create" aria-label="${t('loops.new')}">${icon('plus')}</button></div>`
-    : `<div class="page-head"><h1 class="page-title">${t('loops.title')}</h1><button class="btn primary" type="button" data-testid="list-create">${icon('plus')}${t('loops.new')}</button></div>`);
+  const head = (action = true) => (!action ? `<div class="page-head is-root"><h1 class="${PHONE ? 'large-title' : 'page-title'}">${t('loops.title')}</h1></div>` : PHONE
+    ? `<div class="page-head is-root"><h1 class="large-title">${t('loops.title')}</h1><button class="iconbtn" type="button" data-testid="list-create" aria-label="${t('loops.new')}">${icon('plus')}</button></div>`
+    : `<div class="page-head is-root"><h1 class="page-title">${t('loops.title')}</h1><button class="btn primary" type="button" data-testid="list-create">${icon('plus')}${t('loops.new')}</button></div>`);
   const loopsOf = (keys) => keys.map((k) => D.loops[k]);
   // o: stats (null = loading), stale, list = the list block, toolbar options.
   function loopsPage(o = {}) {
@@ -760,14 +777,14 @@
   const WIN = { repos: D.repos, order: D.repoOrder, loops: true }, MAC = { repos: D.folders.mac.repos, order: D.folders.mac.repoOrder, loops: false };
   const loopsOfRepo = (k) => Object.values(D.loops).filter((l) => l.repo === k);
   const reposHead = () => (PHONE
-    ? `<div class="page-head"><h1 class="large-title">${t('repos.title')}</h1><button class="iconbtn" type="button" data-testid="repo-add" aria-label="${t('repos.add')}">${icon('plus')}</button></div>`
-    : `<div class="page-head"><h1 class="page-title">${t('repos.title')}</h1><button class="btn primary" type="button" data-testid="repo-add">${icon('plus')}${t('repos.add')}</button></div>`);
+    ? `<div class="page-head is-root"><h1 class="large-title">${t('repos.title')}</h1><button class="iconbtn" type="button" data-testid="repo-add" aria-label="${t('repos.add')}">${icon('plus')}</button></div>`
+    : `<div class="page-head is-root"><h1 class="page-title">${t('repos.title')}</h1><button class="btn primary" type="button" data-testid="repo-add">${icon('plus')}${t('repos.add')}</button></div>`);
   // A repo: name, path, "Folder is gone", the loop count and its ⋯ (Delete).
   function repoCell(set, k) {
     const r = set.repos[k], n = set.loops ? loopsOfRepo(k).length : 0;
     const gone = r.gone ? `<span class="cell-row"><span class="pill s-warn" data-testid="repo-gone">${t('status.folderGone')}</span></span>` : '';
     return `<div class="cell" data-testid="repo-row" data-repo-id="${r.id}" data-exists="${!r.gone}"><span class="cell-main"><span class="cell-title" data-testid="repo-row-name">${esc(r.name)}</span>` +
-      `<span class="cell-meta is-one-line">${esc(r.path)}</span>${gone}</span><span class="cell-value" data-testid="repo-loop-count" data-n="${n}">${tn('repos.loops', n)}</span>` +
+      `<span class="cell-meta is-one-line is-data">${esc(r.path)}</span>${gone}</span><span class="cell-value" data-testid="repo-loop-count" data-n="${n}">${tn('repos.loops', n)}</span>` +
       `<button class="iconbtn" type="button" data-testid="repo-menu" aria-label="${t('act.more')}" aria-haspopup="menu">${icon('more')}</button></div>`;
   }
   // o: set (the world), loading, empty, banner.
@@ -775,7 +792,7 @@
     const set = o.set || WIN;
     const list = o.loading
       ? `<div class="group" data-testid="repo-loading" aria-busy="true">${[0, 1, 2, 3].map(() => '<div class="cell"><div class="cell-main"><span class="skeleton is-line"></span><span class="skeleton is-line"></span></div></div>').join('')}</div>`
-      : o.empty ? `<div class="empty" data-testid="repo-empty"><b>${t('repo.empty.title')}</b></div>`
+      : o.empty ? `<div class="empty" data-testid="repo-empty"><b>${t('repos.emptyTitle')}</b></div>`
         : `<div class="group" data-testid="repo-table">${set.order.map((k) => repoCell(set, k)).join('')}</div>`;
     return reposHead() + `<p class="page-desc">${t('repos.note')}</p>` + (o.banner || '') + list;
   }
@@ -802,28 +819,31 @@
     const shown = entries.filter((e) => !e.hidden);
     // Quick access: the four places, the drives or volumes, then the folders that hold registered repos.
     const known = w.known || {};
-    const places = [[t('folder.place.home'), w.home], [t('folder.place.desktop'), known.desktop || w.home + sep + 'Desktop'],
+    const places = [[t('picker.home'), w.home], [t('folder.place.desktop'), known.desktop || w.home + sep + 'Desktop'],
       [t('folder.place.documents'), known.documents || w.home + sep + 'Documents'], [t('folder.place.downloads'), known.downloads || w.home + sep + 'Downloads']]
       .concat(win ? w.roots.map((r) => [r, r + '\\']) : w.volumes);
     for (const r of repoSet) {
       const up = parentOf(r.path);
       if (up && !places.some((p) => same(p[1], up))) places.push([esc(nameOf(up)), up]);
     }
-    const placeChips = `<div class="picker-places" role="group" aria-label="${t('picker.quick')}">${places.map(([label, path]) => `<button class="chip${same(path, at) ? ' is-on' : ''}" type="button" data-testid="folder-place"${same(path, at) ? ' aria-current="true"' : ''}>${label}</button>`).join('')}</div>`;
+    // A label that appears twice is told apart by the folder that holds it ("Documents - OneDrive"), in the data font.
+    const dup = (label) => places.filter((p) => same(p[0], label)).length > 1;
+    const placeLabel = ([label, path]) => (dup(label) && parentOf(path) ? `${label} - <span class="data">${esc(nameOf(parentOf(path)))}</span>` : label);
+    const placeChips = `<div class="picker-places" role="group" aria-label="${t('picker.quick')}">${places.map((pl) => `<button class="chip${same(pl[1], at) ? ' is-on' : ''}" type="button" data-testid="folder-place"${same(pl[1], at) ? ' aria-current="true"' : ''}>${placeLabel(pl)}</button>`).join('')}</div>`;
     const sel = entries.find((e) => e.name === o.sel) || null;
     const tags = (e) => (e.git || e.repo ? `<span class="cell-row">${e.git ? `<span class="tag git">${t('picker.tagGit')}</span>` : ''}${e.repo ? `<span class="tag repo">${t('picker.tagRepo')}</span>` : ''}</span>` : '');
     const row = (e) => `<div class="cell${sel === e ? ' is-sel' : ''}" role="option" aria-selected="${sel === e}" data-testid="folder-row">${icon('folder')}` +
       `<span class="cell-main"><span class="cell-title is-plain">${esc(e.name)}</span>${tags(e)}</span>` +
       `<button class="iconbtn" type="button" data-testid="folder-open" aria-label="${t('picker.open', { name: esc(e.name) })}">${chev}</button></div>`;
     const list = o.denied
-      ? `<div class="picker-list" data-testid="folder-list"><div class="banner is-warn" data-testid="folder-unreadable" role="alert">${icon('alert')}<span class="banner-text">${t('folder.denied.darwin')}</span>` +
+      ? `<div class="picker-list" data-testid="folder-list"><div class="banner is-warn" data-testid="folder-unreadable" role="alert">${icon('alert')}<span class="banner-text">${t('picker.denied')}</span>` +
         `<button class="btn sm" type="button" data-testid="folder-retry">${t('folder.retry')}</button></div></div>`
       : `<div class="picker-list group" role="listbox" data-testid="folder-list" aria-label="${esc(at)}">${shown.map(row).join('')}</div>`;
     const hidden = entries.length - shown.length;
     const filter = `<label class="search">${icon('search')}<input type="search" data-testid="folder-filter" placeholder="${t('picker.filter')}" aria-label="${t('picker.filter')}"></label>` +
-      (hidden ? `<button class="chip" type="button" role="switch" aria-checked="false" data-testid="folder-show-hidden">${t('picker.showHidden')}</button>` : '');
+      (hidden ? `<button class="switch" type="button" role="switch" aria-checked="false" data-testid="folder-show-hidden"><span class="switch-track"></span>${t('picker.showHidden')}</button>` : '');
     const pathErr = o.pathErr ? `<p class="hint is-err" data-testid="error-repo-path">${o.pathErr}</p>` : '';
-    const path = `<div class="field" style="flex:1"><input class="input${o.pathErr ? ' is-err' : ''}" id="repo-path" data-testid="repo-path" data-platform="${w.platform}" type="text" value="${esc(o.typed || at)}" aria-label="${t('picker.path')}"${o.pathErr ? ' aria-invalid="true"' : ''}>${pathErr}</div>`;
+    const path = `<div class="field"><input class="input is-data${o.pathErr ? ' is-err' : ''}" id="repo-path" data-testid="repo-path" data-platform="${w.platform}" type="text" value="${esc(o.typed || at)}" aria-label="${t('picker.path')}"${o.pathErr ? ' aria-invalid="true"' : ''}>${pathErr}</div>`;
     const bar = `<div class="picker-bar">${path}<button class="iconbtn bordered" type="button" data-testid="folder-up" aria-label="${t('picker.up')}">${icon('up')}</button>` +
       `<button class="btn" type="button" data-testid="folder-go">${t('picker.go')}</button></div>`;
     // The target: the selected folder, or the open folder when nothing is selected.
@@ -836,13 +856,14 @@
     const status = `<p class="picker-status">${t(PHONE ? 'picker.hintTouch' : 'picker.hintPointer')}</p>`;
     const submit = (cls) => `<button class="btn primary${cls}" type="button" data-testid="repo-submit"${taken ? ' disabled' : ''}>${t('picker.add')}</button>`;
     const crumbNav = `<nav class="crumbs" data-testid="folder-crumbs" aria-label="${t('picker.path')}">${crumbs}</nav>`;
+    const tools = `<div class="picker-tools">${crumbNav}${filter}</div>`;
     if (PHONE) {
       return `<div class="scrim"></div><div class="fullsheet" role="dialog" aria-modal="true" aria-label="${t('repos.add')}" data-testid="folder-picker">` +
         `<nav class="navbar"><button class="navbar-back" type="button" data-testid="folder-cancel">${t('folder.cancel')}</button><span class="navbar-title">${t('repos.add')}</span><div class="navbar-actions"></div></nav>` +
-        `<div class="picker">${bar}${placeChips}${crumbNav}<div class="picker-bar">${filter}</div>${list}${status}${targetLine}${nameField}${submit(' lg block')}</div></div>`;
+        `<div class="picker">${bar}${placeChips}${tools}${list}${status}<div class="picker-foot">${targetLine}${nameField}${submit(' lg block')}</div></div></div>`;
     }
     return `<div class="scrim"></div><div class="dialog is-wide" role="dialog" aria-modal="true" data-testid="folder-picker"><div class="dialog-head"><h2>${t('repos.add')}</h2></div>` +
-      `<div class="dialog-body"><div class="picker">${bar}<div class="picker-bar">${crumbNav.replace('class="crumbs"', 'class="crumbs" style="flex:1"')}${filter}</div>${placeChips}${list}${status}${targetLine}</div>${nameField}</div>` +
+      `<div class="dialog-body"><div class="picker">${bar}${tools}${placeChips}${list}${status}<div class="picker-foot">${targetLine}${nameField}</div></div></div>` +
       `<div class="dialog-foot"><button class="btn ghost" type="button" data-testid="folder-cancel">${t('folder.cancel')}</button>${submit('')}</div></div>`;
   }
   // Delete a repo no loop uses: a dialog from 640px, a sheet below.
@@ -877,9 +898,9 @@
       fcell(t('settings.language'), seg('settings-lang', t('settings.language'), ['en', 'vi'], LANG, selfName));
     const connection = value('settings-server', t('settings.server'), 'd-ok', t('settings.connected')) +
       (o.dbDown ? value('settings-db', t('settings.database'), 'd-fail', t('settings.notAnswering')) : value('settings-db', t('settings.database'), 'd-ok', t('settings.answering'))) +
-      `<div class="cell" data-testid="settings-address"><span class="cell-main"><span class="cell-title is-plain">${t('settings.address')}</span><span class="cell-meta">${esc(D.console.address)}</span></span></div>`;
+      `<div class="cell" data-testid="settings-address"><span class="cell-main"><span class="cell-title is-plain">${t('settings.address')}</span><span class="cell-meta is-data">${esc(D.console.address)}</span></span></div>`;
     const device = `<div class="cell"><span class="cell-main"><span class="cell-title is-plain">${t('settings.homeScreen')}</span><span class="cell-meta">${t('settings.homeScreenHow')}</span></span></div>`;
-    const about = `<div class="cell" data-testid="settings-version"><span class="cell-main"><span class="cell-title is-plain">${t('settings.version')}</span></span><span class="cell-value">${esc(D.console.version)}</span></div>`;
+    const about = `<div class="cell" data-testid="settings-version"><span class="cell-main"><span class="cell-title is-plain">${t('settings.version')}</span></span><span class="cell-value is-data">${esc(D.console.version)}</span></div>`;
     return `<div class="page-head"><h1 class="${PHONE ? 'large-title' : 'page-title'}">${t('settings.title')}</h1></div>` +
       group(t('settings.appearance'), appearance) + group(t('settings.connection'), connection) + (PHONE ? group(t('settings.device'), device) : '') + group(t('settings.about'), about);
   }
@@ -966,8 +987,8 @@
     'repos-add-notfound': () => reposApp({ overlay: picker(FW, { typed: FW.typo, pathErr: t('repo.val.notFound'), navErr: true }) }),
     'repos-add-mac': () => reposApp({ set: MAC, overlay: picker(FM, { sel: 'dotfiles' }) }),
     'repos-add-denied': () => reposApp({ set: MAC, overlay: picker(FM, { at: FM.denied, denied: true }) }),
-    'repos-err-dup-path': () => reposApp({ overlay: picker(FW, { sel: 'acme-api', typed: D.repos.api.path, pathErr: t('repo.val.pathTaken', { name: esc(D.repos.api.name) }) }) }),
-    'repos-err-dup-name': () => reposApp({ overlay: picker(FW, { sel: 'acme-api-hotfix', name: D.repos.api.name, nameErr: t('repo.val.nameTaken') }) }),
+    'repos-err-dup-path': () => reposApp({ overlay: picker(FW, { sel: 'acme-api', typed: D.repos.api.path, pathErr: t('picker.pathTaken', { name: esc(D.repos.api.name) }) }) }),
+    'repos-err-dup-name': () => reposApp({ overlay: picker(FW, { sel: 'acme-api-hotfix', name: D.repos.api.name, nameErr: t('error.REPO_NAME_TAKEN') }) }),
     'repos-err-missing': () => reposApp({ overlay: picker(FW, { typed: FW.typo, target: { path: FW.typo, name: 'acme-tool' }, pathErr: t('repo.val.notFound') }) }),
     'repos-delete-confirm': () => reposApp({ overlay: repoDelete('dotfiles') }),
     'repos-delete-blocked': () => reposApp({ banner: repoInUse('old') }),

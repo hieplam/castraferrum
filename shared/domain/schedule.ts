@@ -110,6 +110,15 @@ const en = {
   missingMonthDay: (d: number) => `Months without day ${d} will be skipped`,
   dayOrWeekday: 'Both day of month and day of week are set: it runs when EITHER matches (not both)',
   nextRunsCount: (n: number) => `n must be a whole number >= 0, got ${n}`,
+  // The short form of a builder kind, for one line of a loop row (describeShort).
+  short: {
+    weekday: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+    everyMinutes: (n: number) => (n === 1 ? 'every minute' : `every ${n} min`),
+    everyHours: (n: number, mm: string) => (n === 1 ? `every hour at :${mm}` : `every ${n} hours at :${mm}`),
+    daily: (t: string) => `every day at ${t}`,
+    weekly: (t: string, days: string) => `${days} at ${t}`,
+    monthly: (d: number, t: string) => `day ${d} monthly at ${t}`,
+  },
 };
 
 const TEXT = { en, vi: viSchedule };
@@ -379,6 +388,30 @@ export function describe(input: ScheduleSpec | string, locale: Locale = 'en'): s
         use24HourTimeFormat: true,
         throwExceptionOnParseError: false,
       });
+  }
+}
+
+/**
+ * One short line for a loop row ("every 10 min", "every 2 hours at :05", "Mon, Wed, Fri at 08:30"); the board of the
+ * Loops page shows this form. The five builder kinds have a short form; Advanced has none, so it gives the full sentence.
+ */
+export function describeShort(input: ScheduleSpec | string, locale: Locale = 'en'): string {
+  const spec = typeof input === 'string' ? fromCron(input) : normalizeSpec(input);
+  if (validateSpec(spec, locale).length > 0 || spec.kind === 'advanced') return describe(spec, locale);
+  const s = TEXT[locale].short;
+  switch (spec.kind) {
+    case 'everyMinutes':
+      return s.everyMinutes(spec.minutes);
+    case 'everyHours':
+      return s.everyHours(spec.hours, pad2(spec.minute));
+    case 'daily':
+      return s.daily(hhmm(spec.hour, spec.minute));
+    case 'weekly': {
+      const mondayFirst = [...spec.days].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7));
+      return s.weekly(hhmm(spec.hour, spec.minute), mondayFirst.map((d) => s.weekday[d]).join(', '));
+    }
+    case 'monthly':
+      return s.monthly(spec.day, hhmm(spec.hour, spec.minute));
   }
 }
 

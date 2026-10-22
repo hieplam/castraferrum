@@ -64,6 +64,8 @@
   <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
   <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 5h16l-6 7.5V18l-4 2v-7.5z"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
   <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01"/></symbol>
   <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></symbol>
   <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
@@ -140,10 +142,13 @@
   <!-- Page -->
   <section class="ds-sec">
     <h2>Page</h2>
-    <p class="ds-cap">.page .page-head .cols (two columns from 1024px) .actionbar (phone only, fixed bottom).</p>
+    <p class="ds-cap">.page .page-head .cols (two columns from 1024px) .actionbar (phone only, fixed bottom). .page-head.is-root: the head of a tab root, its one action (the + as an icon button) at the trailing edge, above the large title on the phone; a tab-root page keeps padding for the tab bar.</p>
     <div class="ds-stage is-tall">
       <div class="page">
-        <h1 class="large-title">Loops</h1>
+        <div class="page-head is-root">
+          <h1 class="large-title">Loops</h1>
+          <button class="iconbtn" type="button" aria-label="New loop"><svg class="icon"><use href="#i-plus"/></svg></button>
+        </div>
         <a class="backlink" href="#"><svg class="icon"><use href="#i-back"/></svg>Loops</a>
         <div class="page-head">
           <h1 class="page-title">Issue backlog worker <span class="pill s-run">Running</span></h1>
@@ -259,6 +264,14 @@
       <span class="pulse"></span>
       <span class="ds-cap">.dot, .pulse (still under reduced motion)</span>
     </div>
+    <div class="ds-row">
+      <span class="result s-fail">last run failed <span class="data">14:00</span></span>
+      <span class="result s-ok">last run succeeded <span class="data">12:05</span></span>
+      <span class="result s-int">last run interrupted <span class="data">09:31</span></span>
+      <span class="result s-skip">last run skipped <span class="data">03:00</span></span>
+      <span class="result">never started</span>
+      <span class="ds-cap">.result: the text of a last run in its status colour (a loop row)</span>
+    </div>
   </section>
 
   <!-- Inset list -->
@@ -270,8 +283,8 @@
       <div class="cell">
         <div class="cell-main">
           <span class="cell-title">Daily recap</span>
-          <span class="cell-row"><span class="pill s-wait">Waiting</span><span>next 14:30</span></span>
-          <span class="cell-meta is-one-line">acme-api · every 30 minutes · C:\Users\alice\work\acme-api</span>
+          <span class="cell-row"><span class="pill s-wait">Waiting</span><span class="result s-fail">last run failed <span class="data">14:00</span></span></span>
+          <span class="cell-meta"><span>acme-api</span> · <span>every 30 min</span> · <span>next <span class="data">14:30</span></span></span>
         </div>
         <button class="act start" type="button" aria-label="Start"><svg class="icon"><use href="#i-play"/></svg></button>
       </div>
@@ -283,7 +296,9 @@
     <p class="group-note">Archived loops are hidden.</p>
     <div class="group">
       <div class="cell"><span class="cell-title is-plain">Theme</span><span class="cell-value">System</span><svg class="chev icon"><use href="#i-chev"/></svg></div>
-      <div class="cell"><span class="cell-title is-plain">Version</span><span class="cell-value">0.1.0</span></div>
+      <div class="cell"><span class="cell-title is-plain">Version</span><span class="cell-value is-data">0.1.0</span></div>
+      <div class="cell"><span class="cell-main"><span class="cell-title is-plain">Console address</span><span class="cell-meta is-data">http://192.168.1.20:7070</span></span></div>
+      <div class="cell"><span class="cell-main"><span class="cell-title">acme-api</span><span class="cell-meta is-one-line is-data">C:\Users\alice\work\acme-api\packages\server</span></span><span class="cell-value">5 loops</span></div>
       <a class="cell is-link" href="#">Show 6 more runs from this period</a>
     </div>
   </section>
@@ -316,30 +331,32 @@
     <div class="toolbar">
       <label class="search"><svg class="icon"><use href="#i-search"/></svg><input type="search" placeholder="Search loops" aria-label="Search loops"></label>
       <div class="seg" role="group" aria-label="Filter"><button class="is-on" type="button">All</button><button type="button">Running</button><button type="button">Stopped</button></div>
+      <button class="iconbtn bordered" type="button" aria-label="Filter by repo"><svg class="icon"><use href="#i-filter"/></svg></button>
     </div>
+    <p class="ds-cap">Below 640px the toolbar puts the search field and the one icon button on a row and the segmented control under them.</p>
     <div class="ltable" role="table">
       <div class="ltable-head" role="row"><span>Loop</span><span>Status</span><span>Schedule</span><span>Last run</span><span>Next run</span><span></span></div>
       <a class="ltable-row" href="#" role="row">
         <span class="ltable-name"><b>Issue backlog worker</b><span>acme-api</span></span>
         <span class="ltable-cell"><span class="pill s-run">Running</span></span>
         <span class="ltable-cell">Every 30 minutes</span>
-        <span class="ltable-cell"><b>#69</b> 0:42</span>
-        <span class="ltable-cell">14:30</span>
+        <span class="ltable-cell"><b>#69</b> <span class="data">0:42</span></span>
+        <span class="ltable-cell data">14:30</span>
         <span class="ltable-act"><button class="iconbtn" type="button" aria-label="Stop"><svg class="icon"><use href="#i-stop"/></svg></button></span>
       </a>
       <a class="ltable-row is-hover" href="#" role="row">
         <span class="ltable-name"><b>Daily recap</b><span>notes</span></span>
         <span class="ltable-cell"><span class="pill s-wait">Waiting</span></span>
         <span class="ltable-cell">Every day at 08:00</span>
-        <span class="ltable-cell"><b>#12</b> 3:10</span>
-        <span class="ltable-cell">08:00</span>
+        <span class="ltable-cell result s-ok">last run succeeded <span class="data">3:10</span></span>
+        <span class="ltable-cell data">08:00</span>
         <span class="ltable-act"><button class="iconbtn" type="button" aria-label="Start"><svg class="icon"><use href="#i-play"/></svg></button></span>
       </a>
       <a class="ltable-row is-pressed" href="#" role="row">
         <span class="ltable-name"><b>Scan API logs</b><span>acme-api</span></span>
         <span class="ltable-cell"><span class="pill s-stop">Stopped</span></span>
         <span class="ltable-cell">Every hour</span>
-        <span class="ltable-cell"><b>#3</b> 1:02</span>
+        <span class="ltable-cell result s-fail">last run failed <span class="data">1:02</span></span>
         <span class="ltable-cell">-</span>
         <span class="ltable-act"><button class="iconbtn" type="button" aria-label="Start"><svg class="icon"><use href="#i-play"/></svg></button></span>
       </a>
@@ -439,6 +456,7 @@
       <div class="field"><span class="label">Focus</span><input class="input is-focus" value="15" aria-label="Focus"></div>
       <div class="field"><span class="label">Every (minutes)</span><input class="input is-err" value="0" aria-invalid="true" aria-label="Every (minutes)"><p class="hint is-err">Enter a number from 1 to 59.</p></div>
       <div class="field"><span class="label">Disabled</span><input class="input" value="acme-api" disabled aria-label="Disabled"><p class="hint is-warn">The folder of this repo is gone.</p></div>
+      <div class="field"><label class="label" for="f-path">Folder path</label><input class="input is-data" id="f-path" value="C:\Users\alice\work"><p class="hint">.input.is-data: a path or an address in the data font.</p></div>
       <div class="field"><label class="label" for="f-agent">Agent</label><select class="select" id="f-agent"><option>Claude opus</option><option>Claude sonnet</option></select></div>
     </div>
     <div class="field"><label class="label" for="f-prompt">Prompt <span class="count">212 / 4000</span></label><textarea class="textarea" id="f-prompt">Run node scripts/backlog.js next - claim exactly one open issue.</textarea></div>
@@ -464,6 +482,14 @@
       <button class="chip is-hover" type="button">Documents</button>
       <button class="chip is-pressed" type="button">work</button>
       <button class="chip is-focus" type="button">Focused</button>
+    </div>
+    <div class="ds-row">
+      <button class="switch" type="button" role="switch" aria-checked="false"><span class="switch-track"></span>Show hidden folders</button>
+      <button class="switch" type="button" role="switch" aria-checked="true"><span class="switch-track"></span>On</button>
+      <button class="switch is-hover" type="button" role="switch" aria-checked="false"><span class="switch-track"></span>Hover</button>
+      <button class="switch is-pressed" type="button" role="switch" aria-checked="true"><span class="switch-track"></span>Pressed</button>
+      <button class="switch is-focus" type="button" role="switch" aria-checked="false"><span class="switch-track"></span>Focus</button>
+      <button class="switch" type="button" role="switch" aria-checked="false" disabled><span class="switch-track"></span>Disabled</button>
     </div>
     <p class="ds-cap">.chips: a wrapping row of chips (weekdays).</p>
     <div class="chips" role="group" aria-label="On">
@@ -549,14 +575,26 @@
         <div class="dialog-head"><h2>Add repo</h2></div>
         <div class="dialog-body">
           <div class="picker">
-            <div class="picker-bar"><label class="search"><svg class="icon"><use href="#i-search"/></svg><input type="search" placeholder="Type a path" aria-label="Path"></label></div>
-            <div class="picker-places"><button class="chip is-on" type="button">Home</button><button class="chip" type="button">Desktop</button><button class="chip" type="button">C:\</button></div>
+            <div class="picker-bar">
+              <div class="field"><input class="input is-data is-err" value="C:\Users\alice\work\acme-tool" aria-label="Folder path" aria-invalid="true"><p class="hint is-err">Folder does not exist</p></div>
+              <button class="iconbtn bordered" type="button" aria-label="Up one folder"><svg class="icon"><use href="#i-up"/></svg></button>
+              <button class="btn" type="button">Go</button>
+            </div>
+            <div class="picker-tools">
+              <nav class="crumbs"><span>C:</span><span>›</span><span>Users</span><span>›</span><b>alice</b></nav>
+              <label class="search"><svg class="icon"><use href="#i-search"/></svg><input type="search" placeholder="Filter folders" aria-label="Filter folders"></label>
+              <button class="switch" type="button" role="switch" aria-checked="false"><span class="switch-track"></span>Show hidden folders</button>
+            </div>
+            <div class="picker-places"><button class="chip is-on" type="button">Home</button><button class="chip" type="button">Desktop</button><button class="chip" type="button">Documents - <span class="data">OneDrive</span></button><button class="chip" type="button">Documents - <span class="data">alice</span></button><button class="chip" type="button">C:</button></div>
             <div class="picker-list group">
               <a class="cell" href="#"><svg class="icon"><use href="#i-folder"/></svg><span class="cell-title is-plain">notes</span></a>
               <a class="cell is-sel" href="#"><svg class="icon"><use href="#i-folder"/></svg><span class="cell-title is-plain">acme-api</span><span class="tag git">git</span><span class="tag repo">repo</span></a>
             </div>
             <p class="picker-status">12 folders</p>
-            <div class="picker-target"><svg class="icon"><use href="#i-folder"/></svg><span>C:\Users\alice\work\acme-api</span></div>
+            <div class="picker-foot">
+              <div class="picker-target"><svg class="icon"><use href="#i-folder"/></svg><span>Adds <b>C:\Users\alice\work\acme-api</b> as <b>acme-api</b></span></div>
+              <div class="field"><label class="label" for="f-rname">Name</label><input class="input" id="f-rname" value="acme-api"></div>
+            </div>
           </div>
         </div>
         <div class="dialog-foot"><button class="btn ghost" type="button">Cancel</button><button class="btn primary" type="button">Add repo</button></div>
@@ -567,13 +605,21 @@
       <div class="fullsheet" role="dialog" aria-label="Choose a folder">
         <div class="navbar"><button class="navbar-back" type="button">Cancel</button><span class="navbar-title">Choose a folder</span><div class="navbar-actions"><button class="btn plain" type="button">Add</button></div></div>
         <div class="picker">
+          <div class="picker-bar"><div class="field"><input class="input is-data" value="C:\Users\alice" aria-label="Folder path"></div><button class="iconbtn bordered" type="button" aria-label="Up one folder"><svg class="icon"><use href="#i-up"/></svg></button></div>
           <div class="picker-places"><button class="chip is-on" type="button">Home</button><button class="chip" type="button">Desktop</button><button class="chip" type="button">Documents</button></div>
-          <div class="crumbs"><span>C:</span><span>/</span><span>Users</span><span>/</span><b>alice</b></div>
+          <div class="picker-tools">
+            <nav class="crumbs"><span>C:</span><span>›</span><span>Users</span><span>›</span><b>alice</b></nav>
+            <label class="search"><svg class="icon"><use href="#i-search"/></svg><input type="search" placeholder="Filter folders" aria-label="Filter folders"></label>
+            <button class="switch" type="button" role="switch" aria-checked="true"><span class="switch-track"></span>Show hidden folders</button>
+          </div>
           <div class="picker-list group">
             <a class="cell" href="#"><svg class="icon"><use href="#i-folder"/></svg><span class="cell-title is-plain">work</span><svg class="chev icon"><use href="#i-chev"/></svg></a>
             <a class="cell" href="#"><svg class="icon"><use href="#i-folder"/></svg><span class="cell-title is-plain">notes</span><span class="tag git">git</span></a>
           </div>
-          <div class="picker-target"><svg class="icon"><use href="#i-folder"/></svg><span>C:\Users\alice\work</span></div>
+          <div class="picker-foot">
+            <div class="picker-target"><svg class="icon"><use href="#i-folder"/></svg><span>Adds <b>C:\Users\alice\work</b> as <b>work</b></span></div>
+            <button class="btn primary lg block" type="button">Add repo</button>
+          </div>
         </div>
       </div>
     </div>
@@ -598,6 +644,7 @@
     <div class="group"><div class="empty is-err"><b>Could not load the loops</b><span>The server did not answer.</span></div></div>
     <div class="ds-stack"><span class="skeleton is-line"></span><span class="skeleton is-block"></span></div>
     <p class="note">Times are in Asia/Ho_Chi_Minh.</p>
+    <p class="note">.data: a time, id or path inside a sentence, in the data font: run <span class="data">#69</span> took <span class="data">0:42</span>.</p>
     <div class="cmd"><code>claude --resume 55418851-89d3</code><button class="iconbtn" type="button" aria-label="Copy"><svg class="icon"><use href="#i-copy"/></svg></button></div>
     <pre class="code">Run node scripts/backlog.js next - claim exactly one open issue (skip issues labelled in-progress).</pre>
     <div class="def"><b>Active period</b><span>From Start until Stop, or until the server shuts down.</span></div>

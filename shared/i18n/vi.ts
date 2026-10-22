@@ -508,6 +508,9 @@ export const vi: Record<MessageKey, string> = {
   'row.lastTimedOut': 'lần chạy gần nhất quá giờ {t}',
   'row.lastOk': 'lần chạy gần nhất thành công {t}',
   'row.lastCancelled': 'lần chạy gần nhất bị huỷ {t}',
+  'row.lastInterrupted': 'lần chạy gần nhất bị ngắt {t}',
+  'row.lastSkipped': 'lần chạy gần nhất bị bỏ qua {t}',
+  'row.agent': 'Claude {model}',
   'row.neverStarted': 'chưa chạy lần nào',
   'row.next': 'lần tới {t}',
   'row.notScheduled': 'chưa có lịch',
@@ -753,6 +756,10 @@ export const vi: Record<MessageKey, string> = {
   'picker.tagGit': 'git',
   'picker.tagRepo': 'đã là repo',
   'picker.open': 'Mở {name}',
+  'picker.home': 'Nhà',
+  'picker.pathTaken': 'Thư mục này đã là một repo: "{name}"',
+  'picker.denied': 'macOS không cho Castraferrum đọc thư mục này. Hãy cho phép ứng dụng đang chạy console (Terminal, iTerm) trong System Settings > Privacy & Security > Files & Folders (hoặc Full Disk Access), rồi bấm Thử lại.',
+  'repos.emptyTitle': 'Chưa có repo nào',
   'settings.title': 'Cài đặt',
   'settings.appearance': 'Giao diện',
   'settings.theme': 'Chủ đề',
@@ -820,6 +827,15 @@ export const viSchedule = {
   missingMonthDay: (d: number) => `Tháng không có ngày ${d} sẽ không chạy`,
   dayOrWeekday: 'Đặt cả ngày lẫn thứ: lịch chạy khi khớp ngày HOẶC khớp thứ (không phải cả hai)',
   nextRunsCount: (n: number) => `n phải là số nguyên ≥ 0, đang là ${n}`,
+  // Dạng ngắn của lịch dựng sẵn, cho một dòng của hàng loop (describeShort).
+  short: {
+    weekday: ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'],
+    everyMinutes: (n: number) => (n === 1 ? 'mỗi phút' : `mỗi ${n} phút`),
+    everyHours: (n: number, mm: string) => (n === 1 ? `mỗi giờ, phút ${mm}` : `mỗi ${n} giờ, phút ${mm}`),
+    daily: (t: string) => `hằng ngày ${t}`,
+    weekly: (t: string, days: string) => `${days} ${t}`,
+    monthly: (d: number, t: string) => `ngày ${d} hằng tháng ${t}`,
+  },
 };
 
 // Phrases that override cronstrue's stock `vi` locale for the Advanced kind (that locale says "vào 13 ngày trong tháng",

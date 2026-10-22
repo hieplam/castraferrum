@@ -237,12 +237,17 @@ Screens put kit components together in `web/features/`. Never add a class that i
 
 ### Page
 
-- **Classes:** `.page` (`.is-narrow`), `.page-head`, `.page-title`, `.page-desc`, `.page-meta`, `.large-title`,
+- **Classes:** `.page` (`.is-narrow`), `.page-head` (`.is-root`), `.page-title`, `.page-desc`, `.page-meta`, `.large-title`,
   `.backlink`, `.cols`, `.cols-main`, `.cols-side`, `.actionbar`.
 - **Use it** for every route: one `.page`, one `h1` (`.page-title`, or `.large-title` on a tab root), then the content.
+  The head of a tab root that has an action (Loops: New loop, Repos: Add a repo) is `.page-head.is-root` holding the
+  `h1` and that one action; Settings has no action and keeps a plain `.page-head`.
 - **Do not** nest pages or put a second `h1` anywhere.
-- **Phone:** one column; `.actionbar` is fixed at the bottom and holds the page's main action. **Desktop:** `.cols` makes
-  two columns from 1024px; `.actionbar` is hidden and its actions sit in `.page-head`.
+- **Phone:** one column; `.actionbar` is fixed at the bottom and holds the page's main action. In `.page-head.is-root`
+  the action is a 44 by 44 `.iconbtn` (the `+`, in `--accent-text`) at the trailing edge, on a row above the large
+  title. A page under the tab bar keeps `--size-tabbar` + `--safe-bottom` of bottom padding, so its last cell is never
+  hidden. **Desktop:** `.cols` makes two columns from 1024px; `.actionbar` is hidden and its actions sit in
+  `.page-head`; in `.page-head.is-root` the action is the `.btn.primary` at the end of the row, beside the title.
 - **States:** none.
 - **Wrapper:** `web/ui/kit/Layout.tsx`: `Page`, `PageHead`, `LargeTitle`, `BackLink`, `ActionBar`, `Cols`, `useLayout`
   (U14).
@@ -271,9 +276,13 @@ Screens put kit components together in `web/features/`. Never add a class that i
 ### Status
 
 - **Classes:** `.pill` (`.s-run`, `.s-ok`, `.s-fail`, `.s-int`, `.s-skip`, `.s-stop`, `.s-warn`, `.s-wait`), `.dot`
-  (`.d-ok`, `.d-run`, `.d-fail`, `.d-warn`), `.pulse`.
+  (`.d-ok`, `.d-run`, `.d-fail`, `.d-warn`), `.pulse`, `.result` (`.s-ok`, `.s-fail`, `.s-int`, `.s-skip`).
 - **Use** a pill (a dot and a word) for the status of a loop, a run or a repo; a lone `.dot` only next to a word that
   already names the state (the connection). The words are in [Content](#content).
+- **`.result`** is the text of a last run in the colour of its status (a loop row: "last run failed 14:00" in `.s-fail`,
+  "last run succeeded 12:05" in `.s-ok`); the words stay in the text, the colour only agrees with them. Failed and
+  timed out are `.s-fail`, cancelled and skipped `.s-skip`, interrupted `.s-int`. It is drawn on the page and cell
+  backgrounds, like the `.s-wait` pill.
 - **Do not** show a glyph or a colour alone as a status.
 - **Phone and desktop:** the same.
 - **States:** the running pulse, off under `prefers-reduced-motion: reduce`.
@@ -282,9 +291,13 @@ Screens put kit components together in `web/features/`. Never add a class that i
 ### Inset list
 
 - **Classes:** `.group`, `.group-cap`, `.group-note`, `.cell` (`.is-link`, `.is-sel`), `.cell-main`, `.cell-title`
-  (`.is-plain`), `.cell-row`, `.cell-meta` (`.is-one-line`), `.cell-sum`, `.cell-value`, `.chev`.
+  (`.is-plain`), `.cell-row`, `.cell-meta` (`.is-one-line`, `.is-data`), `.cell-sum`, `.cell-value` (`.is-data`), `.chev`.
 - **Use it** for every list (runs, repos, active periods, folders, settings rows) on every screen size, and for the
   Loops list on the phone. A `.cell.is-link` opens a page and shows a `.chev`.
+- **Data text.** A path, an address or a version in a cell is `.cell-meta.is-data` or `.cell-value.is-data`
+  (`--font-data`). `.cell-row` wraps its parts onto the next line when they do not fit. A `.cell-meta` made of
+  spans (a loop row: repo, short schedule, next run) wraps between its spans, never inside one; `.is-one-line` cuts
+  a single long value (a path) with an ellipsis.
 - **Do not** use a table for these lists.
 - **Phone:** cells at least `--size-row` tall, hairlines inset by `--space-4`. **Desktop:** at least `--size-row-sm`.
 - **States:** hover, pressed, selected (`.is-sel`, with the rail), focus.
@@ -306,8 +319,11 @@ Screens put kit components together in `web/features/`. Never add a class that i
 - **Use it** for the Loops page only, from 1024px: name and repo, status, the running or latest run, the next run, and
   Start or Stop with a `⋯` menu. `.toolbar` holds the search, the filter and Create loop above it.
 - **Do not** use it for any other list.
-- **Phone:** not used (cells of the inset list instead); `.toolbar` wraps. **Desktop:** from 1024px, columns sized by
-  the `--size-col-*` tokens.
+- **Cells.** Times in `.ltable-cell.data`, the last run in `.ltable-cell.result` (`.s-fail`, `.s-ok`). The second line of
+  `.ltable-name` is the repo and the agent ("acme-api · Claude opus").
+- **Phone:** not used (cells of the inset list instead). `.toolbar` is a two-column grid: the search field and one
+  trailing `.iconbtn.bordered` (the repo filter) share the first row; the `.seg` takes the second row at full width, its
+  columns at least as wide as their labels. **Desktop:** from 1024px, columns sized by the `--size-col-*` tokens.
 - **States:** hover, focus.
 - **Wrapper:** `LoopsTable.tsx` of the Loops page (U15), built from kit buttons and pills.
 
@@ -354,11 +370,11 @@ Screens put kit components together in `web/features/`. Never add a class that i
 
 ### Fields
 
-- **Classes:** `.field`, `.label`, `.input`, `.textarea`, `.select`, `.hint` (`.is-err`, `.is-warn`), `.count`,
-  `.search`, `.seg` (`button.is-on`), `.stepper`, `.chip` (`.is-on`), `.chips`, `.combo`, `.fcell` (`.is-row`),
+- **Classes:** `.field`, `.label`, `.input` (`.is-data`), `.textarea`, `.select`, `.hint` (`.is-err`, `.is-warn`), `.count`,
+  `.search`, `.seg` (`button.is-on`), `.stepper`, `.chip` (`.is-on`), `.chips`, `.switch`, `.switch-track`, `.combo`, `.fcell` (`.is-row`),
   `.form-foot`, `.sched-desc`, `.next-runs`.
 - **Use** `.field` with a visible `.label` for every form control outside a card; `.hint` under it for help and errors;
-  `.seg` for two to five exclusive choices that fit; `.chip` for filters; `.stepper` for small numbers; `.fcell` for a
+  `.seg` for two to five exclusive choices that fit; `.chip` for filters; `.switch` for an on or off setting; `.stepper` for small numbers; `.fcell` for a
   field as a row of a `.group` (the editor uses these groups on every screen size); `.form-foot` for the editor's Save
   and Cancel.
 - **Stepper:** `.stepper` holds Fewer, the value and More. The value is an `output`, or an `input type="number"`
@@ -374,12 +390,17 @@ Screens put kit components together in `web/features/`. Never add a class that i
 - **Time:** a time of day is a text field showing 24-hour `HH:MM` (`inputmode="numeric"` and a `pattern`), because the
   browser's `type="time"` shows "02:30 AM" in an English browser.
 - **Prompt:** `.textarea` is in `--font-data`.
+- **Switch.** A `button.switch` with `role="switch"` and `aria-checked`, holding a `.switch-track` and its label
+  (`<button class="switch" role="switch" aria-checked="false"><span class="switch-track"></span>Show hidden folders</button>`).
+  The thumb moves to the end and the track turns `--accent` when it is on. Its label says what the setting does, not the
+  state. It is at least `--size-control` tall.
+- **Data text.** A path or an address in a field is `.input.is-data` (`--font-data`, still `--fs-field`).
 - **Do not** use a placeholder as the label, or make a field smaller than `--fs-field`.
 - **Phone:** controls 44px tall, 16px text, `.fcell` rows in a `.group`. **Desktop:** 36px tall, 16px text, the same
   groups in `.page.is-narrow`.
 - **States:** rest, hover, focus, error, disabled.
 - **Wrapper:** `web/ui/kit/Field.tsx`: `Segmented`, `Search` (U14); `Input`, `Textarea`, `Select`, `Stepper`, `Chip`,
-  `FieldCell` (U18).
+  `Switch`, `FieldCell` (U18; `Switch` with the folder picker, U19).
 
 ### Overlays
 
@@ -407,10 +428,11 @@ Screens put kit components together in `web/features/`. Never add a class that i
 ### Misc
 
 - **Classes:** `.icon`, `.tag` (`.git`, `.repo`), `.crumbs`, `.empty` (`.is-err`), `.skeleton` (`.is-line`,
-  `.is-block`), `.note`, `.cmd`, `.code`, `.def`, `.steps`, `.step`.
+  `.is-block`), `.note`, `.cmd`, `.code`, `.def`, `.steps`, `.step`, `.data`.
 - **Use** `.icon` for every icon, `.tag` to mark a git folder or a registered repo, `.crumbs` for a path, `.empty` for
   an empty or failed list, `.skeleton` while loading, `.note` for a short aside, `.cmd` for a command with a copy
-  button, `.code` for code and prompts, `.def` for definitions, `.steps` and `.step` for numbered how-to steps.
+  button, `.code` for code and prompts, `.def` for definitions, `.steps` and `.step` for numbered how-to steps, `.data` for a time, a run number, a duration or a path inside a sentence
+  (`--font-data`, tabular figures, never broken across lines): "last run failed" and a `.data` "14:00".
 - **Do not** use `.skeleton` for longer than a load, or `.note` for an error.
 - **Phone and desktop:** the same.
 - **States:** none.
@@ -418,10 +440,21 @@ Screens put kit components together in `web/features/`. Never add a class that i
 
 ### Folder picker
 
-- **Classes:** `.picker`, `.picker-bar`, `.picker-places`, `.picker-list`, `.picker-status`, `.picker-target`.
-- **Use it** only to add a repo: the path, quick access places, the folder list, and the folder that will be added.
+- **Classes:** `.picker`, `.picker-bar`, `.picker-tools`, `.picker-places`, `.picker-list`, `.picker-status`, `.picker-foot`,
+  `.picker-target`.
+- **Use it** only to add a repo. Top to bottom (the same order on both sizes): `.picker-bar` (the path `.field` with its
+  error under it, `.iconbtn.bordered` Up, `.btn` Go), `.picker-places` (quick access), `.picker-tools` (the breadcrumb
+  `.crumbs`, the filter `.search`, the show-hidden `.switch`), `.picker-list`, `.picker-status`, and `.picker-foot` (the
+  `.picker-target` line, the name `.field`, and on the phone the Add repo button).
+- **Quick access labels.** "Home", "Desktop", "Documents", "Downloads", then the drives or volumes, then the folders
+  that hold registered repos. A label that appears twice is told apart by its parent folder in `--font-data`
+  ("Documents - OneDrive", the parent in `.data`).
 - **Do not** use it to pick a file.
-- **Phone:** a `.fullsheet`, quick access as chips. **Desktop:** a wide dialog, quick access as a column.
+- **Phone:** a `.fullsheet`; quick access as chips in a row that scrolls sideways; only `.picker-list` shrinks and
+  scrolls; `.picker-foot` is a bar fixed at the bottom of the sheet (`--surface`, a hairline above it, `--safe-bottom`).
+  **Desktop:** a wide dialog; quick access is a column beside the list, both at most `--size-log` tall and scrolling on
+  their own, so the dialog fits a 900px viewport with an error showing; `.picker-foot` has its own gap above the dialog
+  footer (Cancel, Add repo).
 - **States:** the selected folder (`aria-selected="true"`), git and repo tags.
 - **Wrapper:** `AddRepo.tsx` of the Repos page (U19), built from the overlay, the inset list and the fields.
 
@@ -438,13 +471,18 @@ Screens put kit components together in `web/features/`. Never add a class that i
 - **Actions.** The main action of a page (Start, Stop loop, Restore, Create loop, Save changes, Add repo) sits in
   `.actionbar` on the phone and in `.page-head` (or `.form-foot` for the editor) from 640px. It is rendered once:
   `useLayout()` picks the place, so no test id appears twice.
-- **Bottom padding.** A page with a fixed bar at the bottom keeps padding so its last item is never hidden.
+- **Bottom padding.** A page with a fixed bar at the bottom keeps padding so its last item is never hidden: the
+  `.actionbar` pages and, on the phone, every page under the `.tabbar`.
 - **Breakpoints.** Phone below 640px, wide from 1024px. They are the only literal lengths, and only in media queries.
 
 ## Content
 
 - Sentence case for every label, title and button. No glyph carries meaning alone; a glyph may decorate a word.
-- Numbers, times, durations, ids, costs and paths use `--font-data`.
+- Numbers, times, durations, ids, costs and paths use `--font-data`: `.data` inside a sentence, `.is-data` on a
+  cell value, a cell line or a field.
+- **Short schedule.** A loop row on the phone says the schedule in one short line ("every 10 min", "every 2 hours at :05",
+  "Mon, Wed, Fri at 08:30"; `describeShort` of `shared/domain/schedule.ts`); the full sentence stays on the desktop
+  table and the loop page. A row line is: repo, short schedule, next run.
 - **Naming.** The UI says **active period** for the span from Start to Stop. API routes, database names and DTO fields
   keep `execution`, and so does the page URL `/executions/:id`.
 - **Statuses.** A status is a pill with a dot and a word:
