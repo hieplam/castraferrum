@@ -56,8 +56,8 @@ export function RecentRuns({ loop, now }: { loop: LoopDetailDto; now: Date }) {
           </Link>
         )}
       </div>
-      <p className="group-cap">
-        <Link className="link" to={`/executions/${current.executionId}`} data-execution-id={current.executionId}>
+      <p className="group-cap" data-execution-id={current.executionId}>
+        <Link className="link" to={`/executions/${current.executionId}`}>
           {t('period.title', { k: current.seq ?? '?' })}
         </Link>
         {` · ${periodSpanText(t, current, tz, now)} · ${periodEndText(t, current)} · ${t.tn('period.runs', current.runs)}`}

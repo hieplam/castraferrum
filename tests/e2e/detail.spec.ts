@@ -312,7 +312,9 @@ test.describe('loop detail · execution · run', () => {
     // From the loop detail -> executions table -> execution #1.
     await open(page, `/loops/${loop.id}`);
     const newUi = await isNewUi(page);
-    await (await executionRows(page)).first().click();
+    // New UI: the first active period is the current period's head; its title is the link to the period's page.
+    const firstPeriod = (await executionRows(page)).first();
+    await (newUi ? firstPeriod.getByRole('link') : firstPeriod).click();
     await expect(page).toHaveURL(new RegExp(`/executions/${exec!.id}$`));
     if (newUi) {
       // New UI: `data-ended` says whether the period ended; the state pill says how (Stop = "Stopped by you").

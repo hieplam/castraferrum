@@ -393,7 +393,7 @@ test.describe('system - the shared e2e server', () => {
         await open(page, `/loops/${l.id}`);
         await expect(page.getByTestId('fig-runs')).toContainText(await execWords(execs[i]!));
         await expect(page.getByTestId('fig-runs')).toContainText('1 succeeded');
-        await expect((await executionRows(page)).first()).toHaveText(t('period.title', { k: 1 }));
+        await expect((await executionRows(page)).first()).toContainText(`${t('period.title', { k: 1 })} · `);
       }
     }
     for (const l of loops) expect((await api('POST', `/api/loops/${l.id}/stop`)).status).toBe(200);
