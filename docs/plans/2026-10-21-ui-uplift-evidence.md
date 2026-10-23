@@ -2103,8 +2103,29 @@ Closed task issues of the epic that fail `check --dry-run`: 11 -> 0.
 
 ## U26
 
-Status: **not done**. G1 to G8 pass (8/8), but step 4 fails: 11 closed issues of the epic have no verified closing
-pull request in GitHub's records. That became the fix issue castraferrum#175, which blocks U26; nothing is merged.
+Status: **not done** (attempt 2). Step 4 now passes: castraferrum#175 was fixed in castraferrum#176. On the rebased
+tree, goal:check printed 7/8. G5 failed because `npm run verify` hit an e2e failure in UC-34, which became the fix
+issue castraferrum#177. It blocks U26, and nothing is merged.
+
+Attempt 2 (rebased on castraferrum#176):
+
+- Step 4: `epic.mjs check <n> --dry-run` on the 44 closed task issues of the epic (U0 to U25, the gap, preview and
+  flake issues, and castraferrum#175): **44 PASS, 0 FAIL**. The closed phase issues 65 and 68 print `FAIL - no merged
+  pull request closes it`. They are not counted as tasks: `epic.mjs` closes a phase itself when its sub-issues
+  finish, so a phase has no pull request by design. Before castraferrum#177 was opened, `epic.mjs status 63` showed
+  only U26 and U27 open.
+- `npm run goal:check -- docs/plans/2026-10-21-ui-uplift-goals.json`: `G1 pass` to `G4 pass`,
+  `G5 FAIL: run npm run verify: exit 1, expected 0`, `G6 pass` to `G8 pass`, `goals passed: 7/8`. From that run's
+  `reports/e2e.json`, the failing test is chromium `tests/e2e/phone.spec.ts:88` (UC-34), at line 164:
+  `expect(received).toContain(expected)`. Expected value: the typed path `...\Temp\cf-phone-Ri9sUW`. Received array:
+  `...\Temp` and `...\AppData\Local`, the parent folder of `Temp`.
+  - So the add-repo sheet registered the picker's opening folder instead of the typed path. That is
+    castraferrum#177; the suspected cause is in `web/features/repos/AddRepo.tsx`.
+  - The failure depends on timing. Three more rounds of `npx playwright test --project chromium` passed
+    (`38 passed` each), and so did a reproduction that delays `GET /api/folders`. Of the 5 full verify runs of this
+    task, 2 failed late in the e2e step.
+
+Attempt 1 (below) found 11 closed issues without a verified closing pull request. That became castraferrum#175.
 
 ### Red
 
