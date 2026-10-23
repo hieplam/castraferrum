@@ -2262,3 +2262,38 @@ Each change proves the same goal, none weakens it:
 - Open fix issues under the epic: 0 at the start; 1 after each failing attempt (castraferrum#175, castraferrum#177,
   castraferrum#180); 0 now, all three fixed and merged.
 - Closed tasks failing `epic.mjs check --dry-run`: 11 (attempt 1) -> 0 (46/46 PASS).
+
+## U27 defects: page layout
+
+Status: done. Four layout defects found by the U27 acceptance (https://github.com/hieplam/castraferrum/issues/94), fixed in
+the design system (`design/ds/components.css`, `SYSTEM.md`) and measured in the real app by
+`tests/visual/ds/layout.visual.ts` (desktop and phone, the preview's world seeded into the test database). Recorded in
+`design/APPROVED.md` ("page layout defects found by U27"); 62 preview shots re-shot.
+
+- https://github.com/hieplam/castraferrum/issues/187: the run page's log has the card radius; the log in the Now card keeps 0.
+- https://github.com/hieplam/castraferrum/issues/189: the Now card's dot is centred on its title (Waiting, The last run failed).
+- https://github.com/hieplam/castraferrum/issues/192: the phone Recent runs caption sits `--space-2` under its head and above
+  its group, wraps at `--lh-cap`, and never breaks a part (`.keep`).
+- https://github.com/hieplam/castraferrum/issues/193: the phone meta line never ends with its separator.
+
+### Red
+
+`npx playwright test --project=visual tests/visual/ds/layout.visual.ts` with the fix stashed (built with `vite build`):
+6 failed. Desktop and phone castraferrum#189 `wiki (waiting): the dot is -8.0 px off the title's centre` (phone -8.5);
+desktop and phone castraferrum#187 `Expected: "12px" Received: "0px"`; castraferrum#192 `pilot: caption to its head
+Expected: 8 Received: 20`; castraferrum#193 `last glyphs of the wrapped lines Expected value: not "·" Received array: ["·"]`.
+
+### Green
+
+The same command with the fix: `6 passed`. With it, `tests/visual/ds/loop.visual.ts`, `run.visual.ts` and
+`behaviour.visual.ts` against the re-shot preview: `24 passed`.
+
+### Stub check
+
+Reverting the fix (git stash of `components.css`, `preview.js` and the two views) brings back the 6 failures above. Each
+check covers the case that passed before: 189 checks the running pulse and both dots, 187 checks the log inside the card
+stays square (rounding every log fails it), 192 checks a caption that fits on one line too, 193 needs a wrap to pass.
+
+### Ratchet
+
+Open page layout defects of U27: 4 -> 0.

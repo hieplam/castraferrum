@@ -2,6 +2,7 @@
 // this period", then the earlier periods as cells. The `?` explains the words (a popover on the desktop, a sheet on the phone);
 // the desktop's head links to All runs. The current period's head opens its active period page, as the earlier periods' cells do.
 // Nothing shows before the loop's first Start.
+import { Fragment } from 'react';
 import { Link } from 'react-router';
 import type { LoopDetailDto } from '../../../shared/contracts/loops';
 import { useLoopExecutions, useLoopRuns } from '../../data/history';
@@ -60,7 +61,12 @@ export function RecentRuns({ loop, now }: { loop: LoopDetailDto; now: Date }) {
         <Link className="link" to={`/executions/${current.executionId}`}>
           {t('period.title', { k: current.seq ?? '?' })}
         </Link>
-        {` · ${periodSpanText(t, current, tz, now)} · ${periodEndText(t, current)} · ${t.tn('period.runs', current.runs)}`}
+        {[periodSpanText(t, current, tz, now), periodEndText(t, current), t.tn('period.runs', current.runs)].map((part, i) => (
+          <Fragment key={i}>
+            {' '}
+            <span className="keep">{`· ${part}`}</span>
+          </Fragment>
+        ))}
       </p>
       <div className="group" data-testid="recent-runs">
         {current.items.map((r) => (
