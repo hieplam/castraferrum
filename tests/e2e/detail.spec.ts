@@ -79,7 +79,8 @@ test.describe('loop detail · execution · run', () => {
     test.setTimeout(90_000);
     // Run #1 must still be going when Stop is pressed, after the log, history and DB checks below: 30 seconds (line 6 shows
     // after about 5 of them). With 6 seconds a loaded machine finished the run first, and Stop found it `succeeded`.
-    const loop = await createLoop(request, 'UC-06 live log', { durationSec: 30 });
+    // Once a year: a :00 or :30 boundary inside the test would add a skipped run to the history the test compares.
+    const loop = await createLoop(request, 'UC-06 live log', { durationSec: 30 }, '0 0 1 1 *');
     // Record when each log line (data-seq) appears in the live log block - machine clock, same machine as the server.
     await page.addInitScript(() => {
       const seen: Record<string, number> = {};
