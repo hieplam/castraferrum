@@ -81,7 +81,7 @@ describe('RecoveryService', () => {
       [2, null],
       [1, 'server_down'],
     ]);
-    expect(detail.items[1]?.stats).toMatchObject({ runs: 1, failed: 1, elapsedMs: 450_000 }); // interrupted counts as an error
+    expect(detail.items[1]?.stats).toMatchObject({ runs: 1, failed: 0, interrupted: 1, elapsedMs: 450_000 }); // interrupted, not failed (castraferrum#190)
   });
 
   it('UC-15 Start right after the last heartbeat, then the server dies → endedAt = Start time (not negative)', async () => {

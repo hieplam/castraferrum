@@ -14,7 +14,7 @@ import { vi } from '../../../shared/i18n/vi';
 import { previewTranscriptLength, writePreviewTranscript, type PreviewTranscriptKey } from '../../support/preview-transcripts';
 import { DS_DATA_JS, PREVIEW_NOW, previewDirs, runId, seedPreviewWorld, sid } from '../../support/preview-world';
 import { liveDbUrl, ServerProcess } from '../../support/server-process';
-import { PHONE_VIEW, PREVIEW_VIEW, regions, setLang, snap, writeReport } from './kit';
+import { expectOneLine, PHONE_VIEW, PREVIEW_VIEW, regions, setLang, snap, writeReport } from './kit';
 
 /** The English text of a key of shared/i18n/en.ts with `{x}` filled in, like the app does. */
 const tEn = (key: keyof typeof en, params: Record<string, string | number> = {}) =>
@@ -35,6 +35,8 @@ const RUN = {
   oldsched4: runId('oldsched', 4, ''),
   evidence4: runId('evidence', 4, ''),
 };
+/** The count at the end of a transcript fold label (`… · 3 lines`): it never splits from its word (castraferrum#186). */
+const FOLD_COUNT = /\d+[ \u00a0]\S+$/;
 const tx = (k: PreviewTranscriptKey) => previewTranscriptLength(k, DS_DATA_JS);
 
 /** One server for a describe block, with its own CLAUDE_CONFIG_DIR; `world()` = a clean DB with the new preview's world and the clocks at PREVIEW_NOW. */
@@ -120,6 +122,7 @@ test.describe('desktop run page against the preview', () => {
     await expect(page.getByTestId('run-summary')).toBeVisible();
     await expect(page.getByTestId('run-resume-cmd')).toHaveText(`claude --resume ${sid('pilot', 68)}`);
     await expect(page.getByTestId('run-transcript-edge')).toHaveText(tEn('tx.end', { t: '13:53:04' }));
+    await expectOneLine(page, '[data-testid="run-transcript"] .tx-fold', FOLD_COUNT);
     await snap(page, 'run-succeeded', 'Succeeded: summary, cost, session, resume command; the prompt used differs from the current prompt', [regions.page()]);
 
     await page.getByTestId('run-resume-copy').click();
@@ -146,6 +149,7 @@ test.describe('desktop run page against the preview', () => {
 
     await openRun(page, base, RUN.pilot59, { status: 'interrupted', logLines: 1, entries: tx('pilot59') });
     await expect(page.getByTestId('run-banner')).toBeVisible();
+    await expect(page.getByTestId('run-log').locator('.log-bar span').first()).toHaveText(tEn('log.saved.one')); // castraferrum#185
     await snap(page, 'run-interrupted', 'Interrupted by a server shutdown', [regions.page()]);
   });
 
@@ -173,6 +177,7 @@ test.describe('desktop run page against the preview', () => {
     await fontsLoaded(page);
     await scrollTxTop(page);
     await away(page);
+    await expectOneLine(page, '[data-testid="run-transcript"] .tx-fold', FOLD_COUNT);
     await snap(page, 'vi-run-transcript', 'The transcript in Vietnamese', [regions.page()]);
     await setLang(page, 'en');
 
