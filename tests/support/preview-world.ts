@@ -306,7 +306,12 @@ function executionRuns(key: string, e: Any, lastIter: number, running: boolean, 
   return out;
 }
 
-/** Empties the data tables (in foreign-key order). The server keeps running — like `/api/__test/reset` but without HTTP. */
+/**
+ * Empties the data tables (in foreign-key order). The server keeps running — like `/api/__test/reset` but without HTTP.
+ * Do not call it after a reset: the reset already empties the tables with the ticker stopped, while this TRUNCATE runs next to
+ * the restarted ticker and any open app page, which read `loops` then `loop_executions` (TRUNCATE locks them the other way
+ * round) → a deadlock now and then (castraferrum#169, castraferrum#170). The worlds of tests/visual/ds/ no longer call it.
+ */
 export async function wipe(db: pg.Pool): Promise<void> {
   await db.query('TRUNCATE run_logs, runs, loop_executions, loops, repos');
 }
