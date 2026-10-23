@@ -1197,8 +1197,8 @@ durations that `loop-runs` and the run cells draw. The digits differ on 143 to 2
 `phone-loop-running` (at most `0.020 %`, under `MAX_RATIO`), so Green holds; nothing is masked. Issue
 https://github.com/hieplam/castraferrum/issues/156 asks the owner whether to correct the preview's figure and re-shoot.
 
-Resolved on 2026-10-23: the owner chose to correct the preview to 14:52 and re-shoot (see the section "Issue 156"
-below and the entry "Typical run correction" in `design/APPROVED.md`).
+Resolved on 2026-10-23: the owner chose to correct the preview to 14:52 and re-shoot (see the section "Issues 156, 159 and 161"
+below and the entry "Agent corrections under the owner's rule of 2026-10-23" in `design/APPROVED.md`).
 
 ### Ratchet
 
@@ -1374,40 +1374,58 @@ choose.
 - Fields under 16px (`--fs-sm` on `Input` and `Textarea`): the phone test fails at `phone-form-new`,
   `expect(received).toBeGreaterThanOrEqual(expected)`, `Expected: >= 16`, `Received: 14`.
 
-## Issue 156
+## Issues 156, 159 and 161
 
-Status: done. The new preview's Typical run of "Issue backlog worker" is corrected from 18:47 to 14:52 (owner's decision
-on https://github.com/hieplam/castraferrum/issues/156, 2026-10-23); the seed is unchanged. A task outside the plan, so it
-has no plan entry.
+Status: done. Three sample differences between the new preview and the app, corrected in the preview under the owner's
+rule of 2026-10-23 (the app's honest behaviour wins; `design/APPROVED.md` records it). Tasks outside the plan, so they
+have no plan entry. The seed and the app are unchanged.
+
+- https://github.com/hieplam/castraferrum/issues/156: the Typical run of "Issue backlog worker" reads 14:52, not 18:47
+  (`design/ds/preview/data.js`, and the sample figure of `design/ds/index.html`).
+- https://github.com/hieplam/castraferrum/issues/159: the transcript bar of `run-failed` counts the loaded entries,
+  "50 entries", not 52 (`design/ds/preview/preview.js`, `transcript`).
+- https://github.com/hieplam/castraferrum/issues/161: the back link of `form-duplicate` names the copy, "Issue backlog
+  worker (copy)" (`design/ds/preview/preview.js`, `formApp` and the `form-duplicate` state).
 
 ### Red
 
-`npm run build`, then `npx playwright test --project=visual tests/visual/ds/loop.visual.ts` on `main`: `8 passed`, with
-the digits mismatched in the page region (`reports/compare/ds/results/loop.json`, light / dark):
-`loop-running` 190 / 185, `loop-help` 190 / 185, `loop-menu` 190 / 185, `loop-stop-confirm` 203 / 176,
-`loop-stopping` 190 / 185, `loop-disconnected` 190 / 185, `phone-loop-running` 161 / 143. Every other region: 0, except
-the `loop-stop-confirm` dialog region (18 / 6).
+`npm run build`, then on `main`, one suite at a time (all pass, the differences are under `MAX_RATIO`); mismatched
+pixels of the page region, light / dark, from `reports/compare/ds/results/<suite>.json`:
+
+- 156, `npx playwright test --project=visual tests/visual/ds/loop.visual.ts` (`8 passed`): `loop-running` 190 / 185,
+  `loop-help` 190 / 185, `loop-menu` 190 / 185, `loop-stop-confirm` 203 / 176, `loop-stopping` 190 / 185,
+  `loop-disconnected` 190 / 185, `phone-loop-running` 161 / 143. Every other region: 0, except the `loop-stop-confirm`
+  dialog region (18 / 6).
+- 159, `tests/visual/ds/run.visual.ts` (`4 passed`): `run-failed` 36 / 40.
+- 161, `tests/visual/ds/form.visual.ts` (`5 passed`): `form-duplicate` 139 / 145.
 
 ### Green
 
 - (1) `npm run design:shots -- --design design/ds`: `shot 240 images`; `git diff --stat main -- design/ds/preview/shots`
-  lists exactly the 14 shots of the 7 states above, light and dark.
-- (2) `npx playwright test --project=visual tests/visual/ds/loop.visual.ts`: `8 passed`. Page region, before -> after:
-  `loop-running` 190 -> 0 / 185 -> 0, `loop-help` 190 -> 0 / 185 -> 0, `loop-menu` 190 -> 0 / 185 -> 0,
-  `loop-stop-confirm` 203 -> 18 / 176 -> 6, `loop-stopping` 190 -> 0 / 185 -> 0, `loop-disconnected` 190 -> 0 / 185 -> 0,
-  `phone-loop-running` 161 -> 0 / 143 -> 0. The 18 / 6 left on `loop-stop-confirm` are the dialog's own pixels, the same
-  before and after (dialog region 18 -> 18 / 6 -> 6), not the figure.
-- (3) The other new-UI suites pass, one at a time: `tests/visual/ds/loops.visual.ts`, `run.visual.ts`, `form.visual.ts`,
-  `frame.visual.ts` (counts in the pull request).
-- (4) `npm run ratchets`: `ratchets: ok`.
+  lists exactly 18 shots: the 7 states of 156, `run-failed` and `form-duplicate`, light and dark.
+- (2) 156, `loop.visual.ts`: `8 passed`. Page region, before -> after: `loop-running` 190 -> 0 / 185 -> 0, `loop-help`
+  190 -> 0 / 185 -> 0, `loop-menu` 190 -> 0 / 185 -> 0, `loop-stop-confirm` 203 -> 18 / 176 -> 6, `loop-stopping`
+  190 -> 0 / 185 -> 0, `loop-disconnected` 190 -> 0 / 185 -> 0, `phone-loop-running` 161 -> 0 / 143 -> 0. The 18 / 6
+  left on `loop-stop-confirm` are the dialog's own pixels, the same before and after (dialog region 18 -> 18 / 6 -> 6).
+- (3) 159, `run.visual.ts`: `4 passed`; `run-failed` 36 -> 12 / 40 -> 17. What is left is close to the residual every run page
+  shares (`run-succeeded`, `run-running` and others: 12 / 15, unchanged).
+- (4) 161, `form.visual.ts`: `5 passed`; `form-duplicate` 139 -> 29 / 145 -> 26. What is left is the residual every
+  editor page shares (`form-new`, `form-conflict`, `form-edit-running`: 29 / 26, unchanged).
+- (5) The other new-UI suites pass, one at a time: `loops.visual.ts` `12 passed`, `frame.visual.ts` `7 passed`; every
+  other region of `run` and `form` is unchanged.
+- (6) `npm run ratchets`: `ratchets: ok`.
 
 ### Stub check
 
-`avg: 18 * 60 + 47` put back in `design/ds/preview/data.js` and the 7 states re-shot: `loop-running` page 0 -> 190 again
-(see the pull request for the literal numbers); the change was then undone.
+- 156: `avg: 18 * 60 + 47` put back in `design/ds/preview/data.js` and the 7 states re-shot (`--only`, `shot 14
+  images`): `loop.visual.ts` still passes (`8 passed`) and the mismatch comes back exactly as in Red (`loop-running`
+  190 / 185, `loop-stop-confirm` 203 / 176, `phone-loop-running` 161 / 143, the others 190 / 185).
+- 159 and 161: `all.length` put back in the transcript bar and the back link put back to `D.loops[o.key].name`, the two
+  states re-shot (`shot 4 images`): `run-failed` 36 / 40 and `form-duplicate` 139 / 145 again (`4 passed`, `5 passed`).
+- Each change was then undone (`git checkout -- design/ds`).
 
 ### Ratchet
 
-Mismatched pixels from the figure, summed over the 14 page regions: 2558 -> 24 (the 24 are the dialog pixels of
-`loop-stop-confirm`, unchanged).
-
+Mismatched pixels of the page regions of the 9 corrected states (18 pairs), summed: 2558 + 76 + 284 = 2918 ->
+24 + 29 + 55 = 108. The 108 left are residuals the same states had before these corrections and that their neighbours
+share (dialog pixels of `loop-stop-confirm`, the run page and editor page residuals).
