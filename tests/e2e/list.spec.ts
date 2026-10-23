@@ -43,6 +43,15 @@ const one = async <T = Json>(sql: string, params: unknown[] = []) => (await db.q
 const n = async (sql: string, params: unknown[] = []) => Number((await one<{ n: string }>(sql, params)).n);
 const row = (page: Page, name: string): Locator => page.getByTestId('loop-row').filter({ has: page.getByTestId('loop-name').filter({ hasText: new RegExp(`^${name}$`) }) });
 const hm = (d: Date) => new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: TZ }).format(d);
+/**
+ * A time as the row writes it (spec 7.2, preview `loopRow`): `13:30` on the same Vietnam day as now, `24/10 00:16` on another
+ * day - computed here, independently of the web's formatter. Every row time goes through this: the server clock is real time
+ * (plus what a test moved), so a bare `hm` breaks whenever that time falls on another day than the browser's now (castraferrum#180).
+ */
+const when = (d: Date, now = new Date()) => {
+  const day = (x: Date) => x.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', timeZone: TZ });
+  return day(d) === day(now) ? hm(d) : `${day(d)} ${hm(d)}`;
+};
 /** Midnight today in Vietnam time (computed independently of the server). */
 const midnightVn = () => new Date(`${new Date().toLocaleDateString('en-CA', { timeZone: TZ })}T00:00:00+07:00`);
 async function markNoReload(page: Page) {
@@ -135,7 +144,7 @@ test.describe('list screen', () => {
     // The row says the run working and the next run (spec 7.2); the counts, the active period and the last result are on the loop page.
     await expect(rowA.locator('[data-testid="row-status"][data-status="running"]')).toHaveText(t('status.running'));
     await expect(rowA.getByTestId('row-last')).toHaveText(runningFor(running.iteration));
-    await expect(rowA.getByTestId('row-next')).toHaveText(hm(loopA.next_run_at));
+    await expect(rowA.getByTestId('row-next')).toHaveText(when(loopA.next_run_at));
     await expect(rowA).toContainText('Every 30 minutes'); // the schedule column
     await onLoopPage(page, 'Alpha running', async () => {
       for (const [key, n] of [['count.succeeded', st.ok], ['count.failed', st.err], ['count.cancelled', st.cancel], ['count.skipped', st.skip]] as const) {
@@ -153,7 +162,7 @@ test.describe('list screen', () => {
     await expect(rowB.locator('[data-testid="row-status"][data-status="stopped"]')).toHaveText(stoppedWord);
     await expect(rowB.getByTestId('row-counts')).toHaveCount(0);
     const lastB = await one<{ started_at: Date }>(`SELECT started_at FROM runs WHERE loop_id = $1 AND status = 'cancelled'`, [b]);
-    await expect(rowB.getByTestId('row-last')).toHaveText(t('row.lastCancelled', { t: hm(lastB.started_at) })); // the first run was cancelled by Stop
+    await expect(rowB.getByTestId('row-last')).toHaveText(t('row.lastCancelled', { t: when(lastB.started_at) })); // the first run was cancelled by Stop
     await expect(row(page, 'Gamma new').getByTestId('row-last')).toHaveText(t('row.neverStarted'));
 
     // -- overview bar + count on each tab = SELECT
@@ -262,7 +271,7 @@ test.describe('list screen', () => {
     expect(loop.status).toBe('active');
     expect(loop.next_run_at.toISOString()).toBe(nextRuns(loop.cron, loop.timezone, ex.started_at, 1)[0]!.toISOString()); // the first cron boundary after Start
     // The row says the working run (above) and the next run; the active period is the loop page's current period head (spec 7.2).
-    await expect(r.getByTestId('row-next')).toHaveText(hm(loop.next_run_at));
+    await expect(r.getByTestId('row-next')).toHaveText(when(loop.next_run_at));
     await onLoopPage(page, 'Loop Start', async () => {
       await expect(periodHead(page, ex.id)).toContainText(new RegExp(`^${escapeRe(t('period.title', { k: 1 }))} `));
     });
@@ -334,11 +343,14 @@ test.describe('list screen', () => {
     expect(ex.end_reason).toBe('stopped');
     expect(Math.abs(ex.ended_at.getTime() - clickedAt)).toBeLessThan(2_000); // endedAt = the moment of the press
     expect(await one(`SELECT status, next_run_at FROM loops WHERE id = $1`, [id])).toEqual({ status: 'stopped', next_run_at: null });
-    await expect(r.getByTestId('row-last')).toHaveText(t('row.lastCancelled', { t: hm(run.started_at) }));
+    await expect(r.getByTestId('row-last')).toHaveText(t('row.lastCancelled', { t: when(run.started_at) }));
     await expect(r.getByTestId('row-counts')).toHaveCount(0);
 
-    // No new scheduled run: advance the server clock past 4 */30 boundaries -> still exactly 1 run.
-    expect((await request.post('/api/__test/clock', { data: { advanceMs: 2 * 3_600_000 } })).status()).toBe(200);
+    // No new scheduled run: move the server clock past many */30 boundaries -> still exactly 1 run. It goes to a fixed time of day,
+    // 10:00 Vietnam time two days from now, not "now + 2 hours": the next loop's run is then always on another day than the
+    // browser's now, whatever the wall clock says, so its row time is always `dd/mm HH:MM` (castraferrum#180).
+    const later = new Date(midnightVn().getTime() + 2 * 86_400_000 + 10 * 3_600_000);
+    expect((await request.post('/api/__test/clock', { data: { at: later.toISOString() } })).status()).toBe(200);
     await page.waitForTimeout(2_500); // >= 2 ticker beats of 1 second
     expect(await n(`SELECT count(*) n FROM runs WHERE loop_id = $1`, [id])).toBe(1);
 
@@ -349,7 +361,10 @@ test.describe('list screen', () => {
     // The first run (1 second) that starts at once on Start must be done first: between the moment the loop becomes active and
     // the moment the run is written, the row briefly shows "waiting for next run" - pressing Stop then opens the confirmation
     // box because the run is going.
-    await expect(ri.getByTestId('row-last')).toHaveText(keyRe(t('row.lastOk', { t: HOLE }), '\\d\\d:\\d\\d'), { timeout: 5_000 });
+    await expect.poll(() => n(`SELECT count(*) n FROM runs WHERE loop_id = $1 AND status = 'succeeded'`, [idle]), { timeout: 5_000 }).toBe(1);
+    const done = await one<{ started_at: Date }>(`SELECT started_at FROM runs WHERE loop_id = $1 AND status = 'succeeded'`, [idle]);
+    expect(done.started_at.getTime()).toBeGreaterThanOrEqual(later.getTime()); // stamped with the moved server clock
+    await expect(ri.getByTestId('row-last')).toHaveText(t('row.lastOk', { t: when(done.started_at) }), { timeout: 5_000 });
     await expect(ri.locator('[data-testid="row-status"][data-status="active"]')).toHaveText(t('status.waiting'), { timeout: 5_000 });
     await ri.getByTestId('row-stop').click();
     await expect(ri.locator('[data-testid="row-status"][data-status="stopped"]')).toHaveText(stoppedWord, { timeout: 2_000 });
