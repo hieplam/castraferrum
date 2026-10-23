@@ -162,3 +162,18 @@ Known differences, not defects:
 - the tab-bar Settings glyph differs from the board's sliders;
 - durations read `4h 13m` where the boards read `4 h 13 m`;
 - the sample data stays English in the `vi-*` states.
+
+## Typical run correction - the Typical run of "Issue backlog worker" in the new preview, 2026-10-23
+
+An owner-approved correction of the new preview approved at U10. The preview drew **Typical run 18:47, average of 9** for
+"Issue backlog worker", while the nine runs of its active period that the same preview draws on `loop-runs` (25:30,
+20:10, 0:58, 1:04, 23:40, 15:51, 5:12, 18:22, 23:04) average **14:52**, the figure the app computes. The owner chose to fix
+the preview, not the seed, on castraferrum#156. Owner's words: "fix the preview. The approved preview's 'Typical run'
+for Issue backlog worker becomes `14:52` (the average of the nine runs it draws), matching the app."
+
+Changed: `avg` of `pilot` in [`ds/preview/data.js`](ds/preview/data.js) (`18 * 60 + 47` -> `14 * 60 + 52`) and the same
+sample figure on the design-system page [`ds/index.html`](ds/index.html). Re-shot with `npm run design:shots -- --design
+design/ds`; exactly 14 shots changed, light and dark: `loop-running`, `loop-help`, `loop-menu`, `loop-stop-confirm`,
+`loop-stopping`, `loop-disconnected` and `phone-loop-running`. No other shot changed. Evidence: the section "Issue 156"
+of [`../docs/plans/2026-10-21-ui-uplift-evidence.md`](../docs/plans/2026-10-21-ui-uplift-evidence.md). The classic
+preview in [`preview/`](preview/) keeps its approved figure; `tests/visual/detail.visual.ts` still masks it there.
