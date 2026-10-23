@@ -8,7 +8,7 @@ import { basename, join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { api, closeDb, db } from '../support/form-kit';
 import { t } from '../support/ui-text';
-import { openFolderPicker } from '../support/ui';
+import { isNewUi, openFolderPicker } from '../support/ui';
 
 test.use({ timezoneId: 'Asia/Ho_Chi_Minh' });
 test.afterAll(closeDb);
@@ -32,11 +32,19 @@ test.describe('browse folders when registering a repo', () => {
     const root = tree();
     const deep = join(root, 'proj-b', 'sub', 'deep');
     await page.goto('/repos');
-    await expect(page.getByTestId('repo-path')).toHaveAttribute('data-platform', /^(win32|darwin|linux)$/);
-
-    // The path field holds the tree root -> the box opens exactly there.
-    await page.getByTestId('repo-path').fill(root);
-    await openFolderPicker(page);
+    // New UI (spec 7.2): the path field `repo-path` lives in the picker that `repo-add` opens; typing the tree root there and pressing
+    // Enter opens it. Classic: the path field on the page holds the tree root -> the box opens exactly there.
+    const fresh = await isNewUi(page);
+    if (fresh) {
+      await openFolderPicker(page);
+      await expect(page.getByTestId('repo-path')).toHaveAttribute('data-platform', /^(win32|darwin|linux)$/);
+      await page.getByTestId('repo-path').fill(root);
+      await page.getByTestId('repo-path').press('Enter');
+    } else {
+      await expect(page.getByTestId('repo-path')).toHaveAttribute('data-platform', /^(win32|darwin|linux)$/);
+      await page.getByTestId('repo-path').fill(root);
+      await openFolderPicker(page);
+    }
     await expect(page.getByTestId('folder-picker')).toBeVisible();
     await listAt(page, root);
     await expect(page.getByTestId('folder-row')).toHaveText([/proj-a/, /proj-b/]); // `.an` is hidden by default
@@ -62,34 +70,59 @@ test.describe('browse folders when registering a repo', () => {
     await expect(row(page, 'deep')).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByTestId('folder-target')).toHaveAttribute('data-path', deep);
 
-    // Breadcrumb to the tree root then back in through the cache history - still the right folder.
-    await page.getByTestId('folder-crumb').filter({ hasText: basename(root) }).click();
+    // Back to the tree root then back in through the cache history - still the right folder. Classic: the breadcrumb. New UI: the
+    // breadcrumb only shows the path (design/ds/SYSTEM.md, `.crumbs`), so Up (`folder-up`) climbs twice; the crumbs still name the root.
+    if (fresh) {
+      await expect(page.getByTestId('folder-crumb').filter({ hasText: basename(root) })).toHaveCount(1);
+      await page.getByTestId('folder-up').click();
+      await listAt(page, join(root, 'proj-b'));
+      await page.getByTestId('folder-up').click();
+    } else await page.getByTestId('folder-crumb').filter({ hasText: basename(root) }).click();
     await listAt(page, root);
     await row(page, 'proj-b').dblclick();
     await row(page, 'sub').dblclick();
     await row(page, 'deep').click();
-    await page.getByTestId('folder-choose').click();
-
-    // After choosing: the box closes, the path field = canonical path, name auto-filled, the Register button is focused -> Enter registers.
-    await expect(page.getByTestId('folder-picker')).toHaveCount(0);
-    await expect(page.getByTestId('repo-path')).toHaveValue(deep);
-    await expect(page.getByTestId('repo-name')).toHaveValue('deep');
-    await expect(page.getByTestId('repo-submit')).toBeFocused();
-    await page.keyboard.press('Enter');
+    const name = fresh ? 'deep-picked' : 'deep';
+    if (fresh) {
+      // New UI (spec 7.2): Choose and Register are one step. Selecting fills the target and the name (editable); `repo-submit`
+      // registers the name the field holds, and the picker closes.
+      await expect(row(page, 'deep')).toHaveAttribute('aria-selected', 'true');
+      await expect(page.getByTestId('folder-target')).toHaveAttribute('data-path', deep);
+      await expect(page.getByTestId('repo-name')).toHaveValue('deep');
+      await page.getByTestId('repo-name').fill(name);
+      await expect(page.getByTestId('folder-target')).toContainText(name);
+      await page.getByTestId('repo-submit').click();
+      await expect(page.getByTestId('folder-picker')).toHaveCount(0);
+    } else {
+      await page.getByTestId('folder-choose').click();
+      // After choosing: the box closes, the path field = canonical path, name auto-filled, the Register button is focused -> Enter registers.
+      await expect(page.getByTestId('folder-picker')).toHaveCount(0);
+      await expect(page.getByTestId('repo-path')).toHaveValue(deep);
+      await expect(page.getByTestId('repo-name')).toHaveValue('deep');
+      await expect(page.getByTestId('repo-submit')).toBeFocused();
+      await page.keyboard.press('Enter');
+    }
     await expect(page.getByTestId('repo-row')).toHaveCount(1);
-    expect((await db().query('SELECT name, path FROM repos')).rows).toEqual([{ name: 'deep', path: deep }]);
+    expect((await db().query('SELECT name, path FROM repos')).rows).toEqual([{ name, path: deep }]);
 
-    // Reopen (empty path field) -> back to the folder opened last time; the folder just registered carries the repo tag, choose it -> the Choose button is locked.
+    // Reopen (empty path field) -> back to the folder opened last time; the folder just registered carries the repo tag, choose it ->
+    // the Choose button (new UI: `repo-submit`) is locked.
     await openFolderPicker(page);
     await listAt(page, join(root, 'proj-b', 'sub'));
-    await expect(row(page, 'deep')).toContainText(t('folder.tag.repo', { name: 'deep' }));
+    await expect(row(page, 'deep')).toContainText(fresh ? t('picker.tagRepo') : t('folder.tag.repo', { name: 'deep' }));
     await row(page, 'deep').click();
-    await expect(page.getByTestId('folder-target')).toContainText(t('folder.target.taken', { name: 'deep' }));
-    await expect(page.getByTestId('folder-choose')).toBeDisabled();
+    if (fresh) {
+      await expect(page.getByTestId('folder-target')).toHaveAttribute('data-path', deep);
+      await expect(page.getByTestId('repo-submit')).toBeDisabled();
+    } else {
+      await expect(page.getByTestId('folder-target')).toContainText(t('folder.target.taken', { name: 'deep' }));
+      await expect(page.getByTestId('folder-choose')).toBeDisabled();
+    }
 
-    // Type a path that does not exist in the path bar -> error right below, the list keeps the old folder.
-    await page.getByTestId('folder-path').fill(join(root, 'missing'));
-    await page.getByTestId('folder-path').press('Enter');
+    // Type a path that does not exist in the path bar (new UI: `repo-path`) -> error right below, the list keeps the old folder.
+    const pathBar = page.getByTestId(fresh ? 'repo-path' : 'folder-path');
+    await pathBar.fill(join(root, 'missing'));
+    await pathBar.press('Enter');
     await expect(page.getByTestId('folder-error')).toHaveText(t('repo.val.notFound'));
     await listAt(page, join(root, 'proj-b', 'sub'));
 
@@ -99,7 +132,7 @@ test.describe('browse folders when registering a repo', () => {
     await expect(page.getByTestId('folder-error')).toHaveCount(0);
     await page.getByTestId('folder-filter').press('Escape');
     await expect(page.getByTestId('folder-picker')).toHaveCount(0);
-    await expect(page.getByTestId('repo-path')).toHaveValue('');
+    if (!fresh) await expect(page.getByTestId('repo-path')).toHaveValue('');
     expect((await db().query('SELECT count(*)::int AS n FROM repos')).rows[0].n).toBe(1);
   });
 });

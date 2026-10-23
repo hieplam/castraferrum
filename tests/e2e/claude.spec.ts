@@ -15,7 +15,7 @@ import { formatUsd } from '../../shared/domain/cost';
 import { api, closeDb, db, fill, pickRepo } from '../support/form-kit';
 import { CLAUDE_END_OK_PREFIX, claudeStartLog } from '../support/server-text';
 import { t } from '../support/ui-text';
-import { pickScheduleKind, registerRepo } from '../support/ui';
+import { isNewUi, pickScheduleKind, registerRepo } from '../support/ui';
 
 test.use({ timezoneId: 'Asia/Ho_Chi_Minh', permissions: ['clipboard-read', 'clipboard-write'] });
 test.afterAll(closeDb);
@@ -88,7 +88,9 @@ test('UC-22: a real Claude run - session id on screen = SELECT = the .jsonl file
   await expect(page.getByTestId('run-log')).toContainText(`${CLAUDE_END_OK_PREFIX}$`);
   await expect(page.getByTestId('run-resume-cmd')).toHaveText(`claude --resume ${run.session_id}`);
   await page.getByTestId('run-resume-copy').click();
-  await expect(page.locator('.toast')).toHaveText(t('toast.copiedResume', { id: run.session_id }));
+  // New UI (Appendix B): the toast is the new key `run.copiedCommand`.
+  const copied = (await isNewUi(page)) ? t('run.copiedCommand', { id: run.session_id }) : t('toast.copiedResume', { id: run.session_id });
+  await expect(page.locator('.toast')).toHaveText(copied);
   expect((await page.evaluate(() => navigator.clipboard.readText())).trim()).toBe(`claude --resume ${run.session_id}`);
   console.log(`[UC-22] session ${run.session_id} · cost $${run.cost_usd} · summary «${run.summary}» · ${file}`);
 });

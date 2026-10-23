@@ -21,7 +21,7 @@ export default defineConfig({
     {
       name: 'chromium-new',
       testDir: 'tests/e2e',
-      testMatch: ['**/smoke.spec.ts', '**/ui-switch.spec.ts', '**/list.spec.ts', '**/form.spec.ts', '**/detail.spec.ts', '**/concurrency.spec.ts', '**/system.spec.ts', '**/repo.spec.ts', '**/shell.spec.ts', '**/phone.spec.ts'],
+      testMatch: ['**/smoke.spec.ts', '**/ui-switch.spec.ts', '**/list.spec.ts', '**/form.spec.ts', '**/detail.spec.ts', '**/concurrency.spec.ts', '**/system.spec.ts', '**/repo.spec.ts', '**/shell.spec.ts', '**/phone.spec.ts', '**/transcript.spec.ts', '**/claude.spec.ts', '**/repo-browse.spec.ts'],
       use: {
         ...devices['Desktop Chrome'],
         storageState: { cookies: [], origins: [{ origin: `http://127.0.0.1:${port}`, localStorage: [{ name: 'castraferrum.ui', value: 'new' }] }] },
