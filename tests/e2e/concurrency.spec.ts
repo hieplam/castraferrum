@@ -15,7 +15,7 @@ import { FAKE_CLAUDE_DIR_PREFIX } from '../../server/adapters/executors/claude/t
 import { fill, pickRepo } from '../support/form-kit';
 import { skipParallel, soakSummary } from '../support/server-text';
 import { t } from '../support/ui-text';
-import { gotoApp, runHistory } from '../support/ui';
+import { gotoApp, isNewUi, onLoopList, runHistory } from '../support/ui';
 
 loadDotEnv();
 test.use({ timezoneId: 'Asia/Ho_Chi_Minh' });
@@ -79,7 +79,11 @@ test('UC-32: run up to N runs in parallel - N = 3 via the form: 3 runs running a
   await expect(page).toHaveURL(/\/loops\/[0-9a-f-]{36}$/);
   const loopId = page.url().split('/').pop()!;
   expect((await db.query('SELECT max_concurrent, executor_kind FROM loops WHERE id = $1', [loopId])).rows[0]).toEqual({ max_concurrent: 3, executor_kind: 'claude' });
-  await expect(page.getByTestId('config-executor')).toContainText(t('loop.meta.concurrent', { n: 3 }));
+  const newUi = await isNewUi(page);
+  // The limit: in the executor line of the classic UI; its own settings row (`config-concurrent`) in the new one.
+  const concurrent = page.getByTestId(newUi ? 'config-concurrent' : 'config-executor');
+  const concurrentText = (n: number) => (newUi ? t('loopSettings.atMost', { n }) : t('loop.meta.concurrent', { n }));
+  await expect(concurrent).toContainText(concurrentText(3));
 
   // 2. Start (run #1) then two cron ticks GAP real seconds apart (runs #2, #3) -> 3 runs running at once.
   await page.getByTestId('loop-start').click();
@@ -94,9 +98,23 @@ test('UC-32: run up to N runs in parallel - N = 3 via the form: 3 runs running a
   expect(three.map((r) => r.iteration)).toEqual([1, 2, 3]);
   expect(new Set(three.map((r) => r.session_id)).size).toBe(3); // every run has its own Claude session
   expect(three.every((r) => r.session_id !== null)).toBe(true);
-  await expect(page.locator('[data-testid="loop-status"][data-status="running"]')).toContainText(t('loop.runningMany', { c: 3, list: '#3 #2 #1' }), { timeout: 5_000 });
-  await expect(runHistory(page).locator('[data-status="running"]')).toHaveCount(3, { timeout: 5_000 });
-  await expect(loopRowIn(page).locator('[data-testid="row-status"][data-status="running"]')).toContainText('×3', { timeout: 5_000 });
+  const running3 = page.locator('[data-testid="loop-status"][data-status="running"]');
+  if (newUi) {
+    // New UI (spec 7.2): the pill says running, the now card names the three runs.
+    await expect(running3).toHaveText(t('status.running'), { timeout: 5_000 });
+    await expect(page.getByTestId('now-card')).toContainText(t('now.workingMany', { c: 3, list: '#3 #2 #1' }));
+  } else await expect(running3).toContainText(t('loop.runningMany', { c: 3, list: '#3 #2 #1' }), { timeout: 5_000 });
+  await runHistory(page, async (table) => {
+    await expect(table.locator('[data-status="running"]')).toHaveCount(3, { timeout: 5_000 });
+  });
+  await onLoopList(page, async () => {
+    const status = loopRowIn(page).locator('[data-testid="row-status"][data-status="running"]');
+    if (newUi) {
+      // New UI: the pill says running; the row's last-run place says how many runs work.
+      await expect(status).toHaveText(t('status.running'), { timeout: 5_000 });
+      await expect(loopRowIn(page).getByTestId('row-last')).toHaveText(t('row.runningMany', { c: 3 }));
+    } else await expect(status).toContainText('×3', { timeout: 5_000 });
+  });
   await shot(page, '1-three-runs-running');
 
   // 3. The DB blocks it itself: insert a 4th running run directly -> trigger runs_max_concurrent_per_loop (23514).
@@ -118,7 +136,9 @@ test('UC-32: run up to N runs in parallel - N = 3 via the form: 3 runs running a
   await clock('2026-11-02T03:03:05Z');
   const s1 = await until(() => runsOf(loopId), (r) => r.some((x) => x.status === 'skipped'));
   expect(s1.filter((r) => r.status === 'skipped').map((r) => r.skip_reason)).toEqual([skipParallel(3, '#1, #2, #3')]);
-  await expect(runHistory(page).locator('[data-status="skipped"]').first()).toContainText(skipParallel(3, '#1, #2, #3'), { timeout: 5_000 });
+  await runHistory(page, async (table) => {
+    await expect(table.locator('[data-status="skipped"]').first()).toContainText(skipParallel(3, '#1, #2, #3'), { timeout: 5_000 });
+  });
 
   // 5. Edit THROUGH THE FORM down to 2 while 3 runs are running -> DB changes, no run is cancelled.
   await page.getByTestId('loop-edit').click();
@@ -129,9 +149,11 @@ test('UC-32: run up to N runs in parallel - N = 3 via the form: 3 runs running a
   await page.getByTestId('form-submit').click();
   await expect(page).toHaveURL(new RegExp(`/loops/${loopId}$`));
   expect((await db.query('SELECT max_concurrent FROM loops WHERE id = $1', [loopId])).rows[0].max_concurrent).toBe(2);
-  await expect(page.getByTestId('config-executor')).toContainText(t('loop.meta.concurrent', { n: 2 }));
+  await expect(concurrent).toContainText(concurrentText(2));
   expect((await running(loopId)).map((r) => r.iteration)).toEqual([1, 2, 3]);
-  await expect(runHistory(page).locator('[data-status="running"]')).toHaveCount(3);
+  await runHistory(page, async (table) => {
+    await expect(table.locator('[data-status="running"]')).toHaveCount(3);
+  });
   await shot(page, '3-lowered-to-2-still-3-running');
 
   // 6. A tick arrives while 3 (>= 2) runs are going -> skipped with the new N.
@@ -165,9 +187,16 @@ test('UC-32: run up to N runs in parallel - N = 3 via the form: 3 runs running a
   expect((await db.query(`SELECT summary FROM runs WHERE loop_id = $1 AND iteration = 1`, [loopId])).rows[0].summary).toBe(soakSummary(SOAK));
 
   // 10. Stop (the confirmation box names both runs) -> every running run cancelled, execution closed.
+  const threeFinished = () =>
+    runHistory(page, async (table) => {
+      await expect(table.locator('[data-status="succeeded"]')).toHaveCount(3, { timeout: 5_000 });
+    });
+  // New UI: the run list is a page of its own, so it is read before the Stop dialog opens on the loop page.
+  if (newUi) await threeFinished();
   await page.getByTestId('loop-stop').click();
-  await expect(page.getByTestId('stop-dialog')).toContainText(/2 runs in progress \(#5 #4\) will be cancelled/);
-  await expect(runHistory(page).locator('[data-status="succeeded"]')).toHaveCount(3, { timeout: 5_000 });
+  if (newUi) await expect(page.getByTestId('stop-dialog')).toContainText(t('stop.bodyMany', { c: 2, list: '#5 #4', k: 1 }));
+  else await expect(page.getByTestId('stop-dialog')).toContainText(/2 runs in progress \(#5 #4\) will be cancelled/);
+  if (!newUi) await threeFinished();
   await shot(page, '4-stop-dialog-and-three-finished');
   await page.getByTestId('stop-confirm').click();
   const end = await until(() => runsOf(loopId), (r) => !r.some((x) => x.status === 'running'));

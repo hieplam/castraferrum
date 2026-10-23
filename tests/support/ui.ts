@@ -42,18 +42,41 @@ export async function revealRowActions(row: Locator): Promise<void> {
   await row.hover();
 }
 
-/** New UI (spec 7.2): the paged run history is the All runs page `/loops/:id/runs` (`runs-table`, `runs-pager`). */
-export function runHistory(page: Page): Locator {
-  return page.getByTestId('runs-table');
+/**
+ * The paged run history of the loop page: `check` runs against its list (`runs-table`, with `runs-pager`, `runs-prev` and
+ * `runs-next` on the same page). New UI (spec 7.2): it is the All runs page `/loops/:id/runs`, so the helper follows the loop page's
+ * `all-runs-link`, runs `check` there and goes back. Both moves stay inside the app (no reload), so a test can still check that the
+ * page never reloaded.
+ */
+export async function runHistory(page: Page, check: (table: Locator) => Promise<void>): Promise<void> {
+  const table = page.getByTestId('runs-table');
+  if (await isNewUi(page)) {
+    const loopPage = page.url();
+    await page.getByTestId('all-runs-link').click();
+    await page.waitForURL(/\/loops\/[^/]+\/runs$/);
+    await check(table);
+    await page.goBack();
+    await page.waitForURL(loopPage);
+    return;
+  }
+  await check(table);
 }
 
-/** New UI (spec 7.2): `period-row` cells and the current period's group head on the loop page (`data-execution-id`); `exec-row` on All runs. */
-export function executionRows(page: Page): Locator {
+/**
+ * The active periods (executions) of the loop page, each with `data-execution-id`. New UI (spec 7.2): the current period's group
+ * head of Recent runs, then the earlier periods' `period-row` cells; each opens the active period page.
+ */
+export async function executionRows(page: Page): Promise<Locator> {
+  if (await isNewUi(page)) return page.getByTestId('loop-page').locator('[data-execution-id]');
   return page.getByTestId('exec-row');
 }
 
-/** New UI (spec 7.2): the page names its loop (`loop-header`, `run-of` or `exec-header`); list rows are read on `/`. */
-export function loopRowOnList(page: Page): Locator {
+/**
+ * The element that names the loop of a run page or an active period page. Classic: the selected row of the list pane. New UI
+ * (spec 7.2): the page itself names its loop: `run-of` on the run page, the back link `back-to-loop` on the active period page.
+ */
+export async function loopRowOnList(page: Page): Promise<Locator> {
+  if (await isNewUi(page)) return page.getByTestId(new URL(page.url()).pathname.startsWith('/runs/') ? 'run-of' : 'back-to-loop');
   return page.locator('[data-testid="loop-row"].is-sel');
 }
 
@@ -100,4 +123,21 @@ export async function openFolderPicker(page: Page): Promise<void> {
 /** New UI (spec 7.2): the row's `⋯` menu (`repo-menu`), then `repo-delete`. */
 export async function deleteRepo(row: Locator): Promise<void> {
   await row.getByTestId('repo-delete').click();
+}
+
+/**
+ * Rows of the loop list read from a loop's page: `check` runs where the list is. Classic: the list pane beside the page. New UI
+ * (spec 7.2): the list is only on `/`, so the helper follows `nav-loops`, runs `check` there and goes back, inside the app.
+ */
+export async function onLoopList(page: Page, check: () => Promise<void>): Promise<void> {
+  if (await isNewUi(page)) {
+    const loopPage = page.url();
+    await page.getByTestId('nav-loops').click();
+    await page.waitForURL((url) => url.pathname === '/');
+    await check();
+    await page.goBack();
+    await page.waitForURL(loopPage);
+    return;
+  }
+  await check();
 }

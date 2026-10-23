@@ -21,7 +21,7 @@ function useRows(loop: LoopDetailDto): Row[] {
     { testId: 'config-repo', label: 'loopSettings.repo', value: loop.repo.name, meta: loop.repo.path },
     { label: 'loopSettings.schedule', value: scheduleSentence(loop.cron, t.lang), meta: loop.timezone },
     { testId: 'config-executor', label: 'loopSettings.agent', value: executorSummary(t, loop.executor.kind, loop.executor.config) },
-    { label: 'loopSettings.parallel', value: t('loopSettings.atMost', { n: loop.maxConcurrent }) },
+    { testId: 'config-concurrent', label: 'loopSettings.parallel', value: t('loopSettings.atMost', { n: loop.maxConcurrent }) },
     { testId: 'config-timeout', label: 'loopSettings.limit', value: loop.timeoutSec === null ? t('loopSettings.noLimit') : fmtSpan(t, loop.timeoutSec) },
   ];
 }

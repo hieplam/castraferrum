@@ -286,6 +286,8 @@ body {
   margin: 0; padding: 0 var(--space-1); color: var(--text-muted);
   font-size: var(--fs-cap); line-height: var(--lh-cap); font-weight: var(--fw-semibold);
 }
+/* A head that opens the page of what it heads (the current active period on the loop page): the link keeps the caption's size. */
+.group-cap .link { font-size: inherit; line-height: inherit; }
 .group-note { margin: 0; padding: 0 var(--space-1); color: var(--text-subtle); font-size: var(--fs-cap); line-height: var(--lh-cap); }
 .cell {
   position: relative; display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: var(--size-row-sm);
