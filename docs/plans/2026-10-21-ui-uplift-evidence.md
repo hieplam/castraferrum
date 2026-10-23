@@ -1244,3 +1244,65 @@ https://github.com/hieplam/castraferrum/issues/156 asks the owner whether to cor
   `element(s) not found`).
 - `copyMethod` always choosing the clipboard: `copy.test.ts` `2 failed | 1 passed` (the insecure-context case fails).
 - `useFocusTrap` doing nothing: the phone help test fails (`Tab 1 left the sheet`).
+
+## U17
+
+Status: done. All 20 states (40 pairs: 17 desktop and 3 phone states, light and dark) are at `MAX_RATIO` or under, with no
+mask.
+
+### What changed outside the screen
+
+- `tests/support/preview-transcripts.ts` writes the transcripts of either preview's data.js (`file` = `DS_DATA_JS` for the
+  new one) and knows the four sessions the new preview added for the run page (runs 68, 59 of "Issue backlog worker",
+  run 4 of "Old schedule test", run 4 of "Clean old artifacts").
+- `tests/support/preview-world.ts`: in the new preview's world every run of "Issue backlog worker" up to #68 started with
+  the old prompt, as the new preview draws it (`run-interrupted` shows run #59 with the "prompt was edited" note). The
+  classic world keeps its rule (#68 and #63 only), so no classic shot changes. The seed changes to match the approved
+  preview, never the preview.
+
+### Preview vs app (reported, not hidden)
+
+`run-failed` draws the transcript bar of run 104 as "52 entries" (the whole file), while only the last page of 50 is
+loaded. The transcript API gives a page without a total count, so the app prints the loaded entries, "50 entries". The
+two digits differ on 36 px (light) and 40 px (dark) of the page region (at most `0.003 %`), under `MAX_RATIO`; nothing is
+masked. Issue https://github.com/hieplam/castraferrum/issues/159 asks the owner to choose.
+
+### Ratchet
+
+- New-UI visual pairs: `124` (`frame.json` 24 + `loops.json` 40 + `loop.json` 60) -> `164` (+ `run.json` 40).
+  `reports/compare/ds/report.json` after the e2e run of `npm run verify`: `"pairs": 164`, `"worstRatio": 0.00024`.
+- `npm run ratchets` before and after: `native title: 8`, `unknown classes: 0`, `dynamic classes: 4 (not checked)`,
+  `literal styles: 0`, `css violations: 0`, `e2e expects: 724 (min 712)`, `ratchets: ok`.
+
+### Red
+
+`tests/visual/ds/run.visual.ts` written first. `npm run build`, then
+`npx playwright test --project=visual tests/visual/ds/run.visual.ts` (the route still showed the placeholder):
+`expect(locator).toHaveAttribute(expected) failed`, `Locator: getByTestId('run-header')`, `Error: element(s) not found`,
+`2 failed`, `2 did not run`.
+
+### Green
+
+- (1) `npx playwright test --project=visual tests/visual/ds/run.visual.ts`: `4 passed`, exit 0.
+  `node -e "console.log(require('./reports/compare/ds/results/run.json').length)"`: `40`. 48 regions, 20 at 0
+  mismatched pixels, worst ratio `0.00012` (`vi-run-transcript`, sub-pixel shaping of Vietnamese text; `MAX_RATIO`
+  `0.001`).
+- (2) `npm run ratchets`: `ratchets: ok`.
+- (3) The classic visual tests pass unchanged: every classic visual file passed in the e2e run of (4), except the known
+  flaky `list.visual.ts` "LOOP_ALREADY_ACTIVE toast" test (issue https://github.com/hieplam/castraferrum/issues/157), which passed when re-run alone
+  (`1 passed`).
+- (4) `npm run verify` ran to the end: `states with shots: 120/120`, typecheck, lang-scan baseline, `0 violations`,
+  `arch-fixtures: 26/26 violations caught`, `ratchets: ok`, unit `510 passed | 2 skipped (512)`, contract `114 passed`,
+  executor contract `7 passed` each, api `115 passed`, api-smoke, build, then e2e `1 failed`, `107 passed (12.9m)`: the
+  one failure is the flaky test of (3) (`locator.click: Test timeout of 90000ms exceeded`). The chain's last two steps were
+  then run on their own: `npm run test:e2e && npm run uc-coverage -- --min 32` -> `108 passed (12.2m)`,
+  `UCs with a green e2e: 32/32`, exit 0 (`"pairs": 164` in `report.json`). The e2e step already uses one worker.
+
+### Stub check
+
+- Transcript entries drawn as a three-column grid (time, kind, body side by side, an inline grid on `.tx-entry`): the
+  phone test fails, `phone-run-transcript-running-light · page: 41.33 % off` (and `phone-run-running`,
+  `phone-run-succeeded`).
+- The desktop run page without the summary, the facts and the resume command: the first test fails at `run-succeeded`
+  (`getByTestId('run-summary')`: `toBeVisible() failed`), after the page regions of `run-transcript-missing` are
+  `18.86 %` and `4.63 %` off.

@@ -28,7 +28,7 @@ import { REPO_MISSING_PREFIX } from '../../shared/domain/cost';
 import { en } from '../../shared/i18n/en';
 
 /** The classic preview's data (the default of every function below). */
-const DATA_JS = fileURLToPath(new URL('../../design/preview/data.js', import.meta.url));
+export const DATA_JS = fileURLToPath(new URL('../../design/preview/data.js', import.meta.url));
 /** The new preview's data (UI uplift, design/ds/preview/data.js): the world of the new UI's visual tests. */
 export const DS_DATA_JS = fileURLToPath(new URL('../../design/ds/preview/data.js', import.meta.url));
 
@@ -369,7 +369,7 @@ export async function seedPreviewWorld(db: pg.Pool, opts: { history?: boolean } 
         const runs = executionRuns(key, e, lastIter, running, file);
         lastIter -= runs.filter((r) => r.n !== null).length;
         if (!current && !opts.history) continue;
-        for (const r of runs) await insertRun(c, key, l, eid, r, repoPath, pv);
+        for (const r of runs) await insertRun(c, key, l, eid, r, repoPath, pv, file === DS_DATA_JS);
       }
     }
     await c.query('COMMIT');
@@ -382,11 +382,13 @@ export async function seedPreviewWorld(db: pg.Pool, opts: { history?: boolean } 
   return pv;
 }
 
-async function insertRun(c: pg.PoolClient, key: string, l: Any, eid: string, r: RunRow, repoPath: string, pv: PreviewData): Promise<void> {
+async function insertRun(c: pg.PoolClient, key: string, l: Any, eid: string, r: RunRow, repoPath: string, pv: PreviewData, ds: boolean): Promise<void> {
   const config = { model: l.claude.model, effort: l.claude.effort };
   const id = runId(key, r.n, r.startText || r.start.toISOString());
-  // old prompt snapshot: run-succeeded (#68) + vi-run-transcript (#63) — the preview draws these two runs with oldPrompt
-  const prompt = key === 'pilot' && (r.n === 68 || r.n === 63) ? l.promptOld : l.prompt;
+  // Old prompt snapshot. The classic preview draws run-succeeded (#68) and vi-run-transcript (#63) with oldPrompt; the new
+  // preview draws every run of "Issue backlog worker" up to #68 with it (its prompt was edited at 18/10 13:41:07, after #68).
+  const old = key === 'pilot' && r.n !== null && (ds ? r.n <= 68 : r.n === 68 || r.n === 63);
+  const prompt = old ? l.promptOld : l.prompt;
   if (r.st === 'skipped') {
     await c.query(
       `INSERT INTO runs (id, loop_id, execution_id, iteration, trigger, status, skip_reason, scheduled_for, started_at, finished_at,
