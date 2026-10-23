@@ -206,7 +206,9 @@ Screens put kit components together in `web/features/`. Never add a class that i
 
 - **Classes:** `.app`, `.topbar`, `.topbar-brand`, `.topbar-nav`, `.topbar-link` (`.is-on`), `.topbar-end`, `.conn`
   (`.is-ok`, `.is-lost`, `.is-db-down`).
-- **Use it** once, as the root of the app: `.app` also turns off the iOS tap highlight. The top bar holds the brand, the
+- **Use it** once, as the root of the app. The base (`body`) turns off the iOS tap highlight, and the button reset (`font`
+  and `color` inherited, zero specificity) holds for the whole document: sheets, dialogs and menus are rendered into `body`,
+  outside `.app`, and their buttons still use `--font-ui` (castraferrum#183). The top bar holds the brand, the
   three links (Loops, Repos, Settings), the connection status and the theme button.
 - **Do not** put page actions in the top bar; they belong to the page head.
 - **Phone:** the top bar is hidden (the tab bar and navigation bar replace it). **Desktop:** a `--size-topbar` bar.
@@ -230,7 +232,8 @@ Screens put kit components together in `web/features/`. Never add a class that i
   two icon actions. The title is not a heading (the page keeps its one `h1`), except on the editor: there the phone page
   shows no title of its own and the bar title is the `h1` (`<h1 class="navbar-title">`).
 - **Do not** use it on tab roots; they show a large title instead.
-- **Phone:** `--size-navbar` tall plus `--safe-top`, translucent with `--blur-bar`. **Desktop:** hidden; a back link
+- **Phone:** `--size-navbar` tall plus `--safe-top`, translucent with `--blur-bar`. A back action without its chevron
+  (Cancel) starts its text on the page gutter (`--space-4`), like the titles and cards under it (castraferrum#184). **Desktop:** hidden; a back link
   above the page title replaces it.
 - **States:** pressed.
 - **Wrapper:** `web/ui/kit/Layout.tsx`, with the page (U14).
@@ -245,7 +248,8 @@ Screens put kit components together in `web/features/`. Never add a class that i
 - **Do not** nest pages or put a second `h1` anywhere.
 - **Phone:** one column; `.actionbar` is fixed at the bottom and holds the page's main action. In `.page-head.is-root`
   the action is a 44 by 44 `.iconbtn` (the `+`, in `--accent-text`) at the trailing edge, on a row above the large
-  title. A page under the tab bar keeps `--size-tabbar` + `--safe-bottom` of bottom padding, so its last cell is never
+  title. That row is `--size-touch` tall (under `--safe-top`) with or without its action, so the large title of every tab
+  root (Loops with or without loops, Repos, Settings) sits at the same height (castraferrum#194). A page under the tab bar keeps `--size-tabbar` + `--safe-bottom` of bottom padding, so its last cell is never
   hidden. **Desktop:** `.cols` makes two columns from 1024px; `.actionbar` is hidden and its actions sit in
   `.page-head`; in `.page-head.is-root` the action is the `.btn.primary` at the end of the row, beside the title.
 - **States:** none.
@@ -380,7 +384,7 @@ Screens put kit components together in `web/features/`. Never add a class that i
 - **Use it** for the transcript of a Claude session on the run page: one entry per block, long blocks folded. The
   entries sit in a `.tx-scroll` frame under the `.tx-bar`: from 640px it is `--size-tx` tall and scrolls; on the phone
   it grows with its entries (the page scrolls). A fold keeps its own small `--font-data` line in `--log-accent`: the
-  `.app button` reset has zero specificity, so every component button keeps its own font and colour.
+  `button` reset has zero specificity, so every component button keeps its own font and colour.
 - **Do not** use it for the plain log.
 - **Phone:** one entry per block, the head above the body. **Desktop:** head and body side by side from 1024px
   (`--size-tx-head`).
@@ -403,7 +407,8 @@ Screens put kit components together in `web/features/`. Never add a class that i
   right-aligned) and a `.chev` at the end; a `.hint` wraps under the row. The editor uses it for Repeat, At, Time zone,
   At minute, Day of the month, the time limit and, on the phone, Effort (the value opens the list of five).
 - **Combobox:** `.combo` wraps a select-like button (`button.select`: the text at the start, cut with an ellipsis) and its
-  `.menu`, which is as wide as the field. A `.group` that holds an open combobox menu stops clipping, so the menu is
+  `.menu`, which is as wide as the field; in a `.fcell` it covers the whole row, the card's inner edge to edge, so no text of
+  the page shows beside it (castraferrum#188). A `.group` that holds an open combobox menu stops clipping, so the menu is
   not cut by the card. A `.menu-item` may hold a `.cell-main` (a name over a path); its meta line is cut, never overlaps.
 - **Chips:** `.chips` is a wrapping row of `.chip` with a `--space-2` gap (the seven weekdays).
 - **Time:** a time of day is a text field showing 24-hour `HH:MM` (`inputmode="numeric"` and a `pattern`), because the
@@ -564,7 +569,8 @@ The state of an active period is the pill in the head of its page (`period.pill.
   theme changes, and links to `/manifest.webmanifest` and `/apple-touch-icon.png`. Its viewport meta has
   `viewport-fit=cover`.
 - The tab bar, the action bar and sheets add `--safe-bottom`; the navigation bar adds `--safe-top`; heights use `dvh`.
-- `.app` sets `-webkit-tap-highlight-color: transparent`; the pressed state replaces the tap highlight.
+- `body` sets `-webkit-tap-highlight-color: transparent`, so sheets and dialogs rendered outside `.app` have none either; the
+  pressed state replaces the tap highlight.
 - No control depends on hover, and every target on the phone is at least `--size-touch`.
 - The web app manifest is standalone, with the brand mark on the paper background as its icons; on the phone, Settings
   explains Add to Home Screen.

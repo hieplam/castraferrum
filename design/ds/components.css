@@ -11,15 +11,16 @@
 body {
   margin: 0; background: var(--bg); color: var(--text);
   font-family: var(--font-ui); font-size: var(--fs-body); line-height: var(--lh-body);
-  -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
 }
 :focus-visible, .is-focus { outline: var(--focus-w) solid var(--focus); outline-offset: var(--focus-gap); }
 .app {
   min-height: 100dvh; display: flex; flex-direction: column; background: var(--bg); color: var(--text);
-  -webkit-tap-highlight-color: transparent;
 }
+/* The resets hold for the whole document, not only `.app`: sheets, dialogs and menus are rendered into `body`, outside `.app`,
+   and their buttons take the UI font and the text colour too. Zero specificity: every component keeps its own font and colour. */
 :where(.app) :where(a) { color: inherit; text-decoration: none; }
-:where(.app) :where(button) { font: inherit; color: inherit; }
+:where(button) { font: inherit; color: inherit; }
 .topbar {
   position: sticky; top: 0; z-index: var(--z-bar); flex: none; display: flex; align-items: center; gap: var(--space-6);
   height: var(--size-topbar); padding: 0 var(--space-5); background: var(--surface); border-bottom: var(--border-w) solid var(--border);
@@ -89,6 +90,8 @@ body {
   color: var(--accent-text); font-size: var(--fs-h3); font-weight: var(--fw-medium); white-space: nowrap; text-decoration: none; cursor: pointer;
 }
 .navbar-back .icon { width: var(--size-icon-lg); height: var(--size-icon-lg); stroke-width: 2; }
+/* A back action without its chevron (Cancel) starts its text on the page gutter: the bar's --space-1 plus this --space-3. */
+.navbar-back:not(:has(.icon)) { padding-left: var(--space-3); }
 .navbar-back:active, .navbar-back.is-pressed { background: var(--pressed); }
 .navbar-title {
   margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center;
@@ -148,10 +151,13 @@ body {
   .large-title, .page-head { padding-top: var(--space-2); }
   .page-head { flex-direction: column; align-items: flex-start; gap: var(--space-2); }
   .app:has(> .tabbar) > .page { padding-bottom: calc(var(--size-tabbar) + var(--safe-bottom) + var(--space-6)); }
-  .page-head.is-root {
-    display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "act" "title"; gap: 0; padding-top: 0;
+  /* The head of a tab root keeps its top row (--size-touch, under the safe area) with or without an action, so the large
+     title sits at the same height on Loops, Repos and Settings. */
+  .page-head.is-root, .page-head:has(> .large-title) {
+    display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--size-touch) auto; grid-template-areas: "act" "title";
+    gap: 0; padding-top: var(--safe-top);
   }
-  .page-head.is-root > .large-title { grid-area: title; padding-top: 0; }
+  .page-head > .large-title { grid-area: title; padding-top: 0; }
   .page-head.is-root > .iconbtn {
     grid-area: act; justify-self: end; width: var(--size-touch); height: var(--size-touch);
     border-radius: var(--radius-pill); color: var(--accent-text);
@@ -562,6 +568,8 @@ button.select { display: block; overflow: hidden; text-overflow: ellipsis; white
 .combo { position: relative; display: flex; min-width: 0; }
 .combo > .select { flex: 1; }
 .combo > .menu { position: absolute; top: calc(100% + var(--space-1)); left: 0; right: 0; width: auto; }
+/* In a row of a group the menu covers the whole row, the card's inner edge to edge, so nothing of the page shows beside it. */
+.fcell > .combo { position: static; }
 .group:has(.combo > .menu), .group:has(.cell .menu) { overflow: visible; }
 .input:focus-visible, .textarea:focus-visible, .select:focus-visible,
 .input.is-focus, .textarea.is-focus, .select.is-focus { border-color: var(--focus); outline-offset: calc(-1 * var(--border-w)); }

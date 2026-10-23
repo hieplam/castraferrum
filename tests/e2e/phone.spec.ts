@@ -182,6 +182,12 @@ test.describe('the phone frame', () => {
     await page.locator('[data-testid="folder-list"][data-loading="false"]:not([data-path=""])').waitFor();
     await expect(page.getByTestId('folder-place').first()).toBeVisible();
     expect(await offUiFont(page, ['folder-cancel', 'folder-place', 'folder-go', 'folder-show-hidden', 'repo-submit'])).toEqual([]);
+    // The pressed state replaces the tap highlight in the sheet too (SYSTEM.md, iOS). Chromium computes the property; the WebKit
+    // build Playwright runs on this machine does not expose it.
+    if (test.info().project.name === 'chromium') {
+      const highlight = await page.getByTestId('folder-place').first().evaluate((el) => getComputedStyle(el).getPropertyValue('-webkit-tap-highlight-color'));
+      expect(highlight, 'the tap highlight of a place chip').toBe('rgba(0, 0, 0, 0)');
+    }
     const left = await textLeft(page.getByTestId('folder-cancel'));
     expect(left, 'the text of Cancel starts on the gutter').toBeGreaterThanOrEqual(await gutter(page));
     expect(left).toBeLessThan((await gutter(page)) + 2);
