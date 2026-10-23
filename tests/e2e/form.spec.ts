@@ -7,6 +7,7 @@ import { describe, nextRuns, validate } from '../../shared/domain/schedule';
 import { en } from '../../shared/i18n/en';
 import { viSchedule, viScheduleGolden } from '../../shared/i18n/vi';
 import { PREVIEW_NOW, api, closeDb, createLoop, db, fill, loopRow, loopRows, pickDays, pickRepo, reset, type LoopJson } from '../support/form-kit';
+import { box } from '../support/frame-probe';
 import { TEST_REPO } from '../support/test-repo';
 import { copyName as serverCopyName } from '../support/server-text';
 import { t } from '../support/ui-text';
@@ -317,4 +318,20 @@ test.describe('create / edit form', () => {
     expect(await loopRow(copyId)).toMatchObject({ name: 'Clean new evidence', status: 'stopped', version: 2 });
     expect(await counts(copyId)).toEqual({ e: '0', r: '0' });
   });
+});
+
+// castraferrum#188 (found by U27): the open Repo menu covers its row of the Details card edge to edge, so no text of the page
+// behind it (the hint under the card, the Prompt heading) shows beside it.
+test('the open Repo menu covers its row of the card edge to edge', async ({ page }) => {
+  await openNew(page);
+  await page.getByTestId('f-repo').click();
+  const menu = page.getByRole('menu');
+  await expect(menu).toBeVisible();
+  // The row of the card that holds the field: the parent of the combobox that holds the button.
+  const r = await page.getByTestId('f-repo').evaluate((el) => {
+    const b = el.parentElement!.parentElement!.getBoundingClientRect();
+    return { x: b.x, width: b.width };
+  });
+  const m = await box(menu);
+  expect({ left: Math.round(m.x), right: Math.round(m.x + m.width) }).toEqual({ left: Math.round(r.x), right: Math.round(r.x + r.width) });
 });

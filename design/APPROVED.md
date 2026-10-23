@@ -292,3 +292,31 @@ the log's corners); `loop-idle`, `loop-last-failed` (the dot); every desktop loo
 `loop-server-down`, `loop-stopped`: the caption's text is drawn in parts, under 300px each); the phone loop states
 (`phone-loop-running` and `phone-loop-last-failed` 50px shorter, `phone-loop-help`, `phone-loop-menu`,
 `phone-loop-stop-confirm`, `phone-loop-never-run`: the meta line). No other shot changed.
+
+## Agent corrections under the owner's rule of 2026-10-23 - overlays and the phone frame (U27 defects), 2026-10-24
+
+Made by the agent of the `fixa` lane of the U27 defects (epic 63) under the same rule (a defect of the system is fixed inside
+the rules of `ds/SYSTEM.md`, the preview is corrected and re-shot, and this file records it). The app and the preview share
+[`ds/components.css`](ds/components.css), so each fix changes both.
+
+- **Buttons in sheets and dialogs lose the UI font** (castraferrum#183): the button reset and the tap highlight were set on
+  `.app` only, but sheets, dialogs and menus are rendered into `body`, outside `.app`; the folder picker's Cancel and place
+  chips showed Arial in Chromium and the WebKit default font on the iPhone. `:where(button) { font: inherit; color: inherit; }`
+  now holds for the whole document (still zero specificity) and `body` sets `-webkit-tap-highlight-color: transparent`.
+  Written in `ds/SYSTEM.md`, "App frame", "Transcript" and "iOS".
+- **The phone navbar's Cancel sits 6px from the edge** (castraferrum#184): a `.navbar-back` without its chevron now starts its
+  text on the `--space-4` gutter (`padding-left: var(--space-3)` after the bar's `--space-1`), as on the approved board
+  `reference/m-form-light.png`. Written in "Navigation bar".
+- **The desktop Repo menu starts inside the card** (castraferrum#188): in a `.fcell` the combobox's `.menu` now covers the whole
+  row, the card's inner edge to edge (`.fcell > .combo { position: static; }`), so no text of the page shows beside it.
+  Written in "Fields" (Combobox).
+- **Tab roots without a top action put the large title against the top edge** (castraferrum#194): on the phone the head of
+  a tab root (`.page-head.is-root`, or a `.page-head` holding a `.large-title`) keeps its `--size-touch` top row, under
+  `--safe-top`, with or without its action, so Loops without loops and Settings put the title where Loops and Repos do.
+  Written in "Page".
+- Re-shot with `npm run design:shots -- --design design/ds`, light and dark, only the states these fixes change (36 shots):
+  `form-repo-pick` (the menu), `phone-form-new`, `phone-form-errors`, `phone-form-repo-pick`, `phone-form-sched-daily`,
+  `phone-form-sched-weekly` (Cancel), `phone-repos-add` (Cancel and the chips' font), `repos-add`, `repos-add-denied`,
+  `repos-add-mac`, `repos-add-notfound`, `repos-err-dup-name`, `repos-err-dup-path`, `repos-err-missing`, `vi-repos-add`
+  (the chips' font in the dialog), `phone-loops-empty`, `phone-settings`, `phone-vi-settings` (the title's top row). Every
+  other shot is unchanged.

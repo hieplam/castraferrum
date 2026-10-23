@@ -7,6 +7,7 @@ import { homedir, tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { api, closeDb, db } from '../support/form-kit';
+import { offUiFont } from '../support/frame-probe';
 import { t } from '../support/ui-text';
 import { openFolderPicker } from '../support/ui';
 
@@ -142,5 +143,12 @@ test.describe('browse folders when registering a repo', () => {
     await expect(page.getByTestId('folder-picker')).toHaveCount(0);
     expect((await db().query('SELECT path FROM repos')).rows).toEqual([{ path: typed }]);
     await expect(page.getByTestId('repo-row')).toHaveCount(1);
+  });
+
+  // castraferrum#183 (found by U27): the dialog is rendered into `body`, outside `.app`; its controls still use the UI font.
+  test('every control of the folder picker dialog uses the UI font', async ({ page }) => {
+    await page.goto('/repos');
+    await openFolderPicker(page);
+    expect(await offUiFont(page, ['folder-cancel', 'folder-place', 'folder-go', 'folder-show-hidden', 'repo-submit'])).toEqual([]);
   });
 });

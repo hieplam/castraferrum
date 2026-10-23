@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { api, closeDb, fill, loopRows, pickRepo, reset } from '../support/form-kit';
+import { box, offUiFont, textLeft } from '../support/frame-probe';
 import { ensureTestRepo, TEST_REPO } from '../support/test-repo';
 import { t } from '../support/ui-text';
 
@@ -164,5 +165,54 @@ test.describe('the console on a phone', () => {
     expect(repos.map((r) => r.path)).toContain(newRepo);
     await expect(page.getByTestId('repo-row-name').filter({ hasText: basename(newRepo) })).toBeVisible();
     await phoneOk(page, 'Repos tab, repo registered', true);
+  });
+});
+
+/** `--space-4` of design/ds/tokens.css: the side gutter of a phone page, read from the page. */
+async function gutter(page: Page): Promise<number> {
+  return page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--space-4')));
+}
+
+// Defects found by U27, the acceptance of epic 63 (castraferrum#183, castraferrum#184, castraferrum#194): each check reads
+// what the browser drew, in Chromium and in WebKit.
+test.describe('the phone frame', () => {
+  test('the folder picker: every control uses the UI font, and Cancel starts on the gutter', async ({ page }) => {
+    await page.goto('/repos');
+    await page.getByTestId('repo-add').tap();
+    await page.locator('[data-testid="folder-list"][data-loading="false"]:not([data-path=""])').waitFor();
+    await expect(page.getByTestId('folder-place').first()).toBeVisible();
+    expect(await offUiFont(page, ['folder-cancel', 'folder-place', 'folder-go', 'folder-show-hidden', 'repo-submit'])).toEqual([]);
+    // The pressed state replaces the tap highlight in the sheet too (SYSTEM.md, iOS). Chromium computes the property; the WebKit
+    // build Playwright runs on this machine does not expose it.
+    if (test.info().project.name === 'chromium') {
+      const highlight = await page.getByTestId('folder-place').first().evaluate((el) => getComputedStyle(el).getPropertyValue('-webkit-tap-highlight-color'));
+      expect(highlight, 'the tap highlight of a place chip').toBe('rgba(0, 0, 0, 0)');
+    }
+    const left = await textLeft(page.getByTestId('folder-cancel'));
+    expect(left, 'the text of Cancel starts on the gutter').toBeGreaterThanOrEqual(await gutter(page));
+    expect(left).toBeLessThan((await gutter(page)) + 2);
+  });
+
+  test('the editor: Cancel starts on the gutter, like the labels under it', async ({ page }) => {
+    await page.goto('/loops/new');
+    await expect(page.getByTestId('sched-out')).toHaveAttribute('data-state', 'ok');
+    const left = await textLeft(page.getByTestId('form-cancel'));
+    expect(left, 'the text of Cancel starts on the gutter').toBeGreaterThanOrEqual(await gutter(page));
+    expect(left).toBeLessThan((await gutter(page)) + 2);
+  });
+
+  test('the large title of every tab root keeps the same top space, with or without a top action', async ({ page }) => {
+    const top = async (path: string) => {
+      await page.goto(path);
+      const title = page.getByRole('heading', { level: 1 });
+      await expect(title).toBeVisible();
+      return (await box(title)).y;
+    };
+    // Repos has its `+` above the title; Loops without a loop and Settings have no top action.
+    const repos = await top('/repos');
+    await expect(page.getByTestId('repo-add')).toBeVisible();
+    const tops = { repos, loopsEmpty: await top('/'), settings: await top('/settings') };
+    expect(repos, 'the action row is above the title').toBeGreaterThan(20);
+    expect(tops).toEqual({ repos, loopsEmpty: repos, settings: repos });
   });
 });
