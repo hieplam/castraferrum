@@ -237,3 +237,95 @@ test.describe("phone loop page: caption and meta line", () => {
     expect(m.ends, "last glyphs of the wrapped lines").not.toContain("·");
   });
 });
+
+test.describe("phone section captions (castraferrum#202)", () => {
+  test.use(PHONE_VIEW);
+  const ctx = useServer();
+
+  /** Every visible `.group-cap` of the page: its text, its distance to what it captions (the next box) and to the box above. */
+  const captions = (page: Page) =>
+    page.evaluate(() => {
+      // The previous box in the flow: a caption first in a `display: contents` wrapper (All runs) follows the wrapper's sibling.
+      const before = (el: Element): Element | null => {
+        for (let n: Element | null = el; n; n = n.parentElement) {
+          let p = n.previousElementSibling;
+          while (p && getComputedStyle(p).display === "contents")
+            p = p.lastElementChild;
+          if (p) return p;
+        }
+        return null;
+      };
+      return [...document.querySelectorAll(".group-cap")]
+        .filter((c) => c.getClientRects().length)
+        .map((cap) => {
+          const box = cap.getBoundingClientRect();
+          const next = cap.nextElementSibling!.getBoundingClientRect();
+          const prev = before(cap)!.getBoundingClientRect();
+          return {
+            text: (cap.textContent ?? "").trim().split(" · ")[0]!,
+            below: Math.round(next.top - box.bottom),
+            above: Math.round(box.top - prev.bottom),
+          };
+        });
+    });
+
+  test("every caption sits --space-2 above what it captions; inside a section or under the bar, --space-2 under what is above it", async ({
+    page,
+  }) => {
+    await ctx.world(page);
+    const pilot = loopId("pilot", DS_DATA_JS);
+    // [path, the captions the page must show (their first part), the captions that sit --space-2 under what is above them:
+    // inside a section (under its head, before its second list) or opening the page under the bar (the new loop, no banner)]
+    const pages: [string, string[], string[]][] = [
+      [
+        `/loops/${pilot}`,
+        ["Active period #3", "Earlier active periods"],
+        ["Active period #3", "Earlier active periods"],
+      ],
+      [`/loops/${pilot}/runs`, ["Active period #3"], []],
+      [`/loops/${pilot}/settings`, ["Prompt"], []],
+      [
+        `/runs/${runId("pilot", 68, "")}`,
+        ["Summary", "Reopen this session on your computer"],
+        [],
+      ],
+      ["/loops/new", ["Details", "Prompt", "Schedule", "Agent"], ["Details"]],
+      [`/loops/${pilot}/edit`, ["Details", "Prompt", "Schedule", "Agent"], []],
+      ["/settings", ["Appearance", "Connection", "This device", "About"], []],
+    ];
+    const gap = await (async () => {
+      await page.goto(`${ctx.sp.baseUrl}/settings`);
+      return tokenPx(page, "--space-2");
+    })();
+    for (const [path, names, inSection] of pages) {
+      await page.goto(`${ctx.sp.baseUrl}${path}`);
+      await expect
+        .poll(async () => (await captions(page)).map((c) => c.text), {
+          message: path,
+        })
+        .toEqual(names);
+      await expect(page.locator(".skeleton")).toHaveCount(0);
+      await page.evaluate(() => document.fonts.ready);
+      const caps = await captions(page);
+      for (const c of caps) {
+        expect
+          .soft(c.below, `${path} "${c.text}": caption to what it captions`)
+          .toBe(gap);
+        if (inSection.includes(c.text))
+          expect
+            .soft(
+              c.above,
+              `${path} "${c.text}": caption to its head, list or bar`,
+            )
+            .toBe(gap);
+        else
+          expect
+            .soft(
+              c.above,
+              `${path} "${c.text}": a section caption keeps the section gap above`,
+            )
+            .toBeGreaterThan(gap);
+      }
+    }
+  });
+});

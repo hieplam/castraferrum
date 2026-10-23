@@ -295,6 +295,15 @@ body {
 /* A head that opens the page of what it heads (the current active period on the loop page): the link keeps the caption's size. */
 .group-cap .link { font-size: inherit; line-height: inherit; }
 .group-note { margin: 0; padding: 0 var(--space-1); color: var(--text-subtle); font-size: var(--fs-cap); line-height: var(--lh-cap); }
+@media (max-width: 639.98px) {
+  /* A caption and what it captions are one section (reference/m-*.png): the caption sits --space-2 above its list, card,
+     command or code, not the page's --space-5 apart. Inside a section (under its head, or before its second list: Earlier
+     active periods) it sits --space-2 under what is above it too; a caption that opens the page (the editor, under the
+     bar) sits --space-2 under the bar, as a page head does. */
+  .page .group-cap { margin-bottom: calc(var(--space-2) - var(--space-5)); }
+  .section-head + .group-cap, .section-head + .group-cap + .group + .group-cap { margin-top: calc(var(--space-2) - var(--space-5)); }
+  .page > .group-cap:first-child, .page > form:first-child > .group-cap:first-child { margin-top: var(--space-2); }
+}
 .cell {
   position: relative; display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: var(--size-row-sm);
   padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4); border: 0; background: transparent; color: var(--text);
@@ -460,8 +469,6 @@ body {
 @media (max-width: 639.98px) {
   .section-head { gap: var(--space-1); padding: 0 var(--space-1); }
   .section-head h2 { font-weight: var(--fw-bold); }
-  /* A caption under a section head (the current active period of Recent runs) sits right under the head and right above its group. */
-  .section-head + .group-cap { margin: calc(var(--space-2) - var(--space-5)) 0; }
   .help { width: var(--size-touch); height: var(--size-touch); margin: calc(-1 * var(--space-2)) 0; }
   .help::after { content: none; }
 }

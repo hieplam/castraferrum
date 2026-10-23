@@ -300,9 +300,14 @@ Screens put kit components together in `web/features/`. Never add a class that i
   Loops list on the phone. A `.cell.is-link` opens a page and shows a `.chev`. A `.group-cap` that heads the runs of one
   active period starts with a `.link` to that period's page (the current period on the loop page), at the caption's size. On
   the phone that link is `--size-touch` tall (task U24) without making its line taller: its extra height hangs outside the
-  caption's line, so the caption wraps at `--lh-cap`. A caption right under a `.section-head` (Recent runs) sits
-  `--space-2` under the head and `--space-2` above its group on the phone. The parts after the link are `.keep` spans
+  caption's line, so the caption wraps at `--lh-cap`. The parts after the link are `.keep` spans
   ("· still active", "· 10 runs"): a wrap moves a whole part with its separator, never a lone word.
+- **Captions on the phone.** A `.group-cap` and what it captions (a group, a card, a command, code) are one section, as
+  the boards draw it (`reference/m-*.png`): the caption sits `--space-2` above it, while sections stay the page's
+  `--space-5` apart. Inside a section the caption sits `--space-2` under what is above it too: under a `.section-head`
+  (the current period of Recent runs) and before the section's second group (Earlier active periods). A caption that
+  opens the page (the editor, under the bar) sits `--space-2` under the bar, as a page head does. One rule of
+  `components.css` ("Inset list") does this for every screen; a screen never sets a caption's margins.
 - **Data text.** A path, an address or a version in a cell is `.cell-meta.is-data` or `.cell-value.is-data`
   (`--font-data`). `.cell-row` wraps its parts onto the next line when they do not fit. A `.cell-meta` made of
   spans (a loop row: repo, short schedule, next run) wraps between its spans, never inside one; `.is-one-line` cuts
