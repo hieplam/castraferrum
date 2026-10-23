@@ -1496,3 +1496,85 @@ Run with `LOOPS_TEST_DATABASE_URL` pointing at a lane database named `loops_u20_
   (`locator.getAttribute: Test timeout of 30000ms exceeded`), `1 failed`.
 - The new UI without the `sched-next-when` fix: UC-02 in `chromium-new` fails, `expect(received).toEqual(expected)`,
   received `"in 18 h 29 min", …` for `"Mon 19/10 · 08:30", …`.
+
+## U19
+
+Status: done. All 17 states of spec 5.7 (34 pairs: 14 desktop and 3 phone states, light and dark) are at `MAX_RATIO` or
+under, with no mask. With U14 to U18 every state of `design/ds/STATES.md` is compared: 120/120.
+
+### What changed outside the screen
+
+- Kit `web/ui/kit/Field.tsx`: new `Switch` (`.switch`, `role="switch"`); `Input` takes `attrs` (the `data-platform` of the
+  path field); `Search` takes `onKeyDown` (the picker's keyboard) and turns off autocomplete and spellcheck.
+- Kit `web/ui/kit/Overlay.tsx`: new `FullSheet` (`.fullsheet` with its navigation bar), the phone's folder picker.
+- Kit `Banner` takes `alert` (`role="alert"`, the refused delete).
+- `web/pages/PendingRoute.tsx` is deleted: `/repos` was the last path it served.
+- System: a `.group` stops clipping an open menu of one of its cells (`ds/components.css`, `ds/SYSTEM.md` "Inset list"),
+  so the desktop `⋯` menu of the last repo is not cut. Recorded in `design/APPROVED.md`.
+- The test database of a lane must end in `_test` (`server/config.ts` refuses test mode otherwise), so this lane ran against
+  `loops_u19_test` (created next to `loops_test_u19`).
+
+### Preview vs app (corrected, not hidden)
+
+The preview listed the folders that hold repos in quick access in the order of the sample repos ("work", then
+"Documents - alice"); the server sorts them most repos first, then by path, so the app lists "Documents - alice" first
+(1904 / 1374 mismatched pixels of the dialog in `repos-add` light / dark before the correction). The preview's `picker()`
+sorts them as the server does; `npm run design:shots -- --design design/ds` -> `shot 240 images`, and `git status` shows
+exactly 12 changed shots (`repos-add`, `vi-repos-add`, `repos-add-notfound`, `repos-err-missing`, `repos-err-dup-path`,
+`repos-err-dup-name`, light and dark). Recorded in `design/APPROVED.md`.
+
+### Behaviour the preview draws, as built
+
+- The target (what Add repo registers) is the selected folder, else a path typed into the path field, else the open folder.
+  Opening a typed path that does not exist shows `folder-error` and keeps the open folder as the target (`repos-add-notfound`);
+  registering it shows `error-repo-path` (`repos-err-missing`).
+- A refused registration locks Add repo until the path, the name or the selection changes. Add repo is also locked for a folder
+  the server marks as a repo already (spec 7.2). A path already registered names the repo and selects its folder when it is in
+  the list (`repos-err-dup-path`).
+
+### Ratchet
+
+- New-UI visual pairs: `214` (U18's run of the same tool, `report.json` `"pairs": 214`; in this task's run the five earlier
+  files are unchanged: `frame.json` 24, `loops.json` 40, `loop.json` 60, `run.json` 40, `form.json` 50) -> `248`
+  (+ `repos.json` 34; `report.json` `"pairs": 248`, `"worstRatio": 0.0002`).
+- `npm run ratchets` before and after: `native title: 8`, `unknown classes: 0`, `dynamic classes: 4 (not checked)`,
+  `literal styles: 0`, `css violations: 0`, `e2e expects: 724 (min 712)`, `ratchets: ok`.
+
+### Red
+
+`tests/visual/ds/repos.visual.ts` written first. `npm run build`, then
+`npx playwright test --project=visual tests/visual/ds/repos.visual.ts` (`/repos` still showed the placeholder):
+`expect(locator).toHaveCount(expected) failed`, `Locator: getByTestId('repo-row')`, `Expected: 4`, `Received: 0`,
+`2 failed`, `2 did not run`.
+
+### Green
+
+- (1) `npx playwright test --project=visual tests/visual/ds/repos.visual.ts`: `4 passed`, exit 0.
+  `node -e "console.log(require('./reports/compare/ds/results/repos.json').length)"`: `34`. 56 regions, 46 at 0 mismatched
+  pixels; the others at most `0.0002` (the dialog of `repos-delete-confirm`, 14 px), all under `MAX_RATIO` `0.001`.
+- (2) After rebasing on `main` (U20 merged): `npx playwright test --project=visual tests/visual/ds/` -> `50 passed (5.2m)`,
+  then
+  `node -e "const fs=require('fs');const d='reports/compare/ds/results/';const got=new Set(fs.readdirSync(d).flatMap(f=>JSON.parse(fs.readFileSync(d+f,'utf8')).map(s=>s.id)));const want=[...fs.readFileSync('design/ds/STATES.md','utf8').matchAll(/^\| `([a-z0-9-]+)` \|/gm)].map(m=>m[1]);console.log('new-UI states compared: '+want.filter(i=>got.has(i)).length+'/'+want.length)"`
+  -> `new-UI states compared: 120/120`; `report.json` `"pairs": 248`. (An earlier run before the rebase had two failures: a
+  TRUNCATE deadlock in this file's `world()`, now fixed by leaving the app page before wiping, and a timing flake of
+  `run-transcript-running` in `run.visual.ts`, untouched here, which passed on its re-run.)
+- (3) `npm run ratchets`: `ratchets: ok`.
+- (4) The classic visual tests pass unchanged: the `visual` project inside `npm run verify` ran every classic and new visual
+  file, all green (`117 passed (14.0m)` for the e2e and visual projects of that step).
+- (5) `npm run verify` (before the rebase) -> exit 0: `states with shots: 120/120`, typecheck, lang-scan baseline,
+  `0 violations`, `arch-fixtures: 26/26 violations caught`, `ratchets: ok`, unit `510 passed | 2 skipped (512)`, contract
+  `114 passed`, executor contract `7 passed` each, api `115 passed`, api-smoke, build, e2e `117 passed (14.0m)`,
+  `UCs with a green e2e: 32/32`. After the rebase on U20: typecheck, `ratchets: ok` (`e2e expects: 749 (min 749)`), build,
+  the new-UI visual suite (2) and `npx playwright test --project=chromium-new` -> `11 passed (31.8s)`.
+
+### Stub check
+
+Each stub rebuilt, then `npx playwright test --project=visual tests/visual/ds/repos.visual.ts --grep "folder picker"`:
+
+- A picker without quick access (`{placeChips}` left out of the dialog): `repos-add-light · page: 1.99 % off (7093/355680 px)`,
+  `dialog: 1.49 % off` (fails).
+- A picker without the folder list (`{list}` left out): `repos-add` fails at `getByTestId('folder-list')`,
+  `element(s) not found`.
+- A picker without the name field: `repos-add` fails, `getByTestId('repo-name')`, `Expected: "acme-tools"`,
+  `element(s) not found`.
+- A missing state leaves the union of (2) below 120 (the one-liner counts each id of `STATES.md` found in the results).
