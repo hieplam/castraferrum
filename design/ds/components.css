@@ -556,7 +556,7 @@ button.select { display: block; overflow: hidden; text-overflow: ellipsis; white
 .combo { position: relative; display: flex; min-width: 0; }
 .combo > .select { flex: 1; }
 .combo > .menu { position: absolute; top: calc(100% + var(--space-1)); left: 0; right: 0; width: auto; }
-.group:has(.combo > .menu) { overflow: visible; }
+.group:has(.combo > .menu), .group:has(.cell .menu) { overflow: visible; }
 .input:focus-visible, .textarea:focus-visible, .select:focus-visible,
 .input.is-focus, .textarea.is-focus, .select.is-focus { border-color: var(--focus); outline-offset: calc(-1 * var(--border-w)); }
 .input[aria-invalid="true"], .textarea[aria-invalid="true"], .select[aria-invalid="true"],

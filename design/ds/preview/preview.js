@@ -835,10 +835,17 @@
     const places = [[t('picker.home'), w.home], [t('folder.place.desktop'), known.desktop || w.home + sep + 'Desktop'],
       [t('folder.place.documents'), known.documents || w.home + sep + 'Documents'], [t('folder.place.downloads'), known.downloads || w.home + sep + 'Downloads']]
       .concat(win ? w.roots.map((r) => [r, r + '\\']) : w.volumes);
+    // Most repos first, then by path: the order of the server (GET /api/folders/places, nearRepos).
+    const near = [];
     for (const r of repoSet) {
       const up = parentOf(r.path);
-      if (up && !places.some((p) => same(p[1], up))) places.push([esc(nameOf(up)), up]);
+      if (!up || places.some((p) => same(p[1], up))) continue;
+      const group = near.find((n) => same(n.path, up));
+      if (group) group.n += 1;
+      else near.push({ path: up, n: 1 });
     }
+    near.sort((a, b) => b.n - a.n || a.path.localeCompare(b.path, 'en', { sensitivity: 'base' }));
+    for (const n of near) places.push([esc(nameOf(n.path)), n.path]);
     // A label that appears twice is told apart by the folder that holds it ("Documents - OneDrive"), in the data font.
     const dup = (label) => places.filter((p) => same(p[0], label)).length > 1;
     const placeLabel = ([label, path]) => (dup(label) && parentOf(path) ? `${label} - <span class="data">${esc(nameOf(parentOf(path)))}</span>` : label);

@@ -4,7 +4,8 @@
 //             `aria-describedby`, never on touch.
 //   Menu      a list of actions: a popover menu on the desktop, a sheet on the phone.
 //   Toggletip a `?` that explains a section: a popover on the desktop, a sheet on the phone. It opens on click, so it works on touch.
-//   Sheet / Dialog  modal surfaces; a Dialog is a sheet on the phone. Focus is trapped inside, Escape closes, and focus goes back
+//   Sheet / Dialog  modal surfaces; a Dialog is a sheet on the phone. FullSheet is the phone's full-height sheet with a navigation
+//             bar (the folder picker). Focus is trapped inside, Escape closes, and focus goes back
 //             to the opener. They are drawn at the end of the document (a portal), outside the page, so no style of the place
 //             that opens them reaches them.
 // Every text is a prop (no i18n in the kit).
@@ -146,6 +147,47 @@ export function Sheet({
       <div ref={ref} className="sheet" role="dialog" aria-modal="true" {...named} tabIndex={-1} data-testid={testId}>
         <span className="sheet-grab" />
         {title === undefined ? null : <h2 id={titleId}>{title}</h2>}
+        {children}
+      </div>
+    </>,
+    document.body,
+  );
+}
+
+/**
+ * A full-height sheet with its navigation bar (`.fullsheet`, the phone's folder picker): `cancelLabel` is the bar's leading button,
+ * which closes it, and `title` its centred title and accessible name.
+ */
+export function FullSheet({
+  open,
+  onClose,
+  title,
+  cancelLabel,
+  cancelTestId,
+  testId,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  cancelLabel: string;
+  cancelTestId?: string;
+  testId?: string;
+  children: ReactNode;
+}) {
+  const ref = useFocusTrap<HTMLDivElement>(open, onClose);
+  if (!open) return null;
+  return createPortal(
+    <>
+      <div className="scrim" onClick={onClose} />
+      <div ref={ref} className="fullsheet" role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} data-testid={testId}>
+        <nav className="navbar">
+          <button className="navbar-back" type="button" onClick={onClose} data-testid={cancelTestId}>
+            {cancelLabel}
+          </button>
+          <span className="navbar-title">{title}</span>
+          <div className="navbar-actions" />
+        </nav>
         {children}
       </div>
     </>,
