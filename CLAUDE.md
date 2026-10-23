@@ -33,9 +33,8 @@ and `--message`, and CI scans the whole history and each pull request's title, b
 Every UI change, however small (a button, a label, a colour, a gap, a new row), starts from the design system and
 stays inside it:
 
-- Read the system before you change the UI. The new system lives in `design/ds/` (`SYSTEM.md` first, then
-  `tokens.css` and `components.css`). Until the cut-over of the UI uplift (epic #63, task U25) the classic UI follows
-  the classic system in `design/` (start at `design/README.md`).
+- Read the system before you change the UI. It lives in `design/ds/` (`SYSTEM.md` first, then `tokens.css` and
+  `components.css`; `design/README.md` says where everything is).
 - Use the existing tokens and components. Never write a colour, size, spacing or radius value, never add a class the
   system does not define, never use a native `title` tooltip. From task U0 of epic #63 on, `npm run ratchets` (in
   `verify` and CI) fails when you do.

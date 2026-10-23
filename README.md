@@ -2,6 +2,14 @@
 
 Castraferrum is a UI that runs, watches and manages agent loops.
 
+![The Loops page (light)](design/ds/preview/shots/loops-overview-light.png)
+
+![A running loop (dark)](design/ds/preview/shots/loop-running-dark.png)
+
+The screens follow the design system in [design/ds/](design/ds/) ([SYSTEM.md](design/ds/SYSTEM.md), the
+design-system page `design/ds/index.html` and the approved preview `design/ds/preview/`); see
+[design/README.md](design/README.md).
+
 ## Requirements
 
 - Node 24 or newer (`node --version`).
@@ -28,7 +36,7 @@ LOOPS_PORT=7170 npm start      # PowerShell: $env:LOOPS_PORT = '7170'; npm start
 
 The server does not start by itself: leave the `npm start` window open while you use the UI. The UI is served
 from `dist/web`, so rerun `npm run build` after pulling new code. The first thing to do in the UI is register a
-repository on the Repo page (the **Browse...** button picks a folder), then create a loop that uses it.
+repository on the Repos page (**Add a repo** opens a folder picker), then create a loop that uses it.
 
 ## Scripts
 
@@ -82,7 +90,8 @@ parallel on one container if each one sets its own `LOOPS_TEST_DATABASE_URL` and
 ## Documentation
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): layers, flows, persistence, tests.
-- [docs/USE-CASES.md](docs/USE-CASES.md): the 32 use cases.
+- [docs/USE-CASES.md](docs/USE-CASES.md): the use cases.
+- [design/README.md](design/README.md): the design system and how a UI change starts from it.
 - [docs/API.md](docs/API.md): the HTTP surface.
 - [docs/adr/](docs/adr/): decision records.
 - [CONTRIBUTING.md](CONTRIBUTING.md): how to work on the code.

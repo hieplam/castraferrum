@@ -1,7 +1,6 @@
-// The e2e tests select by test id or attribute, never by a classic CSS class (UI uplift, task U12): the same tests
-// must drive the new UI, whose classes differ. This scan reads the string literals of tests/e2e and tests/support
-// (except tests/support/ui.ts, whose classic branches keep their selectors until the cut-over) and flags a class token,
-// an XPath selector and any toHaveClass call. Toasts keep their classes in both systems (spec 7.1). The file and folder
+// The e2e tests select by test id or attribute, never by a CSS class (UI uplift, task U12): classes belong to the design
+// system and change with it. This scan reads the string literals of tests/e2e and tests/support and flags a class token,
+// an XPath selector and any toHaveClass call. Toasts keep their classes `.toast` and `.toast.is-err` (spec 7.1). The file and folder
 // names the tests create or read (`.claude`, `.git`, `.jsonl`, ...) look like class tokens and are not selectors.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
@@ -13,7 +12,6 @@ const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const CLASS_TOKEN = /(^|[\s>+~,(\]])\.[A-Za-z][\w-]*/g;
 const ALLOWED = new Set(['.toast', '.toast.is-err']);
 const FILE_NAMES = new Set(['.an', '.claude', '.git', '.jsonl', '.png']);
-const EXEMPT = new Set(['tests/support/ui.ts']);
 
 function files(): string[] {
   const out: string[] = [];
@@ -23,7 +21,7 @@ function files(): string[] {
   for (const e of readdirSync(join(ROOT, 'tests/support'), { withFileTypes: true })) {
     if (e.isFile() && e.name.endsWith('.ts')) out.push(join(e.parentPath, e.name));
   }
-  return out.map((f) => relative(ROOT, f).replaceAll('\\', '/')).filter((f) => !EXEMPT.has(f)).sort();
+  return out.map((f) => relative(ROOT, f).replaceAll('\\', '/')).sort();
 }
 
 /** Every flagged place of one file, as `file:line reason`. */

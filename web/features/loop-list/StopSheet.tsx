@@ -1,5 +1,5 @@
 // The Stop confirmation (D29): it opens only while a run is working, as a dialog on the desktop and a sheet on the phone. It keeps the
-// logic of the classic StopDialog (which runs, which texts) with the new keys of spec Appendix B. When the run ends while the
+// logic of the first UI's Stop dialog (which runs, which texts) with the keys of spec Appendix B. When the run ends while the
 // sheet is open there is nothing left to cancel, so the sheet closes (pressing Stop again stops at once).
 import { useEffect } from 'react';
 import type { LoopDto } from '../../../shared/contracts/loops';

@@ -10,7 +10,7 @@ import { Pill, type PillTone } from '../../ui/kit/Pill';
 import { fmtMmss } from '../loop-detail/format';
 import type { RowModel } from './row-model';
 
-/** The classic loop kinds: `cancelled` while Stop is on its way. */
+/** The loop kinds of spec 7.1: `cancelled` while Stop is on its way. */
 export type RowKind = 'running' | 'active' | 'stopped' | 'archived' | 'server_down' | 'cancelled';
 
 /** A loop of the list: the API's loop, what its row shows, and its kind. */

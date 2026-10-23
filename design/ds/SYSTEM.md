@@ -529,9 +529,8 @@ The state of an active period is the pill in the head of its page (`period.pill.
 
 - **Plural keys.** A text that counts something has `.one` and `.other` forms (and `.zero` where the design shows a
   word for zero), read with `tn(base, n)` of `web/prefs`. Never write "1 loops".
-- **Existing keys.** Never change the text of an existing key before the cut-over: the classic UI and its reference
-  shots use them. The new UI adds new keys (in `shared/i18n/en.ts` and `vi.ts`), and reuses an existing key only when
-  its text is exactly what the new design shows. The new keys and their English text are in Appendix B of the spec.
+- **Existing keys.** A key keeps its meaning. A new text is a new key (in `shared/i18n/en.ts` and `vi.ts`); an
+  existing key is reused only when its text is exactly what the design shows. The new keys and their English text are in Appendix B of the spec.
 - **Languages.** All text goes through the locale files; no text is written in a component. The Vietnamese option of
   the language setting reads its own name from the locale file (`settings.lang.self`) and carries `lang="vi"` and
   `data-raw`.
@@ -566,9 +565,9 @@ The state of an active period is the pill in the head of its page (`period.pill.
 - Tests find elements by `data-testid`, never by a class of this system (toasts are the one exception).
 - **One id per element, rendered once per page.** An action that moves between the action bar and the page head is
   rendered in one place only (`useLayout()`), so its id never appears twice.
-- The ids and their meaning are the contract of spec section 7.1; the new UI keeps every classic id it names and adds
-  the new ones listed there. Do not invent an id that the contract lacks without adding it to the spec.
-- **`data-status`** on `loop-row`, `row-status`, `loop-status` and `loop-header` uses the loop kinds of both UIs:
+- The ids and their meaning are the contract of spec section 7.1: the UI renders every id it names, with that
+  meaning. Do not invent an id that the contract lacks without adding it to the spec.
+- **`data-status`** on `loop-row`, `row-status`, `loop-status` and `loop-header` uses the loop kinds:
   `running` (a run is working), `active` (waiting for the next run), `stopped`, `archived`, `server_down`, and
   `cancelled` while stopping, whatever word the pill shows.
 - Run rows and run pills carry the run status: `running`, `succeeded`, `failed`, `timed_out`, `cancelled`,

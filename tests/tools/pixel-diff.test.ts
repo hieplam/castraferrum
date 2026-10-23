@@ -1,4 +1,4 @@
-// The pixel threshold of every visual comparison, classic and new UI (UI uplift, task U13): one value, in tests/visual/pixel-diff.ts.
+// The pixel threshold of every visual comparison (UI uplift, task U13): one value, in tests/visual/pixel-diff.ts.
 import { describe, expect, it } from 'vitest';
 import { MAX_RATIO } from '../visual/pixel-diff';
 

@@ -2,8 +2,8 @@
 // E2E UC-34, the console on a phone (UI uplift, task U24; spec G6, D13). One walk by touch through the whole job: create a loop,
 // start it, follow its live log, open the run and its transcript, stop it from the Loops list, register a repo. After every step
 // the page must not scroll sideways, every visible button, link and form control must be at least 44 by 44 (`--size-touch`),
-// and on the tab roots the tab bar sits at the bottom of the screen. It runs on the new UI only: in Chromium at 390 by 844 with
-// touch (project chromium-new) and in WebKit as an emulated iPhone 15 (project webkit-phone). The loop is checked in the DB.
+// and on the tab roots the tab bar sits at the bottom of the screen. It runs in Chromium at 390 by 844 with
+// touch (project chromium) and in WebKit as an emulated iPhone 15 (project webkit-phone). The loop is checked in the DB.
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
@@ -11,13 +11,12 @@ import { expect, test, type Page } from '@playwright/test';
 import { api, closeDb, fill, loopRows, pickRepo, reset } from '../support/form-kit';
 import { ensureTestRepo, TEST_REPO } from '../support/test-repo';
 import { t } from '../support/ui-text';
-import { isNewUi } from '../support/ui';
 
 /** `--size-touch` of design/ds/tokens.css: the smallest target a finger may be asked to hit. */
 const TOUCH = 44;
 const CHROMIUM_PHONE = { width: 390, height: 844 };
 
-// chromium-new is a desktop project: this spec turns it into a 390 by 844 touch screen. webkit-phone keeps its iPhone 15.
+// chromium is a desktop project: this spec turns it into a 390 by 844 touch screen. webkit-phone keeps its iPhone 15.
 test.use({
   viewport: async ({}, use, testInfo) => use(testInfo.project.name === 'webkit-phone' ? (testInfo.project.use.viewport ?? null) : CHROMIUM_PHONE),
   hasTouch: true,
@@ -92,7 +91,6 @@ test.describe('the console on a phone', () => {
 
     // The Loops tab.
     await page.goto('/');
-    expect(await isNewUi(page)).toBe(true);
     await expect(page.getByTestId('tab-loops')).toHaveAttribute('aria-current', 'page');
     await expect(page.getByTestId('list-create')).toBeVisible();
     await phoneOk(page, 'Loops tab', true);

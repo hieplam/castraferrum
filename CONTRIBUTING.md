@@ -17,9 +17,9 @@ exact (blob, line, kind) entries of file contents and (commit, line, kind) entri
 
 ## Design system
 
-Every UI change, however small, is designed from the design system first: the new system in `design/ds/`
-(`SYSTEM.md`, `tokens.css`, `components.css`, the design-system page `index.html` and the preview), and until the
-cut-over of epic #63 the classic system in `design/` for the classic UI. Use existing tokens and components only. A
+Every UI change, however small, is designed from the design system first: the system in `design/ds/`
+(`SYSTEM.md`, `tokens.css`, `components.css`, the design-system page `index.html` and the preview). Use existing
+tokens and components only. A
 missing component, state, token or rule is an issue labelled `design-system` (template "Design system gap"), opened
 before the feature is built; the system is extended first, with the owner's approval in `design/APPROVED.md`, or the
 feature waits for that issue. From task U0 of epic #63 on, `npm run ratchets` runs in `verify` and CI: it fails on empty or missing tokens, on
