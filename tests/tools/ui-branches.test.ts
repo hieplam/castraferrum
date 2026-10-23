@@ -1,7 +1,9 @@
 // The UI helpers of the e2e tests (UI uplift, task U12): tests/support/ui.ts holds one helper per step that differs
 // between the classic and the new UI (spec 7.2). A helper that has a new-UI branch (an `isNewUi` condition) must check
-// at least as much there as its classic branch does, so a new branch cannot pass by asserting nothing. Helpers without a
-// new branch yet are counted; the screen tasks U14 to U19 bring that count down.
+// at least as much there as its classic branch does, so a new branch cannot pass by asserting nothing. A helper that returns a
+// locator synchronously cannot await `isNewUi`; its branch is a `projectUi()` condition (the UI of the running project), and the
+// assertion at the call site checks `html[data-ui]` through the page it inspects. `isNewUi` and `projectUi` themselves are the
+// oracle, not helpers. Helpers without a new branch yet are counted; the e2e tasks U20 to U23 bring that count to 0.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -44,8 +46,11 @@ function expects(node: ts.Node | undefined): number {
   return n;
 }
 
+/** A UI condition: it mentions `isNewUi` or calls `projectUi`. */
 const mentionsIsNewUi = (node: ts.Node): boolean =>
-  (ts.isIdentifier(node) && node.text === 'isNewUi') || (ts.forEachChild(node, mentionsIsNewUi) ?? false);
+  (ts.isIdentifier(node) && node.text === 'isNewUi') ||
+  (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'projectUi') ||
+  (ts.forEachChild(node, mentionsIsNewUi) ?? false);
 
 /** The exported helpers of a ui.ts source and their new-UI branches. */
 function helpers(text: string): Helper[] {
@@ -53,7 +58,7 @@ function helpers(text: string): Helper[] {
   const out: Helper[] = [];
   for (const st of source.statements) {
     if (!ts.isFunctionDeclaration(st) || !st.name || !st.body) continue;
-    if (!st.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword) || st.name.text === 'isNewUi') continue;
+    if (!st.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword) || ['isNewUi', 'projectUi'].includes(st.name.text)) continue;
     const helper: Helper = { name: st.name.text, branches: [] };
     const statements = st.body.statements;
     const visit = (node: ts.Node) => {
@@ -91,9 +96,11 @@ describe('ui helpers', () => {
       export async function a(page) { if (await isNewUi(page)) { return 1; } expect(x).toBe(1); }
       export async function b(page) { if (await isNewUi(page)) { expect(y).toBe(1); return; } expect(x).toBe(1); }
       export async function c(page) { return (await isNewUi(page)) ? 1 : expect.poll(f).toBe(1); }
-      export async function d(page) { return page.getByTestId('x'); }`;
+      export async function d(page) { return page.getByTestId('x'); }
+      export function e(page) { return projectUi() === 'new' ? page.getByTestId('y') : page.getByTestId('x'); }
+      export function projectUi() { return 'classic'; }`;
     const list = helpers(src);
-    expect(list.map((h) => h.name)).toEqual(['a', 'b', 'c', 'd']);
+    expect(list.map((h) => h.name)).toEqual(['a', 'b', 'c', 'd', 'e']);
     expect(weakBranches(list)).toEqual([
       'a (line 3): new branch has 0 expect calls, classic has 1',
       'c (line 5): new branch has 0 expect calls, classic has 1',

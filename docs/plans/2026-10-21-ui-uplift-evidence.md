@@ -1672,3 +1672,105 @@ Run with `LOOPS_TEST_DATABASE_URL` pointing at the lane database `loops_u21_test
 - An empty new branch: `runHistory` that does not open All runs finds no `runs-table` on the loop page, and
   `loopRowOnList` without a branch looks for the classic `loop-row` that the new UI does not render: the call-site
   `expect` fails (the Red run above is the same failure family).
+
+## U23
+
+Status: done for its own files. `tests/e2e/repo.spec.ts` and `tests/e2e/shell.spec.ts` run in `chromium-new` as well as
+`chromium`; the eight use cases UC-17, UC-18, UC-19, UC-20, UC-21, UC-23, UC-24 and UC-25 and the database-down test are
+green in both projects. With U21 merged, every spec file of `tests/e2e/` runs in both projects except the three of U22
+(`transcript.spec.ts`, `claude.spec.ts`, `repo-browse.spec.ts`), which U22 adds; the full union is checked at U25.
+`phone.spec.ts` belongs to U24 and its own `webkit-phone` project.
+
+### What changed
+
+- `playwright.config.ts`: `**/repo.spec.ts` and `**/shell.spec.ts` added to the `testMatch` of `chromium-new` (after U21's
+  three).
+- `tests/support/ui.ts`, new-UI branches:
+  - `switchLanguage`: opens Settings through `nav-settings` (inside the app) and picks the `settings-lang-*` option that is
+    not `aria-checked`.
+  - `themeName`: now returns the name; the new UI reads `html[data-theme]` (the top bar's `toggle-theme` is an icon).
+  - `lampState`: the new UI's `conn` element; the new `lampAttr(lamp)` names the attribute (`data-server`, `data-db`;
+    classic `data-state`). Both stay synchronous, so U21's call sites did not change.
+  - `statValue`: the item inside the Loops page `summary` (new) or the top bar `topstats` (classic).
+  - `registerRepo`: opens the picker with `repo-add` when it is closed and waits until the picker shows its first folder
+    (which writes that folder into `repo-path`) before typing; `openFolderPicker`: `repo-add` and the same wait;
+    `deleteRepo`: the row's `repo-menu`, then the menu's `repo-delete`.
+- `tests/tools/ui-branches.test.ts`: a `projectUi()` condition counts as a new-UI branch, as an `isNewUi` one does. A
+  helper that returns a locator synchronously cannot await `isNewUi`, and `gotoApp` has had a `projectUi()` branch since
+  U13 that the count missed. `projectUi` itself is the oracle, like `isNewUi`, and is not counted. The weak-branch rule
+  (a new branch checks at least as much as the classic one) applies to these branches too; a unit case covers it.
+- The two specs choose the expected text or element of a step that differs by design at the call site (spec 7.2,
+  Appendix B): `repos.loops.*`, `repos.deleteBlocked`, `repos.deleteTitle`, `picker.pathTaken`,
+  `error.REPO_NAME_TAKEN`, `status.folderGone`, `editor.errSummary.one`, `loopSettings.noLimit`, `now.repoMissing` and the
+  now card's `last-failed` state, `tx.note.noSession`, `run.agentUsed`, `banner.lost`, `banner.lostRetry` (as a pattern),
+  `banner.back`, `banner.db`, `conn.dbDown`, `data-value` and `data-stale` on the summary items, `settings-lang-*`
+  `aria-checked`, and the tokens of `design/ds/tokens.css`. The visible-text check of UC-18 also covers `/settings`,
+  `/loops/:id/runs` and `/loops/:id/settings` in the new UI. No classic assertion was removed or loosened.
+- No new-UI fix was needed. Choices made without the owner (the rule of 2026-10-23), the app's behaviour kept:
+  - The new desktop loop page names its repo on the settings card (`config-repo`, the approved `d-loop-*` boards); the
+    `loop-repo` meta line is the phone's. UC-25 checks the repo name in `config-repo` on the desktop.
+  - The new editor's `f-repo` shows the repo name; its folder is the note under the field (`editor.repoNote`), which UC-21
+    checks.
+  - The new run page shows no session row without a session; UC-23 checks `run-session` count 0 and the transcript's
+    `noSession` note. The cost of a run without one is `-`.
+  - The run page names the agent a run used, not its time limit; UC-24 checks the limit on the loop settings card
+    (`loopSettings.noLimit`) and the agent line on the run page.
+  - The new top-bar `nav-loops` writes the loop count after the label; UC-18 accepts the label followed by digits.
+  - The repo filter of the Loops page lives in the page's state, so it is gone after a visit to a loop page; UC-25 picks
+    the repo again on `/` (2 rows) before it removes the filter (3 rows).
+
+### Ratchet
+
+- UCs green in both `chromium` and `chromium-new` (from `reports/e2e.json`, every test of the UC `expected` in both
+  projects): `18` (after U21) -> ``26` (UC-17, UC-18, UC-19, UC-20, UC-21, UC-23, UC-24 and UC-25 added). The six left are U22's (UC-22, UC-26 to
+  UC-30)`.
+- `npm run ratchets`: `e2e expects: 785 (min 785)` -> `e2e expects: 804 (min 804)`; `e2eExpectsMin` `785` -> `804`.
+- `npx vitest run --project unit tests/tools/ui-branches.test.ts`: `helpers without a new branch: 9` (after U21) ->
+  `0`. Under the old rule (only `isNewUi` conditions) the same file counts `4`: `projectUi` and `gotoApp`, and
+  `lampState` and `statValue`, whose branches are `projectUi()` conditions.
+
+### Red
+
+With the two files in `chromium-new`, `npm run build`, then
+`npx playwright test --project=chromium-new tests/e2e/repo.spec.ts tests/e2e/shell.spec.ts` (the plan's space form makes
+Playwright read the file names as project names): `10 failed`.
+
+- UC-19: `locator.fill: Test timeout of 30000ms exceeded` at `repo-path` (the picker is closed).
+- UC-20: `repo-loop-count` expected `no loops`, received `No loops`.
+- UC-21: `form-errors` expected `✗ Not saved — 1 fields need fixing`, received `Not saved. 1 field needs fixing.`.
+- UC-23: `last-run-failed`, `element(s) not found`.
+- UC-24: `config-timeout` expected `no limit`, received `Time limit per runNone`.
+- UC-25: `loop-repo`, `element(s) not found`.
+- UC-17: `lamp-server`, `element(s) not found`.
+- DB down: `lamp-db`, `element(s) not found`.
+- UC-18 language: `nav-loops` expected `Loops`, received `Loops3`.
+- UC-18 theme: body background expected `rgb(11, 12, 10)` (classic tokens), received `rgb(15, 18, 17)`.
+
+### Green
+
+- (1) `npx playwright test --project=chromium-new tests/e2e/repo.spec.ts tests/e2e/shell.spec.ts`: `10 passed (54.9s)`.
+- (2) `npx playwright test --project=chromium tests/e2e/repo.spec.ts tests/e2e/shell.spec.ts`: `10 passed (52.9s)`.
+  The other files that use the changed helpers, in both projects (`list`, `form`, `smoke`, `ui-switch`; `repo-browse` in
+  `chromium`): `23 passed (1.1m)`.
+- (3) The titles of `npx playwright test --list --reporter=list --project=chromium-new` and the same for `chromium`, with
+  the `[project] › ` prefix dropped: `chromium-new: 34, chromium: 40`, `same test titles: no`; the six titles only in
+  `chromium` are those of U22's three files. Restricted to the files in `chromium-new` before U21 and U22 plus this
+  task's (`smoke`, `ui-switch`, `list`, `form`, `repo`, `shell`): `chromium-new: 21, chromium: 21`,
+  `same test titles: yes`. After U21's rebase, every title except U22's six matches.
+- (4) `npx vitest run --project unit tests/tools/ui-branches.test.ts`: `Tests  2 passed (2)`,
+  `helpers without a new branch: 0`. `tests/tools/e2e-selectors.test.ts`: `2 passed`.
+- (5) `npm run verify`: exit 0. `states with shots: 120/120`, `ratchets: ok` (`e2e expects: 804 (min 804)`), unit
+  `510 passed | 2 skipped (512)`, contract `114 passed`, api `115 passed`, e2e `147 passed (17.6m)`,
+  `UCs with a green e2e: 32/32`. From `reports/e2e.json`, 26 UCs are `expected` in both `chromium` and `chromium-new`;
+  the six not yet run in `chromium-new` (UC-22, UC-26, UC-27, UC-28, UC-29, UC-30) are those of U22's files, so "every
+  UC except UC-34 in both projects" holds once U22 merges (checked at U25).
+- (6) `npm run ratchets`: `e2e expects: 804 (min 804)`, `ratchets: ok`.
+
+Run with `LOOPS_TEST_DATABASE_URL` pointing at the lane database `loops_u23_test` and `LOOPS_E2E_PORT=7185`.
+
+### Stub check
+
+- `deleteRepo` with an empty new branch: UC-20 in `chromium-new` fails, `repo-in-use` expected
+  `Used by Loop A, Loop B (archived). Delete or move those loops first.`, `element(s) not found`.
+- A language switch that only changes `html[lang]` (`setLang` in `web/prefs/prefs.tsx` writing `lang` and nothing else):
+  UC-18 in `chromium-new` fails, `nav-loops` expected `/^Loop\d*$/`, received `Loops1`. `2 failed` in one run.

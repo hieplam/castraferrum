@@ -80,24 +80,48 @@ export async function loopRowOnList(page: Page): Promise<Locator> {
   return page.locator('[data-testid="loop-row"].is-sel');
 }
 
-/** New UI (spec 7.2): Settings, `settings-lang-en` and `settings-lang-vi` (`aria-checked`). */
+/**
+ * Switches the UI language to the other one. New UI (spec 7.2): the language is chosen on Settings (`settings-lang-en` and
+ * `settings-lang-vi`, the chosen one `aria-checked="true"`), so the helper opens Settings through its top-bar link (inside the
+ * app, no reload) and picks the option that is not chosen; the page stays on Settings. Classic: the `toggle-lang` button.
+ */
 export async function switchLanguage(page: Page): Promise<void> {
+  if (await isNewUi(page)) {
+    if (new URL(page.url()).pathname !== '/settings') await page.getByTestId('nav-settings').click();
+    await page.locator('[data-testid^="settings-lang-"][aria-checked="false"]').click();
+    return;
+  }
   await page.getByTestId('toggle-lang').click();
 }
 
-/** New UI (spec 7.2): `toggle-theme` in the top bar, `html[data-theme]` and Settings `settings-theme-*`. */
-export function themeName(page: Page): Locator {
-  return page.getByTestId('toggle-theme').locator('b');
+/**
+ * The name of the theme the page shows (`light` or `dark`). New UI (spec 7.2): `toggle-theme` is an icon button, so the theme is
+ * read from `html[data-theme]`. Classic: the bold word of the `toggle-theme` text (`light / dark`).
+ */
+export async function themeName(page: Page): Promise<string | null> {
+  if (await isNewUi(page)) return page.locator('html').getAttribute('data-theme');
+  return page.getByTestId('toggle-theme').locator('b').textContent();
 }
 
-/** New UI (spec 7.2): `conn` with `data-server` and `data-db`. */
+/**
+ * The element that holds the state of a connection lamp. New UI (spec 7.2): one `conn` element carries both states, in
+ * `data-server` and `data-db` (see `lampAttr`). Classic: `lamp-server` and `lamp-db`, each with `data-state`.
+ */
 export function lampState(page: Page, lamp: 'server' | 'db'): Locator {
-  return page.getByTestId(`lamp-${lamp}`);
+  return projectUi() === 'new' ? page.getByTestId('conn') : page.getByTestId(`lamp-${lamp}`);
 }
 
-/** New UI (spec 7.2): the summary items with `data-value`, `data-stale="true"` and `data-alert="true"`. */
+/** The attribute of `lampState` that holds the lamp's state (`ok`, `wait`, `down`): `data-server` or `data-db` in the new UI, `data-state` in the classic one. */
+export function lampAttr(lamp: 'server' | 'db'): string {
+  return projectUi() === 'new' ? `data-${lamp}` : 'data-state';
+}
+
+/**
+ * One of the four figures. New UI (spec 7.2): an item of the Loops page summary (`summary`), with `data-value`,
+ * `data-stale="true"` and `data-alert="true"`. Classic: a sentence of the top bar's `topstats`.
+ */
 export function statValue(page: Page, stat: 'active-loops' | 'running-runs' | 'runs-today' | 'errors-24h'): Locator {
-  return page.getByTestId(`stat-${stat}`);
+  return page.getByTestId(projectUi() === 'new' ? 'summary' : 'topstats').getByTestId(`stat-${stat}`);
 }
 
 /** New UI (spec 7.2): the Repeat select `sched-kind` takes the kind as its value; the classic UI has one `sched-kind-<k>` button per kind. */
@@ -109,19 +133,42 @@ export async function pickScheduleKind(page: Page, kind: string): Promise<void> 
   await page.getByTestId(`sched-kind-${kind}`).click();
 }
 
-/** New UI (spec 7.2): `repo-add` opens the picker, which holds `repo-path`, `repo-name` and `repo-submit`; it closes after registering. */
+/**
+ * Registers the folder `path` from the Repos page. New UI (spec 7.2): `repo-add` opens the picker (unless it is open already),
+ * which holds `repo-path`, `repo-name` and `repo-submit`; the helper waits until the picker has opened its first folder (which
+ * writes that folder into `repo-path`) before it types. The picker closes after registering. Classic: the form on the page.
+ */
 export async function registerRepo(page: Page, path: string): Promise<void> {
+  if ((await isNewUi(page)) && (await page.getByTestId('folder-picker').count()) === 0) await openPicker(page);
   await page.getByTestId('repo-path').fill(path);
   await page.getByTestId('repo-submit').click();
 }
 
-/** New UI (spec 7.2): `repo-add` opens the folder picker; `repo-browse` goes away. */
+/** New UI: `repo-add` opens the picker; it is ready once it has opened its first folder, which it writes into `repo-path`. */
+async function openPicker(page: Page): Promise<void> {
+  await page.getByTestId('repo-add').click();
+  await page.locator('[data-testid="folder-list"][data-loading="false"]:not([data-path=""])').waitFor();
+}
+
+/**
+ * Opens the folder picker and waits until it shows its first folder. New UI (spec 7.2): `repo-add` opens it; `repo-browse` goes
+ * away. Classic: `repo-browse`.
+ */
 export async function openFolderPicker(page: Page): Promise<void> {
+  if (await isNewUi(page)) {
+    await openPicker(page);
+    return;
+  }
   await page.getByTestId('repo-browse').click();
 }
 
-/** New UI (spec 7.2): the row's `⋯` menu (`repo-menu`), then `repo-delete`. */
+/** Asks to delete the repo of `row`. New UI (spec 7.2): the row's `⋯` menu (`repo-menu`), then its `repo-delete` item. Classic: the row's `repo-delete` button. */
 export async function deleteRepo(row: Locator): Promise<void> {
+  if (await isNewUi(row.page())) {
+    await row.getByTestId('repo-menu').click();
+    await row.page().getByRole('menu').getByTestId('repo-delete').click();
+    return;
+  }
   await row.getByTestId('repo-delete').click();
 }
 
