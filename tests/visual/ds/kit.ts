@@ -82,6 +82,15 @@ async function resolveRegions(page: Page, specs: RegionSpec[]): Promise<Region[]
   return out;
 }
 
+/** The visible fixed elements of a page taller than the viewport (a full-page shot paints them mid-page), as "tag.class". */
+function midPageBars(): string[] {
+  const tall = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+  if (tall <= window.innerHeight) return [];
+  return [...document.querySelectorAll('body *')]
+    .filter((el) => getComputedStyle(el).position === 'fixed' && el.getBoundingClientRect().height > 0)
+    .map((el) => `${el.tagName.toLowerCase()}${[...el.classList].map((c) => `.${c}`).join('')} (page ${tall}px, viewport ${window.innerHeight}px)`);
+}
+
 type Shot = { id: string; theme: Theme; title: string; regions: RegionResult[] };
 const shots: Shot[] = [];
 
@@ -96,14 +105,22 @@ export async function snap(page: Page, id: string, title: string, specs: RegionS
     const expected = join(DS_SHOTS, `${id}-${theme}.png`);
     const { width, height } = PNG.sync.read(readFileSync(expected));
     // A reference exactly the size of the viewport = a viewport shot; otherwise stretch the page to the
-    // reference's height and shoot the full page, so text is drawn the same way.
+    // reference's height and shoot the full page, so text is drawn the same way. A full-page capture paints the fixed bars
+    // (tab bar, action bar) where the first screen ends, over the content (castraferrum#198), so the viewport is also made
+    // as tall as the reference for the shot, which puts them at the real bottom, as in the preview shot.
     const view = page.viewportSize();
     const fixed = view !== null && height === view.height && width === view.width;
+    const grow = !fixed && view !== null && height > view.height;
     if (!fixed) await page.evaluate((h) => (document.body.style.minHeight = `${h}px`), height);
+    if (grow) await page.setViewportSize({ width: view.width, height });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const midPage = fixed ? [] : await page.evaluate(midPageBars);
+    expect.soft(midPage, `${id}-${theme}: fixed bars painted mid-page`).toEqual([]);
     const actual = join(OUT, 'shots', `${id}-${theme}.png`);
     await page.screenshot({ path: actual, fullPage: !fixed, animations: 'disabled', caret: 'hide' });
-    await page.evaluate(() => (document.body.style.minHeight = ''));
     const resolved = await resolveRegions(page, specs);
+    if (grow) await page.setViewportSize(view);
+    await page.evaluate(() => (document.body.style.minHeight = ''));
     if (fixed && view) for (const r of resolved) r.rect.height = Math.max(0, Math.min(r.rect.height, view.height - r.rect.y));
     const result = compareRegions(expected, actual, resolved, join(OUT, 'diff', `${id}-${theme}.png`));
     shots.push({ id, theme, title, regions: result });

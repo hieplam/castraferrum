@@ -13,6 +13,10 @@
 // `requires`, visible elements only) missing or with the wrong count, a class <folder>/components.css does not define,
 // an inline style with a colour literal or a px, rem or em length. Prints "drawn <k> states x <t> themes, <n> problems";
 // any problem → exit 1.
+// A state that is not `fixed` and is taller than its viewport: a full-page capture would paint the fixed bars (the tab
+// bar, the action bar) where the first screen ends, over the content (castraferrum#198). So the viewport is made as tall
+// as the page for the shot, which puts them at the real bottom, and a page whose fixed bars would still sit mid-page is
+// a problem ("fixed bar mid-page"), also under --dry.
 // --compress re-encodes every written shot losslessly (pngjs, deflate level 9, adaptive filter) and keeps the smaller
 // file. A re-encode that decodes to other pixels keeps the original and fails. Prints "pixels identical: <k>/<n>" and
 // the bytes before and after.
@@ -54,6 +58,24 @@ const snapshot = () => {
   return { ids, classes, styles };
 };
 
+/** The visible fixed elements of a page taller than the viewport (a full-page shot paints them mid-page), as "tag.class". */
+const midPageBars = () => {
+  const tall = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+  if (tall <= window.innerHeight) return [];
+  return [...document.querySelectorAll('body *')]
+    .filter((el) => getComputedStyle(el).position === 'fixed' && el.getBoundingClientRect().height > 0)
+    .map((el) => `${el.tagName.toLowerCase()}${[...el.classList].map((c) => `.${c}`).join('')} (page ${tall}px, viewport ${window.innerHeight}px)`);
+};
+
+/** Makes the viewport as tall as the page (a few rounds: a page may grow with its viewport), so fixed bars sit at its real bottom. */
+async function growToPage(page, width) {
+  for (let i = 0; i < 3; i++) {
+    const { tall, inner } = await page.evaluate(() => ({ tall: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight), inner: window.innerHeight }));
+    if (tall <= inner) return;
+    await page.setViewportSize({ width, height: tall });
+  }
+}
+
 const browser = await chromium.launch();
 let bad = 0, n = 0, problemCount = 0, same = 0, before = 0, after = 0;
 for (const s of states) {
@@ -69,6 +91,8 @@ for (const s of states) {
     const pv = await page.evaluate(() => window.__PV);
     const problems = [...errs, ...(pv?.problems ?? (pv ? [] : ['the page did not run preview.js']))];
     if (values.dry) problems.push(...checkDrawn(await page.evaluate(snapshot), { requires: s.requires, known }));
+    if (!s.fixed) await growToPage(page, width);
+    if (!s.fixed) problems.push(...(await page.evaluate(midPageBars)).map((b) => `fixed bar mid-page: ${b}`));
     if (problems.length) {
       bad++;
       problemCount += problems.length;

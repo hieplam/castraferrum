@@ -480,7 +480,9 @@ Screens put kit components together in `web/features/`. Never add a class that i
   bold label (`--fs-cap`) with the value right under it in body size and text colour; a repo name is a `<strong>` (bold
   `--font-data`) with its path as a `.data` under it, a schedule is one line "schedule · time zone", and the Prompt
   label is a compact row that holds the `.code.is-clamped`. Rows follow each other with the card's own gap.
-- **Do not** use `.skeleton` for longer than a load, or `.note` for an error.
+- **Do not** use `.skeleton` for longer than a load, or `.note` for an error. With the database down a list already
+  loaded stays (like the figures), and a list not loaded yet is the failed `.empty.is-err` at once, never a skeleton
+  that waits for the database.
 - **Phone and desktop:** the same.
 - **States:** none.
 - **Wrapper:** `web/ui/kit/Icon.tsx` for `.icon` (U14); the others are plain markup in the feature that needs them.

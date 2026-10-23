@@ -111,19 +111,42 @@ test.describe('desktop frame, Settings and Not found against the preview', () =>
   test('database down', async ({ page }) => {
     test.setTimeout(120_000);
     await ctx.world(page);
-    await page.goto(`${ctx.sp.baseUrl}/settings`);
+    // The state the preview draws: the console is open with the Loops list loaded when the database stops answering.
+    await page.goto(`${ctx.sp.baseUrl}/`);
     await settled(page);
+    await expect(page.getByTestId('loop-row')).toHaveCount(7);
+    await page.getByTestId('nav-settings').click();
+    await expect(page.getByTestId('nav-settings')).toHaveAttribute('aria-current', 'page');
     await ctx.sp.cutDb();
     try {
       await expect(page.getByTestId('banner-db-down')).toContainText(tEn('banner.db'), { timeout: 15_000 });
       await expect(page.getByTestId('conn')).toHaveAttribute('data-db', 'down');
       await expect(page.getByTestId('settings-db')).toContainText(tEn('settings.notAnswering'));
       await snap(page, 'settings-db-down', 'Settings with the database not answering', [regions.topbar(), regions.page(['settings-address', 'settings-version'])]);
-      // The same state on the Loops path, where the preview draws it: the Loops link is the active one.
+      // The same state on the Loops path, where the preview draws it: the Loops link is the active one. Coming back a
+      // minute later reloads the list (it is stale; the browser clock is frozen, so it is moved on for the reload and back
+      // for the shot); the reload and its one retry fail with the database down.
+      const failed: string[] = [];
+      page.on('response', (r) => {
+        if (/\/api\/loops(\?|$)/.test(r.url()) && r.status() >= 500) failed.push(r.url());
+      });
+      await page.clock.setFixedTime(new Date(PREVIEW_NOW.getTime() + 60_000));
       await page.getByTestId('nav-loops').click();
       await expect(page.getByTestId('nav-loops')).toHaveAttribute('aria-current', 'page');
       await expect(page.getByTestId('banner-db-down')).toBeVisible();
-      await snap(page, 'frame-db-down', 'Server up, database not answering: warning banner, "Database not answering"', [regions.topbar(), regions.banner()]);
+      await expect.poll(() => failed.length, { timeout: 15_000 }).toBeGreaterThanOrEqual(2);
+      await page.clock.setFixedTime(PREVIEW_NOW);
+      // castraferrum#196: the list loaded before stays, like the figures: no skeleton, no error, the seven rows, the counts.
+      await expect(page.getByTestId('list-loading')).toBeHidden();
+      await expect(page.getByTestId('list-error')).toBeHidden();
+      await expect(page.getByTestId('loop-row')).toHaveCount(7);
+      await expect(page.getByTestId('tab-all')).toHaveText(`${tEn('list.filter.all')} 7`);
+      await snap(page, 'frame-db-down', 'Server up, database not answering: warning banner, "Database not answering", the last list', [regions.topbar(), regions.banner(), regions.page()]);
+      // With no list loaded yet (a reload), the database down shows the error state at once, never a waiting skeleton.
+      await page.reload();
+      await expect(page.getByTestId('banner-db-down')).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByTestId('list-error')).toBeVisible({ timeout: 500 });
+      await expect(page.getByTestId('list-loading')).toBeHidden();
     } finally {
       await ctx.sp.restoreDb();
     }
@@ -158,9 +181,13 @@ test.describe('phone frame, Settings and Not found against the preview', () => {
   test('loading', async ({ page }) => {
     test.setTimeout(120_000);
     await ctx.world(page);
+    // The figures and the list have not arrived (both held), as in the preview: the page is as tall as the preview's, so
+    // the tab bar sits at the same bottom (castraferrum#198).
     await page.route('**/api/stats**', () => undefined);
+    await page.route(/\/api\/loops(\?|$)/, () => undefined);
     await page.goto(`${ctx.sp.baseUrl}/`);
     await settled(page);
+    await expect(page.getByTestId('list-loading')).toBeVisible();
     await expect(page.getByTestId('tab-loops')).toHaveAttribute('aria-current', 'page');
     await snap(page, 'phone-frame-loading', 'First load on the phone: the tab bar, Loops active', [regions.tabbar()]);
   });

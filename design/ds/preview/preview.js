@@ -71,13 +71,13 @@
 
   // ── frame: the top bar (from 640px), the tab bar (below), banners ──
   // conn: 'ok' | 'lost' | 'db'. The nav counts are the loops and the repos of the sample world (o.repoCount for another
-  // world).
+  // world; null = not known yet, no count, as the app shows while the repo list loads).
   function topbar(o) {
     const conn = { ok: ['is-ok', 'conn.ok', 'ok', 'ok'], lost: ['is-lost', 'conn.lost', 'down', 'wait'], db: ['is-db-down', 'conn.dbDown', 'ok', 'down'] }[o.conn || 'ok'];
     const link = (k, id, label, count) => `<a class="topbar-link${o.tab === k ? ' is-on' : ''}" href="#" data-testid="${id}"${o.tab === k ? ' aria-current="page"' : ''}>${label}${count}</a>`;
     return `<header class="topbar" data-testid="topbar"><span class="topbar-brand">${t('app.title')}</span>` +
       `<nav class="topbar-nav">${link('loops', 'nav-loops', t('nav.loops'), o.loopCount == null ? '' : ` <span>${o.loopCount}</span>`)}` +
-      `${link('repos', 'nav-repos', t('nav.repos'), ` <span data-testid="nav-repos-count">${o.repoCount == null ? D.repoOrder.length : o.repoCount}</span>`)}${link('settings', 'nav-settings', t('nav.settings'), '')}</nav>` +
+      `${link('repos', 'nav-repos', t('nav.repos'), o.repoCount === null ? '' : ` <span data-testid="nav-repos-count">${o.repoCount === undefined ? D.repoOrder.length : o.repoCount}</span>`)}${link('settings', 'nav-settings', t('nav.settings'), '')}</nav>` +
       `<div class="topbar-end"><span class="conn ${conn[0]}" data-testid="conn" data-server="${conn[2]}" data-db="${conn[3]}">${t(conn[1])}</span>` +
       `<button class="iconbtn" type="button" data-testid="toggle-theme" aria-label="${t('theme.switch')}">${icon('theme')}</button></div></header>`;
   }
@@ -811,7 +811,7 @@
         : `<div class="group" data-testid="repo-table">${set.order.map((k) => repoCell(set, k)).join('')}</div>`;
     return reposHead() + `<p class="page-desc">${t('repos.note')}</p>` + (o.banner || '') + list;
   }
-  const reposApp = (o = {}) => app({ tab: 'repos', loopCount: o.set === MAC ? 0 : D.counts.all, repoCount: (o.set || WIN).order.length, narrow: true, page: reposPage(o), overlay: o.overlay });
+  const reposApp = (o = {}) => app({ tab: 'repos', loopCount: o.set === MAC ? 0 : D.counts.all, repoCount: o.loading ? null : (o.set || WIN).order.length, narrow: true, page: reposPage(o), overlay: o.overlay });
 
   // The folder picker (spec 5.7), drawn from a world of data.js PV.folders: the path field (also the registration path),
   // quick access, the breadcrumb, the filter, the show-hidden switch, the folder list, the target line, the name and Add
