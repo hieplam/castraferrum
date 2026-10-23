@@ -10,7 +10,8 @@ export type RunTrigger = 'start' | 'schedule';
 export type FinishStatus = 'succeeded' | 'failed' | 'cancelled' | 'timed_out';
 export type LogLevel = 'info' | 'warn' | 'error';
 
-/** The "error" group of the run figures: failed + timed_out + interrupted (SPEC, figures). */
+/** The "error" group of the overview figures (errors in 24 h): failed + timed_out + interrupted (SPEC, figures). The counts
+ * of an active period (`ExecutionStats`) keep interrupted apart, as the run list does (castraferrum#190). */
 export const FAILURE_STATUSES: readonly RunStatus[] = ['failed', 'timed_out', 'interrupted'];
 
 /** Figures of one run (Start to Stop). `runs` = number of turns that really ran (every status except skipped). */
