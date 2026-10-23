@@ -162,3 +162,27 @@ Known differences, not defects:
 - the tab-bar Settings glyph differs from the board's sliders;
 - durations read `4h 13m` where the boards read `4 h 13 m`;
 - the sample data stays English in the `vi-*` states.
+
+## Agent corrections under the owner's rule of 2026-10-23 - three sample differences of the new preview, 2026-10-23
+
+Owner-approved corrections of the new preview approved at U10. On 2026-10-23 the owner set the rule for differences
+between the preview's sample and the app: the app's honest behaviour wins, the preview is corrected and re-shot, and this
+file records it. The owner decided the first correction directly on castraferrum#156 ("fix the preview ... becomes
+`14:52` (the average of the nine runs it draws), matching the app. ... The seed stays as it is."); the coordinating agent
+decided the other two under the rule (last comment of castraferrum#159 and castraferrum#161).
+
+- **Typical run of "Issue backlog worker"** (castraferrum#156): the preview drew 18:47, while the nine runs of its active
+  period that the same preview draws on `loop-runs` (25:30, 20:10, 0:58, 1:04, 23:40, 15:51, 5:12, 18:22, 23:04) average
+  14:52, the figure the app computes. `avg` of `pilot` in [`ds/preview/data.js`](ds/preview/data.js) becomes
+  `14 * 60 + 52`, and the same sample figure on the design-system page [`ds/index.html`](ds/index.html) reads 14:52.
+  Re-shot: `loop-running`, `loop-help`, `loop-menu`, `loop-stop-confirm`, `loop-stopping`, `loop-disconnected` and
+  `phone-loop-running`.
+- **Transcript bar of `run-failed`** (castraferrum#159): the bar counts the loaded entries, "50 entries" (the last page of
+  the 52-entry file), as the app does; the transcript API gives no total count. Re-shot: `run-failed`.
+- **Back link of `form-duplicate`** (castraferrum#161): the editor of the copy names the copy, "Issue backlog worker
+  (copy)", the loop the link opens, as the app does. Re-shot: `form-duplicate`.
+
+All shots re-shot with `npm run design:shots -- --design design/ds`, light and dark: 18 shots changed, no other shot.
+Evidence: the section "Issues 156, 159 and 161" of
+[`../docs/plans/2026-10-21-ui-uplift-evidence.md`](../docs/plans/2026-10-21-ui-uplift-evidence.md). The classic preview
+in [`preview/`](preview/) keeps its approved figures; `tests/visual/detail.visual.ts` still masks them there.
