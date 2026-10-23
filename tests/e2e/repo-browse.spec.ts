@@ -110,4 +110,37 @@ test.describe('browse folders when registering a repo', () => {
     await expect(page.getByTestId('folder-picker')).toHaveCount(0);
     expect((await db().query('SELECT count(*)::int AS n FROM repos')).rows[0].n).toBe(1);
   });
+
+  // castraferrum#177: a path typed before the picker's opening folder has loaded must stay the path that is registered. The listing
+  // of the opening folder (`GET /api/folders`) is held at a gate that opens only AFTER the path is typed, so the late arrival lands
+  // after the typing every time (a plain delay does not pin that order).
+  test('UC-29: a path typed before the opening folder loads is the path registered, not the opening folder', { tag: '@UC-29' }, async ({ page }) => {
+    const root = tree();
+    const typed = join(root, 'proj-a');
+    let open!: () => void;
+    const gate = new Promise<void>((resolve) => (open = resolve));
+    await page.route(
+      (url) => url.pathname === '/api/folders',
+      async (route) => {
+        await gate;
+        await route.continue();
+      },
+    );
+    await page.goto('/repos');
+    const held = page.waitForRequest((req) => new URL(req.url()).pathname === '/api/folders');
+    await page.getByTestId('repo-add').click();
+    await held; // the opening folder is requested and held at the gate
+    const list = page.getByTestId('folder-list');
+    await expect(list).toHaveAttribute('data-path', '');
+    await page.getByTestId('repo-path').fill(typed);
+    await expect(page.getByTestId('folder-target')).toHaveAttribute('data-path', typed);
+
+    open(); // the opening folder arrives now, after the typing
+    await expect(list).toHaveAttribute('data-loading', 'false');
+    await expect(list).not.toHaveAttribute('data-path', '');
+    await page.getByTestId('repo-submit').click();
+    await expect(page.getByTestId('folder-picker')).toHaveCount(0);
+    expect((await db().query('SELECT path FROM repos')).rows).toEqual([{ path: typed }]);
+    await expect(page.getByTestId('repo-row')).toHaveCount(1);
+  });
 });
