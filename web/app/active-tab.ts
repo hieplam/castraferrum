@@ -8,3 +8,11 @@ export function activeTab(pathname: string): Tab | null {
   if (pathname === '/settings' || pathname.startsWith('/settings/')) return 'settings';
   return null;
 }
+
+/**
+ * A page pushed from a tab root (spec 4.6): the loop, All runs, a loop's settings, an active period, a run and the editor. On the
+ * phone it shows a navigation bar with the way back instead of the tab bar.
+ */
+export function isPushed(pathname: string): boolean {
+  return /^\/(loops|executions|runs)\/./.test(pathname);
+}

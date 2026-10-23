@@ -5,9 +5,11 @@
 //   Menu      a list of actions: a popover menu on the desktop, a sheet on the phone.
 //   Toggletip a `?` that explains a section: a popover on the desktop, a sheet on the phone. It opens on click, so it works on touch.
 //   Sheet / Dialog  modal surfaces; a Dialog is a sheet on the phone. Focus is trapped inside, Escape closes, and focus goes back
-//             to the opener.
+//             to the opener. They are drawn at the end of the document (a portal), outside the page, so no style of the place
+//             that opens them reaches them.
 // Every text is a prop (no i18n in the kit).
-import { Fragment, useCallback, useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
+import { Fragment, useCallback, useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type Ref, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
 import { cx } from './cx';
 import { Icon } from './Icon';
 import { useLayout } from './Layout';
@@ -115,20 +117,39 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean, onClose: ()
 
 /* ── Sheet and Dialog ────────────────────────────────────────────────────────────────────────────── */
 
-/** A sheet from the bottom with its scrim. `title` is its heading (`h2`) and its accessible name. */
-export function Sheet({ open, onClose, title, testId, children }: { open: boolean; onClose: () => void; title: ReactNode; testId?: string; children: ReactNode }) {
+/**
+ * A sheet from the bottom with its scrim. `title` is its heading (`h2`) and its accessible name; a sheet of actions has no heading,
+ * and `label` names it instead.
+ */
+export function Sheet({
+  open,
+  onClose,
+  title,
+  label,
+  testId,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title?: ReactNode;
+  label?: string;
+  testId?: string;
+  children: ReactNode;
+}) {
   const ref = useFocusTrap<HTMLDivElement>(open, onClose);
   const titleId = useId();
   if (!open) return null;
-  return (
+  const named = title === undefined ? { 'aria-label': label } : { 'aria-labelledby': titleId };
+  return createPortal(
     <>
       <div className="scrim" onClick={onClose} />
-      <div ref={ref} className="sheet" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} data-testid={testId}>
+      <div ref={ref} className="sheet" role="dialog" aria-modal="true" {...named} tabIndex={-1} data-testid={testId}>
         <span className="sheet-grab" />
-        <h2 id={titleId}>{title}</h2>
+        {title === undefined ? null : <h2 id={titleId}>{title}</h2>}
         {children}
       </div>
-    </>
+    </>,
+    document.body,
   );
 }
 
@@ -162,7 +183,7 @@ export function Dialog({
     );
   }
   if (!open) return null;
-  return (
+  return createPortal(
     <>
       <div className="scrim" onClick={onClose} />
       <div ref={ref} className={cx('dialog', wide && 'is-wide')} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} data-testid={testId}>
@@ -172,7 +193,8 @@ export function Dialog({
         <div className="dialog-body">{children}</div>
         {foot ? <div className="dialog-foot">{foot}</div> : null}
       </div>
-    </>
+    </>,
+    document.body,
   );
 }
 
@@ -181,6 +203,8 @@ export function Dialog({
 /** The wrapper that positions a popover or a menu under the control that opened it. */
 const POP_STYLE = { position: 'relative', display: 'inline-flex' } as const;
 const BELOW_STYLE = { position: 'absolute', top: 'calc(100% + var(--space-1))', right: 0 } as const;
+/** A popover hangs from the leading edge of its opener, a little lower than a menu (the help of a section head). */
+const POPOVER_STYLE = { position: 'absolute', top: 'calc(100% + var(--space-2))', left: 0 } as const;
 /** A menu of a table row hangs from the row (the row is its positioned parent), over the row's trailing padding. */
 const ROW_WRAP_STYLE = { display: 'inline-flex' } as const;
 const ROW_STYLE = { position: 'absolute', top: 'calc(100% - var(--space-3))', right: 'var(--space-4)' } as const;
@@ -208,10 +232,10 @@ function useDismiss(open: boolean, close: () => void, box: RefObject<HTMLElement
   }, [open, close, box, opener]);
 }
 
-/** A popover: a small raised panel of text under its opener (the desktop's toggletip body). */
-export function Popover({ id, testId, children }: { id?: string; testId?: string; children: ReactNode }) {
+/** A popover: a small raised panel of text under its opener (the desktop's toggletip body). `label` is its accessible name. */
+export function Popover({ id, label, testId, ref, children }: { id?: string; label?: string; testId?: string; ref?: Ref<HTMLDivElement>; children: ReactNode }) {
   return (
-    <div id={id} className="popover" role="dialog" style={BELOW_STYLE} data-testid={testId}>
+    <div ref={ref} id={id} className="popover" role="dialog" aria-label={label} style={POPOVER_STYLE} data-testid={testId}>
       {children}
     </div>
   );
@@ -219,7 +243,8 @@ export function Popover({ id, testId, children }: { id?: string; testId?: string
 
 /**
  * The `?` of a section head (`.help`): `label` is its accessible name, `title` and `children` the explanation, `closeLabel` the
- * sheet's button. Click or Enter opens it, so it works on touch and from the keyboard; Escape and a press outside close it.
+ * sheet's button. Click or Enter opens it, so it works on touch and from the keyboard; Escape and a press outside close it, and the
+ * focus goes back to the `?`. On the phone the `?` stays a direct child of the section head and the sheet traps the focus.
  */
 export function Toggletip({
   label,
@@ -243,26 +268,42 @@ export function Toggletip({
   const box = useRef<HTMLDivElement>(null);
   const id = useId();
   useDismiss(open && layout === 'desktop', close, box, opener);
-  return (
-    <span style={POP_STYLE}>
-      <button ref={opener} type="button" className="help" aria-label={label} aria-expanded={open} aria-controls={open ? id : undefined} data-testid={testId} onClick={() => setOpen((v) => !v)}>
-        <Icon name="help" />
-      </button>
-      {layout === 'desktop' && open ? (
-        <div ref={box}>
-          <Popover id={id} testId={sheetTestId}>
-            <b>{title}</b>
-            {children}
-          </Popover>
-        </div>
-      ) : null}
-      {layout === 'phone' ? (
+  const button = (
+    <button
+      ref={opener}
+      type="button"
+      className="help"
+      aria-label={label}
+      aria-haspopup="dialog"
+      aria-expanded={open}
+      aria-controls={open ? id : undefined}
+      data-testid={testId}
+      onClick={() => setOpen((v) => !v)}
+    >
+      <Icon name="help" />
+    </button>
+  );
+  if (layout === 'phone') {
+    return (
+      <>
+        {button}
         <Sheet open={open} onClose={close} title={title} testId={sheetTestId}>
           {children}
-          <button type="button" className="btn block" onClick={close}>
+          <button type="button" className="btn lg block" onClick={close}>
             {closeLabel}
           </button>
         </Sheet>
+      </>
+    );
+  }
+  return (
+    <span style={POP_STYLE}>
+      {button}
+      {open ? (
+        <Popover ref={box} id={id} label={typeof title === 'string' ? title : undefined} testId={sheetTestId}>
+          <b>{title}</b>
+          {children}
+        </Popover>
       ) : null}
     </span>
   );
@@ -292,6 +333,7 @@ export function Menu({
   items,
   testId,
   hangsFrom = 'button',
+  phoneSheet = 'cells',
   trigger,
 }: {
   label: string;
@@ -299,6 +341,11 @@ export function Menu({
   testId?: string;
   /** Where the desktop's menu hangs: under its button (default), or from the table row that holds the button. */
   hangsFrom?: 'button' | 'row';
+  /**
+   * The phone's sheet: `cells` (default) = a heading and a group of cells, for a list of choices (a filter); `items` = the menu's
+   * own items with no heading, for the actions of a page.
+   */
+  phoneSheet?: 'cells' | 'items';
   trigger: (props: { ref: RefObject<HTMLButtonElement | null>; onClick: () => void; 'aria-haspopup': 'menu' | 'dialog'; 'aria-expanded': boolean }) => ReactNode;
 }) {
   const layout = useLayout();
@@ -325,6 +372,28 @@ export function Menu({
   };
   const props = { ref: opener, onClick: () => setOpen((v) => !v), 'aria-haspopup': layout === 'phone' ? ('dialog' as const) : ('menu' as const), 'aria-expanded': open };
   // On the phone the trigger stays a direct child of its parent (a toolbar's grid places it), so there is no wrapper.
+  if (layout === 'phone' && phoneSheet === 'items') {
+    return (
+      <>
+        {trigger(props)}
+        <Sheet open={open} onClose={close} label={label} testId={testId}>
+          {items.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="menuitem"
+              className={cx('menu-item', item.danger && 'is-danger', item.on && 'is-on')}
+              aria-disabled={item.disabled || undefined}
+              data-testid={item.testId}
+              onClick={() => choose(item)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </Sheet>
+      </>
+    );
+  }
   if (layout === 'phone') {
     return (
       <>

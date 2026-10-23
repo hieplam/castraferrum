@@ -1,8 +1,12 @@
-// The behaviour of the new frame, Settings and Not found (UI uplift, task U14; spec decisions D9, D10 and D28) measured in a
-// real browser. No shots: the new kit's flag, then the DOM. Four tests: the theme button's tooltip, no tooltip on touch, one
-// `h1` per page, and the phone tab bar with its touch targets.
+// The behaviour of the new UI measured in a real browser (UI uplift; spec decisions D9, D10 and D28, and the focus rules of spec
+// 4.8). No shots: the new kit's flag, then the DOM. Six tests: the theme button's tooltip, no tooltip on touch, one `h1` per
+// page and the phone tab bar with its touch targets (task U14); the `?` of Recent runs as a toggletip on the desktop and as a
+// sheet on the phone (task U16).
 import { expect, test, type Page } from '@playwright/test';
+import pg from 'pg';
 import { en } from '../../../shared/i18n/en';
+import { DS_DATA_JS, loopId, PREVIEW_NOW, previewDirs, seedPreviewWorld, wipe } from '../../support/preview-world';
+import { liveDbUrl, ServerProcess } from '../../support/server-process';
 import { PHONE_VIEW, PREVIEW_VIEW, useNewUi } from './kit';
 
 test.beforeEach(({ page }) => useNewUi(page));
@@ -117,5 +121,96 @@ test.describe('phone', () => {
       expect(s.width, `${s.name} is ${s.width} wide`).toBeGreaterThanOrEqual(44);
       expect(s.height, `${s.name} is ${s.height} tall`).toBeGreaterThanOrEqual(44);
     }
+  });
+});
+
+/** A server with the new preview's world (a loop with runs grouped by active period); `loopUrl` = the loop page of "Issue backlog worker". */
+function useLoopWorld() {
+  const ctx = {} as { sp: ServerProcess; db: pg.Pool; loopUrl: string };
+  test.beforeAll(async () => {
+    ctx.sp = await ServerProcess.launch();
+    ctx.db = new pg.Pool({ connectionString: liveDbUrl(), max: 2 });
+    expect((await ctx.sp.api('POST', '/api/__test/reset')).status).toBe(204);
+    expect((await ctx.sp.api('POST', '/api/__test/clock', { at: PREVIEW_NOW.toISOString() })).status).toBe(200);
+    expect((await ctx.sp.api('POST', '/api/__test/dirs', { paths: previewDirs(DS_DATA_JS) })).status).toBe(204);
+    await wipe(ctx.db);
+    await seedPreviewWorld(ctx.db, { history: true }, DS_DATA_JS);
+    ctx.loopUrl = `${ctx.sp.baseUrl}/loops/${loopId('pilot', DS_DATA_JS)}`;
+  });
+  test.afterAll(async () => {
+    await ctx.sp?.stop();
+    await ctx.db?.end();
+  });
+  return ctx;
+}
+
+const focused = (page: Page) => page.evaluate(() => document.activeElement?.getAttribute('data-testid') ?? document.activeElement?.textContent ?? null);
+
+test.describe('the help of Recent runs on the desktop', () => {
+  test.use(PREVIEW_VIEW);
+  const ctx = useLoopWorld();
+
+  test('the ? is a toggletip: a click opens a popover, Escape closes it and gives the focus back to the ?', async ({ page }) => {
+    await page.clock.setFixedTime(PREVIEW_NOW);
+    await page.goto(ctx.loopUrl);
+    const help = page.getByTestId('runs-help');
+    await expect(help).toBeVisible();
+    await expect(help).toHaveAttribute('aria-label', en['runs.help']);
+    await expect(help).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByTestId('help-sheet')).toHaveCount(0);
+
+    await help.click();
+    const pop = page.getByTestId('help-sheet');
+    await expect(pop).toBeVisible();
+    await expect(pop).toHaveClass(/\bpopover\b/);
+    await expect(pop).toContainText(en['help.title']);
+    await expect(pop).toContainText(en['help.periodBody']);
+    await expect(help).toHaveAttribute('aria-expanded', 'true');
+    await expect(help).toHaveAttribute('aria-controls', (await pop.getAttribute('id'))!);
+    // A popover, not a modal: nothing covers the page.
+    await expect(page.locator('.scrim')).toHaveCount(0);
+
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('help-sheet')).toHaveCount(0);
+    await expect(help).toHaveAttribute('aria-expanded', 'false');
+    await expect(help).toBeFocused();
+  });
+});
+
+test.describe('the help of Recent runs on the phone', () => {
+  test.use(PHONE_VIEW);
+  const ctx = useLoopWorld();
+
+  test('the ? opens a sheet: focus moves in, Tab stays inside, Escape closes it and gives the focus back to the ?', async ({ page }) => {
+    await page.clock.setFixedTime(PREVIEW_NOW);
+    await page.goto(ctx.loopUrl);
+    const help = page.getByTestId('runs-help');
+    await expect(help).toBeVisible();
+    await help.focus();
+    await page.keyboard.press('Enter');
+    const sheet = page.getByTestId('help-sheet');
+    await expect(sheet).toBeVisible();
+    await expect(sheet).toHaveClass(/\bsheet\b/);
+    await expect(sheet).toHaveAttribute('role', 'dialog');
+    await expect(sheet).toHaveAttribute('aria-modal', 'true');
+    await expect(sheet).toContainText(en['help.title']);
+    await expect(page.locator('.scrim')).toHaveCount(1);
+
+    // Focus is inside the sheet, and Tab (both ways) keeps it there.
+    const inside = () => sheet.evaluate((el) => el.contains(document.activeElement));
+    await expect.poll(inside).toBe(true);
+    for (let i = 0; i < 4; i++) {
+      await page.keyboard.press('Tab');
+      expect(await inside(), `Tab ${i + 1} left the sheet (focus on ${await focused(page)})`).toBe(true);
+    }
+    for (let i = 0; i < 4; i++) {
+      await page.keyboard.press('Shift+Tab');
+      expect(await inside(), `Shift+Tab ${i + 1} left the sheet (focus on ${await focused(page)})`).toBe(true);
+    }
+
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('help-sheet')).toHaveCount(0);
+    await expect(page.locator('.scrim')).toHaveCount(0);
+    await expect(help).toBeFocused();
   });
 });
