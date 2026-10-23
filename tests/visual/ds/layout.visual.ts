@@ -359,7 +359,8 @@ test.describe("phone notes and cards after a captioned group (castraferrum#205)"
         out.push({
           name: `${el.className}${el.getAttribute("data-testid") ? `#${el.getAttribute("data-testid")}` : ""}`,
           gap: Math.round(
-            el.getBoundingClientRect().top - group.getBoundingClientRect().bottom,
+            el.getBoundingClientRect().top -
+              group.getBoundingClientRect().bottom,
           ),
         });
       });
@@ -392,7 +393,9 @@ test.describe("phone notes and cards after a captioned group (castraferrum#205)"
         "new loop, no repo (Register a repo)",
         async () => {
           await page.goto("about:blank");
-          expect((await ctx.sp.api("POST", "/api/__test/reset")).status).toBe(204);
+          expect((await ctx.sp.api("POST", "/api/__test/reset")).status).toBe(
+            204,
+          );
           await page.goto(`${ctx.sp.baseUrl}/loops/new`);
         },
         ["btn#repo-go-register", "card is-pad#sched-out"],
