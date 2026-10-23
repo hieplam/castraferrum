@@ -26,11 +26,12 @@ export function periodCountsText(tn: Plural, runs: number, failures: number): st
   return tn('period.runs', runs) + (failures ? `, ${tn('period.failed', failures)}` : '');
 }
 
-/** `8 succeeded · 1 failed · 1 running`: the counts of a period's runs as words, `-` when there is none. */
+/** `8 succeeded · 1 failed · 1 running`: the counts of a period (an interrupted run is its own word, never failed)'s runs as words, `-` when there is none. */
 export function countWords(t: T, s: ExecutionDto['stats']): string {
   const words: [MessageKey, number][] = [
     ['count.succeeded', s.succeeded],
     ['count.failed', s.failed],
+    ['count.interrupted', s.interrupted],
     ['count.cancelled', s.cancelled],
     ['count.skipped', s.skipped],
     ['count.running', s.running],

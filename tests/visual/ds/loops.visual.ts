@@ -7,9 +7,10 @@
 import { expect, test, type Page } from '@playwright/test';
 import pg from 'pg';
 import { en } from '../../../shared/i18n/en';
+import { viSchedule } from '../../../shared/i18n/vi';
 import { DS_DATA_JS, PREVIEW_NOW, previewData, previewDirs, seedPreviewMany, seedPreviewWorld } from '../../support/preview-world';
 import { liveDbUrl, ServerProcess } from '../../support/server-process';
-import { PHONE_VIEW, PREVIEW_VIEW, regions, setLang, snap, writeReport } from './kit';
+import { expectOneLine, PHONE_VIEW, PREVIEW_VIEW, regions, setLang, snap, writeReport } from './kit';
 
 /** The English text of a key of shared/i18n/en.ts with `{x}` filled in, like the app does. */
 const tEn = (key: keyof typeof en, params: Record<string, string | number> = {}) =>
@@ -163,6 +164,9 @@ test.describe('desktop Loops page against the preview', () => {
     await ready(page, 7);
     await setLang(page, 'vi');
     await ready(page, 7);
+    // A Vietnamese weekday name is two words that stay on one line (castraferrum#195); the names come from vi.ts.
+    const weekday = new RegExp(viSchedule.weekday.map((n) => n.split(/[ \u00a0]/).join('[ \\u00a0]')).join('|'), 'u');
+    await expectOneLine(page, '[data-testid="loop-row"]', weekday);
     await snap(page, 'vi-loops-overview', 'loops-overview in Vietnamese', [regions.page()]);
     await setLang(page, 'en');
   });

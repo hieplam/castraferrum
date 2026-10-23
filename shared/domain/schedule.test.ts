@@ -521,6 +521,17 @@ group('describe Advanced + preview', () => {
     }
   });
 
+  test('a weekday name never splits across lines: its words are joined by a no-break space, in every locale (castraferrum#195)', () => {
+    const names = { en: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], vi: viSchedule.weekday };
+    for (const lang of ['en', 'vi'] as const) {
+      const sentences = [describe('0 9 * * 0,1,2,3,4,5,6', lang), describe('0 9 * * 1-5', lang), describe('0 9 13 * 1-5', lang)];
+      for (const name of names[lang]) {
+        expect(name, `${lang} ${name}`).not.toMatch(/[^\S\u00a0]/);
+        expect(sentences.some((s) => s.includes(name)), `${lang} ${name}`).toBe(true);
+      }
+    }
+  });
+
   test('an invalid cron -> the description is the error sentence', () => {
     expect(describe('0 9 * *')).toBe('A cron expression needs exactly 5 fields (minute hour day month weekday), got 4');
     expect(describe('0 9 * *', 'vi')).toBe(viSchedule.fieldCount(4));

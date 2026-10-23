@@ -52,7 +52,7 @@ export function RecentRuns({ loop, now }: { loop: LoopDetailDto; now: Date }) {
         </Toggletip>
         {phone ? null : (
           <Link className="link" to={`/loops/${loop.id}/runs`} data-testid="all-runs-link">
-            {t('runs.all', { n: loop.runCount })}
+            {t.tn('runs.all', loop.runCount)}
             <Icon name="arrow" />
           </Link>
         )}

@@ -248,7 +248,7 @@ test.describe('loop detail · execution · run', () => {
       await expect(page.getByTestId('run-session')).toHaveAttribute('data-session-id', r!.session_id);
       await expect(page.getByTestId('run-session')).toContainText(r!.session_id);
       await expect(page.getByTestId('run-prompt')).toHaveText(r!.prompt_snapshot);
-      await expect(page.getByTestId('run-log')).toContainText(t('log.saved', { n: lines.length }));
+      await expect(page.getByTestId('run-log')).toContainText(t(lines.length === 1 ? 'log.saved.one' : 'log.saved.other', { n: lines.length }));
     };
     await check();
     await page.reload();

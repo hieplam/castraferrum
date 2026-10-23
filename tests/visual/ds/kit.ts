@@ -114,6 +114,36 @@ export async function snap(page: Page, id: string, title: string, specs: RegionS
   await setTheme(page, 'light');
 }
 
+/**
+ * Every match of `pattern` in the text under `selector` (a match lies inside one text node) takes one line box: a count and
+ * its word, a weekday name, a command never split across lines (castraferrum#186, castraferrum#191, castraferrum#195).
+ * At least one match must be on the page, so an empty page fails.
+ */
+export async function expectOneLine(page: Page, selector: string, pattern: RegExp): Promise<void> {
+  const found = await page.evaluate(
+    ([sel, source, flags]) => {
+      const re = new RegExp(source, flags.includes('g') ? flags : `${flags}g`);
+      const out: { text: string; lines: number }[] = [];
+      for (const root of document.querySelectorAll(sel)) {
+        const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        for (let n = walk.nextNode() as Text | null; n; n = walk.nextNode() as Text | null) {
+          for (const m of n.data.matchAll(re)) {
+            const r = document.createRange();
+            r.setStart(n, m.index);
+            r.setEnd(n, m.index + m[0].length);
+            const tops = new Set([...r.getClientRects()].filter((x) => x.width > 0).map((x) => Math.round(x.top)));
+            out.push({ text: m[0], lines: tops.size });
+          }
+        }
+      }
+      return out;
+    },
+    [selector, pattern.source, pattern.flags] as const,
+  );
+  expect(found.length, `no match of ${pattern} under ${selector}`).toBeGreaterThan(0);
+  expect(found.filter((f) => f.lines > 1), `split across lines under ${selector}`).toEqual([]);
+}
+
 /** Writes the results of this file (`results/<file>.json`), then rebuilds report.json + index.html from every file. */
 export function writeReport(file: string): void {
   if (!shots.length) return;

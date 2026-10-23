@@ -674,7 +674,7 @@ export function repositoryContract(env: () => ContractEnv): void {
       expect(await r.runs.listByExecution(next.execution.id)).toHaveLength(1);
     });
 
-    it('statsByExecution: counts by status (errors = failed + timed_out + interrupted), how long it has been running, average duration', async () => {
+    it('statsByExecution: counts by status (failed = failed + timed_out; interrupted on its own, castraferrum#190), how long it has been running, average duration', async () => {
       const { loop, execution } = await activeLoop(); // opened at at(0)
       const finishAs = async (sec: number, status: 'succeeded' | 'failed' | 'cancelled' | 'timed_out', dur: number) => {
         const run = await started(loop.id, execution.id, { startedAt: at(sec) });
@@ -701,7 +701,8 @@ export function repositoryContract(env: () => ContractEnv): void {
         runs: 6,
         running: 0,
         succeeded: 2,
-        failed: 3, // failed + timed_out + interrupted
+        failed: 2, // failed + timed_out
+        interrupted: 1, // a server shutdown is not a failure of the run
         cancelled: 1,
         skipped: 1,
         sessions: 1,
@@ -713,13 +714,14 @@ export function repositoryContract(env: () => ContractEnv): void {
         running: 0,
         succeeded: 0,
         failed: 0,
+        interrupted: 0,
         cancelled: 0,
         skipped: 0,
         sessions: 0,
         elapsedMs: 120_000,
         avgDurationMs: null,
       });
-      expect(stats.get(closed.execution.id)).toMatchObject({ runs: 1, failed: 1, elapsedMs: 90_000 }); // closed: ended - started
+      expect(stats.get(closed.execution.id)).toMatchObject({ runs: 1, failed: 0, interrupted: 1, elapsedMs: 90_000 }); // closed: ended - started
       expect((await r.runs.findById(cr.id))?.status).toBe('interrupted');
       expect((await r.runs.statsByExecution([], at(1))).size).toBe(0);
     });

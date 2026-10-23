@@ -161,7 +161,7 @@ function LoopBody({ loop }: { loop: LoopDetailDto }) {
         <div className="group">
           {loop.runCount ? (
             <Link className="cell" to={`/loops/${loop.id}/runs`} data-testid="all-runs-link">
-              <span className="cell-title">{t('runs.all', { n: loop.runCount })}</span>
+              <span className="cell-title">{t.tn('runs.all', loop.runCount)}</span>
               <Icon name="chev" className="chev" />
             </Link>
           ) : null}

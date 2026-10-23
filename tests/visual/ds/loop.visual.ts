@@ -9,7 +9,7 @@ import pg from 'pg';
 import { en } from '../../../shared/i18n/en';
 import { DS_DATA_JS, execId, loopId, PREVIEW_NOW, previewDirs, seedPreviewWorld } from '../../support/preview-world';
 import { liveDbUrl, ServerProcess } from '../../support/server-process';
-import { PHONE_VIEW, PREVIEW_VIEW, regions, snap, writeReport } from './kit';
+import { expectOneLine, PHONE_VIEW, PREVIEW_VIEW, regions, snap, writeReport } from './kit';
 
 /** The English text of a key of shared/i18n/en.ts with `{x}` filled in, like the app does. */
 const tEn = (key: keyof typeof en, params: Record<string, string | number> = {}) =>
@@ -216,6 +216,9 @@ test.describe('desktop loop page against the preview', () => {
     await snap(page, 'period-stopped', 'Ended because the user pressed Stop', [regions.page()]);
 
     await openPeriod('pilot', 2, 4);
+    // The counts name the states of the list: 3 succeeded, 1 interrupted, no failed run (castraferrum#190).
+    await expect(page.getByTestId('period-figures')).toContainText(`${tEn('count.succeeded', { n: 3 })} · ${tEn('count.interrupted', { n: 1 })}`);
+    await expect(page.getByTestId('period-figures')).not.toContainText(tEn('count.failed', { n: 1 }));
     await snap(page, 'period-server-down', 'Ended because the server shut down, an interrupted run', [regions.page()]);
 
     await page.goto(`${base}/executions/${NO_PERIOD}`);
@@ -256,6 +259,7 @@ test.describe('phone loop page against the preview', () => {
     await page.getByTestId('runs-help').tap();
     await expect(page.getByTestId('help-sheet')).toBeVisible();
     await toTop(page);
+    await expectOneLine(page, '[data-testid="help-sheet"]', /claude[  ]--resume/); // castraferrum#191
     await snap(page, 'phone-loop-help', 'The ? of Recent runs on the phone: a sheet', phone(regions.sheet()));
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('help-sheet')).toHaveCount(0);

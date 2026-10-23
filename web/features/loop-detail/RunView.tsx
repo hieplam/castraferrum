@@ -220,7 +220,7 @@ function RunBody({ run: r, loop, period }: { run: RunDto; loop: LoopDetailDto; p
           live={{ at: cursorTime(now, tz), paused }}
         />
       ) : (
-        <Log testId="run-log" left={t('log.saved', { n: logs.lines.length })} right={t(key)} lines={toLogViewLines(logs.lines, tz, r.status)} />
+        <Log testId="run-log" left={t.tn('log.saved', logs.lines.length)} right={t(key)} lines={toLogViewLines(logs.lines, tz, r.status)} />
       )}
     </>
   );

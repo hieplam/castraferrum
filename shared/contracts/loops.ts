@@ -89,7 +89,10 @@ export const executionStatsDto = z.object({
   runs: z.number().int(),
   running: z.number().int(),
   succeeded: z.number().int(),
+  /** Failed and timed out runs. */
   failed: z.number().int(),
+  /** Runs a server shutdown interrupted: not a failure of the run (castraferrum#190). */
+  interrupted: z.number().int(),
   cancelled: z.number().int(),
   skipped: z.number().int(),
   /** Number of runs that have a session id (the "Session id" column of the execution history). */

@@ -39,7 +39,7 @@ function execution(id: string, seq: number, startMin: number, end: { min: number
     startedAt: at(startMin),
     endedAt: end ? at(end.min) : null,
     endReason: end ? end.reason : null,
-    stats: { runs: 0, running: 0, succeeded: 0, failed: 0, cancelled: 0, skipped: 0, sessions: 0, elapsedMs: 0, avgDurationMs: null, ...stats },
+    stats: { runs: 0, running: 0, succeeded: 0, failed: 0, interrupted: 0, cancelled: 0, skipped: 0, sessions: 0, elapsedMs: 0, avgDurationMs: null, ...stats },
   };
 }
 
@@ -63,14 +63,14 @@ describe('groupRuns', () => {
 
   it('a closed server-down period: newest first, the earlier one as a summary with its seq, times, end reason, runs and failures', () => {
     const current = execution('e3', 3, 300, null, { runs: 1, succeeded: 1 });
-    const down = execution('e2', 2, 100, { min: 190, reason: 'server_down' }, { runs: 4, succeeded: 3, failed: 1 });
+    const down = execution('e2', 2, 100, { min: 190, reason: 'server_down' }, { runs: 4, succeeded: 3, interrupted: 1 });
     const runs = newestFirst([run('e3', 60, 300), run('e2', 59, 180, 'interrupted'), run('e2', 58, 150), run('e2', 57, 120), run('e2', 56, 100)]);
     const g = groupRuns(runs, [current, down]);
     expect(g.current?.executionId).toBe('e3');
     expect(g.current?.items.map((r) => r.iteration)).toEqual([60]);
     expect(g.current?.rest).toBe(0);
     expect(g.earlier).toEqual([
-      { executionId: 'e2', seq: 2, startedAt: at(100), endedAt: at(190), endReason: 'server_down', runs: 4, failures: 1 },
+      { executionId: 'e2', seq: 2, startedAt: at(100), endedAt: at(190), endReason: 'server_down', runs: 4, failures: 0 }, // run 59 was interrupted, not failed (castraferrum#190)
     ]);
   });
 

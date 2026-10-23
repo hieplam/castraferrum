@@ -460,11 +460,13 @@ Screens put kit components together in `web/features/`. Never add a class that i
 - **Separators.** In a line of parts joined by " · ", a separator belongs to the part after it, so a line never ends
   with one: wrap a short part with its separator in `.keep` (`white-space: nowrap`: "· 10 runs", which also keeps a count
   with its unit), or join the separator to an open-ended part with a no-break space ("·&nbsp;Every 30 minutes", the
-  loop page's meta line on the phone). `.keep` is the one class for "do not break this phrase".
+  loop page's meta line on the phone). `.keep` is the one class for "do not break this phrase". The prompt fold of the
+  transcript keeps its count in one: "Run node scripts/backlog.js next … `· 3 lines`".
 - **Use** `.icon` for every icon, `.tag` to mark a git folder or a registered repo, `.crumbs` for a path, `.empty` for
   an empty or failed list, `.skeleton` while loading, `.note` for a short aside, `.cmd` for a command with a copy
-  button, `.code` for code and prompts, `.def` for definitions, `.steps` and `.step` for numbered how-to steps, `.data` for a time, a run number, a duration or a path inside a sentence
-  (`--font-data`, tabular figures, never broken across lines): "last run failed" and a `.data` "14:00".
+  button, `.code` for code and prompts, `.def` for definitions, `.steps` and `.step` for numbered how-to steps, `.data` for a time, a run number, a duration, a path or a command inside a sentence
+  (`--font-data`, tabular figures, never broken across lines): "last run failed" and a `.data` "14:00"; the help sheet
+  names `claude --resume` as a `.data`, so the command never breaks at its hyphens.
   `.cmd.is-wrap` wraps a long command (`overflow-wrap: anywhere`) with its copy button under it, so nothing scrolls
   sideways on the phone. `.code.is-clamped` cuts a prompt after five lines with a fade into its own background; the full
   text is one link away (`loopSettings.fullPrompt`). `.pager` pages a list: the range (`--font-data`) and two bordered
@@ -545,6 +547,10 @@ The state of an active period is the pill in the head of its page (`period.pill.
 
 - **Plural keys.** A text that counts something has `.one` and `.other` forms (and `.zero` where the design shows a
   word for zero), read with `tn(base, n)` of `web/prefs`. Never write "1 loops".
+- **Weekday names.** The two words of a Vietnamese weekday name are joined by a no-break space in `shared/i18n/vi.ts`
+  (the open-ended case of "Separators" in Misc): a schedule sentence wraps between the names, never inside one.
+- **Run counts.** The counts of an active period name the run states its list shows: failed and timed out runs read
+  "failed", an interrupted run reads "interrupted" (`count.interrupted`), never "failed".
 - **Existing keys.** A key keeps its meaning. A new text is a new key (in `shared/i18n/en.ts` and `vi.ts`); an
   existing key is reused only when its text is exactly what the design shows. The new keys and their English text are in Appendix B of the spec.
 - **Languages.** All text goes through the locale files; no text is written in a component. The Vietnamese option of
