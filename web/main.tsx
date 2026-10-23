@@ -18,6 +18,12 @@ if (!root) throw new Error('Missing #root in index.html');
 
 const ui = uiVersion();
 document.documentElement.dataset.ui = ui;
+// iOS (spec 4.9): the new UI draws under the notch and the home indicator and pads its bars with the safe-area insets; the classic
+// UI has no such padding, so only the new UI asks for the whole screen.
+if (ui === 'new') {
+  const viewport = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
+  if (viewport && !viewport.content.includes('viewport-fit')) viewport.content = `${viewport.content}, viewport-fit=cover`;
+}
 if (ui === 'new') await Promise.all([import('./ui/kit/fonts'), import('./ui/kit/styles.css')]);
 else await Promise.all([import('./ui/fonts'), import('./ui/styles.css')]);
 

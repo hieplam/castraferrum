@@ -106,7 +106,12 @@ async function main(): Promise<void> {
       const page = await context.newPage();
       for (const [screen, path] of Object.entries(screens)) {
         await page.goto(`${sp.baseUrl}${path}${query}`);
-        await page.waitForFunction(() => document.querySelector('[data-testid="lamp-server"]')?.getAttribute('data-state') === 'ok');
+        // The classic UI shows the server lamp; the new UI shows `conn` (in its top bar, present in the DOM on every screen size).
+        await page.waitForFunction(
+          () =>
+            document.querySelector('[data-testid="lamp-server"]')?.getAttribute('data-state') === 'ok' ||
+            document.querySelector('[data-testid="conn"]')?.getAttribute('data-server') === 'ok',
+        );
         await page.waitForTimeout(300);
         const o = await overflowOf(page);
         total++;

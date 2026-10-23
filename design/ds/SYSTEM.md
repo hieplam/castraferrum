@@ -294,7 +294,8 @@ Screens put kit components together in `web/features/`. Never add a class that i
   (`.is-plain`), `.cell-row`, `.cell-meta` (`.is-one-line`, `.is-data`), `.cell-sum`, `.cell-value` (`.is-data`), `.chev`.
 - **Use it** for every list (runs, repos, active periods, folders, settings rows) on every screen size, and for the
   Loops list on the phone. A `.cell.is-link` opens a page and shows a `.chev`. A `.group-cap` that heads the runs of one
-  active period starts with a `.link` to that period's page (the current period on the loop page), at the caption's size.
+  active period starts with a `.link` to that period's page (the current period on the loop page), at the caption's size. On
+  the phone that link is `--size-touch` tall (task U24).
 - **Data text.** A path, an address or a version in a cell is `.cell-meta.is-data` or `.cell-value.is-data`
   (`--font-data`). `.cell-row` wraps its parts onto the next line when they do not fit. A `.cell-meta` made of
   spans (a loop row: repo, short schedule, next run) wraps between its spans, never inside one; `.is-one-line` cuts
@@ -409,7 +410,10 @@ Screens put kit components together in `web/features/`. Never add a class that i
 - **Data text.** A path or an address in a field is `.input.is-data` (`--font-data`, still `--fs-field`).
 - **Do not** use a placeholder as the label, or make a field smaller than `--fs-field`.
 - **Phone:** controls 44px tall, 16px text, `.fcell` rows in a `.group`. **Desktop:** 36px tall, 16px text, the same
-  groups in `.page.is-narrow`.
+  groups in `.page.is-narrow`. On the phone every part a finger taps is itself at least `--size-touch` (task U24): a
+  `.seg` button and a `.stepper` button are 44px tall inside their frame (the frame grows around them), a `.chip` is at
+  least as wide as it is tall, and the value of a `.fcell.is-row` is 44px tall (the row keeps `--size-row`: its padding
+  shrinks to `--space-1h`). A field labelled by its cell or a `.search` that is a `label` counts its label as its target.
 - **States:** rest, hover, focus, error, disabled.
 - **Wrapper:** `web/ui/kit/Field.tsx`: `Segmented`, `Search` (U14); `Input`, `Textarea`, `Select`, `Stepper`, `Chip`,
   `Switch`, `FieldCell` (U18; `Switch` with the folder picker, U19).
