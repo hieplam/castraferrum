@@ -1857,7 +1857,8 @@ describes.
 
 ### What changed
 
-- `playwright.config.ts`: the three specs added to the `testMatch` of `chromium-new` (next to the U20, U21 and U23 specs); every spec file of `tests/e2e/` now runs in both projects.
+- `playwright.config.ts`: the three specs added to the `testMatch` of `chromium-new` (next to the U20, U21, U23 and U24 specs); every spec file of `tests/e2e/` now runs in both projects, except
+  `phone.spec.ts` (UC-34), which U24 runs on the new UI only.
 - `tests/support/ui.ts`: unchanged in the end. This task first wrote new-UI branches for `registerRepo` and
   `openFolderPicker`; U23 merged the same helpers first, so the rebase keeps U23's (`repo-add` opens the picker and
   waits for its first folder) and the three specs use them.
@@ -1882,12 +1883,12 @@ describes.
 ### Ratchet
 
 - UCs green in both `chromium` and `chromium-new` (from `reports/e2e.json`, every test of the UC `expected` in both
-  projects): `26` (after U23) -> `32` (UC-01 to UC-32: UC-22 and UC-26 to UC-30 added).
-- `npm run ratchets`: `e2e expects: 804 (min 804)` (main after U23) -> `e2e expects: 816 (min 816)`;
-  `e2eExpectsMin` `804` -> `816`.
+  projects): `26` (after U23) -> `32` (UC-01 to UC-32: UC-22 and UC-26 to UC-30 added; UC-34 is new-UI only).
+- `npm run ratchets`: `e2e expects: 835 (min 835)` (main after U24) -> `e2e expects: 847 (min 847)`;
+  `e2eExpectsMin` `835` -> `847`. (Before the U23 and U24 rebases this branch measured `785` -> `801`, then `804` -> `816`.)
 - `npx vitest run --project unit tests/tools/ui-branches.test.ts`: `helpers without a new branch: 0` -> `0` (U23
   had already given every helper its branch).
-- Spec files that run in `chromium-new`: 9 of 12 -> 12 of 12.
+- Spec files of `chromium` that also run in `chromium-new`: 9 of 12 -> 12 of 12.
 
 ### Red
 
@@ -1905,26 +1906,28 @@ tests/e2e/repo-browse.spec.ts` (`--project=` because the plan's form makes Playw
 
 ### Green
 
-- (1) After the rebase on U23: `npx playwright test --project=chromium-new tests/e2e/transcript.spec.ts tests/e2e/claude.spec.ts
+- (1) After the rebase on U23 (and again inside the e2e run of (4) on the final tree, in both projects): `npx playwright test --project=chromium-new tests/e2e/transcript.spec.ts tests/e2e/claude.spec.ts
   tests/e2e/repo-browse.spec.ts`: `6 passed (1.1m)`.
 - (2) The same files with `--project=chromium`: `6 passed (1.1m)`.
 - (3) `npx vitest run --project unit tests/tools/ui-branches.test.ts`: `Tests  2 passed (2)`,
   `helpers without a new branch: 0`. `tests/tools/e2e-selectors.test.ts`: `2 passed`.
-- The whole suite (the U23 Green 3 check): the titles of `npx playwright test --list --reporter=list --project=chromium-new`
-  and of the same for `chromium`, with the `[project] › ` prefix dropped: `chromium-new: 40, chromium: 40`,
+- The whole suite (the U23 Green 3 check), after the rebase on U24: the titles of `npx playwright test --list
+  --reporter=list --project=chromium-new` and of the same for `chromium`, with the `[project] › ` prefix dropped:
+  `chromium-new: 41, chromium: 40`; the one extra title is UC-34 of `phone.spec.ts` (new UI only, U24). Without it,
   `same test titles: yes`.
-- (4) `npm run verify` on the final tree (rebased on U23): every step up to `test:e2e` passes: `states with shots:
-  120/120`, `0 violations`, `arch-fixtures: 26/26 violations caught`, `ratchets: ok` (`e2e expects: 816 (min 816)`),
-  unit `510 passed | 2 skipped (512)`, contract `114 passed`, api `115 passed`; e2e `152 passed`, `1 failed` (18.9m),
-  so the command exits 1. The one failure is the known flaky classic visual test `tests/visual/list.visual.ts`
-  "LOOP_ALREADY_ACTIVE toast" (castraferrum#157); re-run once alone it passes (`1 passed (8.6s)`). The remaining step on
-  that run's report: `npm run uc-coverage -- --min 32` prints `UCs with a green e2e: 32/32`, and all 32 UCs are
-  `expected` in both `chromium` and `chromium-new` in `reports/e2e.json`. Earlier full runs on this branch failed
-  only on flaky tests outside this task, each passing alone: castraferrum#157 again, UC-06 of `detail.spec.ts` in
-  `chromium-new` (a 5 s wait for `succeeded`), and `tests/visual/ds/loops.visual.ts` "lost connection" (`deadlock
-  detected` on the `TRUNCATE` of `wipe()`, filed as https://github.com/hieplam/castraferrum/issues/169). Other lanes ran
-  their suites on the machine at the same time.
-- (5) `npm run ratchets`: `e2e expects: 816 (min 816)`, `ratchets: ok`.
+- (4) `npm run verify` on the final tree (rebased on U24): `states with shots: 120/120`, `0 violations`,
+  `arch-fixtures: 26/26 violations caught`, `ratchets: ok` (`e2e expects: 847 (min 847)`), unit
+  `520 passed | 2 skipped (522)`, contract `114 passed`; then `test:api` stopped the chain with `1 failed | 114 passed`:
+  `tests/api/stats-api.test.ts` UC-03 `Test timed out in 5000ms` while other lanes loaded the machine. The remaining
+  steps, run as one chain (`npm run test:api && npm run api-smoke && npm run build && npm run test:e2e && npm run
+  uc-coverage -- --min 33`), exit 0: api `115 passed (115)`, api-smoke passes, e2e `155 passed (17.8m)` with no failure,
+  `UCs with a green e2e: 33/33`. From that `reports/e2e.json`, all 32 UCs of the desktop suite are `expected` in both
+  `chromium` and `chromium-new` (UC-34 runs on the new UI only). Earlier full runs on this branch also failed only on
+  flaky tests outside this task, each passing alone: `tests/visual/list.visual.ts` "LOOP_ALREADY_ACTIVE toast"
+  (castraferrum#157), UC-06 of `detail.spec.ts` in `chromium-new` (a 5 s wait for `succeeded`), and
+  `tests/visual/ds/loops.visual.ts` "lost connection" (`deadlock detected` on the `TRUNCATE` of `wipe()`, filed as
+  https://github.com/hieplam/castraferrum/issues/169).
+- (5) `npm run ratchets`: `e2e expects: 847 (min 847)`, `ratchets: ok`.
 
 Run with `LOOPS_TEST_DATABASE_URL` pointing at the lane database `loops_u22_test` and `LOOPS_E2E_PORT=7184`.
 
