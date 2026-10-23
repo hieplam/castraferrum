@@ -1306,3 +1306,67 @@ masked. Issue https://github.com/hieplam/castraferrum/issues/159 asks the owner 
 - The desktop run page without the summary, the facts and the resume command: the first test fails at `run-succeeded`
   (`getByTestId('run-summary')`: `toBeVisible() failed`), after the page regions of `run-transcript-missing` are
   `18.86 %` and `4.63 %` off.
+
+## U18
+
+Status: done. All 25 states (50 pairs: 20 desktop and 5 phone states, light and dark) are at `MAX_RATIO` or under, with no
+mask.
+
+### What changed outside the screen
+
+- Kit `web/ui/kit/Field.tsx`: `FieldCell` takes `htmlFor`, `row` (`.fcell.is-row` with its chevron), `count`, `hints` and
+  `error` (`error-<field>`); new `Input`, `Textarea`, `Select`, `Stepper`, `StepperCell`, `Chip`, `HintLine`. Settings keeps
+  using `FieldCell` as before.
+- Kit `NavBar` takes an optional `title` (the editor's phone heading, an `h1` in `.navbar-title`).
+- `PageNotFound` takes an optional `testId` (`form-load-error`).
+- The real console offers one executor (Claude), a test-mode server also offers Mock; the editor shows the executor choice
+  only when the server offers more than one. The preview draws the real console in every state except `form-exec-mock`, so
+  the visual test answers `GET /api/executors` with Claude only in those states (a route mock, as the classic test holds
+  routes).
+
+### Preview vs app (reported, not hidden)
+
+`form-duplicate` draws the copy's back link as "Issue backlog worker" (the original), while the app's back link leads to the
+copy it edits and reads "Issue backlog worker (copy)". 110 px of the page region (139 px light, 145 px dark in all, at most
+`0.012 %`), under `MAX_RATIO`; nothing is masked. Issue https://github.com/hieplam/castraferrum/issues/161 asks the owner to
+choose.
+
+### Ratchet
+
+- New-UI visual pairs: `164` (`frame.json` 24 + `loops.json` 40 + `loop.json` 60 + `run.json` 40; measured before building:
+  `npx playwright test --project=visual tests/visual/ds/` -> `41 passed`, `report.json` `"pairs": 164`) -> `214`
+  (+ `form.json` 50; `report.json` after the visual project run of Green (5): `"pairs": 214`, `"worstRatio": 0.00024`).
+- `npm run ratchets` before and after: `native title: 8`, `unknown classes: 0`, `dynamic classes: 4 (not checked)`,
+  `literal styles: 0`, `css violations: 0`, `e2e expects: 724 (min 712)`, `ratchets: ok`.
+
+### Red
+
+`tests/visual/ds/form.visual.ts` written first. `npm run build`, then
+`npx playwright test --project=visual tests/visual/ds/form.visual.ts` (the routes still showed the placeholder):
+`expect(locator).toBeVisible() failed`, `Locator: getByTestId('sched-out')`, `Error: element(s) not found`, `2 failed`,
+`3 did not run`.
+
+### Green
+
+- (1) `npx playwright test --project=visual tests/visual/ds/form.visual.ts`: `5 passed`, exit 0.
+  `node -e "console.log(require('./reports/compare/ds/results/form.json').length)"`: `50`. 53 regions, 18 at 0 mismatched
+  pixels, worst ratio `0.00012` (`form-duplicate`, the back link above); the others at most `0.00005` (the stored-cron line).
+- (2) `npx vitest run --project unit web/features/loop-form`: `20 passed (20)`; `form-model.ts`, `schedule-draft.ts`,
+  `time-zones.ts` and `use-duplicate-loop.ts` are unchanged.
+- (3) `npm run ratchets`: `ratchets: ok`.
+- (4) The classic visual tests pass unchanged: the visual project run of (5) gave `69 passed`, every classic file included.
+- (5) `npm run verify` was stopped by Claude Code for low memory during its e2e step, after every earlier step passed:
+  `states with shots: 120/120`, typecheck, lang-scan baseline, `0 violations`, `arch-fixtures: 26/26 violations caught`,
+  `ratchets: ok`, unit `510 passed | 2 skipped (512)`, contract `114 passed`, executor contract `7 passed` each, api
+  `115 passed`, api-smoke, build. The remaining steps were then run on their own, one project at a time (the e2e step
+  already uses one worker): `npx playwright test --project=chromium --project=chromium-new` -> `44 passed (5.2m)`;
+  `npx playwright test --project=visual` -> `69 passed (9.7m)`; `npx playwright test --project=chromium --project=chromium-new`
+  again (so `reports/e2e.json` holds the e2e projects) -> `44 passed (5.3m)`, then `npm run uc-coverage -- --min 32` ->
+  `UCs with a green e2e: 32/32`.
+
+### Stub check
+
+- An editor without the next runs (the `ol.next-runs` of the schedule card left out): the phone test fails,
+  `phone-form-sched-weekly-light · page: 1.72 % off` (and `phone-form-new`, `phone-form-sched-daily`, `phone-form-errors`).
+- Fields under 16px (`--fs-sm` on `Input` and `Textarea`): the phone test fails at `phone-form-new`,
+  `expect(received).toBeGreaterThanOrEqual(expected)`, `Expected: >= 16`, `Received: 14`.
