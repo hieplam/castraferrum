@@ -2297,3 +2297,38 @@ stays square (rounding every log fails it), 192 checks a caption that fits on on
 ### Ratchet
 
 Open page layout defects of U27: 4 -> 0.
+
+## Issues 196, 197 and 198
+
+U27 defects of the lane "states and tooling" (castraferrum#196, castraferrum#197, castraferrum#198), one pull request.
+
+### Red (before the fix, the new checks on the old app, preview and tooling)
+
+- castraferrum#196, `tests/visual/ds/frame.visual.ts` "database down" (the list loaded, Settings, the database cut, back
+  to Loops a minute later): `expect(page.getByTestId('list-error')).toBeHidden()` failed, `Received: visible`: the
+  failed reload replaced the loaded list with the error state, while the preview draws the last list. The endless
+  skeleton itself did not reproduce: with no list loaded, the error state replaced the skeleton within 15 s; the U27
+  shot was taken before the list's one retry had failed.
+- castraferrum#197, `tests/visual/ds/repos.visual.ts` with the top bar compared in `repos-loading`:
+  `repos-loading-light · top bar: 0.55 % off (445/80640 px)`, `repos-loading-dark · top bar: 0.58 % off (466/80640 px)`.
+- castraferrum#198, `npm run design:shots -- --dry` (new check "fixed bar mid-page"): `drawn 120 states x 2 themes, 24
+  problems`, 12 phone states (for example `phone-loops-overview light: fixed bar mid-page: nav.tabbar (page 1246px,
+  viewport 844px)`); on the app side `kit.ts` reported `phone-loops-overview-light: fixed bars painted mid-page`.
+
+### Green
+
+- `npm run design:shots -- --dry`: `drawn 120 states x 2 themes, 0 problems`.
+- `npx playwright test --project=visual` frame, repos, loops, loop and form: all passed (frame `7 passed`; the phone
+  "loading" state now holds the list as well as the figures, as the preview's first load does).
+- Re-shot with `npm run design:shots -- --design design/ds --compress`: 26 shots changed, exactly the 13 states recorded
+  in `design/APPROVED.md`.
+
+### Stub check
+
+- Reverting `LoopsView.tsx` brings back `list-error` visible (the Red above); reverting `preview.js` brings back the top
+  bar 0.55 % off; reverting the tall viewport of `design-shots.mjs` and `kit.ts` brings back the 24 problems and the
+  soft failures.
+
+### Ratchet
+
+- Open defects of the lane: 3 -> 0. Tall shots with a mid-page fixed bar (`design:shots --dry`): 24 (12 states) -> 0.

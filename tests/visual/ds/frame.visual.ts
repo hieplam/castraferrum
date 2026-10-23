@@ -181,9 +181,13 @@ test.describe('phone frame, Settings and Not found against the preview', () => {
   test('loading', async ({ page }) => {
     test.setTimeout(120_000);
     await ctx.world(page);
+    // The figures and the list have not arrived (both held), as in the preview: the page is as tall as the preview's, so
+    // the tab bar sits at the same bottom (castraferrum#198).
     await page.route('**/api/stats**', () => undefined);
+    await page.route(/\/api\/loops(\?|$)/, () => undefined);
     await page.goto(`${ctx.sp.baseUrl}/`);
     await settled(page);
+    await expect(page.getByTestId('list-loading')).toBeVisible();
     await expect(page.getByTestId('tab-loops')).toHaveAttribute('aria-current', 'page');
     await snap(page, 'phone-frame-loading', 'First load on the phone: the tab bar, Loops active', [regions.tabbar()]);
   });
