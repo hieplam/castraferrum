@@ -1,4 +1,4 @@
-// Formatting specific to the 3 detail screens (loop · execution · run) - written exactly the way the approved preview does (design/preview/preview.js:
+// Formatting specific to the 3 detail screens (loop · execution · run) - written exactly the way the approved preview does (design/ds/preview/preview.js:
 // clock, upFmt, mmss, runDur, sidShort, mockSummary...). Time is always in the loop's time zone. Pure functions.
 import type { LogLineDto, RunDto } from '../../../shared/contracts/loops';
 import { fmtClock, fmtDateTime, fmtDuration, fmtDurationShort, fmtTime, type T } from '../../prefs/format';

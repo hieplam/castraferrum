@@ -42,7 +42,7 @@ executor a callback to call back).
 | Schedule sentences | Hand-written for the five builder shapes; `cronstrue` for the Advanced shape | Wording stays under our control |
 | i18n | Hand-written `shared/i18n/en.ts` and `vi.ts` ([ADR 0003](adr/0003-hand-written-i18n.md)) | Two fixed languages do not need a library |
 | Realtime | Server-Sent Events | One direction is enough; the browser reconnects by itself |
-| UI | React 19, Vite, React Router, TanStack Query; CSS from `design/tokens.css` and `design/components.css` | SSE events only invalidate the query cache; reusing the approved preview CSS makes the app match the preview pixel for pixel |
+| UI | React 19, Vite, React Router, TanStack Query; CSS from `design/ds/tokens.css` and `design/ds/components.css` (the design system, `design/ds/SYSTEM.md`) | SSE events only invalidate the query cache; reusing the design system's CSS as it is makes the app match the approved preview pixel for pixel |
 | Tests | Vitest, Playwright, dependency-cruiser | See "Testing" below |
 | Not used | queue, Redis, DI container, monorepo tool, microservices | One process plus Postgres is enough |
 
@@ -81,14 +81,13 @@ See [ADR 0002](adr/0002-ports-and-adapters.md) for the reasoning.
 
 | Folder | Role | Must not import |
 |---|---|---|
-| `web/ui/` | design system: imports the two CSS files directly, thin React wrappers around the exact CSS classes; knows no business logic and no i18n | every other `web/` folder |
+| `web/ui/` | design system: `web/ui/kit/` imports the two CSS files of `design/ds/` directly and holds thin React wrappers around the exact CSS classes; `web/ui/toast.tsx` holds the toast; knows no business logic and no i18n | every other `web/` folder |
 | `web/prefs/` | language and light/dark (provider, `useT()`, localStorage, `data-theme` and `lang` on `<html>`), number and duration formatting | anything outside itself except `shared/i18n` and `shared/domain` |
-| `web/app/` | app frame: router, shell, top bar, connection banner | - |
+| `web/app/` | app frame: router, frame, top navigation, tab bar, status banner | - |
 | `web/api/` | `LoopsApi` and `LiveEvents` interfaces with the HTTP and SSE implementations; only shared contract types | `ui`, `data`, `features`, `pages` |
 | `web/data/` | TanStack Query hooks and the live-event to cache bridge | `pages`, `features`, concrete `http-*` / `sse-*` files |
 | `web/features/` | business components: loop table, form with schedule builder, detail screens, transcript | `pages`, concrete api files, direct `fetch` |
 | `web/pages/` | features assembled per route | `web/api/*` |
-| every `web/` file not on the classic list | the new UI and the code both UIs share (UI uplift, task U13); the classic files are listed in `scripts/classic-ui-files.json`, which the cut-over deletes. Rule `no-new-ui-to-classic`; only `web/app/App.tsx` (the switch) and `web/main.tsx` are exempt | any file of `scripts/classic-ui-files.json` |
 
 Every `web/` folder is barred from `server/` and server libraries; nothing outside `web/api/` touches the
 network. Component tests plug `FakeLoopsApi` and `FakeLiveEvents` into the same providers instead of mocking

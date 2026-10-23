@@ -551,8 +551,8 @@ The state of an active period is the pill in the head of its page (`period.pill.
 ## iOS
 
 - `web/index.html` has one `<meta name="theme-color">`, whose content the app sets from the computed `--bg` whenever the
-  theme changes, and links to `/manifest.webmanifest` and `/apple-touch-icon.png`. The new UI adds `viewport-fit=cover`
-  to the viewport meta.
+  theme changes, and links to `/manifest.webmanifest` and `/apple-touch-icon.png`. Its viewport meta has
+  `viewport-fit=cover`.
 - The tab bar, the action bar and sheets add `--safe-bottom`; the navigation bar adds `--safe-top`; heights use `dvh`.
 - `.app` sets `-webkit-tap-highlight-color: transparent`; the pressed state replaces the tap highlight.
 - No control depends on hover, and every target on the phone is at least `--size-touch`.

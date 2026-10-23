@@ -14,13 +14,12 @@ import { vi } from '../../../shared/i18n/vi';
 import { previewTranscriptLength, writePreviewTranscript, type PreviewTranscriptKey } from '../../support/preview-transcripts';
 import { DS_DATA_JS, PREVIEW_NOW, previewDirs, runId, seedPreviewWorld, sid, wipe } from '../../support/preview-world';
 import { liveDbUrl, ServerProcess } from '../../support/server-process';
-import { PHONE_VIEW, PREVIEW_VIEW, regions, setLang, snap, useNewUi, writeReport } from './kit';
+import { PHONE_VIEW, PREVIEW_VIEW, regions, setLang, snap, writeReport } from './kit';
 
 /** The English text of a key of shared/i18n/en.ts with `{x}` filled in, like the app does. */
 const tEn = (key: keyof typeof en, params: Record<string, string | number> = {}) =>
   en[key].replace(/\{(\w+)\}/g, (m, k: string) => (k in params ? String(params[k]) : m));
 
-test.beforeEach(({ page }) => useNewUi(page));
 test.afterAll(() => writeReport('run'));
 
 const NO_RUN = '3b9d1f40-7e2a-4c85-a6d3-9f0e1b2c4d57';

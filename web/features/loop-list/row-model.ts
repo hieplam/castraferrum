@@ -1,5 +1,5 @@
-// One row of the loop list (UC-03) - pure functions from the API's `LoopDto` to exactly what the row shows, the way preview
-// the phase 1 preview writes it (design/preview/preview.js `loopRow`). Iteration count, execution #k, latest / next run are taken VERBATIM from the API;
+// One row of the loop list (UC-03) - pure functions from the API's `LoopDto` to exactly what the row shows, the way the
+// preview writes it (design/ds/preview/preview.js `loopRow`). Iteration count, execution #k, latest / next run are taken VERBATIM from the API;
 // the web only runs the clock between two loads: a running run = now - the run's start, an open execution =
 // the `elapsedMs` the server counted when it answered + the time passed since the load (`fetchedAt`).
 import type { LoopDto } from '../../../shared/contracts/loops';

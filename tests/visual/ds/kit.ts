@@ -1,9 +1,8 @@
 /// <reference lib="dom" />
-// Toolkit for "new UI next to the approved new preview" shots (UI uplift, task U13). Every screen task (U14 to U19) has one
+// Toolkit for "the app next to the approved preview" shots (UI uplift, task U13). Every screen task (U14 to U19) has one
 // file `tests/visual/ds/<screen>.visual.ts` that uses it:
 //
 //   test.use(PREVIEW_VIEW);                                  // or PHONE_VIEW for the phone states
-//   test.beforeEach(({ page }) => useNewUi(page));           // the flag, on every origin the page opens
 //   await snap(page, 'loops-list', 'description', [regions.topbar(), regions.page()]);   // light + dark, compare + assert
 //   test.afterAll(() => writeReport('loops'));               // merge every file → index.html
 //
@@ -11,13 +10,12 @@
 // `npm run design:compare` writes design/compare/ds/): shots/, diff/, results/<file>.json, report.json + index.html.
 // Masks are test ids, and only the three of `MASKABLE` are allowed: a difference anywhere else is fixed, never hidden.
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { expect, type Page } from '@playwright/test';
 import { PNG } from 'pngjs';
-import { OUT as COMPARE_OUT } from '../compare-kit';
 import { compareRegions, MAX_RATIO, type Rect, type Region, type RegionResult } from '../pixel-diff';
 
-export const OUT = join(COMPARE_OUT, 'ds');
+export const OUT = join(resolve(import.meta.dirname, '..', '..', '..', process.env.LOOPS_COMPARE_OUT ?? 'reports/compare'), 'ds');
 /** The reference = the approved shots of the new preview. */
 export const DS_SHOTS = join(import.meta.dirname, '..', '..', '..', 'design', 'ds', 'preview', 'shots');
 const THEMES = ['light', 'dark'] as const;
@@ -27,11 +25,6 @@ type Theme = (typeof THEMES)[number];
 export const PREVIEW_VIEW = { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, timezoneId: 'Asia/Ho_Chi_Minh', colorScheme: 'light' as const };
 /** Phone states: 390 by 844, deviceScaleFactor 1 (the preview's phone shots), touch. */
 export const PHONE_VIEW = { ...PREVIEW_VIEW, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true };
-
-/** Turns the new UI on for every origin the page opens (the app's own and a `ServerProcess`), before any script of the page runs. */
-export async function useNewUi(page: Page): Promise<void> {
-  await page.addInitScript(() => window.localStorage.setItem('castraferrum.ui', 'new'));
-}
 
 /** Switches light / dark the way a viewer's system does (the new UI follows the system on Automatic) and waits for `html[data-theme]`. */
 export async function setTheme(page: Page, theme: Theme): Promise<void> {
@@ -102,7 +95,7 @@ export async function snap(page: Page, id: string, title: string, specs: RegionS
     await page.evaluate(() => document.fonts.ready);
     const expected = join(DS_SHOTS, `${id}-${theme}.png`);
     const { width, height } = PNG.sync.read(readFileSync(expected));
-    // As in compare-kit: a reference exactly the size of the viewport = a viewport shot; otherwise stretch the page to the
+    // A reference exactly the size of the viewport = a viewport shot; otherwise stretch the page to the
     // reference's height and shoot the full page, so text is drawn the same way.
     const view = page.viewportSize();
     const fixed = view !== null && height === view.height && width === view.width;

@@ -7,9 +7,7 @@ import pg from 'pg';
 import { en } from '../../../shared/i18n/en';
 import { DS_DATA_JS, loopId, PREVIEW_NOW, previewDirs, seedPreviewWorld, wipe } from '../../support/preview-world';
 import { liveDbUrl, ServerProcess } from '../../support/server-process';
-import { PHONE_VIEW, PREVIEW_VIEW, useNewUi } from './kit';
-
-test.beforeEach(({ page }) => useNewUi(page));
+import { PHONE_VIEW, PREVIEW_VIEW } from './kit';
 
 const tooltip = (page: Page) => page.getByRole('tooltip');
 

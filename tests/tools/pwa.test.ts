@@ -87,9 +87,7 @@ describe('web/index.html head (spec 4.9)', () => {
     expect(html).toMatch(/<link\s+rel="apple-touch-icon"\s+href="\/apple-touch-icon\.png"\s*\/?>/);
   });
 
-  it('leaves viewport-fit=cover to web/main.tsx, which adds it for the new UI only', () => {
-    expect(html).not.toContain('viewport-fit');
-    const main = readFileSync(`${ROOT}web/main.tsx`, 'utf8');
-    expect(main).toMatch(/viewport-fit=cover/);
+  it('asks for the whole screen with viewport-fit=cover (the bars pad themselves with the safe-area insets)', () => {
+    expect(html).toMatch(/<meta\s+name="viewport"\s+content="[^"]*viewport-fit=cover[^"]*"/);
   });
 });

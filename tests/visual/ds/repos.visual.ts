@@ -12,13 +12,12 @@ import pg from 'pg';
 import { en } from '../../../shared/i18n/en';
 import { DS_DATA_JS, PREVIEW_NOW, previewData, previewDirs, previewFolderWorld, seedMacRepos, seedPreviewWorld, wipe } from '../../support/preview-world';
 import { liveDbUrl, ServerProcess } from '../../support/server-process';
-import { PHONE_VIEW, PREVIEW_VIEW, regions, setLang, snap, useNewUi, writeReport, type RegionSpec } from './kit';
+import { PHONE_VIEW, PREVIEW_VIEW, regions, setLang, snap, writeReport, type RegionSpec } from './kit';
 
 /** The English text of a key of shared/i18n/en.ts with `{x}` filled in, like the app does. */
 const tEn = (key: keyof typeof en, params: Record<string, string | number> = {}) =>
   en[key].replace(/\{(\w+)\}/g, (m, k: string) => (k in params ? String(params[k]) : m));
 
-test.beforeEach(({ page }) => useNewUi(page));
 test.afterAll(() => writeReport('repos'));
 
 const PV = previewData(DS_DATA_JS);

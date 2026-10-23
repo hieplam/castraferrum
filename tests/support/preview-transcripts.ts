@@ -1,5 +1,4 @@
-// The sample transcripts of a design preview (design/preview/data.js `PV.transcripts`, or the new preview's
-// design/ds/preview/data.js with `file` = DS_DATA_JS) written back as JSONL files in
+// The sample transcripts of the design preview (design/ds/preview/data.js `PV.transcripts`) written back as JSONL files in
 // the Claude Code format, under `<CLAUDE_CONFIG_DIR>/projects/` of the test server → the app shots read exactly the text
 // the preview draws, through the real path (claude-jsonl adapter → API → UI). One entry per line; the time `at`
 // (`HH:MM:SS` of the preview day, Vietnam time) becomes `timestamp`.
