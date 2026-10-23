@@ -1,0 +1,5 @@
+{
+  "goals": [
+    { "id": "G1", "outcome": "prints although empty is required", "checks": [{ "run": "node -e \"console.log('leftover')\"", "empty": true }] }
+  ]
+}

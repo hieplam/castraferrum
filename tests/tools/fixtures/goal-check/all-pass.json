@@ -1,0 +1,7 @@
+{
+  "setup": ["node -e \"process.exit(0)\""],
+  "goals": [
+    { "id": "G1", "outcome": "a passing run check", "checks": [{ "run": "node -e \"console.log('hello world')\"", "expect": ["hello", "world"] }] },
+    { "id": "G2", "outcome": "a passing file check", "checks": [{ "file": "tests/tools/fixtures/goal-check/sample.txt", "contains": "sample text" }] }
+  ]
+}

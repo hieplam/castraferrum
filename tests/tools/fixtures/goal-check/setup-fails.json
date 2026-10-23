@@ -1,0 +1,7 @@
+{
+  "setup": ["node -e \"process.exit(2)\""],
+  "goals": [
+    { "id": "G1", "outcome": "would pass", "checks": [{ "run": "node -e \"console.log('ok')\"" }] },
+    { "id": "G2", "outcome": "would pass", "checks": [{ "run": "node -e \"console.log('ok')\"" }] }
+  ]
+}

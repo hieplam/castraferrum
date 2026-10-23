@@ -1,0 +1,5 @@
+{
+  "goals": [
+    { "id": "G1", "outcome": "the file lacks the text", "checks": [{ "file": "tests/tools/fixtures/goal-check/sample.txt", "contains": "text that is not there" }] }
+  ]
+}

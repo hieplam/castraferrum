@@ -1,0 +1,7 @@
+{
+  "setup": [],
+  "goals": [
+    { "id": "G1", "outcome": "passes", "checks": [{ "run": "node -e \"console.log('ok')\"" }] },
+    { "id": "G2", "outcome": "expect text missing", "checks": [{ "run": "node -e \"console.log('something else')\"", "expect": ["needle"] }] }
+  ]
+}

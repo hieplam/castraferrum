@@ -2100,3 +2100,88 @@ section naming Red, Green and Stub; a `Closes` line alone fails, as 77 did.
 ### Ratchet
 
 Closed task issues of the epic that fail `check --dry-run`: 11 -> 0.
+
+## U26
+
+Status: **not done**. G1 to G8 pass (8/8), but step 4 fails: 11 closed issues of the epic have no verified closing
+pull request in GitHub's records. That became the fix issue castraferrum#175, which blocks U26; nothing is merged.
+
+### Red
+
+- `npx vitest run --project unit tests/tools/goal-check.test.ts`, test written first: `Test Files  1 failed (1)`,
+  `Tests  10 failed (10)`; `node scripts/goal-check.mjs` alone: `Error: Cannot find module` (the script did not exist).
+- `npm run goal:check -- docs/plans/2026-10-21-ui-uplift-goals.json` with the manifest copied literally from the plan,
+  on untouched `main` code (castraferrum#174 at HEAD): `goals passed: 5/8` (the before number):
+  - `G2 FAIL: run npm run design:tokens -- design/ds/tokens.css ...: missing "required tokens: 140"` (the tool prints
+    `required tokens: 143`, `missing tokens: 0`);
+  - `G6 FAIL: run npx playwright test --project chromium tests/e2e/phone.spec.ts --reporter list: exit 1, expected 0`,
+    `Error: Project(s) "tests/e2e/phone.spec.ts" not found. Available projects: "chromium", "webkit-phone", "visual"`;
+  - `G7 FAIL: file CONTRIBUTING.md: does not contain "Design system first"`.
+
+### Manifest changes (the plan's commands that no longer fit the tree)
+
+Each change proves the same goal, none weakens it:
+
+- G2: `required tokens: 140` -> `required tokens: 143`. U3 added three non-colour tokens under the standing exception
+  of spec 4.2 (`--size-tip-arrow`, `--size-stepper-value`, `--size-tx-head`, recorded in the U3 section above:
+  140 -> 143 required). `missing tokens: 0` still proves every one exists; the exact count is stricter, not looser.
+- G2 and G6: the spec file moved in front of `--project` (`npx playwright test tests/visual/ds/system-page.visual.ts
+  --project visual ...`, `npx playwright test tests/e2e/phone.spec.ts --project chromium ...`). Playwright reads every
+  word after `--project` as a project name, so the plan's order fails before any test runs (U25 met the same thing and
+  used `--project=`). Same tests, same project.
+- G7: CONTRIBUTING.md carries the rule as `## Design system` / "Every UI change, however small, is designed from the
+  design system first"; it never had the literal heading text `Design system first`. The check now looks for that
+  rule sentence.
+
+### Green
+
+- (1) `npx vitest run --project unit tests/tools/goal-check.test.ts`: `Test Files  1 passed (1)`,
+  `Tests  11 passed (11)` (the ten cases of plan step 3, plus one for the tail of a long failing output).
+- (2) `npm run goal:check -- docs/plans/2026-10-21-ui-uplift-goals.json`, exit 0:
+  `G1 pass`, `G2 pass`, `G3 pass`, `G4 pass`, `G5 pass`, `G6 pass`, `G7 pass`, `G8 pass`, `goals passed: 8/8`.
+  One earlier run of the same manifest printed `G5 FAIL: run npm run verify: exit 1` (verify stopped after 652 s,
+  late in its e2e step; the script then showed only the first 20 lines, so the failing test is not known). Two
+  later runs of `npm run verify` (alone, and inside the 8/8 run) exited 0. The script now also prints the last 20
+  lines of a long failing output, so a repeat names its test.
+- (3) **FAIL.** `epic.mjs check <n> --dry-run` for the 43 closed issues of epic castraferrum#63: 32 PASS, 11 FAIL:
+  - `FAIL #77`, "PR castraferrum#136 has no ## Verify section" (the body has a plain `Verify:` line);
+  - `FAIL #<n> - no merged pull request closes it (the PR body needs "Closes #<n>")` for the gap and preview issues
+    106, 108, 110, 112, 114, 122, 123, 124, 125 and 134 (closed by hand under the delegation on castraferrum#77; the
+    pull requests that did the work, 128, 129, 130 and 135, name them with `Refs`).
+  Fix issue: castraferrum#175 (`epic.mjs link 175 --parent 63 --blocks 97`). `epic.mjs status 63`: open are U26,
+  U27 and castraferrum#175.
+- (4) `npm run design:compare`, exit 0: `52 passed (4.2m)`, `design/compare/ds/index.html — preview | real app |
+  diff`. `design/compare/ds/report.json`: 248 pairs (120 states, light and dark), `maxRatio` 0.001, worst 0.0002. The
+  largest ratio per screen, every one at or under 0.001:
+
+  | Screen | States | Largest ratio | Worst state |
+  |---|---|---|---|
+  | frame | 6 | 0.0001 | `phone-frame-disconnected` |
+  | loops | 14 | 0.0002 | `loops-stop-confirm` |
+  | loop | 24 | 0.0002 | `loop-stop-confirm` |
+  | period (active period) | 6 | 0 | `period-running` |
+  | run | 19 | 0.0001 | `run-skipped` |
+  | form (editor) | 24 | 0.00005 | `phone-form-new` |
+  | repos | 15 | 0.0002 | `repos-delete-confirm` |
+  | settings | 3 | 0 | `settings` |
+  | not found | 2 | 0 | `not-found` |
+  | vi (Vietnamese states) | 7 | 0.00013 | `phone-vi-loops-overview` |
+
+  To open the page for U27: `npm run design:compare`, then open `design/compare/ds/index.html` (Windows:
+  `start design/compare/ds/index.html`). The plan names `design/compare/index.html`; the script writes into `ds/`.
+- (5) `npm run verify`, exit 0: `states with shots: 120/120`, `ratchets: ok` (`e2e expects: 746 (min 745)`), unit
+  `525 passed | 2 skipped`, contract `114 passed`, api `115 passed`, e2e `91 passed (9.7m)`, `phone overflow: 0/12`,
+  `UCs with a green e2e: 33/33`. (`stats-api.test.ts` UC-03 passed in all three api runs.)
+
+### Stub check
+
+- A goal-check that prints `pass` without running its commands fails the wrong-exit, `empty`, `maxStdoutBytes`,
+  missing-file, `contains` and setup fixtures; one that stops at the first failure never writes the marker of
+  `keeps-going.json`.
+- A manifest with fewer goals prints fewer than `8/8`; the plan-literal manifest printed `5/8`, so the tool does
+  fail real misses.
+
+### Ratchet
+
+- Goals passed (`npm run goal:check`): 5/8 (plan-literal manifest) -> 8/8.
+- Open fix issues under the epic: 0 -> 1 (castraferrum#175), so U26 is not done.
