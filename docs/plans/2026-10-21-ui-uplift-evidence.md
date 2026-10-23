@@ -1181,3 +1181,58 @@ not found, `2 failed`, `9 did not run`.
 - Round Start or Stop not rendered on the phone: `phone-loops-overview-light` `3.06 % off (13890/453960 px)`,
   `-dark` `3.32 %`.
 - The old seed (130 runs today, `Claude sonnet`) fails `loops-many` at `0.12 %` off even with `stat-errors-24h` masked.
+
+## U16
+
+Status: blocked on Green (5) and (6): `npm run verify` did not run to the end. All 30 states (60 pairs: 21 desktop and 9 phone states, light and dark) are at `MAX_RATIO` or under, with no
+mask; the two help behaviour tests pass.
+
+### Sample data of "Issue backlog worker" (reported, not hidden)
+
+The preview draws **Typical run 18:47, average of 9** for "Issue backlog worker", while the nine finished runs of its
+active period #3, which the same preview draws on `loop-runs` (25:30, 20:10, 0:58, 1:04, 23:40, 15:51, 5:12, 18:22,
+23:04), average **14:52**. The app shows the API's `avgDurationMs`, 14:52. The seed cannot match 18:47 without changing
+durations that `loop-runs` and the run cells draw. The digits differ on 143 to 203 pixels of the page region of
+`loop-running`, `loop-help`, `loop-menu`, `loop-stop-confirm`, `loop-stopping`, `loop-disconnected` and
+`phone-loop-running` (at most `0.020 %`, under `MAX_RATIO`), so Green holds; nothing is masked. Issue
+https://github.com/hieplam/castraferrum/issues/156 asks the owner whether to correct the preview's figure and re-shoot.
+
+### Ratchet
+
+- New-UI visual pairs: `64` (`frame.json` 24 + `loops.json` 40) -> `124` (+ `loop.json` 60).
+  `reports/compare/ds/report.json`: `"pairs": 124`, `"worstRatio": 0.00024`.
+- Behaviour tests (`tests/visual/ds/behaviour.visual.ts`): `4` -> `6`.
+- Unit tests: `503 passed | 2 skipped (505)` -> `510 passed | 2 skipped (512)`.
+- `npm run ratchets` before and after: `native title: 8`, `unknown classes: 0`, `dynamic classes: 4 (not checked)`,
+  `literal styles: 0`, `css violations: 0`, `e2e expects: 724 (min 712)`, `ratchets: ok`.
+
+### Red
+
+- `npx vitest run --project unit web/features/loop-detail/group-runs.test.ts web/ui/kit` (tests written, modules not):
+  `Error: Cannot find module './group-runs'`, `Error: Cannot find module './copy'`, `Test Files  2 failed (2)`,
+  `Tests  no tests`.
+- `npm run build`, then `npx playwright test --project=visual tests/visual/ds/loop.visual.ts` (the routes still showed the
+  placeholder): `expect(locator).toBeVisible() failed` on `getByTestId('loop-figures')`, `2 failed`, `6 did not run`.
+
+### Green
+
+- (1) `npx vitest run --project unit web/features/loop-detail/group-runs.test.ts web/ui/kit`: `Test Files  2 passed (2)`,
+  `Tests  7 passed (7)` (the four grouping cases; the copy-method cases: a secure context with a clipboard uses the
+  clipboard, an insecure context or no clipboard uses the textarea).
+- (2) `npx playwright test --project=visual tests/visual/ds/loop.visual.ts`: `8 passed`, exit 0.
+  `node -e "console.log(require('./reports/compare/ds/results/loop.json').length)"`: `60`. 92 regions, 76 at 0
+  mismatched pixels, worst ratio `0.00024` (`MAX_RATIO` `0.001`): the Typical run figure above, and 18 px (light) and
+  6 px (dark) of the Stop dialog's title.
+- (3) `npx playwright test --project=visual tests/visual/ds/behaviour.visual.ts`: `6 passed`.
+- (4) `npm run ratchets`: `ratchets: ok`.
+- (5) The classic visual tests pass unchanged: not yet confirmed: `npm run verify` was stopped during e2e (see (6)); the classic visual tests that ran before the stop all passed (`detail.visual.ts` among them).
+- (6) `npm run verify`: not finished. The run was stopped by the machine (low memory) during `test:e2e`, after `states with shots: 120/120`, typecheck, lang-scan baseline, `0 violations`, `arch-fixtures: 26/26 violations caught`, `ratchets: ok`, unit `510 passed | 2 skipped (512)`, contract `114 passed`, executor contract `7 passed` each, api `115 passed`, build, and 63 e2e tests passed with none failed. It must be run again to completion.
+
+### Stub check
+
+- `groupRuns` and `pageGroups` putting every run in the newest period (ignoring `executionId`): `group-runs.test.ts`
+  `3 failed | 1 passed`, the unknown-period case among them.
+- `NowCard` and `Figures` not rendered on the loop page: `loop.visual.ts` fails at `loop-running` (`loop-figures`:
+  `element(s) not found`).
+- `copyMethod` always choosing the clipboard: `copy.test.ts` `2 failed | 1 passed` (the insecure-context case fails).
+- `useFocusTrap` doing nothing: the phone help test fails (`Tab 1 left the sheet`).
