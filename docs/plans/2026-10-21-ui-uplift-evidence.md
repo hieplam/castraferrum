@@ -1554,7 +1554,7 @@ exactly 12 changed shots (`repos-add`, `vi-repos-add`, `repos-add-notfound`, `re
   pixels; the others at most `0.0002` (the dialog of `repos-delete-confirm`, 14 px), all under `MAX_RATIO` `0.001`.
 - (2) After rebasing on `main` (U20 merged): `npx playwright test --project=visual tests/visual/ds/` -> `50 passed (5.2m)`,
   then
-  `node -e "const fs=require('fs');const d='reports/compare/ds/results/';const got=new Set(fs.readdirSync(d).flatMap(f=>JSON.parse(fs.readFileSync(d+f,'utf8')).map(s=>s.id)));const want=[...fs.readFileSync('design/ds/STATES.md','utf8').matchAll(/^\| `([a-z0-9-]+)` \|/gm)].map(m=>m[1]);console.log('new-UI states compared: '+want.filter(i=>got.has(i)).length+'/'+want.length)"`
+  `node -e "const fs=require('fs');const d='reports/compare/ds/results/';const got=new Set(fs.readdirSync(d).flatMap(f=>JSON.parse(fs.readFileSync(d+f,'utf8')).map(s=>s.id)));const want=[...fs.readFileSync('design/ds/STATES.md','utf8').matchAll(/^\| \x60([a-z0-9-]+)\x60 \|/gm)].map(m=>m[1]);console.log('new-UI states compared: '+want.filter(i=>got.has(i)).length+'/'+want.length)"`
   -> `new-UI states compared: 120/120`; `report.json` `"pairs": 248`. (An earlier run before the rebase had two failures: a
   TRUNCATE deadlock in this file's `world()`, now fixed by leaving the app page before wiping, and a timing flake of
   `run-transcript-running` in `run.visual.ts`, untouched here, which passed on its re-run.)
