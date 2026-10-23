@@ -98,11 +98,16 @@ export async function journey(page: Page, request: APIRequestContext, o: Journey
       const { scrollWidth, innerWidth } = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth }));
       expect(scrollWidth, `${name}: the page scrolls sideways`).toBeLessThanOrEqual(innerWidth);
       await page.evaluate(() => document.fonts.ready.then(() => undefined));
-      // A full-page shot taken while scrolled would paint the sticky bars in the middle of the page: shoot from the top.
+      // A full-page capture paints the fixed bars (tab bar, action bar) where the first screen ends, over the content. So the
+      // screen is made as tall as the page for the shot, which puts them at the real bottom, then given its size back.
       await page.evaluate(() => window.scrollTo(0, 0));
+      const view = page.viewportSize();
+      const tall = await page.evaluate(() => document.documentElement.scrollHeight);
+      if (view && tall > view.height) await page.setViewportSize({ width: view.width, height: tall });
       steps += 1;
       const file = `${SHOTS}/${o.label}-${theme}-${String(steps).padStart(2, '0')}-${name}.png`;
-      await page.screenshot({ path: file, fullPage: true, animations: 'disabled', caret: 'hide' });
+      await page.screenshot({ path: file, animations: 'disabled', caret: 'hide' });
+      if (view && tall > view.height) await page.setViewportSize(view);
     });
   }
 
