@@ -295,7 +295,10 @@ Screens put kit components together in `web/features/`. Never add a class that i
 - **Use it** for every list (runs, repos, active periods, folders, settings rows) on every screen size, and for the
   Loops list on the phone. A `.cell.is-link` opens a page and shows a `.chev`. A `.group-cap` that heads the runs of one
   active period starts with a `.link` to that period's page (the current period on the loop page), at the caption's size. On
-  the phone that link is `--size-touch` tall (task U24).
+  the phone that link is `--size-touch` tall (task U24) without making its line taller: its extra height hangs outside the
+  caption's line, so the caption wraps at `--lh-cap`. A caption right under a `.section-head` (Recent runs) sits
+  `--space-2` under the head and `--space-2` above its group on the phone. The parts after the link are `.keep` spans
+  ("· still active", "· 10 runs"): a wrap moves a whole part with its separator, never a lone word.
 - **Data text.** A path, an address or a version in a cell is `.cell-meta.is-data` or `.cell-value.is-data`
   (`--font-data`). `.cell-row` wraps its parts onto the next line when they do not fit. A `.cell-meta` made of
   spans (a loop row: repo, short schedule, next run) wraps between its spans, never inside one; `.is-one-line` cuts
@@ -339,7 +342,8 @@ Screens put kit components together in `web/features/`. Never add a class that i
   `.stat-sub`, `.now`, `.now-text`, `.now-actions`.
 - **Use** `.summary` for the four figures above the Loops list, `.stats` for the figures of a loop or an active period,
   `.now` for the card that says what the loop is doing now. Figures use `--font-data` and `--fs-num`. In `.now-text` the
-  title is the `<b>` (a line of its own) and the sentence follows under it; a state with a recovery adds a `.hint.is-err`
+  title is the `<b>` (a line of its own) and the sentence follows under it; the mark before it (`.pulse` while running,
+  `.dot` for Waiting and The last run failed) is centred on the title's first line; a state with a recovery adds a `.hint.is-err`
   line and puts its actions in `.now-actions` (desktop: buttons beside the text; phone: link cells under the output). The
   last run failed because the repo folder is gone: the hint "The repo folder no longer exists: <path>" and Open Repos next
   to Open run.
@@ -361,7 +365,9 @@ Screens put kit components together in `web/features/`. Never add a class that i
 
 - **Classes:** `.log`, `.log-bar`, `.log-scroll`, `.log-line`, `.log-time`, `.log-head`, `.log-ok`, `.log-err`,
   `.cursor`.
-- **Use it** for the live log and the log of a run. It is dark in both themes (`--log-bg`).
+- **Use it** for the live log and the log of a run. It is dark in both themes (`--log-bg`). A log on its own (the run
+  page) has the card radius (`--radius-card`), as the transcript above it; a log inside a `.card` (the Now card) keeps
+  square corners.
 - **Do not** use it for prose or for the transcript.
 - **Phone:** the time above its line, lines wrap. **Desktop:** the time before its line.
 - **States:** paused (following stops when the reader scrolls up).
@@ -444,7 +450,12 @@ Screens put kit components together in `web/features/`. Never add a class that i
 ### Misc
 
 - **Classes:** `.icon`, `.tag` (`.git`, `.repo`), `.crumbs`, `.empty` (`.is-err`), `.skeleton` (`.is-line`,
-  `.is-block`), `.note`, `.cmd` (`.is-wrap`), `.code` (`.is-clamped`), `.pager`, `.pager-nav`, `.def`, `.steps`, `.step`, `.data`.
+  `.is-block`), `.note`, `.cmd` (`.is-wrap`), `.code` (`.is-clamped`), `.pager`, `.pager-nav`, `.def`, `.steps`, `.step`, `.data`,
+  `.keep`.
+- **Separators.** In a line of parts joined by " · ", a separator belongs to the part after it, so a line never ends
+  with one: wrap a short part with its separator in `.keep` (`white-space: nowrap`: "· 10 runs", which also keeps a count
+  with its unit), or join the separator to an open-ended part with a no-break space ("·&nbsp;Every 30 minutes", the
+  loop page's meta line on the phone). `.keep` is the one class for "do not break this phrase".
 - **Use** `.icon` for every icon, `.tag` to mark a git folder or a registered repo, `.crumbs` for a path, `.empty` for
   an empty or failed list, `.skeleton` while loading, `.note` for a short aside, `.cmd` for a command with a copy
   button, `.code` for code and prompts, `.def` for definitions, `.steps` and `.step` for numbered how-to steps, `.data` for a time, a run number, a duration or a path inside a sentence

@@ -397,7 +397,7 @@
     const all = PHONE ? '' : `<a class="link" href="#" data-testid="all-runs-link">${t('runs.all', { n: l.runsTotal })}${icon('arrow')}</a>`;
     const earlier = ex.slice(1);
     return `<div class="section-head"><h2>${t('runs.title')}</h2>${o.help && !PHONE ? `<span style="position:relative;display:inline-flex">${help}${helpPopover()}</span>` : help}${all}</div>` +
-      `<p class="group-cap" data-execution-id="${execId(key, cur.k)}"><a class="link" href="#">${t('period.title', { k: cur.k })}</a> · ${periodSpan(cur)} · ${periodEnd(cur)} · ${tn('period.runs', cur.rounds)}</p>` +
+      `<p class="group-cap" data-execution-id="${execId(key, cur.k)}"><a class="link" href="#">${t('period.title', { k: cur.k })}</a>${[periodSpan(cur), periodEnd(cur), tn('period.runs', cur.rounds)].map((p) => ` <span class="keep">· ${p}</span>`).join('')}</p>` +
       `<div class="group" data-testid="recent-runs">${shown.map((r) => runCell(key, r)).join('')}${more > 0 ? `<button class="cell is-link" type="button">${tn('runs.showMore', more)}</button>` : ''}</div>` +
       (earlier.length ? `<p class="group-cap">${t('runs.earlier')}</p><div class="group">${earlier.map((e) => periodCell(key, e)).join('')}</div>` : '');
   }
@@ -455,7 +455,7 @@
       const links = `<div class="group">${l.runsTotal ? `<a class="cell" href="#" data-testid="all-runs-link"><span class="cell-title">${t('runs.all', { n: l.runsTotal })}</span>${chev}</a>` : ''}` +
         `<a class="cell" href="#" data-testid="loop-settings-link"><span class="cell-main"><span class="cell-title">${t('loopSettings.title')}</span><span class="cell-meta">${t('loop.meta.claude', l.claude)} · ${l.timeout == null ? t('loopSettings.noLimitShort') : t('loopSettings.limitShort', { d: dur(l.timeout) })}</span></span>${chev}</a></div>`;
       page = `<div class="page-head" data-testid="loop-header" data-status="${status}"><h1 class="page-title">${esc(l.name)}</h1></div>` +
-        `<div class="page-meta">${pill}<span data-testid="loop-repo">${esc(repo.name)}</span> · <span>${esc(schedDesc(l.cron))}</span></div>${desc}` +
+        `<div class="page-meta">${pill}<span><span data-testid="loop-repo">${esc(repo.name)}</span> ·&nbsp;${esc(schedDesc(l.cron))}</span></div>${desc}` +
         nowCard(key, o) + figures(key) + recentRuns(key, o) + links + `<div class="actionbar">${mainAction(l, kind)}</div>`;
     } else {
       const menu = o.menu ? `<span style="position:relative;display:inline-flex">${menuBtn}${loopMenu(l)}</span>` : menuBtn;

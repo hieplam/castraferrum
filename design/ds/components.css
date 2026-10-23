@@ -407,6 +407,8 @@ body {
 .stat-sub { margin-top: var(--space-0h); color: var(--text-subtle); font-size: var(--fs-sm); line-height: var(--lh-sm); }
 .now { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3) var(--space-4); }
 .now .pulse { margin-top: var(--space-1h); }
+/* The dot of a state (Waiting, The last run failed) centred on the first line of the title, as the pulse is. */
+.now > .dot { margin-top: calc((var(--lh-body) - var(--size-dot)) / 2); }
 .now-text { flex: 1; min-width: 0; color: var(--text-muted); }
 .now-text b { display: block; color: var(--text); font-weight: var(--fw-semibold); }
 .now-text .hint { margin-top: var(--space-1); }
@@ -452,13 +454,15 @@ body {
 @media (max-width: 639.98px) {
   .section-head { gap: var(--space-1); padding: 0 var(--space-1); }
   .section-head h2 { font-weight: var(--fw-bold); }
+  /* A caption under a section head (the current active period of Recent runs) sits right under the head and right above its group. */
+  .section-head + .group-cap { margin: calc(var(--space-2) - var(--space-5)) 0; }
   .help { width: var(--size-touch); height: var(--size-touch); margin: calc(-1 * var(--space-2)) 0; }
   .help::after { content: none; }
 }
 
 /* ── Log: the live output, dark in both themes ────────────────────────────────────────────────────── */
 .log {
-  background: var(--log-bg); color: var(--log-text); padding: var(--space-2h) var(--space-4) var(--space-3);
+  border-radius: var(--radius-card); background: var(--log-bg); color: var(--log-text); padding: var(--space-2h) var(--space-4) var(--space-3);
   font-family: var(--font-data); font-size: var(--fs-data); line-height: 1.7; overflow-wrap: anywhere;
 }
 .card > .log { border-radius: 0; }
@@ -682,7 +686,7 @@ button.select { display: block; overflow: hidden; text-overflow: ellipsis; white
      44px, not 44px less the frame; the link of a group caption is 44px tall; a chip is never narrower than it is tall; a
      value in a row cell is 44px tall, and the row's padding gives back what it adds. */
   .seg button { height: var(--size-touch); }
-  .group-cap .link { min-height: var(--size-touch); }
+  .group-cap .link { min-height: var(--size-touch); margin: calc((var(--lh-cap) - var(--size-touch)) / 2) 0; }
   .stepper button { height: var(--size-touch); }
   .chip { height: var(--size-control); min-width: var(--size-touch); justify-content: center; }
   .fcell.is-row { min-height: var(--size-row); padding-top: var(--space-1h); padding-bottom: var(--space-1h); }
@@ -820,6 +824,8 @@ button.select { display: block; overflow: hidden; text-overflow: ellipsis; white
   .skeleton { animation: none; }
 }
 .data { font-family: var(--font-data); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* One part of a line of parts, never broken: a separator with the part after it ("· 10 runs"), a count with its unit. */
+.keep { white-space: nowrap; }
 .note { margin: 0; color: var(--text-subtle); font-size: var(--fs-cap); line-height: var(--lh-cap); }
 .cmd {
   display: flex; align-items: center; gap: var(--space-2); min-width: 0; padding: var(--space-1h) var(--space-1h) var(--space-1h) var(--space-3);

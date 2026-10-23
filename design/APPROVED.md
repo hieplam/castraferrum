@@ -259,3 +259,36 @@ console, and every UI change is checked against them.
 - **The checks:** `npm run design:lint` now reads `ds/components.css` only, and its maxima (`maxTitle`, `maxUnknown`,
   `maxLiteral` of `scripts/ratchets.json`) are 0. The design scripts (`design:states`, `design:shots`, `design:compare`)
   default to `design/ds`.
+
+## Agent corrections under the owner's rule of 2026-10-23 - page layout defects found by U27, 2026-10-24
+
+Made by the agent of the U27 defect lane "page layout" (epic 63) under the rule in the epic's body (the owner is not
+asked). The acceptance found four layout defects that the preview had too, so the comparison with the preview could not
+see them. Each fix is in [`ds/components.css`](ds/components.css) and written in [`ds/SYSTEM.md`](ds/SYSTEM.md); the
+app and the preview change together, and `tests/visual/ds/layout.visual.ts` measures each one in the real app.
+
+- **A standalone log has the card radius** (castraferrum#187): `.log` takes `--radius-card`, like the transcript above it
+  and the run boards (`reference/m-run-*.png`); `.card > .log` keeps 0, so the log inside the Now card is unchanged.
+  "Log" in `ds/SYSTEM.md`.
+- **The Now card's dot is centred on its title** (castraferrum#189): `.now > .dot` gets the top margin that centres a
+  `--size-dot` on a `--lh-body` line, as the pulse already was (Waiting and The last run failed were 8px high).
+  "Card and figures".
+- **The Recent runs caption sits under its head on the phone** (castraferrum#192): the period link keeps its 44px target
+  (task U24) but hangs it outside the caption's line (negative margins of half the difference), so the caption wraps at
+  `--lh-cap`; `.section-head + .group-cap` sits `--space-2` under the head and above its group, as `reference/m-loop-light.png`
+  draws it. Its parts are `.keep` spans (new class, `white-space: nowrap`), so "· 10 runs" moves as one. "Inset list" and
+  "Misc" (Separators).
+- **The phone meta line never ends with a separator** (castraferrum#193): the repo and the schedule are one part, the
+  separator joined to the schedule by a no-break space ("acme-api ·&nbsp;Every 30 minutes", single spaces as on
+  `reference/m-loop-light.png`; it was a flex gap on each side). A long repo name moves the whole part under the pill.
+  "Misc" (Separators).
+
+Re-shot with `npm run design:shots -- --design design/ds`, light and dark (62 shots): the run states with a log on its
+own (`run-running`, `run-succeeded`, `run-failed`, `run-timed-out`, `run-cancelled`, `run-interrupted`,
+`run-repo-missing`, `run-transcript-running`, `run-transcript-paused`, `run-transcript-waiting`,
+`run-transcript-missing`, `vi-run-transcript`, `phone-run-running`, `phone-run-succeeded`, `phone-run-transcript-running`:
+the log's corners); `loop-idle`, `loop-last-failed` (the dot); every desktop loop state with a Recent runs caption
+(`loop-running`, `loop-stopping`, `loop-stop-confirm`, `loop-menu`, `loop-archived`, `loop-disconnected`,
+`loop-server-down`, `loop-stopped`: the caption's text is drawn in parts, under 300px each); the phone loop states
+(`phone-loop-running` and `phone-loop-last-failed` 50px shorter, `phone-loop-help`, `phone-loop-menu`,
+`phone-loop-stop-confirm`, `phone-loop-never-run`: the meta line). No other shot changed.

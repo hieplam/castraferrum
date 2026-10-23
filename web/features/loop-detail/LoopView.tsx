@@ -146,10 +146,13 @@ function LoopBody({ loop }: { loop: LoopDetailDto }) {
         </div>
         <div className="page-meta">
           {pill}
-          <span data-raw="" data-testid="loop-repo">
-            {loop.repo.name}
-          </span>{' '}
-          · <span>{scheduleSentence(loop.cron, t.lang)}</span>
+          {/* The separator belongs to the part after it: a wrap never leaves it at the end of a line. */}
+          <span>
+            <span data-raw="" data-testid="loop-repo">
+              {loop.repo.name}
+            </span>
+            {` ·\u00a0${scheduleSentence(loop.cron, t.lang)}`}
+          </span>
         </div>
         {desc}
         {now_}
