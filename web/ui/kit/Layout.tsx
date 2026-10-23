@@ -108,3 +108,17 @@ export function Cols({ main, side }: { main: ReactNode; side: ReactNode }) {
     </div>
   );
 }
+
+/**
+ * The phone's navigation bar of a pushed page (`.navbar`, hidden from 640px): the way back (`back`, a link the caller builds with
+ * `navbar-back`), an empty title (the page's own `h1` names the page, D28) and the page's actions.
+ */
+export function NavBar({ back, actions }: { back: ReactNode; actions?: ReactNode }) {
+  return (
+    <nav className="navbar">
+      {back}
+      <span className="navbar-title" />
+      <div className="navbar-actions">{actions}</div>
+    </nav>
+  );
+}

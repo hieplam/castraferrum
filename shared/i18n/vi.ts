@@ -553,6 +553,7 @@ export const vi: Record<MessageKey, string> = {
   'act.stopLoop': 'Dừng loop',
   'act.restore': 'Khôi phục',
   'now.working': 'Lần chạy #{n} đang làm việc',
+  'now.workingMany': '{c} lần chạy đang làm việc ({list})',
   'now.workingSub': 'Bắt đầu lúc {t}, đã chạy {d}. Lần chạy tới bắt đầu lúc {next}, sau {in}.',
   'now.waiting': 'Đang chờ lần chạy tới',
   'now.waitingSub': 'Lần chạy tới bắt đầu lúc {next}, sau {in}.',

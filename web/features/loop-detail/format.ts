@@ -3,6 +3,7 @@
 import type { LogLineDto, RunDto } from '../../../shared/contracts/loops';
 import { fmtClock, fmtDateTime, fmtDuration, fmtDurationShort, fmtTime, type T } from '../../prefs/format';
 import { formatUsd, REPO_MISSING_PREFIXES } from '../../../shared/domain/cost';
+import { describe } from '../../../shared/domain/schedule';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -134,4 +135,56 @@ export function toLogViewLines(lines: readonly LogLineDto[], timeZone: string, s
  */
 export function cursorTime(now: Date, timeZone: string): string {
   return fmtTime(now, timeZone);
+}
+
+// ── The new UI's loop page, All runs and active period page (spec 5.3, 5.4), written the way the approved new preview does
+// (design/ds/preview/preview.js: when, stamp, dur, clock). Times are in the loop's time zone.
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/** 0 = Sunday ... 6 = Saturday, in a time zone. */
+export function weekdayOf(at: Date, timeZone: string): number {
+  return WEEKDAYS.indexOf(new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone }).format(at));
+}
+
+/**
+ * `Sun 09:47` today, `Sat 17/10 08:00` another day, `09:31` alone when `sameAs` is on the same day (the end of a span that started
+ * that day).
+ */
+export function fmtWhen(t: T, at: Date, timeZone: string, now: Date, sameAs?: Date): string {
+  const day = dayKey(at, timeZone);
+  const time = fmtTime(at, timeZone).slice(0, 5);
+  if (sameAs && dayKey(sameAs, timeZone) === day) return time;
+  const date = day === dayKey(now, timeZone) ? '' : ` ${fmtDateTime(at, timeZone).slice(0, 5)}`;
+  return `${t(`day.short.${weekdayOf(at, timeZone)}` as Parameters<T>[0])}${date} ${time}`;
+}
+
+/** When a run started: `14:00` today, otherwise as `fmtWhen`. */
+export function fmtRunStart(t: T, at: Date, timeZone: string, now: Date): string {
+  return dayKey(at, timeZone) === dayKey(now, timeZone) ? fmtTime(at, timeZone).slice(0, 5) : fmtWhen(t, at, timeZone, now);
+}
+
+/** A span of time: `1d 3h`, `4h 13m`, `29 min`, `42 s`. */
+export function fmtSpan(t: T, sec: number): string {
+  const s = Math.max(0, Math.floor(sec));
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (d) return t('dur.short.dh', { d, h });
+  if (h) return t('dur.short.hm', { h, m });
+  return m ? t('dur.m', { m }) : t('dur.s', { s });
+}
+
+/** Whole minutes of a wait: `29 min` (the next run, even past an hour, as the preview counts it). */
+export function fmtWaitMinutes(t: T, sec: number): string {
+  return t('dur.m', { m: Math.floor(Math.max(0, sec) / 60) });
+}
+
+/** The sentence of a schedule (`Every 30 minutes`); a cron the domain cannot describe is shown as it is. */
+export function scheduleSentence(cron: string, lang: 'en' | 'vi'): string {
+  try {
+    return describe(cron, lang);
+  } catch {
+    return cron;
+  }
 }

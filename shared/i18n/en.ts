@@ -533,6 +533,7 @@ export const en = {
   'act.stopLoop': 'Stop loop',
   'act.restore': 'Restore',
   'now.working': 'Run #{n} is working',
+  'now.workingMany': '{c} runs are working ({list})',
   'now.workingSub': 'Started at {t}, {d} so far. The next run starts at {next}, in {in}.',
   'now.waiting': 'Waiting for the next run',
   'now.waitingSub': 'The next run starts at {next}, in {in}.',
