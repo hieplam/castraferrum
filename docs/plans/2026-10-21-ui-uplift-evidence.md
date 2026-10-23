@@ -2103,9 +2103,33 @@ Closed task issues of the epic that fail `check --dry-run`: 11 -> 0.
 
 ## U26
 
-Status: **not done** (attempt 2). Step 4 now passes: castraferrum#175 was fixed in castraferrum#176. On the rebased
-tree, goal:check printed 7/8. G5 failed because `npm run verify` hit an e2e failure in UC-34, which became the fix
-issue castraferrum#177. It blocks U26, and nothing is merged.
+Status: **not done** (attempt 3). Step 4 passes, and so do a standalone `npm run verify` and `npm run
+design:compare`. goal:check printed 7/8 because G5's `npm run verify` failed. UC-05 fails every day from 22:00 to
+24:00 Vietnam time; that became the fix issue castraferrum#180, which blocks U26. Nothing is merged.
+
+Attempt 3 (rebased on castraferrum#178, which fixed castraferrum#177):
+
+- Step 4: `epic.mjs check <n> --dry-run` on the 45 closed task issues of the epic (the 44 of attempt 2 plus
+  castraferrum#177): **45 PASS, 0 FAIL**. The phase issues 65 and 68 are left out by design: they have no pull
+  request.
+- `npm run verify` (run alone, 21:4x +07:00), exit 0:
+  - `states with shots: 120/120`;
+  - `e2e expects: 753 (min 745)`, `ratchets: ok`;
+  - unit `525 passed | 2 skipped`, contract `114 passed`, api `115 passed`;
+  - e2e `92 passed (9.9m)`;
+  - `phone overflow: 0/12`, `UCs with a green e2e: 33/33`.
+- `npm run goal:check -- docs/plans/2026-10-21-ui-uplift-goals.json`: `G1 pass` to `G4 pass`,
+  `G5 FAIL: run npm run verify: exit 1, expected 0`, `G6 pass` to `G8 pass`, `goals passed: 7/8`. Its e2e step took
+  17.1 min and had 7 failures. The one with a deterministic cause is UC-05 (`tests/e2e/list.spec.ts:352`):
+  - Expected pattern: `/^last run succeeded \d\d:\d\d$/`. Received string: `"last run succeeded 24/10 00:16"`.
+  - The test advances the server clock by 2 hours, so from 22:00 (+07:00) the next run falls on the next day.
+    The row then correctly shows the date, and the test's pattern fails.
+  - Reproduced alone at 22:39: `Received string: "last run succeeded 24/10 00:38"`, `1 failed`.
+  - The other six failures in that slow run are recorded in castraferrum#180 as probably load-related: the UC-16
+    gap `266.6` (limit 250), and five visual tests whose server did not start within 30 s. They did not fail in
+    the standalone verify.
+- `npm run design:compare`, exit 0: `52 passed (5.6m)`. Same numbers as attempt 1: 248 pairs, worst 0.0002, and
+  every screen at or under 0.001.
 
 Attempt 2 (rebased on castraferrum#176):
 
