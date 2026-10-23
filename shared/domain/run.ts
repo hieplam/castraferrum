@@ -18,7 +18,10 @@ export type ExecutionStats = {
   runs: number;
   running: number;
   succeeded: number;
+  /** Failed and timed out runs. */
   failed: number;
+  /** Runs a server shutdown interrupted: not a failure of the run, so not counted in `failed` (castraferrum#190). */
+  interrupted: number;
   cancelled: number;
   skipped: number;
   /** Number of turns with a session id: a turn that fails before opening a session - e.g. "Repo does not exist" - has none. */

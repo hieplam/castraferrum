@@ -294,10 +294,12 @@
     timed_out: ['s-fail', 'status.timedOut'], cancelled: ['s-skip', 'status.cancelled'], interrupted: ['s-int', 'status.interrupted'],
     skipped: ['s-skip', 'status.skipped'],
   };
-  // The counts of an active period as words (spec 5.3): [succeeded, failed, cancelled, skipped] + the runs working.
+  // The counts of an active period as words (spec 5.3): [succeeded, failed, cancelled, skipped, interrupted] + the runs working,
+  // in the order of the app (web/features/loop-detail/period-text.ts);
+  // an interrupted run is its own word, never failed (castraferrum#190).
   function countWords(c, running) {
-    const n = Array.isArray(c) ? c : [c.ok, c.err, c.cancel, c.skip];
-    const words = [['count.succeeded', n[0]], ['count.failed', n[1]], ['count.cancelled', n[2]], ['count.skipped', n[3]], ['count.running', running]]
+    const n = Array.isArray(c) ? c : [c.ok, c.err, c.cancel, c.skip, c.int];
+    const words = [['count.succeeded', n[0]], ['count.failed', n[1]], ['count.interrupted', n[4] || 0], ['count.cancelled', n[2]], ['count.skipped', n[3]], ['count.running', running]]
       .filter(([, v]) => v > 0).map(([k, v]) => t(k, { n: v }));
     return words.length ? words.join(' · ') : '-';
   }
@@ -383,7 +385,7 @@
   }
 
   // The ? of Recent runs (spec D10): a popover from 640px, a sheet below.
-  const helpDefs = () => ['loop', 'run', 'period', 'session'].map((k) => `<div class="def"><b>${t('help.' + k)}</b><span>${t('help.' + k + 'Body')}</span></div>`).join('');
+  const helpDefs = () => ['loop', 'run', 'period', 'session'].map((k) => `<div class="def"><b>${t('help.' + k)}</b><span>${t('help.' + k + 'Body', { cmd: '<span class="data">claude --resume</span>' })}</span></div>`).join('');
   const helpPopover = () => `<div class="popover" role="dialog" data-testid="help-sheet" aria-label="${t('help.title')}" style="position:absolute;top:calc(100% + var(--space-2));left:0"><b>${t('help.title')}</b>${helpDefs()}</div>`;
   const helpSheet = () => `<div class="scrim"></div><div class="sheet" role="dialog" aria-modal="true" data-testid="help-sheet"><span class="sheet-grab"></span><h2>${t('help.title')}</h2>${helpDefs()}<button class="btn lg block" type="button">${t('help.close')}</button></div>`;
 
@@ -394,7 +396,7 @@
     if (!ex.length) return '';
     const cur = ex[0], shown = periodRuns(key, cur).slice(0, 4), more = cur.rounds - shown.length;
     const help = `<button class="help" type="button" data-testid="runs-help" aria-label="${t('runs.help')}" aria-haspopup="dialog"${o.help ? ' aria-expanded="true"' : ''}>${icon('help')}</button>`;
-    const all = PHONE ? '' : `<a class="link" href="#" data-testid="all-runs-link">${t('runs.all', { n: l.runsTotal })}${icon('arrow')}</a>`;
+    const all = PHONE ? '' : `<a class="link" href="#" data-testid="all-runs-link">${tn('runs.all', l.runsTotal)}${icon('arrow')}</a>`;
     const earlier = ex.slice(1);
     return `<div class="section-head"><h2>${t('runs.title')}</h2>${o.help && !PHONE ? `<span style="position:relative;display:inline-flex">${help}${helpPopover()}</span>` : help}${all}</div>` +
       `<p class="group-cap" data-execution-id="${execId(key, cur.k)}"><a class="link" href="#">${t('period.title', { k: cur.k })}</a>${[periodSpan(cur), periodEnd(cur), tn('period.runs', cur.rounds)].map((p) => ` <span class="keep">· ${p}</span>`).join('')}</p>` +
@@ -452,7 +454,7 @@
     const desc = l.desc ? `<p class="page-desc">${esc(l.desc)}</p>` : '';
     let page;
     if (PHONE) {
-      const links = `<div class="group">${l.runsTotal ? `<a class="cell" href="#" data-testid="all-runs-link"><span class="cell-title">${t('runs.all', { n: l.runsTotal })}</span>${chev}</a>` : ''}` +
+      const links = `<div class="group">${l.runsTotal ? `<a class="cell" href="#" data-testid="all-runs-link"><span class="cell-title">${tn('runs.all', l.runsTotal)}</span>${chev}</a>` : ''}` +
         `<a class="cell" href="#" data-testid="loop-settings-link"><span class="cell-main"><span class="cell-title">${t('loopSettings.title')}</span><span class="cell-meta">${t('loop.meta.claude', l.claude)} · ${l.timeout == null ? t('loopSettings.noLimitShort') : t('loopSettings.limitShort', { d: dur(l.timeout) })}</span></span>${chev}</a></div>`;
       page = `<div class="page-head" data-testid="loop-header" data-status="${status}"><h1 class="page-title">${esc(l.name)}</h1></div>` +
         `<div class="page-meta">${pill}<span><span data-testid="loop-repo">${esc(repo.name)}</span> ·&nbsp;${esc(schedDesc(l.cron))}</span></div>${desc}` +
@@ -537,7 +539,7 @@
       const sk = TX_SUBJECT.find((x) => typeof o[x] === 'string') || Object.keys(o).find((x) => typeof o[x] === 'string');
       const rest = Object.keys(o).filter((x) => x !== sk && x !== 'description');
       const n = Object.entries(o).map(([k, v]) => `${k}:\n${typeof v === 'string' ? v : JSON.stringify(v, null, 2)}`).join('\n').split('\n').length;
-      body = `<div class="tx-body is-code">${esc(sk ? firstLine(o[sk]) : e.text)}</div>${rest.length ? fold(t('tx.input', { n })) : ''}`;
+      body = `<div class="tx-body is-code">${esc(sk ? firstLine(o[sk]) : e.text)}</div>${rest.length ? fold(tn('tx.input', n)) : ''}`;
     } else if (e.kind === 'tool_result') {
       const lines = e.text.split('\n');
       body = `<div class="tx-body is-code">${esc(lines.length > 2 ? lines[0] : e.text)}</div>${lines.length > 2 ? fold(tn('tx.more', lines.length - 1)) : ''}`;
@@ -605,7 +607,7 @@
     const lines = skipped ? [] : serverLines(key, r);
     const log = `<div class="section-head"><h2>${t('run.log')}</h2></div>` + (skipped ? `<p class="note">${t('log.empty')}</p>`
       : logBlock('run-log', lines, running ? { live: true, paused: o.paused, left: t('now.liveOutput'), right: t(o.paused ? 'now.paused' : 'now.following') }
-        : { left: t('log.saved', { n: lines.length }), right: t(RUN_PILL[r.st][1]) }));
+        : { left: tn('log.saved', lines.length), right: t(RUN_PILL[r.st][1]) }));
     // Runs of "Issue backlog worker" up to #68 started before its prompt was edited (18/10 13:41:07).
     const old = key === 'pilot' && r.n != null && r.n <= 68;
     const prompt = skipped ? '' : PHONE

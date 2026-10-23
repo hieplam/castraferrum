@@ -10,7 +10,7 @@ const NOW = vn('2026-10-18T14:00:42');
 
 const exec = (over: Partial<ExecutionDto> = {}): ExecutionDto => ({
   id: 'e1', loopId: 'l1', seq: 3, startedAt: vn('2026-10-18T09:47:15'), endedAt: null, endReason: null,
-  stats: { runs: 10, running: 1, succeeded: 8, failed: 1, cancelled: 0, skipped: 2, sessions: 10, elapsedMs: 15_207_000, avgDurationMs: 93_000 },
+  stats: { runs: 10, running: 1, succeeded: 8, failed: 1, interrupted: 0, cancelled: 0, skipped: 2, sessions: 10, elapsedMs: 15_207_000, avgDurationMs: 93_000 },
   ...over,
 });
 const run = (over: Partial<RunDto> = {}): RunDto => ({

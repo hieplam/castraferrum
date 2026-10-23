@@ -217,7 +217,7 @@ function claudeLines(key: string, l: Any, r: RunRow, repoPath: string): { at: Da
   return L;
 }
 
-const FAILURE = new Set(['failed', 'timed_out', 'interrupted']);
+const FAILURE = new Set(['failed', 'timed_out']);
 /** Skip reason as the preview prints it (`skip.reason` of the English UI). */
 const skipReason = (n: number) => en['skip.reason'].replace('{n}', String(n));
 
@@ -250,8 +250,9 @@ function executionRuns(key: string, e: Any, lastIter: number, running: boolean, 
       repoGone: !!r.repoGone,
       log: true,
     }));
-  const [ok, err, cancel, skip] = e.counts as number[];
-  const total = ok! + err! + cancel! + (running ? 1 : 0);
+  // The interrupted runs (5th count, castraferrum#190) are all listed by the preview; the added runs are never interrupted.
+  const [ok, err, cancel, skip, int = 0] = e.counts as number[];
+  const total = ok! + err! + cancel! + int + (running ? 1 : 0);
   const firstIter = lastIter - total + 1;
   const have = new Set(listed.filter((r) => r.n !== null).map((r) => r.n));
   const missing: number[] = [];

@@ -149,11 +149,11 @@
     },
   };
 
-  // Execution history (newest first). counts = ✓ ✗ ⊘ ↷
+  // Execution history (newest first). counts = ✓ ✗ ⊘ ↷, then interrupted when the period has one (castraferrum#190).
   const executions = {
     pilot: [
       { k: 3, st: 'active', start: '18/10 09:47:15', end: null, up: loops.pilot.exec.up, rounds: 10, counts: [8, 1, 0, 0], sessions: 10 },
-      { k: 2, st: 'server_down', start: '17/10 08:00:12', end: '17/10 09:31:05', up: 3600 + 30 * 60 + 53, rounds: 4, counts: [3, 1, 0, 0], sessions: 4 },
+      { k: 2, st: 'server_down', start: '17/10 08:00:12', end: '17/10 09:31:05', up: 3600 + 30 * 60 + 53, rounds: 4, counts: [3, 0, 0, 0, 1], sessions: 4 },
       { k: 1, st: 'stopped', start: '15/10 09:12:05', end: '16/10 12:20:31', up: loops.pilot.longest.sec, rounds: 55, counts: [52, 3, 0, 0], sessions: 55 },
     ],
     crash: [

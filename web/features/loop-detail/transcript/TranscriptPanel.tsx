@@ -38,7 +38,7 @@ function toolBody(t: T, json: string) {
     <>
       <TxBody variant="code">{subject}</TxBody>
       {rest.length ? (
-        <TxFold label={t('tx.input', { n: lineCount(all) })}>
+        <TxFold label={t.tn('tx.input', lineCount(all))}>
           <TxBody variant="code">{all}</TxBody>
         </TxFold>
       ) : null}
