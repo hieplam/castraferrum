@@ -8,6 +8,7 @@ import { LoopsRoute } from '../pages/LoopsRoute';
 import { MissingRoute } from '../pages/MissingRoute';
 import { PendingRoute } from '../pages/PendingRoute';
 import { PeriodRoute } from '../pages/PeriodRoute';
+import { RunRoute } from '../pages/RunRoute';
 import { SettingsRoute } from '../pages/SettingsRoute';
 import { Frame } from './Frame';
 
@@ -22,7 +23,7 @@ export function AppRoutes() {
         <Route path="loops/:id/settings" element={<LoopSettingsRoute />} />
         <Route path="loops/:id" element={<LoopRoute />} />
         <Route path="executions/:id" element={<PeriodRoute />} />
-        <Route path="runs/:id" element={<PendingRoute />} />
+        <Route path="runs/:id" element={<RunRoute />} />
         <Route path="repos" element={<PendingRoute />} />
         <Route path="settings" element={<SettingsRoute />} />
         <Route path="*" element={<MissingRoute />} />

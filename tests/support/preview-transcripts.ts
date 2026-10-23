@@ -1,13 +1,23 @@
-// The sample transcripts of the design preview (design/preview/data.js `PV.transcripts`) written back as JSONL files in
+// The sample transcripts of a design preview (design/preview/data.js `PV.transcripts`, or the new preview's
+// design/ds/preview/data.js with `file` = DS_DATA_JS) written back as JSONL files in
 // the Claude Code format, under `<CLAUDE_CONFIG_DIR>/projects/` of the test server → the app shots read exactly the text
 // the preview draws, through the real path (claude-jsonl adapter → API → UI). One entry per line; the time `at`
 // (`HH:MM:SS` of the preview day, Vietnam time) becomes `timestamp`.
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { previewData, pvTime, sid } from './preview-world';
+import { DATA_JS, previewData, pvTime, sid } from './preview-world';
 
 /** Key of `PV.transcripts` → the run of the preview world that carries that session. */
-export const PREVIEW_TRANSCRIPTS = { pilot69: ['pilot', 69], debt104: ['debt', 104], pilot63: ['pilot', 63] } as const;
+export const PREVIEW_TRANSCRIPTS = {
+  pilot69: ['pilot', 69],
+  debt104: ['debt', 104],
+  pilot63: ['pilot', 63],
+  // Only in the new preview's data.js (U7): the run page's ended runs.
+  pilot68: ['pilot', 68],
+  pilot59: ['pilot', 59],
+  oldsched4: ['oldsched', 4],
+  evidence4: ['evidence', 4],
+} as const;
 export type PreviewTranscriptKey = keyof typeof PREVIEW_TRANSCRIPTS;
 
 type PvEntry = { at: string; kind: string; text: string; tool?: string; err?: boolean };
@@ -40,8 +50,8 @@ export function previewTranscriptFile(projectsDir: string, key: PreviewTranscrip
   return join(projectsDir, 'C--preview-work-acme-api', `${sid(loop, n)}.jsonl`);
 }
 
-export function writePreviewTranscript(projectsDir: string, key: PreviewTranscriptKey): void {
-  const entries = (previewData() as unknown as { transcripts: Record<string, PvEntry[]> }).transcripts[key];
+export function writePreviewTranscript(projectsDir: string, key: PreviewTranscriptKey, data = DATA_JS): void {
+  const entries = (previewData(data) as unknown as { transcripts: Record<string, PvEntry[]> }).transcripts[key];
   if (!entries) throw new Error(`no PV.transcripts.${key}`);
   const file = previewTranscriptFile(projectsDir, key);
   mkdirSync(join(file, '..'), { recursive: true });
@@ -53,6 +63,6 @@ export function removePreviewTranscript(projectsDir: string, key: PreviewTranscr
 }
 
 /** Number of entries of a sample transcript (the preview draws all of them / a page of 50). */
-export function previewTranscriptLength(key: PreviewTranscriptKey): number {
-  return (previewData() as unknown as { transcripts: Record<string, PvEntry[]> }).transcripts[key]!.length;
+export function previewTranscriptLength(key: PreviewTranscriptKey, file = DATA_JS): number {
+  return (previewData(file) as unknown as { transcripts: Record<string, PvEntry[]> }).transcripts[key]!.length;
 }
