@@ -344,8 +344,10 @@ preview is re-shot.
 - **A Vietnamese weekday name stays on one line** (castraferrum#195): its two words are joined by a no-break space in
   `shared/i18n/vi.ts` (the schedule sentences and the Advanced sentences read the same names).
 
-Re-shot with `npm run design:shots -- --design design/ds`, light and dark (26 shots, no other shot changed):
-`run-interrupted`, `run-repo-missing` (singular log header), `run-succeeded`, `run-resume-copied`, `vi-run-transcript`
-(the fold count), `period-server-down` (the counts), `loop-running`, `loop-stopping`, `loop-disconnected`,
-`phone-loop-running` (the meta line of period #2), `loop-help`, `phone-loop-help` (the command) and `vi-loops-overview`
-(the weekday names).
+Re-shot with `npm run design:shots -- --design design/ds`, light and dark (42 shots, no other shot changed):
+`run-interrupted`, `run-repo-missing` (singular log header); every run state whose prompt fold wraps (`run-succeeded`,
+`run-resume-copied`, `run-cancelled`, `run-timed-out`, `run-running`, `run-transcript-running`, `run-transcript-paused`,
+`vi-run-transcript`, `phone-run-running`, `phone-run-succeeded`, `phone-run-transcript-running`: "· N lines" moves to the
+next line as one part, the phone ones 24px taller); `period-server-down` (the counts); `loop-running`, `loop-stopping`,
+`loop-disconnected`, `phone-loop-running` (the meta line of period #2 drops "1 failed"); `loop-help`, `phone-loop-help`
+(the command); `vi-loops-overview` (the weekday names).
