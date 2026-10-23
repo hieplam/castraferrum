@@ -409,7 +409,10 @@ Screens put kit components together in `web/features/`. Never add a class that i
 - **Data text.** A path or an address in a field is `.input.is-data` (`--font-data`, still `--fs-field`).
 - **Do not** use a placeholder as the label, or make a field smaller than `--fs-field`.
 - **Phone:** controls 44px tall, 16px text, `.fcell` rows in a `.group`. **Desktop:** 36px tall, 16px text, the same
-  groups in `.page.is-narrow`.
+  groups in `.page.is-narrow`. On the phone every part a finger taps is itself at least `--size-touch` (task U24): a
+  `.seg` button and a `.stepper` button are 44px tall inside their frame (the frame grows around them), a `.chip` is at
+  least as wide as it is tall, and the value of a `.fcell.is-row` is 44px tall (the row keeps `--size-row`: its padding
+  shrinks to `--space-1h`). A field labelled by its cell or a `.search` that is a `label` counts its label as its target.
 - **States:** rest, hover, focus, error, disabled.
 - **Wrapper:** `web/ui/kit/Field.tsx`: `Segmented`, `Search` (U14); `Input`, `Textarea`, `Select`, `Stepper`, `Chip`,
   `Switch`, `FieldCell` (U18; `Switch` with the folder picker, U19).

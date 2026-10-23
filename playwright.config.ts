@@ -14,15 +14,26 @@ export default defineConfig({
   use: { baseURL: `http://127.0.0.1:${port}`, trace: 'retain-on-failure' },
   projects: [
     // e2e tests carry @UC-xx tags (counted by uc-coverage) plus @smoke / @shell
-    { name: 'chromium', testDir: 'tests/e2e', use: { ...devices['Desktop Chrome'] } },
+    // phone.spec.ts (UC-34) runs on the new UI only: chromium-new and webkit-phone.
+    { name: 'chromium', testDir: 'tests/e2e', testIgnore: ['**/phone.spec.ts'], use: { ...devices['Desktop Chrome'] } },
     // The new UI (UI uplift, task U13): the same server with `castraferrum.ui=new` stored for its origin; a screen task adds its
     // specs to testMatch once its screen is built.
     {
       name: 'chromium-new',
       testDir: 'tests/e2e',
-      testMatch: ['**/smoke.spec.ts', '**/ui-switch.spec.ts', '**/list.spec.ts', '**/form.spec.ts', '**/detail.spec.ts', '**/concurrency.spec.ts', '**/system.spec.ts', '**/repo.spec.ts', '**/shell.spec.ts'],
+      testMatch: ['**/smoke.spec.ts', '**/ui-switch.spec.ts', '**/list.spec.ts', '**/form.spec.ts', '**/detail.spec.ts', '**/concurrency.spec.ts', '**/system.spec.ts', '**/repo.spec.ts', '**/shell.spec.ts', '**/phone.spec.ts'],
       use: {
         ...devices['Desktop Chrome'],
+        storageState: { cookies: [], origins: [{ origin: `http://127.0.0.1:${port}`, localStorage: [{ name: 'castraferrum.ui', value: 'new' }] }] },
+      },
+    },
+    // The phone in WebKit (task U24, UC-34): an emulated iPhone 15 on the new UI. Installed by scripts/install-webkit.mjs.
+    {
+      name: 'webkit-phone',
+      testDir: 'tests/e2e',
+      testMatch: ['**/phone.spec.ts'],
+      use: {
+        ...devices['iPhone 15'],
         storageState: { cookies: [], origins: [{ origin: `http://127.0.0.1:${port}`, localStorage: [{ name: 'castraferrum.ui', value: 'new' }] }] },
       },
     },

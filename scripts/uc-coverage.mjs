@@ -3,7 +3,7 @@
 // report (playwright.config.ts writes reports/e2e.json). Skipped, red and flaky tests do not count.
 // Prints "UCs with a green e2e: k/N" + the list of missing ones; with --min k it exits 1 when below the floor k.
 // Options: --report <json file> (default reports/e2e.json), --spec <md file> (repeatable; default docs/USE-CASES.md,
-// the table of 32 use cases).
+// the use case table).
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';

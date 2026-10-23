@@ -678,8 +678,14 @@ button.select { display: block; overflow: hidden; text-overflow: ellipsis; white
 }
 @media (max-width: 639.98px) {
   .seg { display: grid; padding: var(--space-0h); }
-  .chip { height: var(--size-control); }
-  .fcell.is-row { min-height: var(--size-row); }
+  /* Every target on the phone is at least --size-touch (SYSTEM.md, iOS): a segment and a stepper button take the whole
+     44px, not 44px less the frame; a chip is never narrower than it is tall; a value in a row cell is 44px tall, and the
+     row's padding gives back what it adds. */
+  .seg button { height: var(--size-touch); }
+  .stepper button { height: var(--size-touch); }
+  .chip { height: var(--size-control); min-width: var(--size-touch); justify-content: center; }
+  .fcell.is-row { min-height: var(--size-row); padding-top: var(--space-1h); padding-bottom: var(--space-1h); }
+  .fcell.is-row .input, .fcell.is-row .select { min-height: var(--size-touch); }
   .form-foot { display: none; }
 }
 
