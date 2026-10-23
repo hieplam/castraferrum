@@ -204,3 +204,22 @@ corrected and re-shot, this file records it; a gap in the system is closed insid
   menu of one of its cells stops clipping: [`ds/components.css`](ds/components.css)
   `.group:has(.cell .menu) { overflow: visible; }`, written in `ds/SYSTEM.md`, "Inset list". No state draws the open
   menu, so no shot changed.
+
+## Agent extension under the owner's rule of 2026-10-23 - a group head that opens its active period, 2026-10-23
+
+Decided by the agent of task U21 under the rule in the epic's body ("A design decision the spec does not make becomes a
+`design-system` issue; the agent extends the system within SYSTEM.md's rules and records it"), on
+castraferrum#165.
+
+- **The gap:** the loop page linked to the page of an active period only for an earlier period (a `period-row` cell) or
+  when its runs did not fit (more than 4, "Show N more runs from this period"). The current period with 4 runs or fewer
+  had no way to its page, so its session ids could not be reached (UC-08, the e2e test of U21).
+- **The addition:** the head of the current period in Recent runs starts with the period's title as a `.link` to its page
+  (`/executions/:id`), at the caption's size (`.group-cap .link`, in [`ds/components.css`](ds/components.css));
+  described in the Inset list of [`ds/SYSTEM.md`](ds/SYSTEM.md), drawn on the design-system page
+  [`ds/index.html`](ds/index.html) and in the preview's `recentRuns`.
+- **Re-shot** with `npm run design:shots -- --design design/ds --only <every loop state>`, light and dark: the 26 shots
+  whose pixels changed (`loop-running`, `loop-idle`, `loop-last-failed`, `loop-stopped`, `loop-server-down`,
+  `loop-archived`, `loop-stop-confirm`, `loop-stopping`, `loop-disconnected`, `loop-help`, `loop-menu`,
+  `phone-loop-running`, `phone-loop-last-failed`); 634 to 3993 pixels each, the title's colour. Every other shot is
+  unchanged.

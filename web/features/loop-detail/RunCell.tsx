@@ -51,7 +51,11 @@ export function RunCell({ run, tz, now, session }: { run: RunDto; tz: string; no
         <span className="cell-sum" data-testid="run-sum" data-run-id={run.id}>
           {sum}
         </span>
-        {session && run.sessionId ? <span className="cell-meta">{run.sessionId}</span> : null}
+        {session && run.sessionId ? (
+          <span className="cell-meta" data-testid="run-session" data-session-id={run.sessionId}>
+            {run.sessionId}
+          </span>
+        ) : null}
       </span>
       <Icon name="chev" className="chev" />
     </Link>

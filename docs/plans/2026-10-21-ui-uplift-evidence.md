@@ -1578,3 +1578,97 @@ Each stub rebuilt, then `npx playwright test --project=visual tests/visual/ds/re
 - A picker without the name field: `repos-add` fails, `getByTestId('repo-name')`, `Expected: "acme-tools"`,
   `element(s) not found`.
 - A missing state leaves the union of (2) below 120 (the one-liner counts each id of `STATES.md` found in the results).
+
+## U21
+
+Status: done. `tests/e2e/detail.spec.ts`, `tests/e2e/concurrency.spec.ts` and `tests/e2e/system.spec.ts` run in
+`chromium-new` as well as `chromium`; the eleven use cases UC-06, UC-07, UC-08, UC-11, UC-12, UC-13, UC-14, UC-15, UC-16,
+UC-31 and UC-32 are green in both projects.
+
+### What changed
+
+- `playwright.config.ts`: the three files added to the `testMatch` of `chromium-new` (after U20's two).
+- `tests/support/ui.ts`:
+  - `runHistory(page, check)` runs `check` on the run list; in the new UI it follows `all-runs-link` to
+    `/loops/:id/runs`, runs `check` there and goes back with the browser history (no reload, so UC-15's "never reloaded"
+    check still holds).
+  - `executionRows(page)`: the new UI's active periods of the loop page (`[data-execution-id]`: the current period's head
+    and the `period-row` cells).
+  - `loopRowOnList(page)`: the new UI's page names its loop: `run-of` on the run page, `back-to-loop` on the active period
+    page (its `exec-header` holds only "Active period #K" and the state pill).
+  - `onLoopList(page, check)` (new): reads the list rows on `/` (follows `nav-loops`, goes back).
+- The specs choose a step's expected text or element at the call site (spec 7.2): `conn` `data-server` for the lamp; the
+  `loop-status` pill and the now card's `now.working`, `now.workingMany`, `now.waiting`, `now.archived`, `data-state`
+  (`last-failed`, `server_down`); `fig-runs` with the counts as words (computed from a `SELECT`) for the per-row counts;
+  `period-longest` and the All runs pager for the longest execution; `run.banner.failed` (no glyph); `now.liveOutput`;
+  `period.copied.other`; `act.archiveLocked` / `act.archive`; `stop.bodyMany`; `row.runningMany`, `row.runningFor`,
+  `row.lastOk`; `data-value` on the summary items. UC-16 reads each loop's figures on its loop page in ten visits after the
+  smoothness measurement, which stays on `/`. No classic assertion was removed or loosened.
+- New-UI fixes:
+  - `RunCell`: the session id of a run on the active period page carries `run-session` and `data-session-id` (spec 7.1).
+  - `LoopSettingsView`: the "Runs at the same time" row carries `config-concurrent` (the classic UI wrote the limit in the
+    executor line).
+  - The current period's head in Recent runs opens its active period page (design-system gap
+    https://github.com/hieplam/castraferrum/issues/165): before, the current period with 4 runs or fewer had no way to its
+    page, so UC-08 could not reach its session ids. `.group-cap .link` added to `design/ds/components.css`, described in
+    `design/ds/SYSTEM.md`, drawn in `design/ds/index.html` and the preview, recorded in `design/APPROVED.md`; 26 loop
+    shots re-shot (634 to 3993 pixels each, the title's colour), every other shot unchanged.
+- Choices made without the owner (the rule of 2026-10-23), the app's behaviour kept:
+  - `exec-header` `data-ended` is `true` / `false` in the approved new preview; the new branch checks `true` and the
+    state pill `period.pill.byYou` for the classic `stopped`.
+  - `loop-header` `data-status` is `running` while a run works and `server_down` after a server shutdown (spec 7.1's
+    kinds); the classic header says `active` and `stopped`.
+  - A run cell's summary line holds the whole summary, the skip reason of a skipped run, `runs.noSummaryFailed` for a
+    failed run without one (approved at U10), or `-`.
+  - A skipped run has no session row at all in the new UI (`run-session` count 0).
+  - The All runs page is its own page, so UC-32 reads it before opening the Stop dialog.
+
+### Ratchet
+
+- UCs green in both `chromium` and `chromium-new` (from `reports/e2e.json`, every test of the UC `expected` in both
+  projects): `7` (after U20) -> `18`.
+- `npm run ratchets`: `e2e expects: 749 (min 749)` -> `e2e expects: 785 (min 785)`; `e2eExpectsMin` `749` -> `785`.
+- `npx vitest run --project unit tests/tools/ui-branches.test.ts`: `helpers without a new branch: 12` -> `9`.
+- New-UI visual pairs unchanged at `214`, worst ratio `0.0002` (`MAX_RATIO` `0.001`).
+
+### Red
+
+With the three files in `chromium-new`, `npm run build`, then
+`npx playwright test tests/e2e/detail.spec.ts tests/e2e/concurrency.spec.ts tests/e2e/system.spec.ts --project chromium-new`:
+`13 failed`. Twelve stop at the lamp (`getByTestId('lamp-server')`, `element(s) not found`): UC-06 (both), UC-07, UC-08,
+UC-11, UC-31, UC-12, UC-13, UC-14, UC-16, UC-15 (both). UC-32 stops at `config-executor`, which does not hold
+`concurrent ≤ 3`.
+
+### Green
+
+- (1) `npx playwright test tests/e2e/detail.spec.ts tests/e2e/concurrency.spec.ts tests/e2e/system.spec.ts --project chromium-new`:
+  `13 passed (2.9m)` (and again inside the `64 passed` run of (4)).
+- (2) The same files with `--project chromium`: `13 passed (2.9m)`.
+- (3) `npx vitest run --project unit tests/tools/ui-branches.test.ts`: `Tests  2 passed (2)`,
+  `helpers without a new branch: 9`; `tests/tools/e2e-selectors.test.ts` passes.
+- (4) `npm run verify`: attempt on the rebased tree ran every step: `states with shots: 120/120`, typecheck, lang-scan baseline,
+  `0 violations`, `arch-fixtures: 26/26 violations caught`, `ratchets: ok` (`e2e expects: 785 (min 785)`), unit
+  `510 passed | 2 skipped (512)`, contract `114 passed`, executor contract `7 passed` each, api `115 passed`, api-smoke,
+  build, then e2e `3 failed`, `130 passed (17.7m)`, exit 1. Two failures were U20's UC-03 and UC-04 in `chromium-new`:
+  their `periodHead` reads the whole head of the current period by `data-execution-id`, which this task had moved onto
+  the title link; it went back onto the head (`p.group-cap`), and UC-08 clicks the link inside it. The third was the known
+  classic `list.visual.ts` "LOOP_ALREADY_ACTIVE toast" (`row-start` not visible, castraferrum#157). The remaining steps
+  were then run on their own after `npm run build`: `npx playwright test --project=chromium --project=chromium-new` ->
+  `64 passed (8.0m)`; `npm run uc-coverage -- --min 32` -> `UCs with a green e2e: 32/32`, exit 0; in `reports/e2e.json`
+  18 UCs are green in both projects (UC-01 to UC-16 and UC-31, UC-32). `npx playwright test --project=visual
+  tests/visual/list.visual.ts` -> `4 passed`; `tests/visual/ds/` -> `46 passed` (above), `tests/visual/ds/loop.visual.ts`
+  again after the move -> `8 passed`; `npm run design:states -- --design design/ds` -> `states with shots: 120/120`.
+- (5) `npm run ratchets`: `e2e expects: 785 (min 785)`, `ratchets: ok`.
+- The new-UI visual tests: `npx playwright test --project=visual tests/visual/ds/` -> `46 passed`, `"pairs": 214`,
+  `"worstRatio": 0.0002`.
+
+Run with `LOOPS_TEST_DATABASE_URL` pointing at the lane database `loops_u21_test` and `LOOPS_E2E_PORT=7183`.
+
+### Stub check
+
+- A period list that counts runs instead of active periods (`data-execution-id` on every run cell of Recent runs): UC-06
+  fails (`await expect(await executionRows(page)).toHaveCount(execs.length)`, `Expected: 1`, `Received: 2`) and UC-11
+  fails (`toHaveCount(1)`, `Received: 2`), `2 failed`.
+- An empty new branch: `runHistory` that does not open All runs finds no `runs-table` on the loop page, and
+  `loopRowOnList` without a branch looks for the classic `loop-row` that the new UI does not render: the call-site
+  `expect` fails (the Red run above is the same failure family).

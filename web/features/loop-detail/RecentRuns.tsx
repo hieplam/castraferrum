@@ -1,6 +1,7 @@
 // Recent runs of the loop page (spec 5.3, D6): the current (or latest) active period with up to 4 runs and "Show N more runs from
 // this period", then the earlier periods as cells. The `?` explains the words (a popover on the desktop, a sheet on the phone);
-// the desktop's head links to All runs. Nothing shows before the loop's first Start.
+// the desktop's head links to All runs. The current period's head opens its active period page, as the earlier periods' cells do.
+// Nothing shows before the loop's first Start.
 import { Link } from 'react-router';
 import type { LoopDetailDto } from '../../../shared/contracts/loops';
 import { useLoopExecutions, useLoopRuns } from '../../data/history';
@@ -56,7 +57,10 @@ export function RecentRuns({ loop, now }: { loop: LoopDetailDto; now: Date }) {
         )}
       </div>
       <p className="group-cap" data-execution-id={current.executionId}>
-        {`${t('period.title', { k: current.seq ?? '?' })} · ${periodSpanText(t, current, tz, now)} · ${periodEndText(t, current)} · ${t.tn('period.runs', current.runs)}`}
+        <Link className="link" to={`/executions/${current.executionId}`}>
+          {t('period.title', { k: current.seq ?? '?' })}
+        </Link>
+        {` · ${periodSpanText(t, current, tz, now)} · ${periodEndText(t, current)} · ${t.tn('period.runs', current.runs)}`}
       </p>
       <div className="group" data-testid="recent-runs">
         {current.items.map((r) => (

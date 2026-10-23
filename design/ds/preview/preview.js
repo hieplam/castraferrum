@@ -397,7 +397,7 @@
     const all = PHONE ? '' : `<a class="link" href="#" data-testid="all-runs-link">${t('runs.all', { n: l.runsTotal })}${icon('arrow')}</a>`;
     const earlier = ex.slice(1);
     return `<div class="section-head"><h2>${t('runs.title')}</h2>${o.help && !PHONE ? `<span style="position:relative;display:inline-flex">${help}${helpPopover()}</span>` : help}${all}</div>` +
-      `<p class="group-cap" data-execution-id="${execId(key, cur.k)}">${t('period.title', { k: cur.k })} · ${periodSpan(cur)} · ${periodEnd(cur)} · ${tn('period.runs', cur.rounds)}</p>` +
+      `<p class="group-cap" data-execution-id="${execId(key, cur.k)}"><a class="link" href="#">${t('period.title', { k: cur.k })}</a> · ${periodSpan(cur)} · ${periodEnd(cur)} · ${tn('period.runs', cur.rounds)}</p>` +
       `<div class="group" data-testid="recent-runs">${shown.map((r) => runCell(key, r)).join('')}${more > 0 ? `<button class="cell is-link" type="button">${tn('runs.showMore', more)}</button>` : ''}</div>` +
       (earlier.length ? `<p class="group-cap">${t('runs.earlier')}</p><div class="group">${earlier.map((e) => periodCell(key, e)).join('')}</div>` : '');
   }
