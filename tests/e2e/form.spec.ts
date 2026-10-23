@@ -327,8 +327,11 @@ test('the open Repo menu covers its row of the card edge to edge', async ({ page
   await page.getByTestId('f-repo').click();
   const menu = page.getByRole('menu');
   await expect(menu).toBeVisible();
-  // The row of the card that holds the field: the button's box (the combobox) sits in it.
-  const row = page.getByTestId('f-repo').locator('xpath=../..');
-  const [m, r] = [await box(menu), await box(row)];
+  // The row of the card that holds the field: the parent of the combobox that holds the button.
+  const r = await page.getByTestId('f-repo').evaluate((el) => {
+    const b = el.parentElement!.parentElement!.getBoundingClientRect();
+    return { x: b.x, width: b.width };
+  });
+  const m = await box(menu);
   expect({ left: Math.round(m.x), right: Math.round(m.x + m.width) }).toEqual({ left: Math.round(r.x), right: Math.round(r.x + r.width) });
 });
