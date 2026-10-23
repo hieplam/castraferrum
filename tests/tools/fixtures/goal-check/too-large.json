@@ -1,0 +1,5 @@
+{
+  "goals": [
+    { "id": "G1", "outcome": "prints 100 bytes, at most 10 allowed", "checks": [{ "run": "node -e \"process.stdout.write('x'.repeat(100))\"", "maxStdoutBytes": 10 }] }
+  ]
+}

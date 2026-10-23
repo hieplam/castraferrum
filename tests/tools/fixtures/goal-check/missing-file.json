@@ -1,0 +1,5 @@
+{
+  "goals": [
+    { "id": "G1", "outcome": "the file does not exist", "checks": [{ "file": "tests/tools/fixtures/goal-check/no-such-file.txt", "contains": "anything" }] }
+  ]
+}

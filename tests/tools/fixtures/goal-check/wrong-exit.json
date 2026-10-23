@@ -1,0 +1,5 @@
+{
+  "goals": [
+    { "id": "G1", "outcome": "exits 3, expected 0", "checks": [{ "run": "node -e \"process.exit(3)\"" }] }
+  ]
+}

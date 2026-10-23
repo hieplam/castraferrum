@@ -1,0 +1,6 @@
+{
+  "goals": [
+    { "id": "G1", "outcome": "fails first", "checks": [{ "run": "node -e \"process.exit(1)\"" }] },
+    { "id": "G2", "outcome": "still runs and writes the marker", "checks": [{ "run": "node -e \"require('fs').writeFileSync(process.env.GOAL_CHECK_MARKER, 'ran')\"" }] }
+  ]
+}

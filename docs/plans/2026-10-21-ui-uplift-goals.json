@@ -1,0 +1,86 @@
+{
+  "setup": ["npm run build"],
+  "goals": [
+    {
+      "id": "G1",
+      "outcome": "The dark theme is right: no dark token is empty or swallowed and every contrast pair passes (after U25 the only theme pair is design/ds/tokens.css; the dark shots are checked by G4).",
+      "checks": [
+        {
+          "run": "npm run design:tokens -- design/ds/tokens.css --pairs design/ds/contrast-pairs.json --require design/ds/required-tokens.json",
+          "expect": ["empty or swallowed: 0", "missing in dark: 0", "contrast failures: 0"]
+        }
+      ]
+    },
+    {
+      "id": "G2",
+      "outcome": "The design system is complete, written down and enforced: every token pair passes AA in both themes, every component exists with the sizes of spec section 4.2, and nothing outside the system can be used.",
+      "checks": [
+        {
+          "run": "npm run design:tokens -- design/ds/tokens.css --pairs design/ds/contrast-pairs.json --require design/ds/required-tokens.json",
+          "expect": ["required tokens: 143", "missing tokens: 0", "contrast pairs checked: 126"]
+        },
+        { "run": "npx vitest run --project unit tests/tools/ds-tokens-spec.test.ts" },
+        { "run": "npm run design:lint", "expect": ["css violations: 0"] },
+        {
+          "run": "npx playwright test tests/visual/ds/system-page.visual.ts --project visual --reporter list",
+          "expect": ["4 passed"]
+        }
+      ]
+    },
+    {
+      "id": "G3",
+      "outcome": "The new preview shows every screen and state of spec section 5, on the phone and the desktop, light and dark, and the owner approved it.",
+      "checks": [
+        { "run": "npm run design:shots -- --design design/ds --dry", "expect": ["drawn 120 states x 2 themes, 0 problems"] },
+        { "run": "npm run design:states -- --design design/ds", "expect": ["states with shots: 120/120"] },
+        { "file": "design/APPROVED.md", "contains": "new design system and preview" },
+        { "run": "gh issue view 77 --json state -q .state", "expect": ["CLOSED"] }
+      ]
+    },
+    {
+      "id": "G4",
+      "outcome": "Every screen of the new UI matches its preview shot, on the phone and the desktop, light and dark.",
+      "checks": [{ "run": "npx playwright test --project visual --reporter list" }]
+    },
+    {
+      "id": "G5",
+      "outcome": "The new UI does everything the classic UI did: every use case passes on it, and no e2e assertion is lost.",
+      "checks": [{ "run": "npm run verify" }, { "run": "npm run ratchets", "expect": ["ratchets: ok"] }]
+    },
+    {
+      "id": "G6",
+      "outcome": "On a phone everything works by touch with no sideways scrolling, in Chromium and in WebKit, and the console can be added to the Home Screen.",
+      "checks": [
+        { "run": "npx playwright test tests/e2e/phone.spec.ts --project chromium --reporter list" },
+        { "run": "npx playwright test --project webkit-phone --reporter list" },
+        { "run": "npx vitest run --project unit tests/tools/pwa.test.ts" },
+        { "run": "npm run phone:check", "expect": ["phone overflow: 0/12"] }
+      ]
+    },
+    {
+      "id": "G7",
+      "outcome": "The hard rule holds: a UI change that skips the design system fails the checks, and gaps are tracked.",
+      "checks": [
+        { "run": "npx vitest run --project unit tests/tools/design-lint.test.ts" },
+        { "file": ".github/workflows/ci.yml", "contains": "npm run ratchets" },
+        { "file": "CLAUDE.md", "contains": "Design system first" },
+        { "file": "CONTRIBUTING.md", "contains": "Every UI change, however small, is designed from the design system first" },
+        { "file": ".github/pull_request_template.md", "contains": "Design system first" },
+        { "file": ".github/ISSUE_TEMPLATE/design-system-gap.md", "contains": "design-system" },
+        { "run": "gh label list --search design-system", "expect": ["design-system"] }
+      ]
+    },
+    {
+      "id": "G8",
+      "outcome": "After the cut-over there is one UI: the classic code, CSS, preview, shots and tests are gone, and the repository stays small.",
+      "checks": [
+        {
+          "run": "git ls-files design/preview design/tokens.css design/components.css design/system web/app/AppShell.tsx web/app/ClassicRoutes.tsx",
+          "empty": true
+        },
+        { "run": "npm run design:lint", "expect": ["native title: 0", "unknown classes: 0", "literal styles: 0"] },
+        { "run": "git archive HEAD:design", "maxStdoutBytes": 30000000 }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "goals": [
+    { "id": "G1", "outcome": "fails after 60 lines of output", "checks": [{ "run": "node -e \"for (let i = 1; i <= 60; i++) console.log('line ' + i); process.exit(1)\"" }] }
+  ]
+}

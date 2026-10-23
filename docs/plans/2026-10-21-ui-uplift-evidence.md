@@ -2100,3 +2100,165 @@ section naming Red, Green and Stub; a `Closes` line alone fails, as 77 did.
 ### Ratchet
 
 Closed task issues of the epic that fail `check --dry-run`: 11 -> 0.
+
+## U26
+
+Status: **done** (attempt 4, rebased on castraferrum#181). G1 to G8 pass with one committed tool (8/8). Every closed
+task of the epic passes `epic.mjs check`. `npm run verify` and `npm run design:compare` exit 0.
+
+The earlier attempts below opened three fix issues, each fixed and merged before this run:
+- castraferrum#175: records of 11 closed issues;
+- castraferrum#177: the folder picker replaced a typed path;
+- castraferrum#180: UC-05 depended on the time of day.
+
+Attempt 4 (final):
+
+- Before each heavy run, `tasklist` showed no `ffmpeg` and no headless Chromium of another session. The script
+  waited 0 s before goal:check (23:35:57 +07:00), before verify (23:58:15) and before design:compare (00:09:49).
+  Every run held a test slot. The load failures of attempt 3 came from another session rendering video, as found
+  in castraferrum#181.
+- Step 4: `epic.mjs check <n> --dry-run` on the 46 closed task issues of epic castraferrum#63: **46 PASS, 0 FAIL**.
+  - The 46 are U0 to U25 (U10 included), the design-system gap and preview issues, the flake issues, and the fix
+    issues castraferrum#175, castraferrum#177 and castraferrum#180.
+  - The closed phase issues 65 and 68 are left out: `epic.mjs` closes a phase itself, so a phase has no pull
+    request by design.
+  - `epic.mjs status 63`: `done 46 | in progress 1 | ready 0 | blocked 1`. Open are only U26 (this task) and U27.
+- `npm run goal:check -- docs/plans/2026-10-21-ui-uplift-goals.json`, exit 0: `G1 pass`, `G2 pass`, `G3 pass`,
+  `G4 pass`, `G5 pass`, `G6 pass`, `G7 pass`, `G8 pass`, `goals passed: 8/8`.
+- `npm run verify`, exit 0:
+  - `states with shots: 120/120`;
+  - `e2e expects: 755 (min 745)`, `ratchets: ok`;
+  - unit `525 passed | 2 skipped (527)`, contract `114 passed (114)`, api `115 passed (115)`;
+  - e2e `92 passed (9.7m)`, with no failed and no flaky test;
+  - `phone overflow: 0/12`, `UCs with a green e2e: 33/33`.
+- `npm run design:compare`, exit 0: `52 passed (4.8m)`. `design/compare/ds/report.json`: 248 pairs (120 states,
+  light and dark), `maxRatio` 0.001, worst 0.0002. The largest ratio per screen is the same as in attempt 1's
+  table (Green (4) below), every one at or under 0.001.
+- `npx vitest run --project unit tests/tools/goal-check.test.ts`: `Test Files  1 passed (1)`, `Tests  11 passed (11)`.
+
+Attempt 3 (rebased on castraferrum#178, which fixed castraferrum#177):
+
+- Step 4: `epic.mjs check <n> --dry-run` on the 45 closed task issues of the epic (the 44 of attempt 2 plus
+  castraferrum#177): **45 PASS, 0 FAIL**. The phase issues 65 and 68 are left out by design: they have no pull
+  request.
+- `npm run verify` (run alone, 21:4x +07:00), exit 0:
+  - `states with shots: 120/120`;
+  - `e2e expects: 753 (min 745)`, `ratchets: ok`;
+  - unit `525 passed | 2 skipped`, contract `114 passed`, api `115 passed`;
+  - e2e `92 passed (9.9m)`;
+  - `phone overflow: 0/12`, `UCs with a green e2e: 33/33`.
+- `npm run goal:check -- docs/plans/2026-10-21-ui-uplift-goals.json`: `G1 pass` to `G4 pass`,
+  `G5 FAIL: run npm run verify: exit 1, expected 0`, `G6 pass` to `G8 pass`, `goals passed: 7/8`. Its e2e step took
+  17.1 min and had 7 failures. The one with a deterministic cause is UC-05 (`tests/e2e/list.spec.ts:352`):
+  - Expected pattern: `/^last run succeeded \d\d:\d\d$/`. Received string: `"last run succeeded 24/10 00:16"`.
+  - The test advances the server clock by 2 hours, so from 22:00 (+07:00) the next run falls on the next day.
+    The row then correctly shows the date, and the test's pattern fails.
+  - Reproduced alone at 22:39: `Received string: "last run succeeded 24/10 00:38"`, `1 failed`.
+  - The other six failures in that slow run are recorded in castraferrum#180 as probably load-related: the UC-16
+    gap `266.6` (limit 250), and five visual tests whose server did not start within 30 s. They did not fail in
+    the standalone verify.
+- `npm run design:compare`, exit 0: `52 passed (5.6m)`. Same numbers as attempt 1: 248 pairs, worst 0.0002, and
+  every screen at or under 0.001.
+
+Attempt 2 (rebased on castraferrum#176):
+
+- Step 4: `epic.mjs check <n> --dry-run` on the 44 closed task issues of the epic (U0 to U25, the gap, preview and
+  flake issues, and castraferrum#175): **44 PASS, 0 FAIL**. The closed phase issues 65 and 68 print `FAIL - no merged
+  pull request closes it`. They are not counted as tasks: `epic.mjs` closes a phase itself when its sub-issues
+  finish, so a phase has no pull request by design. Before castraferrum#177 was opened, `epic.mjs status 63` showed
+  only U26 and U27 open.
+- `npm run goal:check -- docs/plans/2026-10-21-ui-uplift-goals.json`: `G1 pass` to `G4 pass`,
+  `G5 FAIL: run npm run verify: exit 1, expected 0`, `G6 pass` to `G8 pass`, `goals passed: 7/8`. From that run's
+  `reports/e2e.json`, the failing test is chromium `tests/e2e/phone.spec.ts:88` (UC-34), at line 164:
+  `expect(received).toContain(expected)`. Expected value: the typed path `...\Temp\cf-phone-Ri9sUW`. Received array:
+  `...\Temp` and `...\AppData\Local`, the parent folder of `Temp`.
+  - So the add-repo sheet registered the picker's opening folder instead of the typed path. That is
+    castraferrum#177; the suspected cause is in `web/features/repos/AddRepo.tsx`.
+  - The failure depends on timing. Three more rounds of `npx playwright test --project chromium` passed
+    (`38 passed` each), and so did a reproduction that delays `GET /api/folders`. Of the 5 full verify runs of this
+    task, 2 failed late in the e2e step.
+
+Attempt 1 (below) found 11 closed issues without a verified closing pull request. That became castraferrum#175.
+
+### Red
+
+- `npx vitest run --project unit tests/tools/goal-check.test.ts`, test written first: `Test Files  1 failed (1)`,
+  `Tests  10 failed (10)`; `node scripts/goal-check.mjs` alone: `Error: Cannot find module` (the script did not exist).
+- `npm run goal:check -- docs/plans/2026-10-21-ui-uplift-goals.json` with the manifest copied literally from the plan,
+  on untouched `main` code (castraferrum#174 at HEAD): `goals passed: 5/8` (the before number):
+  - `G2 FAIL: run npm run design:tokens -- design/ds/tokens.css ...: missing "required tokens: 140"` (the tool prints
+    `required tokens: 143`, `missing tokens: 0`);
+  - `G6 FAIL: run npx playwright test --project chromium tests/e2e/phone.spec.ts --reporter list: exit 1, expected 0`,
+    `Error: Project(s) "tests/e2e/phone.spec.ts" not found. Available projects: "chromium", "webkit-phone", "visual"`;
+  - `G7 FAIL: file CONTRIBUTING.md: does not contain "Design system first"`.
+
+### Manifest changes (the plan's commands that no longer fit the tree)
+
+Each change proves the same goal, none weakens it:
+
+- G2: `required tokens: 140` -> `required tokens: 143`. U3 added three non-colour tokens under the standing exception
+  of spec 4.2 (`--size-tip-arrow`, `--size-stepper-value`, `--size-tx-head`, recorded in the U3 section above:
+  140 -> 143 required). `missing tokens: 0` still proves every one exists; the exact count is stricter, not looser.
+- G2 and G6: the spec file moved in front of `--project` (`npx playwright test tests/visual/ds/system-page.visual.ts
+  --project visual ...`, `npx playwright test tests/e2e/phone.spec.ts --project chromium ...`). Playwright reads every
+  word after `--project` as a project name, so the plan's order fails before any test runs (U25 met the same thing and
+  used `--project=`). Same tests, same project.
+- G7: CONTRIBUTING.md carries the rule as `## Design system` / "Every UI change, however small, is designed from the
+  design system first"; it never had the literal heading text `Design system first`. The check now looks for that
+  rule sentence.
+
+### Green
+
+- (1) `npx vitest run --project unit tests/tools/goal-check.test.ts`: `Test Files  1 passed (1)`,
+  `Tests  11 passed (11)` (the ten cases of plan step 3, plus one for the tail of a long failing output).
+- (2) `npm run goal:check -- docs/plans/2026-10-21-ui-uplift-goals.json`, exit 0:
+  `G1 pass`, `G2 pass`, `G3 pass`, `G4 pass`, `G5 pass`, `G6 pass`, `G7 pass`, `G8 pass`, `goals passed: 8/8`.
+  One earlier run of the same manifest printed `G5 FAIL: run npm run verify: exit 1` (verify stopped after 652 s,
+  late in its e2e step; the script then showed only the first 20 lines, so the failing test is not known). Two
+  later runs of `npm run verify` (alone, and inside the 8/8 run) exited 0. The script now also prints the last 20
+  lines of a long failing output, so a repeat names its test.
+- (3) Attempt 4: `epic.mjs check <n> --dry-run` printed PASS for all 46 closed task issues, and
+  `epic.mjs status 63` shows only U26 and U27 open (details under "Attempt 4" above). Attempt 1 had 32 PASS and 11 FAIL
+  over 43 issues:
+  - `FAIL #77`, "PR castraferrum#136 has no ## Verify section" (the body had a plain `Verify:` line);
+  - `FAIL #<n> - no merged pull request closes it` for the gap and preview issues 106, 108, 110, 112, 114, 122,
+    123, 124, 125 and 134. They were closed by hand under the delegation on castraferrum#77, and the pull requests
+    that did the work named them with `Refs`.
+  This became castraferrum#175, fixed by castraferrum#176.
+- (4) `npm run design:compare`, exit 0: `52 passed (4.2m)`, `design/compare/ds/index.html — preview | real app |
+  diff`. `design/compare/ds/report.json`: 248 pairs (120 states, light and dark), `maxRatio` 0.001, worst 0.0002. The
+  largest ratio per screen, every one at or under 0.001:
+
+  | Screen | States | Largest ratio | Worst state |
+  |---|---|---|---|
+  | frame | 6 | 0.0001 | `phone-frame-disconnected` |
+  | loops | 14 | 0.0002 | `loops-stop-confirm` |
+  | loop | 24 | 0.0002 | `loop-stop-confirm` |
+  | period (active period) | 6 | 0 | `period-running` |
+  | run | 19 | 0.0001 | `run-skipped` |
+  | form (editor) | 24 | 0.00005 | `phone-form-new` |
+  | repos | 15 | 0.0002 | `repos-delete-confirm` |
+  | settings | 3 | 0 | `settings` |
+  | not found | 2 | 0 | `not-found` |
+  | vi (Vietnamese states) | 7 | 0.00013 | `phone-vi-loops-overview` |
+
+  To open the page for U27: `npm run design:compare`, then open `design/compare/ds/index.html` (Windows:
+  `start design/compare/ds/index.html`). The plan names `design/compare/index.html`; the script writes into `ds/`.
+- (5) Attempt 4: `npm run verify`, exit 0, with e2e `92 passed (9.7m)` and `UCs with a green e2e: 33/33` (full numbers
+  under "Attempt 4" above). `stats-api.test.ts` UC-03 passed in every api run of this task.
+
+### Stub check
+
+- A goal-check that prints `pass` without running its commands fails the wrong-exit, `empty`, `maxStdoutBytes`,
+  missing-file, `contains` and setup fixtures; one that stops at the first failure never writes the marker of
+  `keeps-going.json`.
+- A manifest with fewer goals prints fewer than `8/8`; the plan-literal manifest printed `5/8`, so the tool does
+  fail real misses.
+
+### Ratchet
+
+- Goals passed (`npm run goal:check`): 5/8 (plan-literal manifest) -> 8/8.
+- Goals passed on the final tree (attempt 4): 8/8.
+- Open fix issues under the epic: 0 at the start; 1 after each failing attempt (castraferrum#175, castraferrum#177,
+  castraferrum#180); 0 now, all three fixed and merged.
+- Closed tasks failing `epic.mjs check --dry-run`: 11 (attempt 1) -> 0 (46/46 PASS).
