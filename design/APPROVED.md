@@ -395,3 +395,20 @@ behaviour wins, the preview is corrected and re-shot, this file records it; the 
 
 All shots re-shot with `npm run design:shots -- --design design/ds --compress`, light and dark: 26 shots changed (the 13
 states above), no other shot.
+
+## Agent correction under the owner's rule of 2026-10-23 - phone notes and cards under their group, 2026-10-24
+
+Made by the agent of the U27 defect lane "editor note spacing" (epic 63) under the rule in the epic's body (the owner is
+not asked). castraferrum#205: on the phone what a captioned group carries right after it sat the page's `--space-5`
+(20px) under the group; `reference/m-form-light.png` draws `--space-2` (8px): the Details group ends at y 287 and the
+repo note's line starts at y 296, the Schedule group ends at y 817 and the schedule preview card starts at y 826 (the
+boards' sections are one column with an 8px gap). The "Captions on the phone" rule of
+[`ds/SYSTEM.md`](ds/SYSTEM.md) now covers it, with one selector in [`ds/components.css`](ds/components.css) ("Inset
+list"): a `.group-note`, `.note`, `.card` or `.btn` right after a captioned `.group` sits `--space-2` under it. The app
+has four such parts, all in the editor: the repo note, the schedule preview, the mock agent's note and Register a repo
+(no repo yet); `tests/visual/ds/layout.visual.ts` finds and measures each of them in the real app. No other phone board
+draws a note or card under a group on a page (the folder sheet's hint keeps the sheet's own `--space-3`).
+
+Re-shot with `npm run design:shots -- --design design/ds`, light and dark (10 shots), the phone editor states:
+`phone-form-new`, `phone-form-errors`, `phone-form-repo-pick`, `phone-form-sched-daily`, `phone-form-sched-weekly`.
+No other shot changed.

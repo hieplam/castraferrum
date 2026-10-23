@@ -329,3 +329,89 @@ test.describe("phone section captions (castraferrum#202)", () => {
     }
   });
 });
+
+test.describe("phone notes and cards after a captioned group (castraferrum#205)", () => {
+  test.use(PHONE_VIEW);
+  const ctx = useServer();
+
+  /** Every visible box that follows a captioned `.group` and is not the next caption or head: its name and its gap to the group. */
+  const trailing = (page: Page) =>
+    page.evaluate(() => {
+      const flow = (el: Element): Element[] =>
+        [...el.children].flatMap((c) =>
+          getComputedStyle(c).display === "contents" ? flow(c) : [c],
+        );
+      const out: { name: string; gap: number }[] = [];
+      const page = document.querySelector(".page")!;
+      // The fixed action bar is not in the flow.
+      const kids = flow(page).filter(
+        (c) =>
+          c.getClientRects().length && getComputedStyle(c).position !== "fixed",
+      );
+      kids.forEach((el, i) => {
+        const group = kids[i - 1];
+        if (
+          !group?.matches(".group") ||
+          !kids[i - 2]?.matches(".group-cap") ||
+          el.matches(".group-cap, .section-head, .group")
+        )
+          return;
+        out.push({
+          name: `${el.className}${el.getAttribute("data-testid") ? `#${el.getAttribute("data-testid")}` : ""}`,
+          gap: Math.round(
+            el.getBoundingClientRect().top -
+              group.getBoundingClientRect().bottom,
+          ),
+        });
+      });
+      return out;
+    });
+
+  test("a note, card or button that a section's group carries sits --space-2 under the group, as m-form-light.png draws", async ({
+    page,
+  }) => {
+    await ctx.world(page);
+    const pilot = loopId("pilot", DS_DATA_JS);
+    await page.goto(`${ctx.sp.baseUrl}/settings`);
+    const gap = await tokenPx(page, "--space-2");
+    // [state, how to reach it, what must follow a captioned group]
+    const states: [string, () => Promise<void>, string[]][] = [
+      [
+        "edit loop (repo note, schedule preview)",
+        () => page.goto(`${ctx.sp.baseUrl}/loops/${pilot}/edit`).then(() => {}),
+        ["group-note", "card is-pad#sched-out"],
+      ],
+      [
+        "new loop, mock agent (its note)",
+        async () => {
+          await page.goto(`${ctx.sp.baseUrl}/loops/new`);
+          await page.getByTestId("f-executor-mock").click();
+        },
+        ["card is-pad#sched-out", "note"],
+      ],
+      [
+        "new loop, no repo (Register a repo)",
+        async () => {
+          await page.goto("about:blank");
+          expect((await ctx.sp.api("POST", "/api/__test/reset")).status).toBe(
+            204,
+          );
+          await page.goto(`${ctx.sp.baseUrl}/loops/new`);
+        },
+        ["btn#repo-go-register", "card is-pad#sched-out"],
+      ],
+    ];
+    for (const [state, reach, names] of states) {
+      await reach();
+      await expect(page.locator(".skeleton")).toHaveCount(0);
+      await expect
+        .poll(async () => (await trailing(page)).map((t) => t.name), {
+          message: state,
+        })
+        .toEqual(names);
+      await page.evaluate(() => document.fonts.ready);
+      for (const t of await trailing(page))
+        expect.soft(t.gap, `${state}: "${t.name}" under its group`).toBe(gap);
+    }
+  });
+});

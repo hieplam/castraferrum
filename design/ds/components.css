@@ -299,10 +299,13 @@ body {
   /* A caption and what it captions are one section (reference/m-*.png): the caption sits --space-2 above its list, card,
      command or code, not the page's --space-5 apart. Inside a section (under its head, or before its second list: Earlier
      active periods) it sits --space-2 under what is above it too; a caption that opens the page (the editor, under the
-     bar) sits --space-2 under the bar, as a page head does. */
+     bar) sits --space-2 under the bar, as a page head does. A note, card or button that the captioned list carries (the
+     editor's repo note, schedule preview, mock agent note, Register a repo) is in the same section: --space-2 under the
+     list (reference/m-form-light.png). */
   .page .group-cap { margin-bottom: calc(var(--space-2) - var(--space-5)); }
   .section-head + .group-cap, .section-head + .group-cap + .group + .group-cap { margin-top: calc(var(--space-2) - var(--space-5)); }
   .page > .group-cap:first-child, .page > form:first-child > .group-cap:first-child { margin-top: var(--space-2); }
+  .group-cap + .group + :is(.group-note, .note, .card, .btn) { margin-top: calc(var(--space-2) - var(--space-5)); }
 }
 .cell {
   position: relative; display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: var(--size-row-sm);

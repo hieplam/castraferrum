@@ -306,8 +306,11 @@ Screens put kit components together in `web/features/`. Never add a class that i
   the boards draw it (`reference/m-*.png`): the caption sits `--space-2` above it, while sections stay the page's
   `--space-5` apart. Inside a section the caption sits `--space-2` under what is above it too: under a `.section-head`
   (the current period of Recent runs) and before the section's second group (Earlier active periods). A caption that
-  opens the page (the editor, under the bar) sits `--space-2` under the bar, as a page head does. One rule of
-  `components.css` ("Inset list") does this for every screen; a screen never sets a caption's margins.
+  opens the page (the editor, under the bar) sits `--space-2` under the bar, as a page head does. What a captioned
+  group carries right after it, a `.group-note`, a `.note`, a `.card` or a `.btn` (the editor's repo note, schedule
+  preview, mock agent note and Register a repo), belongs to the same section and sits `--space-2` under the group
+  (`reference/m-form-light.png`). One rule of `components.css` ("Inset list") does this for every screen; a screen
+  never sets a caption's or a note's margins.
 - **Data text.** A path, an address or a version in a cell is `.cell-meta.is-data` or `.cell-value.is-data`
   (`--font-data`). `.cell-row` wraps its parts onto the next line when they do not fit. A `.cell-meta` made of
   spans (a loop row: repo, short schedule, next run) wraps between its spans, never inside one; `.is-one-line` cuts
