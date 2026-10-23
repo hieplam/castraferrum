@@ -36,8 +36,9 @@ export async function isNewUi(page: Page): Promise<boolean> {
   return ui === 'new';
 }
 
-/** New UI (spec 7.2): row actions are visible at rest; no hover. */
+/** New UI (spec 7.2): row actions are visible at rest (D9), so there is nothing to reveal; the classic UI shows them on hover. */
 export async function revealRowActions(row: Locator): Promise<void> {
+  if (await isNewUi(row.page())) return;
   await row.hover();
 }
 
@@ -76,8 +77,12 @@ export function statValue(page: Page, stat: 'active-loops' | 'running-runs' | 'r
   return page.getByTestId(`stat-${stat}`);
 }
 
-/** New UI (spec 7.2): the Repeat select `sched-kind` and its value. */
+/** New UI (spec 7.2): the Repeat select `sched-kind` takes the kind as its value; the classic UI has one `sched-kind-<k>` button per kind. */
 export async function pickScheduleKind(page: Page, kind: string): Promise<void> {
+  if (await isNewUi(page)) {
+    await page.getByTestId('sched-kind').selectOption(kind);
+    return;
+  }
   await page.getByTestId(`sched-kind-${kind}`).click();
 }
 
