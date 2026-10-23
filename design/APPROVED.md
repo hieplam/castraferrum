@@ -320,3 +320,32 @@ the rules of `ds/SYSTEM.md`, the preview is corrected and re-shot, and this file
   `repos-add-mac`, `repos-add-notfound`, `repos-err-dup-name`, `repos-err-dup-path`, `repos-err-missing`, `vi-repos-add`
   (the chips' font in the dialog), `phone-loops-empty`, `phone-settings`, `phone-vi-settings` (the title's top row). Every
   other shot is unchanged.
+
+## Agent corrections under the owner's rule of 2026-10-23 - text and counts found by the acceptance (U27), 2026-10-24
+
+Made by the agent of the "text and counts" lane of the U27 defects (castraferrum#185, castraferrum#186, castraferrum#190,
+castraferrum#191, castraferrum#195) under the owner's rule of 2026-10-23 (the owner is not asked). Each is a defect the
+preview and the app shared; both are fixed from the same source (the locale files, the system's `.data`), and the
+preview is re-shot.
+
+- **A count of one is singular** (castraferrum#185): `log.saved`, `tx.input` and `runs.all` become plural keys
+  (`.one`, `.other`) in both locales, read with `tn()`: "stored log · 1 line", "input · 1 line", "1 run".
+- **A count and its word stay together** (castraferrum#186): in `tx.lines`, `tx.input` and `log.saved` the number and
+  its word are joined by a no-break space, so the prompt fold "… · 3 lines" wraps before the count, never inside it.
+  Written in [`ds/SYSTEM.md`](ds/SYSTEM.md), "Content" ("Words that stay together").
+- **An interrupted run is not failed** (castraferrum#190): the counts of an active period name the states of its list;
+  the API's period stats count `interrupted` on its own (`failed` = failed and timed out), and the words read
+  "3 succeeded · 1 interrupted". In [`ds/preview/data.js`](ds/preview/data.js) period #2 of `pilot` counts
+  `[3, 0, 0, 0, 1]` (the fifth count is interrupted), so its meta line reads "4 runs" without "1 failed".
+  Written in `ds/SYSTEM.md`, "Content" ("Run counts").
+- **A command never breaks at its hyphens** (castraferrum#191): the help sheet names `claude --resume` as a `.data`
+  inside the sentence (`help.sessionBody` takes `{cmd}`), the existing class for data inside a sentence that is never
+  broken across lines; `ds/SYSTEM.md`, "Misc", adds the command to what `.data` is used for.
+- **A Vietnamese weekday name stays on one line** (castraferrum#195): its two words are joined by a no-break space in
+  `shared/i18n/vi.ts` (the schedule sentences and the Advanced sentences read the same names).
+
+Re-shot with `npm run design:shots -- --design design/ds`, light and dark (26 shots, no other shot changed):
+`run-interrupted`, `run-repo-missing` (singular log header), `run-succeeded`, `run-resume-copied`, `vi-run-transcript`
+(the fold count), `period-server-down` (the counts), `loop-running`, `loop-stopping`, `loop-disconnected`,
+`phone-loop-running` (the meta line of period #2), `loop-help`, `phone-loop-help` (the command) and `vi-loops-overview`
+(the weekday names).
