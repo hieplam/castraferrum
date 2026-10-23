@@ -1774,3 +1774,71 @@ Run with `LOOPS_TEST_DATABASE_URL` pointing at the lane database `loops_u23_test
   `Used by Loop A, Loop B (archived). Delete or move those loops first.`, `element(s) not found`.
 - A language switch that only changes `html[lang]` (`setLang` in `web/prefs/prefs.tsx` writing `lang` and nothing else):
   UC-18 in `chromium-new` fails, `nav-loops` expected `/^Loop\d*$/`, received `Loops1`. `2 failed` in one run.
+
+## U24
+
+Status: done. UC-34 (`tests/e2e/phone.spec.ts`) walks the whole job by touch on the new UI, in Chromium at 390 by 844 with
+touch (`chromium-new`) and in WebKit as an emulated iPhone 15 (the new project `webkit-phone`); the console has a web app
+manifest, its three icons and the iOS head. The check on a real iPhone stays with castraferrum#47.
+
+### What changed
+
+- `tests/e2e/phone.spec.ts` (`@UC-34`): Loops tab, `list-create`, the editor (name, prompt, repo, Mock, 600 s), Create
+  loop (checked in the DB), `loop-start` in the action bar, a `live-log` line within 1 second, `run-row`, the transcript
+  section in view, back to the Loops tab, `row-stop` then `stop-confirm` in the sheet (checked in the DB), the Repos tab,
+  `repo-add`, `repo-path`, `repo-submit` (checked through the API). After every step: `scrollWidth <= innerWidth`, no
+  visible button, link or form control under 44 by 44 (a control's target is its box joined with its `labels`), and on
+  the tab roots the tab bar visible at the bottom of the screen (absent on pushed pages).
+- `playwright.config.ts`: `phone.spec.ts` in `chromium-new` and ignored by `chromium`; the project `webkit-phone`
+  (`devices['iPhone 15']`, the new-UI `storageState`).
+- `web/index.html`: `theme-color` (`#f3ecdc`, the app updates it with the theme), the manifest and apple-touch-icon links;
+  `web/main.tsx` adds `viewport-fit=cover` for the new UI only; `web/public/manifest.webmanifest`, `web/public/icon.svg`,
+  `scripts/make-icons.mjs` and the PNGs `apple-touch-icon.png` (180), `icon-192.png`, `icon-512.png`.
+- `tests/tools/pwa.test.ts`: the manifest fields of spec 4.9, the PNG sizes from their IHDR headers, the head links.
+- `scripts/phone-check.mts`: it waited for the classic lamp (`lamp-server`), which the new UI does not draw, so
+  `--ui new` timed out; it now also accepts the new UI's `conn` `data-server="ok"`.
+- Design-system gap closed inside `design/ds/SYSTEM.md` (recorded in `design/APPROVED.md`): on the phone, `.seg` and
+  `.stepper` buttons, the `.group-cap .link`, narrow `.chip`s and `.fcell.is-row` values were under `--size-touch`; they
+  are now 44px. 28 phone shots re-shot (6 to 26px taller), no desktop shot changed.
+- `docs/USE-CASES.md`: the UC-34 row; `package.json` `verify`: `phone:check -- --ui new --max 0` after the e2e step and
+  `uc-coverage -- --min 33`; `tests/tools/uc-coverage.test.ts` reads 33 UC ids.
+
+### Ratchet
+
+- `npm run phone:check -- --ui new`: no number before (the tool timed out on the new UI) -> `phone overflow: 0/12`.
+- `npm run uc-coverage`: `32/32` on `main` -> `33/33` (UC-34 counted); `verify` floor `32` -> `33`.
+- `npm run ratchets`: `e2e expects: 804` on `main` (after U23) -> `835`; `e2eExpectsMin` `804` -> `835`.
+
+### Red
+
+- `npm run build`, then `npx playwright test --project webkit-phone`:
+  `Error: Project(s) "webkit-phone" not found. Available projects: "chromium", "chromium-new", "visual"`.
+- `npx vitest run --project unit tests/tools/pwa.test.ts`: `10 failed`, the first `expected false to be true` (no
+  `web/public/manifest.webmanifest`), the rest `ENOENT`.
+- `npx playwright test tests/e2e/phone.spec.ts --project=chromium-new`, once written: `1 failed` at
+  `Editor: fits the phone`, `targets under 44 by 44`: `f-name` and `f-description` 32px tall, `sched-kind` and `sched-tz`
+  32px, the stepper buttons 44 by 42, `f-executor-*` and `f-model-*` 38px, `f-effort` 32px, `f-timeout` 32px; later
+  steps: `list-search` 20px, the Loops filter tabs 38px. The walk itself (create, start, live log, transcript, stop,
+  register) already worked. After the first fixes, WebKit found the `folder-place` chips "C:" and "D:" 39 and 40px wide,
+  and after the rebase on U21 the period link of the loop page's caption 18px tall.
+- `npm run phone:check -- --ui new`: `page.waitForFunction: Timeout 30000ms exceeded` (waiting for `lamp-server`); with
+  the wait fixed and before any layout change: `phone overflow: 0/12`.
+
+### Green
+
+- (1) `npx playwright test tests/e2e/phone.spec.ts --project=chromium-new`: `1 passed`.
+- (2) `npx playwright test --project webkit-phone`: `1 passed` (run together with (1): `2 passed (17.5s)`).
+- (3) `npx vitest run --project unit tests/tools/pwa.test.ts`: `Tests  10 passed (10)`.
+- (4) `npm run phone:check -- --ui new`: twelve `ok` lines, `phone overflow: 0/12`.
+- (5) `npm run verify` (lane database `loops_u24_test`, port 7186), exit 0: `states with shots: 120/120`, typecheck,
+  lang-scan, arch `0 violations`, `ratchets: ok`, unit `520 passed | 2 skipped`, contract `114 passed`, api
+  `115 passed`, api-smoke, build, e2e `139 passed`, `phone overflow: 0/12`, `UCs with a green e2e: 33/33` (main: 32/32).
+  The first verify run also had the known flaky classic `list.visual.ts` "LOOP_ALREADY_ACTIVE toast" (castraferrum#157)
+  fail once; it passed in the next run.
+
+### Stub check
+
+- Without the phone sizes in `design/ds/components.css` the walk fails at the editor (controls under 44 by 44, listed
+  above); a page that scrolls sideways fails the `scrollWidth` check; a row without a tappable `row-stop` fails the stop
+  step; without the tab bar on the tab roots the bottom check fails.
+- Without the manifest, the icons or the head links, `tests/tools/pwa.test.ts` fails (Red above).
