@@ -1,7 +1,7 @@
 /// <reference lib="dom" />
 // Shared tools of the form e2e tests (tests/e2e/form.spec.ts) and the form shots (tests/visual/form.visual.ts): call the
 // API of the Playwright server (test mode), read Postgres directly, fill the form like a user. The sample data comes from
-// design/preview/data.js (SAMPLE_NEW = the "Scan API logs for crashes" loop, PILOT = the "Issue backlog worker" loop),
+// design/ds/preview/data.js (SAMPLE_NEW = the "Scan API logs for crashes" loop, PILOT = the "Issue backlog worker" loop),
 // as preview.js uses it, so the app shots match the preview shots.
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import pg from 'pg';

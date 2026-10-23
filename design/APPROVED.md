@@ -241,3 +241,21 @@ Made by the agent of task U24 (castraferrum#92) under the same rule (a gap in th
   `phone-frame-loading`, `phone-loops-overview`, `phone-vi-loops-overview`, `phone-loops-repo-filter`,
   `phone-loops-stop-confirm`, `phone-loop-running`, `phone-loop-last-failed`, `phone-settings` and `phone-vi-settings`
   (28 shots: 6 to 26px taller where a segmented control, a stepper, a row or a caption link grew); no desktop shot changed.
+
+## Cut-over - the new UI only (U25), 2026-10-23
+
+Made by the agent of task U25 (castraferrum#93) under the rule in the epic's body (the owner is not asked; the plan names
+the cut-over's files). From this entry on, the design system in [`ds/`](ds/) and its preview are the only design of the
+console, and every UI change is checked against them.
+
+- **Deleted:** the first system ("Control room", the entries above from 2026-10-18 to 2026-10-21 up to the dark-token
+  hotfix): `tokens.css`, `components.css`, `STATES.md`, `contrast-pairs-classic.json`, `system/` and `preview/` with its
+  shots, together with the classic UI in `web/`, its fonts (IBM Plex) and its visual tests. The links of those entries
+  point at files that are now only in the git history; the entries stay as the record of what was approved.
+- **Unchanged:** every token, class, state and shot of `ds/`. The app reaches them the way it did in the new UI: `web/main.tsx`
+  imports `web/ui/kit/styles.css` (which imports `ds/tokens.css` and `ds/components.css`) and `web/ui/kit/fonts.ts`.
+- **One wording change in `ds/SYSTEM.md`:** "iOS" says that `web/index.html` itself asks for `viewport-fit=cover` (it was
+  added at run time for the new UI only); "Texts" and "Test ids" no longer mention the classic UI.
+- **The checks:** `npm run design:lint` now reads `ds/components.css` only, and its maxima (`maxTitle`, `maxUnknown`,
+  `maxLiteral` of `scripts/ratchets.json`) are 0. The design scripts (`design:states`, `design:shots`, `design:compare`)
+  default to `design/ds`.

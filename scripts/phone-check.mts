@@ -1,11 +1,11 @@
-// npm run phone:check [-- --ui new] [--max k]
+// npm run phone:check [-- --max k]
 // Does any screen scroll sideways on a phone or a tablet? (UI uplift, task U0.) Starts its own test-mode server
 // (tests/support/server-process.ts, needs `npm run build` first: the server serves dist/web), seeds one repo and two loops
 // through the API (one running on the Mock executor with a finished run, one stopped), then opens six screens in Chromium
 // at 390x844 and 768x1024 (isMobile, hasTouch). On each screen it measures the `scrollWidth` of the document against the
 // viewport width, plus any visible element whose right edge passes the viewport and whose nearest scrolling ancestor is the document.
 // Prints `<screen>@<width>: ok` or `<screen>@<width>: overflow <px>px (<selector>)`, then `phone overflow: k/12`.
-// `--ui new` opens every URL with `?ui=new`; `--max k` exits 1 above k.
+// `--max k` exits 1 above k.
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -92,9 +92,8 @@ async function seed(sp: ServerProcess): Promise<Record<string, string>> {
 }
 
 async function main(): Promise<void> {
-  const { values } = parseArgs({ options: { ui: { type: 'string' }, max: { type: 'string' } } });
+  const { values } = parseArgs({ options: { max: { type: 'string' } } });
   if (!existsSync(join(ROOT, 'dist', 'web', 'index.html'))) throw new Error('dist/web is missing: run `npm run build` first');
-  const query = values.ui === 'new' ? '?ui=new' : '';
   const sp = await ServerProcess.launch();
   const browser = await chromium.launch();
   let bad = 0;
@@ -105,13 +104,9 @@ async function main(): Promise<void> {
       const context = await browser.newContext({ viewport: size, isMobile: true, hasTouch: true });
       const page = await context.newPage();
       for (const [screen, path] of Object.entries(screens)) {
-        await page.goto(`${sp.baseUrl}${path}${query}`);
-        // The classic UI shows the server lamp; the new UI shows `conn` (in its top bar, present in the DOM on every screen size).
-        await page.waitForFunction(
-          () =>
-            document.querySelector('[data-testid="lamp-server"]')?.getAttribute('data-state') === 'ok' ||
-            document.querySelector('[data-testid="conn"]')?.getAttribute('data-server') === 'ok',
-        );
+        await page.goto(`${sp.baseUrl}${path}`);
+        // `conn` sits in the top bar, present in the DOM on every screen size.
+        await page.waitForFunction(() => document.querySelector('[data-testid="conn"]')?.getAttribute('data-server') === 'ok');
         await page.waitForTimeout(300);
         const o = await overflowOf(page);
         total++;

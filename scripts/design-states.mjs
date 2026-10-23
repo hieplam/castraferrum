@@ -1,16 +1,15 @@
 // npm run design:states — checks that the design preview has every state, each with a light and a dark shot.
-// N = number of table rows of design/STATES.md (first cell shaped `id`). A row passes when:
-//   - the id is in design/preview/states.js (the preview page can draw it), and
-//   - design/preview/shots/<id>-light.png + <id>-dark.png exist and are real PNGs (≥ 10 KB).
+// N = number of table rows of design/ds/STATES.md (first cell shaped `id`). A row passes when:
+//   - the id is in design/ds/preview/states.js (the preview page can draw it), and
+//   - design/ds/preview/shots/<id>-light.png + <id>-dark.png exist and are real PNGs (≥ 10 KB).
 // Also checked both ways: an id in states.js that is not in STATES.md → error. Two files are build output of
 // `npm run design:shots` (git-ignored) and must match their sources byte for byte when present:
-// design/preview/messages.js ← shared/i18n/en.ts + vi.ts (UI texts) and design/preview/schedule.js ←
+// design/ds/preview/messages.js ← shared/i18n/en.ts + vi.ts (UI texts) and design/ds/preview/schedule.js ←
 // shared/domain/schedule.ts (schedule descriptions, warnings, cron errors, next runs — one source with the real code, the
 // preview never writes schedule sentences). When one is missing, a note says to run `npm run design:shots`.
 // Prints "states with shots: k/N" + what is missing; anything missing → exit 1.
-// Options: --design <folder> (default design/; design/ds for the new preview), --i18n <folder> (default shared/i18n/),
-// --no-shots (only the state list both ways and the build output; prints "states: k/N (shots not checked)" — the new
-// preview has no shots until the owner approves it).
+// Options: --design <folder> (default design/ds/), --i18n <folder> (default shared/i18n/), --no-shots (only the state
+// list both ways and the build output; prints "states: k/N (shots not checked)").
 // checkDrawn() is the dry-run check of `npm run design:shots -- --dry`: required test ids, unknown classes, inline styles.
 // compressPng() is the lossless re-encode of `npm run design:shots -- --compress`.
 import { existsSync, readFileSync, statSync } from 'node:fs';
@@ -21,7 +20,7 @@ import { PNG } from 'pngjs';
 import { hasColourLiteral } from './design-tokens.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-export const DEFAULT_DESIGN = join(ROOT, 'design');
+export const DEFAULT_DESIGN = join(ROOT, 'design', 'ds');
 export const DEFAULT_I18N = join(ROOT, 'shared', 'i18n');
 export const THEMES = ['light', 'dark'];
 export const GENERATED = ['messages.js', 'schedule.js'];
@@ -41,7 +40,7 @@ export function readPreviewStates(statesJs) {
   return window.PV_STATES ?? [];
 }
 
-/** Content of design/preview/messages.js, built from the i18n key sets (en = default + vi). */
+/** Content of design/ds/preview/messages.js, built from the i18n key sets (en = default + vi). */
 export function messagesJs(en, vi) {
   return '// GENERATED from shared/i18n/en.ts + vi.ts by `npm run design:shots` — do not edit.\n' +
     `window.MESSAGES = ${JSON.stringify({ en, vi }, null, 2)};\n`;
@@ -68,7 +67,7 @@ function wallClock(date, tz) {
 }
 
 /**
- * Content of design/preview/schedule.js: every schedule sentence the preview needs, produced by
+ * Content of design/ds/preview/schedule.js: every schedule sentence the preview needs, produced by
  * shared/domain/schedule.ts — description, warnings, cron error (en + vi) for every cron of data.js, and the next 5 runs
  * of every schedule of the form (pv.schedules).
  */

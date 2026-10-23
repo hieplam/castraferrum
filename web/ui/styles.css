@@ -1,6 +1,0 @@
-/* Design system the design system uses the two approved files AS THEY ARE (no copy, no new tokens - D21): design/tokens.css picks the
-   token set by data-theme on <html>, design/components.css is the CSS layer of every component. The IBM Plex font is self-hosted
-   (@fontsource, OFL license) so it runs without a network; tokens.css still pulls Google Fonts like the preview - with a network the two
-   sources are the same font family. */
-@import "../../design/tokens.css";
-@import "../../design/components.css";

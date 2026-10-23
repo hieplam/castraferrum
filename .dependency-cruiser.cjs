@@ -11,9 +11,6 @@ const DB_LIBS = 'node_modules/(@types/)?(drizzle-orm|pg)/';
 const SERVER_LIBS = 'node_modules/(@types/)?(fastify|@fastify/[^/]+|fastify-type-provider-zod|drizzle-orm|pg)/';
 // Allowed npm packages; also matches the relative path used when running on tests/arch-fixtures/ (../../node_modules/...).
 const npm = (names) => `(^|/)node_modules/(${names})/`;
-// The classic UI files (scripts/classic-ui-files.json, UI uplift task U13): what the cut-over (U25) deletes.
-const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const CLASSIC_UI = `^(${require('./scripts/classic-ui-files.json').map(escape).join('|')})$`;
 
 /** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {
@@ -148,13 +145,6 @@ module.exports = {
       severity: 'error',
       from: { path: '^web/prefs/', pathNot: TEST_FILE },
       to: { pathNot: `^(web/prefs|shared/(i18n|domain))/|${npm('react')}` },
-    },
-    {
-      name: 'no-new-ui-to-classic',
-      comment: 'nothing new may depend on the classic UI (scripts/classic-ui-files.json): only the listed files themselves, the switch web/app/App.tsx and web/main.tsx import a listed file, so the cut-over deletes them without breaking anything',
-      severity: 'error',
-      from: { path: '^web/', pathNot: `${CLASSIC_UI}|^web/app/App\\.tsx$|^web/main\\.tsx$` },
-      to: { path: CLASSIC_UI },
     },
     {
       name: 'web-no-server-import',

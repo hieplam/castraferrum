@@ -11,7 +11,6 @@ import { findSessionFile, readFileEntries } from '../support/claude-transcript';
 import { api, closeDb, createLoop, db, reset } from '../support/form-kit';
 import { MOCK_DONE_LOG } from '../support/server-text';
 import { t } from '../support/ui-text';
-import { isNewUi } from '../support/ui';
 
 test.use({ timezoneId: 'Asia/Ho_Chi_Minh' });
 test.afterAll(closeDb);
@@ -109,12 +108,11 @@ test.describe.serial('real Claude transcript (haiku)', () => {
     await expect(rowsOf(page).first()).toBeVisible();
     const firstPage = await rowsOf(page).count();
     expect(firstPage, 'last page (LOOPS_TRANSCRIPT_PAGE=4)').toBeLessThanOrEqual(4);
-    // New UI (spec 5.5): the top edge says "Loading older entries" while older pages remain; once the first entry is loaded the top
-    // edge goes away and the only edge left is the end line of the session. The classic UI writes "start of transcript" on top.
-    const fresh = await isNewUi(page);
-    const older = fresh ? t('tx.loadingOlderEntries') : t('tx.loadingOlder');
+    // The top edge says "Loading older entries" while older pages remain; once the first entry is loaded the top
+    // edge goes away and the only edge left is the end line of the session.
+    const older = t('tx.loadingOlderEntries');
     const [endHead, endTail] = t('tx.end', { t: '{t}' }).split('{t}') as [string, string];
-    const atStart = (text: string | null) => (fresh ? text !== null && text.startsWith(endHead) && text.endsWith(endTail) : text === t('tx.start'));
+    const atStart = (text: string | null) => text !== null && text.startsWith(endHead) && text.endsWith(endTail);
     await expect(page.getByTestId('run-transcript-edge')).toHaveText(older); // hasMore
 
     // Scroll to the top repeatedly until "start of transcript" shows (no button - the project owner decided #4).
@@ -126,10 +124,8 @@ test.describe.serial('real Claude transcript (haiku)', () => {
       await page.mouse.wheel(0, -600);
       await page.waitForTimeout(150);
     }
-    if (fresh) {
-      await expect(page.getByTestId('run-transcript-edge')).toHaveCount(1);
-      expect(atStart(await page.getByTestId('run-transcript-edge').textContent()), 'the top edge is gone, only the end line is left').toBe(true);
-    } else await expect(page.getByTestId('run-transcript-edge')).toHaveText(t('tx.start'));
+    await expect(page.getByTestId('run-transcript-edge')).toHaveCount(1);
+    expect(atStart(await page.getByTestId('run-transcript-edge').textContent()), 'the top edge is gone, only the end line is left').toBe(true);
 
     const entries = readFileEntries(file);
     const shown = await rowsOf(page).count();
@@ -182,13 +178,11 @@ test('UC-28: skipped run -> "no session"; a Mock run with a mock-… session but
   expect(findSessionFile(sid)).toBeNull();
   await page.goto(`/runs/${mockRun}`);
   await expect(page.getByTestId('run-header')).toHaveAttribute('data-status', 'succeeded');
-  // New UI (spec 5.5): the run's facts are the `run-facts` group (the classic `run-kv` grid); the notes are the new keys, with no glyph.
-  const fresh = await isNewUi(page);
-  const facts = page.getByTestId(fresh ? 'run-facts' : 'run-kv');
+  // The run's facts are the `run-facts` group; the notes have no glyph.
+  const facts = page.getByTestId('run-facts');
   const note = page.getByTestId('run-transcript-note');
   await expect(note).toHaveAttribute('data-mode', 'missing');
-  if (fresh) await expect(note).toHaveText(t('tx.note.missing', { id: sid }));
-  else await expect(note).toContainText(`No transcript for session ${sid}`);
+  await expect(note).toHaveText(t('tx.note.missing', { id: sid }));
   await expect(page.getByTestId('run-transcript')).toHaveCount(0);
   await expect(facts).toBeVisible();
   await expect(page.getByTestId('run-log')).toContainText(MOCK_DONE_LOG);
@@ -205,7 +199,7 @@ test('UC-28: skipped run -> "no session"; a Mock run with a mock-… session but
   await page.goto(`/runs/${skipId}`);
   await expect(page.getByTestId('run-header')).toHaveAttribute('data-status', 'skipped');
   await expect(note).toHaveAttribute('data-mode', 'noSession');
-  await expect(note).toHaveText(fresh ? t('tx.note.noSession') : `↷${t('tx.noSession')}`);
+  await expect(note).toHaveText(t('tx.note.noSession'));
   await expect(page.getByTestId('run-transcript')).toHaveCount(0);
   await expect(facts).toBeVisible();
   await expect(page.getByTestId('skip-reason')).toBeVisible();

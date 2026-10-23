@@ -1,5 +1,5 @@
 // npm run design:shots [-- --only id1,id2] [-- --theme light|dark] [-- --design <folder>] [-- --dry] — shoots the design
-// preview (design/preview by default; --design design/ds for the new preview of the UI uplift, epic #63).
+// preview (design/ds by default).
 // 1. Writes <folder>/preview/messages.js from shared/i18n/en.ts + vi.ts (UI texts) and <folder>/preview/schedule.js from
 //    shared/domain/schedule.ts (schedule sentences, warnings, cron errors, next runs) — the preview never writes these
 //    itself. Both are build output (git-ignored).
@@ -7,9 +7,8 @@
 //    <folder>/preview/states.js (at its viewport), waits for the fonts, shoots the whole page (animations off) →
 //    <folder>/preview/shots/<id>-<t>.png.
 // A page that reports a problem (missing i18n key, cannot draw, JS error) → that image is not written, the problem is
-// printed, exit 1. The classic preview needs the network the first time: design/tokens.css loads IBM Plex from Google
-// Fonts; the new preview loads its fonts from node_modules (design/ds/fonts.css). Check the full set with
-// npm run design:states.
+// printed, exit 1. The preview loads its fonts from node_modules (design/ds/fonts.css), so it needs no network. Check the
+// full set with npm run design:states.
 // --dry draws every state in both themes and writes no image. A problem is also: a required test id (the state's
 // `requires`, visible elements only) missing or with the wrong count, a class <folder>/components.css does not define,
 // an inline style with a colour literal or a px, rem or em length. Prints "drawn <k> states x <t> themes, <n> problems";

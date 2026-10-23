@@ -15,7 +15,7 @@ separate id `phone-<id>` that draws its base state at 390 by 844. Open a state l
   `npm run design:states -- --design design/ds` also checks them.
 - **Add a state:** a row here, an entry in `preview/states.js` (with its `requires`), and a draw function in
   `preview/preview.js`.
-- The sample world is the classic one (`preview/data.js`, copied from `design/preview/data.js`): now is Sunday
+- The sample world is the one of the first preview (`preview/data.js` was copied from it): now is Sunday
   2026-10-18 14:00:42; the server crashed on 2026-10-17 at 09:31:05.
 - Board: the image of [`design/reference/`](../reference/README.md) that shows the state. A state without a board
   follows spec sections 4 and 4.6; the owner approves it at U10.

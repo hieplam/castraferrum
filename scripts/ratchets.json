@@ -1,8 +1,9 @@
 {
   "tokens": [
-    { "file": "design/tokens.css", "pairs": "design/contrast-pairs-classic.json", "maxEmpty": 0, "maxMissingDark": 0, "maxContrast": 0 },
+    { "file": "design/tokens.css", "removedBy": "U25" },
     { "file": "design/ds/tokens.css", "pairs": "design/ds/contrast-pairs.json", "require": "design/ds/required-tokens.json", "maxEmpty": 0, "maxMissingDark": 0, "maxContrast": 0, "maxMissing": 0 }
   ],
-  "lint": { "maxTitle": 8, "maxUnknown": 0, "maxLiteral": 0 },
-  "e2eExpectsMin": 847
+  "lint": { "maxTitle": 0, "maxUnknown": 0, "maxLiteral": 0 },
+  "e2eExpectsMin": 745,
+  "e2eExpectsLoweredBy": { "task": "U25", "from": 847, "classicBranchExpects": 102 }
 }

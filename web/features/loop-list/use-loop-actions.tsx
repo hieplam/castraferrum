@@ -1,7 +1,7 @@
 // The actions on a loop in the new UI, shared by the Loops page and the loop page (UC-03, 10, 11; D29):
 // Start; Stop (the sheet while a run is working, at once otherwise); Duplicate (opens the copy in the editor); Archive and Restore.
 // A refused action shows a toast translated by its `code` (D-UI3). Every write goes through `useLoopAction` (web/data): the screen
-// never computes a loop's state itself. It follows the classic web/features/loop-detail/actions.tsx, rebuilt without its components.
+// never computes a loop's state itself.
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router';
 import type { LoopDto } from '../../../shared/contracts/loops';

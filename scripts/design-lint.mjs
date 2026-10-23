@@ -3,10 +3,8 @@
 // Web rules, over web/**/*.tsx except tests (parsed with the TypeScript compiler API):
 //   - native title: a JSX `title` attribute on an intrinsic element or on Button, IconButton, ActionButton;
 //   - unknown classes: class tokens of `className="..."`, `className={'...'}` and the string arguments of `cx(...)`
-//     (the right side of `&&` and both branches of `? :` included) that no class selector of the design CSS defines.
-//     With scripts/classic-ui-files.json, the files it lists are checked against design/components.css plus
-//     design/ds/components.css, every other file against design/ds/components.css only; without it, every file is checked
-//     against the design CSS files that exist;
+//     (the right side of `&&` and both branches of `? :` included) that no class selector of design/ds/components.css
+//     defines;
 //   - dynamic classes: template literals with expressions in those places (counted, not checked);
 //   - literal styles: properties of a `style={{...}}` object holding a colour literal, a px/rem/em string, or a number on
 //     a length property.
@@ -21,9 +19,7 @@ import ts from 'typescript';
 import { hasColourLiteral, lineAt, parseCss } from './design-tokens.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const CLASSIC_CSS = 'design/components.css';
 const DS_CSS = 'design/ds/components.css';
-const CLASSIC_LIST = 'scripts/classic-ui-files.json';
 const TITLE_COMPONENTS = new Set(['Button', 'IconButton', 'ActionButton']);
 const LENGTH_PROPS = new Set([
   'width', 'height', 'minWidth', 'maxWidth', 'minHeight', 'maxHeight', 'top', 'right', 'bottom', 'left', 'inset',
@@ -143,15 +139,11 @@ function tsxFiles(dir) {
 export function lintRepo(root = ROOT) {
   const read = (p) => readFileSync(join(root, p), 'utf8');
   const has = (p) => existsSync(join(root, p));
-  const classic = has(CLASSIC_CSS) ? cssClasses(read(CLASSIC_CSS)) : new Set();
   const ds = has(DS_CSS) ? cssClasses(read(DS_CSS)) : new Set();
-  const both = new Set([...classic, ...ds]);
-  const classicList = has(CLASSIC_LIST) ? new Set(JSON.parse(read(CLASSIC_LIST))) : null;
   const out = { titles: [], unknown: [], dynamic: [], literal: [], css: [] };
   for (const abs of tsxFiles(join(root, 'web'))) {
     const file = relative(root, abs).replaceAll('\\', '/');
-    const known = !classicList || classicList.has(file) ? both : ds;
-    const r = lintTsx(file, readFileSync(abs, 'utf8'), known);
+    const r = lintTsx(file, readFileSync(abs, 'utf8'), ds);
     for (const k of ['titles', 'unknown', 'dynamic', 'literal']) out[k].push(...r[k]);
   }
   if (has(DS_CSS)) out.css = lintCss(DS_CSS, read(DS_CSS));

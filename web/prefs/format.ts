@@ -1,4 +1,4 @@
-// Number / duration / time formatting shared by the 5 screens - written exactly the way the approved preview does (design/preview/preview.js);
+// Number / duration / time formatting shared by the 5 screens - written exactly the way the approved preview does (design/ds/preview/preview.js);
 // the unit words come from the i18n key set (`dur.*`, `rel.in`). Pure functions: they take the `t` of the selected language.
 import type { Lang, MessageKey, Params } from './messages';
 

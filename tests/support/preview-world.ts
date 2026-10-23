@@ -1,4 +1,4 @@
-// The "world" of the approved design preview (design/preview/data.js) seeded STRAIGHT into Postgres — so the shots of the
+// The "world" of the approved design preview (design/ds/preview/data.js) seeded STRAIGHT into Postgres — so the shots of the
 // real app (tests/visual/) placed next to the preview shots carry exactly the same data: same repos, same Claude loops
 // (model / effort, optional timeout), same execution #k, same runs (session id, cost, summary, console log lines —
 // D-UI18). It reads data.js itself (one source — when the preview changes, the seeded data follows), nothing is copied by
@@ -27,10 +27,10 @@ import type pg from 'pg';
 import { REPO_MISSING_PREFIX } from '../../shared/domain/cost';
 import { en } from '../../shared/i18n/en';
 
-/** The classic preview's data (the default of every function below). */
-export const DATA_JS = fileURLToPath(new URL('../../design/preview/data.js', import.meta.url));
-/** The new preview's data (UI uplift, design/ds/preview/data.js): the world of the new UI's visual tests. */
-export const DS_DATA_JS = fileURLToPath(new URL('../../design/ds/preview/data.js', import.meta.url));
+/** The approved preview's data (design/ds/preview/data.js): the default of every function below. */
+export const DATA_JS = fileURLToPath(new URL('../../design/ds/preview/data.js', import.meta.url));
+/** The same file under the name the visual tests of the new UI use (UI uplift, task U13). */
+export const DS_DATA_JS = DATA_JS;
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Any = any;
@@ -51,7 +51,7 @@ export type PreviewData = {
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 const cached = new Map<string, PreviewData>();
-/** The `window.PV` of a preview's data.js (`file`: DATA_JS by default, DS_DATA_JS for the new UI). */
+/** The `window.PV` of a preview's data.js (`file`: DATA_JS by default). */
 export function previewData(file = DATA_JS): PreviewData {
   const hit = cached.get(file);
   if (hit) return hit;
@@ -77,7 +77,7 @@ export function pvTime(s: string): Date {
 }
 const addSec = (at: Date, s: number) => new Date(at.getTime() + s * 1000);
 
-// ── hashes like design/preview/preview.js (uuid, sid) ─────────────────────
+// ── hashes like design/ds/preview/preview.js (uuid, sid) ─────────────────────
 function hash32(str: string, seed: number): string {
   let h = 2166136261;
   for (const c of str) {
@@ -369,7 +369,7 @@ export async function seedPreviewWorld(db: pg.Pool, opts: { history?: boolean } 
         const runs = executionRuns(key, e, lastIter, running, file);
         lastIter -= runs.filter((r) => r.n !== null).length;
         if (!current && !opts.history) continue;
-        for (const r of runs) await insertRun(c, key, l, eid, r, repoPath, pv, file === DS_DATA_JS);
+        for (const r of runs) await insertRun(c, key, l, eid, r, repoPath, pv);
       }
     }
     await c.query('COMMIT');
@@ -382,12 +382,12 @@ export async function seedPreviewWorld(db: pg.Pool, opts: { history?: boolean } 
   return pv;
 }
 
-async function insertRun(c: pg.PoolClient, key: string, l: Any, eid: string, r: RunRow, repoPath: string, pv: PreviewData, ds: boolean): Promise<void> {
+async function insertRun(c: pg.PoolClient, key: string, l: Any, eid: string, r: RunRow, repoPath: string, pv: PreviewData): Promise<void> {
   const config = { model: l.claude.model, effort: l.claude.effort };
   const id = runId(key, r.n, r.startText || r.start.toISOString());
-  // Old prompt snapshot. The classic preview draws run-succeeded (#68) and vi-run-transcript (#63) with oldPrompt; the new
-  // preview draws every run of "Issue backlog worker" up to #68 with it (its prompt was edited at 18/10 13:41:07, after #68).
-  const old = key === 'pilot' && r.n !== null && (ds ? r.n <= 68 : r.n === 68 || r.n === 63);
+  // Old prompt snapshot. The preview draws every run of "Issue backlog worker" up to #68 with oldPrompt (its prompt was
+  // edited at 18/10 13:41:07, after #68).
+  const old = key === 'pilot' && r.n !== null && r.n <= 68;
   const prompt = old ? l.promptOld : l.prompt;
   if (r.st === 'skipped') {
     await c.query(

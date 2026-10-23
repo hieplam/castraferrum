@@ -1,7 +1,7 @@
 // The active period page of the new UI (spec 5.4, `/executions/:id`; the API keeps the name execution): its number and state, when
 // it started and ended, how long it lasted, its runs with their counts as words, "Copy N session ids" (the API's `sessionIds`, in
-// run order, also over plain HTTP: D15), and every run of the period with its session id. The classic page's developer line naming
-// the API call is not shown.
+// run order, also over plain HTTP: D15), and every run of the period with its session id. No developer line names
+// the API call.
 import type { ExecutionDetailDto, LoopDetailDto } from '../../../shared/contracts/loops';
 import { useNow } from '../../data/connection';
 import { useExecution } from '../../data/history';

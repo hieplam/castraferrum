@@ -34,20 +34,18 @@ describe('design-lint, web', () => {
     expect(tsx("<div style={{ border: 'var(--border-w) solid var(--border)', ['--cols' as string]: 3, flex: 1 }} />").literal).toHaveLength(0);
   });
 
-  it('a classic-only class in a file not on the classic list is unknown', () => {
+  it('a class that design/ds/components.css does not define is unknown; test files are not read', () => {
     const root = mkdtempSync(join(tmpdir(), 'design-lint-'));
     const put = (p: string, s: string) => {
       mkdirSync(dirname(join(root, p)), { recursive: true });
       writeFileSync(join(root, p), s);
     };
-    put('design/components.css', '.classic-row { color: var(--text); }');
     put('design/ds/components.css', '.ds-row { color: var(--text); }');
-    put('scripts/classic-ui-files.json', JSON.stringify(['web/old/Old.tsx']));
-    put('web/old/Old.tsx', 'export const A = () => <div className="classic-row ds-row" />;');
-    put('web/new/New.tsx', 'export const B = () => <div className="classic-row ds-row" />;');
+    put('web/old/Old.tsx', 'export const A = () => <div className="ds-row" />;');
+    put('web/new/New.tsx', 'export const B = () => <div className="other-row ds-row" />;');
     put('web/new/New.test.tsx', 'export const C = () => <div className="ignored" title="x" />;');
     const r = lintRepo(root);
-    expect(r.unknown.map((u: Unknown) => `${u.file} ${u.cls}`)).toEqual(['web/new/New.tsx classic-row']);
+    expect(r.unknown.map((u: Unknown) => `${u.file} ${u.cls}`)).toEqual(['web/new/New.tsx other-row']);
     expect(r.titles).toHaveLength(0);
     rmSync(root, { recursive: true });
   });

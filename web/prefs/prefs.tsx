@@ -1,6 +1,6 @@
 // Language + light / dark (UC-18): the default is English and follows the system mode; when the user changes it by hand it is remembered in
 // the browser (localStorage - only a convenience of one viewer, if reading / writing breaks it still runs with the defaults).
-// The mode is applied with `data-theme` on <html> - exactly how design/tokens.css picks the token set; the language goes in `lang` of <html>.
+// The mode is applied with `data-theme` on <html> - exactly how design/ds/tokens.css picks the token set; the language goes in `lang` of <html>.
 import { createContext, Fragment, createElement, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
 import { formatParts, MESSAGES, tn as plural, translate, type Lang, type MessageKey, type Params, type PluralBase } from './messages';
 import { applyThemeColor, THEME_STORAGE_KEY, writeThemeChoice, type Theme } from './theme';
@@ -83,7 +83,7 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
   const theme = themeChoice ?? system;
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
-    if (document.documentElement.dataset.ui === 'new') applyThemeColor();
+    applyThemeColor();
   }, [theme]);
   useLayoutEffect(() => {
     document.documentElement.lang = lang;

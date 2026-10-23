@@ -8,7 +8,7 @@ import pg from 'pg';
 import { databaseUrl, loadDotEnv } from '../../server/config';
 import { ensureTestRepo } from '../support/test-repo';
 import { t } from '../support/ui-text';
-import { executionRows, gotoApp, isNewUi, lampState, loopRowOnList, runHistory } from '../support/ui';
+import { executionRows, gotoApp, loopRowOnList, runHistory } from '../support/ui';
 
 loadDotEnv();
 const db = new pg.Pool({ connectionString: databaseUrl(process.env, 'test'), max: 2 });
@@ -48,22 +48,19 @@ async function until<T>(read: () => Promise<T>, ok: (v: T) => boolean, ms = 15_0
 const runStatus = (id: string) => rows<{ status: string }>('SELECT status FROM runs WHERE id = $1', [id]).then((r) => r[0]?.status);
 async function open(page: Page, path: string) {
   await gotoApp(page, path);
-  // New UI (spec 7.2): the lamps are the connection status `conn` with `data-server`.
-  if (await isNewUi(page)) await expect(page.getByTestId('conn')).toHaveAttribute('data-server', 'ok');
-  else await expect(lampState(page, 'server')).toHaveAttribute('data-state', 'ok');
+  // The lamps are the connection status `conn` with `data-server`.
+  await expect(page.getByTestId('conn')).toHaveAttribute('data-server', 'ok');
 }
 /**
- * The loop page says what the loop does now. Classic: the header's status text (`Run #1 in progress`, `next run`). New UI (spec
- * 7.2): the `loop-status` pill carries the kind, and the now card says it in words (`now.working`, `now.waiting`).
+ * The loop page says what the loop does now (spec 7.2): the `loop-status` pill carries the kind, and the now card says it in
+ * words (`now.working`, `now.waiting`).
  */
-async function loopSays(page: Page, status: 'running' | 'active', classic: string, fresh: string, timeout?: number) {
+async function loopSays(page: Page, status: 'running' | 'active', words: string, timeout?: number) {
   const pill = page.locator(`[data-testid="loop-status"][data-status="${status}"]`);
-  if (await isNewUi(page)) {
-    await expect(pill).toHaveText(t(status === 'running' ? 'status.running' : 'status.waiting'), { timeout });
-    await expect(page.getByTestId('now-card')).toContainText(fresh);
-  } else await expect(pill).toContainText(classic, { timeout });
+  await expect(pill).toHaveText(t(status === 'running' ? 'status.running' : 'status.waiting'), { timeout });
+  await expect(page.getByTestId('now-card')).toContainText(words);
 }
-/** `fmtSpan` of the new UI: `42 s`, `3 min`, `1h 5m`, `2d 3h`. */
+/** `fmtSpan`: `42 s`, `3 min`, `1h 5m`, `2d 3h`. */
 function span(sec: number): string {
   const d = Math.floor(sec / 86400);
   const h = Math.floor((sec % 86400) / 3600);
@@ -98,7 +95,7 @@ test.describe('loop detail · execution · run', () => {
     await page.getByTestId('loop-start').click();
 
     // Run #1 starts at once (UC-04) and its log runs live on screen, no F5.
-    await loopSays(page, 'running', 'Run #1 in progress', t('now.working', { n: 1 }));
+    await loopSays(page, 'running', t('now.working', { n: 1 }));
     const live = page.getByTestId('live-log');
     await expect(live.locator('[data-seq="6"]')).toBeVisible({ timeout: 15_000 });
     await expect(live).toHaveAttribute('data-paused', 'false');
@@ -131,14 +128,14 @@ test.describe('loop detail · execution · run', () => {
     expect(Date.now() - t0).toBeLessThanOrEqual(5_000);
     await expect(page.getByTestId('loop-header')).toHaveAttribute('data-status', 'stopped');
     expect(await rows('SELECT end_reason FROM loop_executions WHERE loop_id = $1', [loop.id])).toEqual([{ end_reason: 'stopped' }]);
-    // New UI (spec 7.2): the latest run is the first run of Recent runs.
-    const latest = (await isNewUi(page)) ? page.getByTestId('recent-runs').getByTestId('run-row').first() : page.getByTestId('last-run').getByTestId('run-row');
+    // The latest run is the first run of Recent runs (spec 7.2).
+    const latest = page.getByTestId('recent-runs').getByTestId('run-row').first();
     await expect(latest).toHaveAttribute('data-status', 'cancelled');
 
     // Execution #2: finish a run then Stop while waiting for the next one -> stops straight away, no question (D-UI1).
     await page.getByTestId('loop-start').click();
-    await loopSays(page, 'running', 'Run #2 in progress', t('now.working', { n: 2 }));
-    await loopSays(page, 'active', 'next run', t('now.waiting'), 15_000);
+    await loopSays(page, 'running', t('now.working', { n: 2 }));
+    await loopSays(page, 'active', t('now.waiting'), 15_000);
     await page.getByTestId('loop-stop').click();
     await expect(page.getByTestId('stop-dialog')).toHaveCount(0);
     await expect(page.getByTestId('loop-header')).toHaveAttribute('data-status', 'stopped');
@@ -157,19 +154,13 @@ test.describe('loop detail · execution · run', () => {
       [loop.id],
     );
     const sec = longest!.sec;
-    if (await isNewUi(page)) {
-      // New UI (spec 7.2): the longest active period is `period-longest` on the All runs page; the number of active periods is
-      // the period count above, the runs are the pager's total (skipped ones included, none here) = SELECT.
-      expect(counts!.all).toBe(counts!.rounds);
-      await runHistory(page, async () => {
-        await expect(page.getByTestId('period-longest')).toHaveText(t('runs.longest', { k: longest!.seq, d: span(sec) }));
-        await expect(page.getByTestId('runs-pager')).toContainText(t('runs.range', { a: 1, b: Math.min(10, counts!.all), n: counts!.all }));
-      });
-      return;
-    }
-    const text = sec >= 60 ? new RegExp(String.raw`^${Math.floor(sec / 60)}\s+min$`) : new RegExp(String.raw`^${sec}\s+s$`);
-    await expect(page.getByTestId('kv-longest-value')).toHaveText(text);
-    await expect(page.getByTestId('kv-longest-sub')).toHaveText(t('kv.longestSub', { k: longest!.seq, e: counts!.execs, r: counts!.rounds }));
+    // The longest active period is `period-longest` on the All runs page; the number of active periods is
+    // the period count above, the runs are the pager's total (skipped ones included, none here) = SELECT.
+    expect(counts!.all).toBe(counts!.rounds);
+    await runHistory(page, async () => {
+      await expect(page.getByTestId('period-longest')).toHaveText(t('runs.longest', { k: longest!.seq, d: span(sec) }));
+      await expect(page.getByTestId('runs-pager')).toContainText(t('runs.range', { a: 1, b: Math.min(10, counts!.all), n: counts!.all }));
+    });
   });
 
   test('UC-06: run history paginates by cursor - every page in DB order, total right', { tag: '@UC-06' }, async ({ page, request }) => {
@@ -191,26 +182,25 @@ test.describe('loop detail · execution · run', () => {
     const all = await rows<{ id: string }>('SELECT id FROM runs WHERE loop_id = $1 ORDER BY started_at DESC, id DESC', [loop.id]);
     expect(all.length).toBe(28);
     await open(page, `/loops/${loop.id}`);
-    // The pager's text: `pager.range` in the classic UI, `runs.range` on the new UI's All runs page.
-    const range = (await isNewUi(page)) ? 'runs.range' : 'pager.range';
+    // The pager's text: `runs.range` on the All runs page.
     await runHistory(page, async (table) => {
       const ids = () => table.getByTestId('run-row').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.runId));
       const pager = page.getByTestId('runs-pager');
-      await expect(pager).toContainText(t(range, { a: 1, b: 10, n: 28 }));
+      await expect(pager).toContainText(t('runs.range', { a: 1, b: 10, n: 28 }));
       expect(await ids()).toEqual(all.slice(0, 10).map((r) => r.id));
       await page.getByTestId('runs-next').click();
-      await expect(pager).toContainText(t(range, { a: 11, b: 20, n: 28 }));
+      await expect(pager).toContainText(t('runs.range', { a: 11, b: 20, n: 28 }));
       expect(await ids()).toEqual(all.slice(10, 20).map((r) => r.id));
       await page.getByTestId('runs-next').click();
-      await expect(pager).toContainText(t(range, { a: 21, b: 28, n: 28 }));
+      await expect(pager).toContainText(t('runs.range', { a: 21, b: 28, n: 28 }));
       expect(await ids()).toEqual(all.slice(20).map((r) => r.id));
       await expect(page.getByTestId('runs-next')).toBeDisabled();
       await page.getByTestId('runs-prev').click();
-      await expect(pager).toContainText(t(range, { a: 11, b: 20, n: 28 }));
+      await expect(pager).toContainText(t('runs.range', { a: 11, b: 20, n: 28 }));
       // Skipped run: no round number, reason verbatim from the DB.
       await expect(table.locator('[data-status="skipped"]').first()).toContainText('run #1 still in progress');
       await page.getByTestId('runs-prev').click();
-      await expect(pager).toContainText(t(range, { a: 1, b: 10, n: 28 }));
+      await expect(pager).toContainText(t('runs.range', { a: 1, b: 10, n: 28 }));
       await expect(page.getByTestId('runs-prev')).toBeDisabled();
     });
   });
@@ -224,8 +214,8 @@ test.describe('loop detail · execution · run', () => {
     await open(page, `/runs/${runId}`);
     await expect(page.getByTestId('run-header')).toHaveAttribute('data-status', 'running');
     await expect(await loopRowOnList(page)).toContainText('UC-07 run detail');
-    // The live log's label: `log.live` in the classic UI, `now.liveOutput` in the new one.
-    await expect(page.getByTestId('run-log')).toContainText(t((await isNewUi(page)) ? 'now.liveOutput' : 'log.live'));
+    // The live log's label: `now.liveOutput`.
+    await expect(page.getByTestId('run-log')).toContainText(t('now.liveOutput'));
     // No F5: the run finishes -> status + the full log appear by themselves.
     await expect(page.getByTestId('run-header')).toHaveAttribute('data-status', 'succeeded', { timeout: 15_000 });
     const check = async () => {
@@ -259,9 +249,8 @@ test.describe('loop detail · execution · run', () => {
     await open(page, `/runs/${skip!.id}`);
     await expect(page.getByTestId('run-header')).toHaveAttribute('data-status', 'skipped');
     await expect(page.getByTestId('skip-reason')).toContainText(skip!.skip_reason);
-    // No session: the classic UI says so in the session row; the new UI shows no session row at all.
-    if (await isNewUi(page)) await expect(page.getByTestId('run-session')).toHaveCount(0);
-    else await expect(page.getByTestId('run-session')).toContainText(t('run.noSession'));
+    // No session: there is no session row at all.
+    await expect(page.getByTestId('run-session')).toHaveCount(0);
     await expect(page.getByText(t('log.empty'))).toBeVisible();
     expect((await call(request, 'POST', `/api/loops/${slow.id}/stop`)).status).toBe(200);
 
@@ -273,8 +262,8 @@ test.describe('loop detail · execution · run', () => {
     const [err] = await rows<{ error: string }>('SELECT error FROM runs WHERE id = $1', [badRun]);
     await open(page, `/runs/${badRun}`);
     await expect(page.getByTestId('run-header')).toHaveAttribute('data-status', 'failed');
-    // The banner: `✗` and `run.err.failed` in the classic UI; `run.banner.failed` with no glyph in the new one.
-    const banner = (await isNewUi(page)) ? t('run.banner.failed', { msg: err!.error }) : `✗ ${t('run.err.failed', { msg: err!.error })}`;
+    // The banner: `run.banner.failed` with no glyph.
+    const banner = t('run.banner.failed', { msg: err!.error });
     await expect(page.getByTestId('run-banner')).toHaveText(banner);
   });
 
@@ -311,30 +300,26 @@ test.describe('loop detail · execution · run', () => {
 
     // From the loop detail -> executions table -> execution #1.
     await open(page, `/loops/${loop.id}`);
-    const newUi = await isNewUi(page);
-    // New UI: the first active period is the current period's head; its title is the link to the period's page.
+    // The first active period is the current period's head; its title is the link to the period's page.
     const firstPeriod = (await executionRows(page)).first();
-    await (newUi ? firstPeriod.getByRole('link') : firstPeriod).click();
+    await firstPeriod.getByRole('link').click();
     await expect(page).toHaveURL(new RegExp(`/executions/${exec!.id}$`));
-    if (newUi) {
-      // New UI: `data-ended` says whether the period ended; the state pill says how (Stop = "Stopped by you").
-      await expect(page.getByTestId('exec-header')).toHaveAttribute('data-ended', 'true');
-      await expect(page.getByTestId('period-status')).toHaveText(t('period.pill.byYou'));
-    } else await expect(page.getByTestId('exec-header')).toHaveAttribute('data-ended', 'stopped');
-    // list pane: the row of the loop that holds the execution stays selected (new UI: the page names its loop)
+    // `data-ended` says whether the period ended; the state pill says how (Stop = "Stopped by you").
+    await expect(page.getByTestId('exec-header')).toHaveAttribute('data-ended', 'true');
+    await expect(page.getByTestId('period-status')).toHaveText(t('period.pill.byYou'));
+    // list pane: the row of the loop that holds the execution stays selected (the page names its loop)
     await expect(await loopRowOnList(page)).toContainText('UC-08 session id');
     const shown = page.getByTestId('exec-runs').getByTestId('run-session');
     await expect(shown).toHaveCount(3);
     const onScreen = (await shown.evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.sessionId as string))).reverse(); // table: newest first
     expect(onScreen).toEqual(fromDb);
     for (const s of fromDb) await expect(page.getByTestId('exec-runs')).toContainText(s);
-    // The developer line names the API call and the count (classic only); the new UI's copy button names the count.
-    if (newUi) await expect(page.getByTestId('copy-all')).toHaveText(t('period.copyIds.other', { n: 3 }));
-    else await expect(page.getByTestId('exec-api')).toHaveText(t('exec.api', { id: exec!.id, n: 3 }));
+    // The copy button names the count.
+    await expect(page.getByTestId('copy-all')).toHaveText(t('period.copyIds.other', { n: 3 }));
 
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
     await page.getByTestId('copy-all').click();
-    await expect(page.locator('.toast')).toHaveText(newUi ? t('period.copied.other', { n: 3 }) : t('toast.copied', { n: 3 }));
+    await expect(page.locator('.toast')).toHaveText(t('period.copied.other', { n: 3 }));
     // Windows turns newlines in the clipboard into CRLF
     expect((await page.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, '\n')).toBe(fromDb.join('\n'));
   });
@@ -346,32 +331,26 @@ test.describe('loop detail · execution · run', () => {
     const state = async () => (await rows<{ archived_at: Date | null; status: string }>('SELECT archived_at, status FROM loops WHERE id = $1', [loop.id]))[0]!;
 
     await open(page, `/loops/${loop.id}`);
-    const newUi = await isNewUi(page);
     await expect(page.getByTestId('loop-header')).toHaveAttribute('data-status', 'active');
     await page.getByTestId('loop-menu').click();
     const archive = page.getByTestId('menu-archive');
-    await expect(archive).toHaveText(t(newUi ? 'act.archiveLocked' : 'menu.archiveBlocked'));
+    await expect(archive).toHaveText(t('act.archiveLocked'));
     await expect(archive).toHaveAttribute('aria-disabled', 'true');
     await archive.click({ force: true }); // click the locked item: nothing happens
     expect((await state()).archived_at).toBeNull();
     await page.keyboard.press('Escape');
 
-    await loopSays(page, 'active', 'next run', t('now.waiting'), 10_000); // the 1-second run is done
+    await loopSays(page, 'active', t('now.waiting'), 10_000); // the 1-second run is done
     await page.getByTestId('loop-stop').click();
     await expect(page.getByTestId('loop-header')).toHaveAttribute('data-status', 'stopped');
     await page.getByTestId('loop-menu').click();
-    await expect(page.getByTestId('menu-archive')).toHaveText(t(newUi ? 'act.archive' : 'menu.archive'));
+    await expect(page.getByTestId('menu-archive')).toHaveText(t('act.archive'));
     await page.getByTestId('menu-archive').click();
     await expect(page.getByTestId('loop-header')).toHaveAttribute('data-status', 'archived');
-    if (newUi) {
-      // New UI: the now card says "Archived"; Restore is the only main action, so there is no Start to lock.
-      await expect(page.getByTestId('now-card')).toContainText(t('now.archived'));
-      await expect(page.getByTestId('loop-start')).toHaveCount(0);
-      await expect(page.getByTestId('loop-restore')).toBeEnabled();
-    } else {
-      await expect(page.getByText(t('archived.banner').split(' — ')[0]!)).toBeVisible();
-      await expect(page.getByTestId('loop-start')).toBeDisabled();
-    }
+    // The now card says "Archived"; Restore is the only main action, so there is no Start to lock.
+    await expect(page.getByTestId('now-card')).toContainText(t('now.archived'));
+    await expect(page.getByTestId('loop-start')).toHaveCount(0);
+    await expect(page.getByTestId('loop-restore')).toBeEnabled();
     const after = await state();
     expect(after.archived_at).not.toBeNull();
     expect(after.status).toBe('stopped');
@@ -424,7 +403,7 @@ test.describe('loop detail · execution · run', () => {
     const want = expected.map((r) => (r.line ? r.line + (r.more ? '…' : '') : '—'));
     expect(want.filter((w) => w.endsWith('…'))).toHaveLength(2); // longer than the cap + several lines
 
-    // New UI (spec 7.2): the summary line inside each run cell holds the whole summary (CSS cuts it at two lines), with no `title`;
+    // The summary line inside each run cell (spec 7.2) holds the whole summary (CSS cuts it at two lines), with no `title`;
     // a run without a summary shows its skip reason (skipped), the failed-run sentence (failed), or a dash.
     const wantNew = expected.map((r) =>
       r.summary ? r.summary : r.status === 'skipped' ? r.skip_reason : r.status === 'failed' ? t('runs.noSummaryFailed') : '-',
@@ -449,37 +428,15 @@ test.describe('loop detail · execution · run', () => {
       for (const id of [expected[1]!.id, expected[2]!.id]) await expect(table.locator(`[data-testid=run-row][data-run-id="${id}"]`)).toHaveAttribute('data-status', 'succeeded');
     }
 
-    async function checkTable(table: Locator) {
-      if (await isNewUi(page)) return checkCells(table);
-      await expect(table.getByTestId('run-sum')).toHaveCount(expected.length);
-      // Every run: the ↳ line sits right under that run's own row, text = SELECT, hover (title) = runs.summary verbatim.
-      const pairs = await table.locator('tr[data-testid]').evaluateAll((els) =>
-        els.map((e) => ({ kind: (e as HTMLElement).dataset.testid, id: (e as HTMLElement).dataset.runId, text: (e.lastElementChild as HTMLElement).innerText.trim(), title: (e.lastElementChild as HTMLElement).getAttribute('title') })),
-      );
-      expect(pairs.map((p) => p.kind)).toEqual(expected.flatMap(() => ['run-row', 'run-sum']));
-      for (const [i, r] of expected.entries()) {
-        expect(pairs[2 * i]!.id).toBe(r.id);
-        expect(pairs[2 * i + 1]!.id).toBe(r.id);
-        expect(pairs[2 * i + 1]!.text).toBe(want[i]);
-        expect(pairs[2 * i + 1]!.title).toBe(r.line ? r.summary : null);
-      }
-      // A run where the agent skipped itself is still ✓ Succeeded (D-UI26) - it differs from a worked run only in the summary text.
-      const sumOf = (id: string) => table.locator(`[data-testid=run-sum][data-run-id="${id}"]`);
-      await expect(sumOf(expected[1]!.id)).toContainText('Skipping this run:');
-      await expect(sumOf(expected[2]!.id)).toContainText('Did #27');
-      for (const id of [expected[1]!.id, expected[2]!.id]) await expect(table.locator(`[data-testid=run-row][data-run-id="${id}"]`)).toHaveAttribute('data-status', 'succeeded');
-    }
-
     await open(page, `/loops/${loop.id}`);
-    const newUi = await isNewUi(page);
     await runHistory(page, async (table) => {
-      await expect(page.getByTestId('runs-pager')).toContainText(t(newUi ? 'runs.range' : 'pager.range', { a: 1, b: 5, n: 5 }));
-      await checkTable(table);
+      await expect(page.getByTestId('runs-pager')).toContainText(t('runs.range', { a: 1, b: 5, n: 5 }));
+      await checkCells(table);
     });
-    // The Latest run table (one row) has no ↳ line (D-UI22); in the new UI, the now card has none.
-    await expect(page.getByTestId(newUi ? 'now-card' : 'last-run').getByTestId('run-sum')).toHaveCount(0);
+    // The now card has no ↳ line (D-UI22).
+    await expect(page.getByTestId('now-card').getByTestId('run-sum')).toHaveCount(0);
 
     await open(page, `/executions/${exec!.id}`);
-    await checkTable(page.getByTestId('exec-runs'));
+    await checkCells(page.getByTestId('exec-runs'));
   });
 });

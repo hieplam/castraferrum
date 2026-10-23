@@ -23,7 +23,7 @@ import { NowCard, pageKindOf, type PageKind } from './NowCard';
 import { errorTitle, PageNotFound, PageSkeleton, PushedPage, useBackToLoops } from './PushedPage';
 import { RecentRuns } from './RecentRuns';
 
-/** The pill of the loop's state, and its `data-status` (the classic kinds of spec 7.1: `cancelled` while stopping). */
+/** The pill of the loop's state, and its `data-status` (the loop kinds of spec 7.1: `cancelled` while stopping). */
 const PILL: Record<PageKind, readonly [PillTone, MessageKey, string]> = {
   running: ['run', 'status.running', 'running'],
   active: ['wait', 'status.waiting', 'active'],
