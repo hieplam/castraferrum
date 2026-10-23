@@ -306,15 +306,10 @@ function executionRuns(key: string, e: Any, lastIter: number, running: boolean, 
   return out;
 }
 
-/**
- * Empties the data tables (in foreign-key order). The server keeps running — like `/api/__test/reset` but without HTTP.
- * Do not call it after a reset: the reset already empties the tables with the ticker stopped, while this TRUNCATE runs next to
- * the restarted ticker and any open app page, which read `loops` then `loop_executions` (TRUNCATE locks them the other way
- * round) → a deadlock now and then (castraferrum#169, castraferrum#170). The worlds of tests/visual/ds/ no longer call it.
- */
-export async function wipe(db: pg.Pool): Promise<void> {
-  await db.query('TRUNCATE run_logs, runs, loop_executions, loops, repos');
-}
+// No test-side TRUNCATE: a world starts with `POST /api/__test/reset`, which empties the tables with the ticker stopped. A
+// TRUNCATE from the test right after it ran next to the restarted ticker (findDue reads `loops JOIN loop_executions`) and any
+// open app page; TRUNCATE locks those tables the other way round, so it deadlocked now and then (castraferrum#169,
+// castraferrum#170). For the same reason a world leaves the app page before the reset.
 
 /** Writes the sample repos (`keys` empty = all 4) — registration time = the `added` column of data.js. */
 export async function seedRepos(db: pg.Pool | pg.PoolClient, keys?: readonly string[], file = DATA_JS): Promise<void> {
