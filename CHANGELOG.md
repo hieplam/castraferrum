@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.3.0](https://github.com/hieplam/castraferrum/compare/v0.2.0...v0.3.0) (2026-10-23)
+
+
+### Features
+
+* cut-over to the new UI only (U25, epic 63) ([#173](https://github.com/hieplam/castraferrum/issues/173)) ([63cf76c](https://github.com/hieplam/castraferrum/commit/63cf76ce758347fbb29efbb826ae30a54819291d))
+* freeze the new reference shots (U11, epic [#63](https://github.com/hieplam/castraferrum/issues/63)) ([#137](https://github.com/hieplam/castraferrum/issues/137)) ([4e735ab](https://github.com/hieplam/castraferrum/commit/4e735abbd162c02a39919e5a5e6f995448f981a2))
+* phone, iOS and installability, UC-34 (U24, epic 63) ([#171](https://github.com/hieplam/castraferrum/issues/171)) ([6e2b878](https://github.com/hieplam/castraferrum/commit/6e2b878a37cfd89534a5b2016cae98b96a1fc378))
+* the desktop loop settings card matches the board (U10 fixes, epic [#63](https://github.com/hieplam/castraferrum/issues/63)) ([#135](https://github.com/hieplam/castraferrum/issues/135)) ([02bf715](https://github.com/hieplam/castraferrum/commit/02bf715e7a90646376d1a7ba534ec94ddf9fd8b4))
+* the new editor (U18, epic 63) ([#162](https://github.com/hieplam/castraferrum/issues/162)) ([94bdb7a](https://github.com/hieplam/castraferrum/commit/94bdb7a7a80a0f7f7f5cc661a503215197b29082))
+* the new frame, Settings and Not found (U14, epic [#63](https://github.com/hieplam/castraferrum/issues/63)) ([#152](https://github.com/hieplam/castraferrum/issues/152)) ([7d15bf2](https://github.com/hieplam/castraferrum/commit/7d15bf29a22c49136aba7fea06245dc262e4156c))
+* the new loop page, All runs, loop settings and active period (U16, epic 63) ([#158](https://github.com/hieplam/castraferrum/issues/158)) ([21dcf63](https://github.com/hieplam/castraferrum/commit/21dcf6396606f93601801a2b0d3ffed141514f54))
+* the new Loops page (U15, epic 63) ([#154](https://github.com/hieplam/castraferrum/issues/154)) ([5497823](https://github.com/hieplam/castraferrum/commit/5497823f92d9bd9cff3c0e15501d96f62ba8b547))
+* the new Repos page and folder picker (U19, epic 63) ([#166](https://github.com/hieplam/castraferrum/issues/166)) ([f7f7ab8](https://github.com/hieplam/castraferrum/commit/f7f7ab8850eacb323ace663ae82e59ddcf838d84))
+* the new run page and transcript (U17, epic 63) ([#160](https://github.com/hieplam/castraferrum/issues/160)) ([502d6ad](https://github.com/hieplam/castraferrum/commit/502d6ad47fd7a7b9ca09a35c87b013e5a717727d))
+
+
+### Bug Fixes
+
+* correct three sample differences of the new preview (castraferrum[#156](https://github.com/hieplam/castraferrum/issues/156), castraferrum[#159](https://github.com/hieplam/castraferrum/issues/159), castraferrum[#161](https://github.com/hieplam/castraferrum/issues/161)) ([#163](https://github.com/hieplam/castraferrum/issues/163)) ([18c301a](https://github.com/hieplam/castraferrum/commit/18c301a5c90c7b205862bd16c60e31e9ba4ae8a7))
+* let the history scan pin one commit message by its full SHA ([#155](https://github.com/hieplam/castraferrum/issues/155)) ([1dae74b](https://github.com/hieplam/castraferrum/commit/1dae74bea195ac864bae92321185308b2ab7a35d))
+* the wide dialog and full-height sheet demos fit their frame (U10 fixes, epic [#63](https://github.com/hieplam/castraferrum/issues/63)) ([#132](https://github.com/hieplam/castraferrum/issues/132)) ([72e3a0c](https://github.com/hieplam/castraferrum/commit/72e3a0c005722e8283a7ac10764bad16dc7aa8e8))
+
 ## [0.2.0](https://github.com/hieplam/castraferrum/compare/v0.1.0...v0.2.0) (2026-10-22)
 
 
