@@ -351,3 +351,22 @@ Re-shot with `npm run design:shots -- --design design/ds`, light and dark (42 sh
 next line as one part, the phone ones 24px taller); `period-server-down` (the counts); `loop-running`, `loop-stopping`,
 `loop-disconnected`, `phone-loop-running` (the meta line of period #2 drops "1 failed"); `loop-help`, `phone-loop-help`
 (the command); `vi-loops-overview` (the weekday names).
+
+## Agent correction under the owner's rule of 2026-10-23 - phone section captions, 2026-10-24
+
+Made by the agent of the U27 defect lane "phone captions" (epic 63) under the rule in the epic's body (the owner is not
+asked). castraferrum#202: on the phone every section caption other than Recent runs sat the page's `--space-5` (20px)
+above the list or card it captions; the boards draw `--space-2` (8px): `reference/m-settings-light.png` (Appearance,
+Connection, This iPhone, About), `m-form-light.png` (Details, Prompt, Schedule, Agent), `m-run-light.png` (Summary,
+Reopen this session on your computer) and `m-loop-light.png` (Earlier active periods, which also sits 8px under the
+current period's group: it is the second group of the Recent runs section). The 20px the boards draw above the other
+captions is the gap between sections and stays. The castraferrum#192 rule for the Recent runs caption becomes one phone
+rule for every `.group-cap` in [`ds/components.css`](ds/components.css) ("Inset list"), written in
+[`ds/SYSTEM.md`](ds/SYSTEM.md) ("Captions on the phone"). The editor's first caption (Details) now sits 8px under the
+bar, as `m-form-light.png` draws it (it touched the bar). `tests/visual/ds/layout.visual.ts` measures every phone caption
+of the loop, All runs, loop settings, run, editor and settings pages in the real app.
+
+Re-shot with `npm run design:shots -- --design design/ds`, light and dark (24 shots), the phone states with a caption:
+`phone-form-new`, `phone-form-errors`, `phone-form-repo-pick`, `phone-form-sched-daily`, `phone-form-sched-weekly`,
+`phone-loop-running`, `phone-loop-last-failed`, `phone-loop-runs`, `phone-loop-settings`, `phone-run-succeeded`,
+`phone-settings`, `phone-vi-settings`. No other shot changed.
