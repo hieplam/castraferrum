@@ -2103,9 +2103,38 @@ Closed task issues of the epic that fail `check --dry-run`: 11 -> 0.
 
 ## U26
 
-Status: **not done** (attempt 3). Step 4 passes, and so do a standalone `npm run verify` and `npm run
-design:compare`. goal:check printed 7/8 because G5's `npm run verify` failed. UC-05 fails every day from 22:00 to
-24:00 Vietnam time; that became the fix issue castraferrum#180, which blocks U26. Nothing is merged.
+Status: **done** (attempt 4, rebased on castraferrum#181). G1 to G8 pass with one committed tool (8/8). Every closed
+task of the epic passes `epic.mjs check`. `npm run verify` and `npm run design:compare` exit 0.
+
+The earlier attempts below opened three fix issues, each fixed and merged before this run:
+- castraferrum#175: records of 11 closed issues;
+- castraferrum#177: the folder picker replaced a typed path;
+- castraferrum#180: UC-05 depended on the time of day.
+
+Attempt 4 (final):
+
+- Before each heavy run, `tasklist` showed no `ffmpeg` and no headless Chromium of another session. The script
+  waited 0 s before goal:check (23:35:57 +07:00), before verify (23:58:15) and before design:compare (00:09:49).
+  Every run held a test slot. The load failures of attempt 3 came from another session rendering video, as found
+  in castraferrum#181.
+- Step 4: `epic.mjs check <n> --dry-run` on the 46 closed task issues of epic castraferrum#63: **46 PASS, 0 FAIL**.
+  - The 46 are U0 to U25 (U10 included), the design-system gap and preview issues, the flake issues, and the fix
+    issues castraferrum#175, castraferrum#177 and castraferrum#180.
+  - The closed phase issues 65 and 68 are left out: `epic.mjs` closes a phase itself, so a phase has no pull
+    request by design.
+  - `epic.mjs status 63`: `done 46 | in progress 1 | ready 0 | blocked 1`. Open are only U26 (this task) and U27.
+- `npm run goal:check -- docs/plans/2026-10-21-ui-uplift-goals.json`, exit 0: `G1 pass`, `G2 pass`, `G3 pass`,
+  `G4 pass`, `G5 pass`, `G6 pass`, `G7 pass`, `G8 pass`, `goals passed: 8/8`.
+- `npm run verify`, exit 0:
+  - `states with shots: 120/120`;
+  - `e2e expects: 755 (min 745)`, `ratchets: ok`;
+  - unit `525 passed | 2 skipped (527)`, contract `114 passed (114)`, api `115 passed (115)`;
+  - e2e `92 passed (9.7m)`, with no failed and no flaky test;
+  - `phone overflow: 0/12`, `UCs with a green e2e: 33/33`.
+- `npm run design:compare`, exit 0: `52 passed (4.8m)`. `design/compare/ds/report.json`: 248 pairs (120 states,
+  light and dark), `maxRatio` 0.001, worst 0.0002. The largest ratio per screen is the same as in attempt 1's
+  table (Green (4) below), every one at or under 0.001.
+- `npx vitest run --project unit tests/tools/goal-check.test.ts`: `Test Files  1 passed (1)`, `Tests  11 passed (11)`.
 
 Attempt 3 (rebased on castraferrum#178, which fixed castraferrum#177):
 
@@ -2188,13 +2217,14 @@ Each change proves the same goal, none weakens it:
   late in its e2e step; the script then showed only the first 20 lines, so the failing test is not known). Two
   later runs of `npm run verify` (alone, and inside the 8/8 run) exited 0. The script now also prints the last 20
   lines of a long failing output, so a repeat names its test.
-- (3) **FAIL.** `epic.mjs check <n> --dry-run` for the 43 closed issues of epic castraferrum#63: 32 PASS, 11 FAIL:
-  - `FAIL #77`, "PR castraferrum#136 has no ## Verify section" (the body has a plain `Verify:` line);
-  - `FAIL #<n> - no merged pull request closes it (the PR body needs "Closes #<n>")` for the gap and preview issues
-    106, 108, 110, 112, 114, 122, 123, 124, 125 and 134 (closed by hand under the delegation on castraferrum#77; the
-    pull requests that did the work, 128, 129, 130 and 135, name them with `Refs`).
-  Fix issue: castraferrum#175 (`epic.mjs link 175 --parent 63 --blocks 97`). `epic.mjs status 63`: open are U26,
-  U27 and castraferrum#175.
+- (3) Attempt 4: `epic.mjs check <n> --dry-run` printed PASS for all 46 closed task issues, and
+  `epic.mjs status 63` shows only U26 and U27 open (details under "Attempt 4" above). Attempt 1 had 32 PASS and 11 FAIL
+  over 43 issues:
+  - `FAIL #77`, "PR castraferrum#136 has no ## Verify section" (the body had a plain `Verify:` line);
+  - `FAIL #<n> - no merged pull request closes it` for the gap and preview issues 106, 108, 110, 112, 114, 122,
+    123, 124, 125 and 134. They were closed by hand under the delegation on castraferrum#77, and the pull requests
+    that did the work named them with `Refs`.
+  This became castraferrum#175, fixed by castraferrum#176.
 - (4) `npm run design:compare`, exit 0: `52 passed (4.2m)`, `design/compare/ds/index.html — preview | real app |
   diff`. `design/compare/ds/report.json`: 248 pairs (120 states, light and dark), `maxRatio` 0.001, worst 0.0002. The
   largest ratio per screen, every one at or under 0.001:
@@ -2214,9 +2244,8 @@ Each change proves the same goal, none weakens it:
 
   To open the page for U27: `npm run design:compare`, then open `design/compare/ds/index.html` (Windows:
   `start design/compare/ds/index.html`). The plan names `design/compare/index.html`; the script writes into `ds/`.
-- (5) `npm run verify`, exit 0: `states with shots: 120/120`, `ratchets: ok` (`e2e expects: 746 (min 745)`), unit
-  `525 passed | 2 skipped`, contract `114 passed`, api `115 passed`, e2e `91 passed (9.7m)`, `phone overflow: 0/12`,
-  `UCs with a green e2e: 33/33`. (`stats-api.test.ts` UC-03 passed in all three api runs.)
+- (5) Attempt 4: `npm run verify`, exit 0, with e2e `92 passed (9.7m)` and `UCs with a green e2e: 33/33` (full numbers
+  under "Attempt 4" above). `stats-api.test.ts` UC-03 passed in every api run of this task.
 
 ### Stub check
 
@@ -2229,4 +2258,7 @@ Each change proves the same goal, none weakens it:
 ### Ratchet
 
 - Goals passed (`npm run goal:check`): 5/8 (plan-literal manifest) -> 8/8.
-- Open fix issues under the epic: 0 -> 1 (castraferrum#175), so U26 is not done.
+- Goals passed on the final tree (attempt 4): 8/8.
+- Open fix issues under the epic: 0 at the start; 1 after each failing attempt (castraferrum#175, castraferrum#177,
+  castraferrum#180); 0 now, all three fixed and merged.
+- Closed tasks failing `epic.mjs check --dry-run`: 11 (attempt 1) -> 0 (46/46 PASS).
