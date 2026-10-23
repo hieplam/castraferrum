@@ -1847,3 +1847,90 @@ manifest, its three icons and the iOS head. The check on a real iPhone stays wit
   above); a page that scrolls sideways fails the `scrollWidth` check; a row without a tappable `row-stop` fails the stop
   step; without the tab bar on the tab roots the bottom check fails.
 - Without the manifest, the icons or the head links, `tests/tools/pwa.test.ts` fails (Red above).
+
+## U22
+
+Status: done. `tests/e2e/transcript.spec.ts`, `tests/e2e/claude.spec.ts` and `tests/e2e/repo-browse.spec.ts` run in
+`chromium-new` as well as `chromium`; UC-22, UC-26, UC-27, UC-28, UC-29 and UC-30 are green in both projects. UC-22,
+UC-26, UC-27 and UC-30 call the real Claude Code (haiku, effort low, in an `lc-real-claude-*` folder), as CONTRIBUTING.md
+describes.
+
+### What changed
+
+- `playwright.config.ts`: the three specs added to the `testMatch` of `chromium-new` (next to the U20, U21 and U23 specs); every spec file of `tests/e2e/` now runs in both projects.
+- `tests/support/ui.ts`: unchanged in the end. This task first wrote new-UI branches for `registerRepo` and
+  `openFolderPicker`; U23 merged the same helpers first, so the rebase keeps U23's (`repo-add` opens the picker and
+  waits for its first folder) and the three specs use them.
+- The specs choose the expected text of a step that differs by design at the call site (spec 7.2); no classic assertion
+  was removed or loosened:
+  - UC-27: the top edge reads `tx.loadingOlderEntries` while older pages remain. Once the first entry is loaded the new
+    transcript has no "start of transcript" line: the top edge goes away and the one `run-transcript-edge` left is the
+    end line of the session (`tx.end`). The scroll loop stops on that. The entry count, the kind order and the random
+    number checks are unchanged.
+  - UC-28: the notes are the new keys `tx.note.missing` and `tx.note.noSession` (the no-session note has no glyph); the
+    run's facts are `run-facts` (the classic `run-kv`).
+  - UC-22: the copy toast is the new key `run.copiedCommand`.
+  - UC-29: the path field `repo-path` is inside the picker, so the new branch opens the picker first and types the tree
+    root there (Enter opens it). The new breadcrumb only shows the path (`design/ds/SYSTEM.md`, `.crumbs`), so the new
+    branch climbs to the root with `folder-up` twice and checks that a crumb names the root. Choose and Register are one
+    step: selecting `deep` fills `folder-target` and `repo-name` (`deep`); the branch then types another name
+    (`deep-picked`) and checks the DB row carries it, so a picker that registers without its name field fails. For the
+    registered folder the tag is `picker.tagRepo` and `repo-submit` is disabled. The missing path is typed into
+    `repo-path` and Enter shows `folder-error`; Escape closes the picker (`folder-picker` count 0).
+- No new-UI fix was needed: the run page, the transcript and the picker already render the ids of spec 7.1.
+
+### Ratchet
+
+- UCs green in both `chromium` and `chromium-new` (from `reports/e2e.json`, every test of the UC `expected` in both
+  projects): `26` (after U23) -> `32` (UC-01 to UC-32: UC-22 and UC-26 to UC-30 added).
+- `npm run ratchets`: `e2e expects: 804 (min 804)` (main after U23) -> `e2e expects: 816 (min 816)`;
+  `e2eExpectsMin` `804` -> `816`.
+- `npx vitest run --project unit tests/tools/ui-branches.test.ts`: `helpers without a new branch: 0` -> `0` (U23
+  had already given every helper its branch).
+- Spec files that run in `chromium-new`: 9 of 12 -> 12 of 12.
+
+### Red
+
+`npm run build`, then `npx playwright test --project=chromium-new tests/e2e/transcript.spec.ts tests/e2e/claude.spec.ts
+tests/e2e/repo-browse.spec.ts` (`--project=` because the plan's form makes Playwright read the files as project names):
+`5 failed`, `1 did not run`.
+
+- UC-22 and UC-30: `locator.fill: Test timeout of 300000ms exceeded` (`repo-path` is not on the new Repos page).
+- UC-29: `getByTestId('repo-path')`, `element(s) not found` (the `data-platform` check).
+- UC-26: `[data-kind=assistant]` expected `done`, received `Done.` (haiku's wording, not the UI;
+  every later run, in both projects, answered `done`).
+- UC-28: `run-transcript-note` expected `No transcript for session mock-…`, received `There is no transcript for session
+  mock-… under ~/.claude/projects. …`.
+- UC-27: did not run (serial after UC-26).
+
+### Green
+
+- (1) After the rebase on U23: `npx playwright test --project=chromium-new tests/e2e/transcript.spec.ts tests/e2e/claude.spec.ts
+  tests/e2e/repo-browse.spec.ts`: `6 passed (1.1m)`.
+- (2) The same files with `--project=chromium`: `6 passed (1.1m)`.
+- (3) `npx vitest run --project unit tests/tools/ui-branches.test.ts`: `Tests  2 passed (2)`,
+  `helpers without a new branch: 0`. `tests/tools/e2e-selectors.test.ts`: `2 passed`.
+- The whole suite (the U23 Green 3 check): the titles of `npx playwright test --list --reporter=list --project=chromium-new`
+  and of the same for `chromium`, with the `[project] › ` prefix dropped: `chromium-new: 40, chromium: 40`,
+  `same test titles: yes`.
+- (4) `npm run verify` on the final tree (rebased on U23): every step up to `test:e2e` passes: `states with shots:
+  120/120`, `0 violations`, `arch-fixtures: 26/26 violations caught`, `ratchets: ok` (`e2e expects: 816 (min 816)`),
+  unit `510 passed | 2 skipped (512)`, contract `114 passed`, api `115 passed`; e2e `152 passed`, `1 failed` (18.9m),
+  so the command exits 1. The one failure is the known flaky classic visual test `tests/visual/list.visual.ts`
+  "LOOP_ALREADY_ACTIVE toast" (castraferrum#157); re-run once alone it passes (`1 passed (8.6s)`). The remaining step on
+  that run's report: `npm run uc-coverage -- --min 32` prints `UCs with a green e2e: 32/32`, and all 32 UCs are
+  `expected` in both `chromium` and `chromium-new` in `reports/e2e.json`. Earlier full runs on this branch failed
+  only on flaky tests outside this task, each passing alone: castraferrum#157 again, UC-06 of `detail.spec.ts` in
+  `chromium-new` (a 5 s wait for `succeeded`), and `tests/visual/ds/loops.visual.ts` "lost connection" (`deadlock
+  detected` on the `TRUNCATE` of `wipe()`, filed as https://github.com/hieplam/castraferrum/issues/169). Other lanes ran
+  their suites on the machine at the same time.
+- (5) `npm run ratchets`: `e2e expects: 816 (min 816)`, `ratchets: ok`.
+
+Run with `LOOPS_TEST_DATABASE_URL` pointing at the lane database `loops_u22_test` and `LOOPS_E2E_PORT=7184`.
+
+### Stub check
+
+- `openFolderPicker` with an empty new branch (U23's helper, after the rebase): UC-29 in `chromium-new` fails, `getByTestId('repo-path')`
+  `element(s) not found`, `1 failed`.
+- A picker that registers without the name field (`AddRepo` sending only the path): UC-29 in `chromium-new` fails at
+  the DB row, `expect(received).toEqual(expected)` (name `deep` for `deep-picked`), `1 failed`.
