@@ -43,6 +43,7 @@ for (const theme of ['light', 'dark'] as const satisfies readonly Theme[]) {
       test.setTimeout(150_000);
       expect(browserName).toBe('webkit');
       expect(new URL(lanOrigin).hostname).not.toMatch(/^(127\.|localhost$)/);
+      console.log(`[acceptance] iPhone 13 (${browserName}) served from ${lanOrigin}`);
       const steps = await journey(page, request, { label: 'iphone13', theme, phone: true, touch: true, origin: lanOrigin });
       expect(steps).toBe(JOURNEY_STEPS);
     });

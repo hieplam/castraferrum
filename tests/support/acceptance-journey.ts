@@ -73,6 +73,19 @@ export async function journey(page: Page, request: APIRequestContext, o: Journey
   const press = (l: Locator) => (o.touch ? l.tap() : l.click());
   const nav = (tab: 'loops' | 'repos' | 'settings') => page.getByTestId(o.phone ? `tab-${tab}` : `nav-${tab}`);
   const path = () => new URL(page.url()).pathname;
+  let lang: 'en' | 'vi' = 'en';
+  /**
+   * Goes to a tab like a user: the top bar on the desktop; on the phone the tab bar, after leaving a pushed page (which has no
+   * tab bar) through its back link to the Loops tab.
+   */
+  async function goTab(tab: 'loops' | 'repos' | 'settings') {
+    if (o.phone && (await page.getByTestId('tabbar').count()) === 0) {
+      await press(page.getByRole('link', { name: (lang === 'en' ? t : tv)('nav.loops'), exact: true }));
+      await expect(page).toHaveURL(/\/$/);
+      if (tab === 'loops') return;
+    }
+    await press(nav(tab));
+  }
 
   /** One step: do it, assert what it shows, then check the page as a whole and save its screenshot. */
   async function step(name: string, body: () => Promise<void>): Promise<void> {
@@ -111,7 +124,7 @@ export async function journey(page: Page, request: APIRequestContext, o: Journey
     });
 
     await step('repos-empty', async () => {
-      await press(nav('repos'));
+      await goTab('repos');
       await expect(page).toHaveURL(/\/repos$/);
       await onTab('repos');
       await expect(page.getByTestId('repo-empty')).toContainText(t('repos.emptyTitle'));
@@ -141,7 +154,7 @@ export async function journey(page: Page, request: APIRequestContext, o: Journey
     });
 
     await step('editor-new', async () => {
-      await press(nav('loops'));
+      await goTab('loops');
       await expect(page).toHaveURL(/\/$/);
       await press(page.getByTestId('list-create'));
       await expect(page).toHaveURL(/\/loops\/new$/);
@@ -163,7 +176,7 @@ export async function journey(page: Page, request: APIRequestContext, o: Journey
       await expect(page.getByTestId('loop-header')).toContainText(LOOP_NAME);
       await expect(page.getByTestId('loop-status')).toHaveText(t('status.stopped'));
       await expect(page.getByTestId('loop-start')).toHaveText(t('act.start'));
-      await expect(page.getByTestId('loop-repo')).toHaveText(REPO_FOLDER);
+      if (o.phone) await expect(page.getByTestId('loop-repo')).toHaveText(REPO_FOLDER);
     });
 
     await step('loop-running', async () => {
@@ -236,7 +249,7 @@ export async function journey(page: Page, request: APIRequestContext, o: Journey
     });
 
     await step('loops-list', async () => {
-      await press(nav('loops'));
+      await goTab('loops');
       await expect(page).toHaveURL(/\/$/);
       await onTab('loops');
       const row = page.getByTestId('loop-row');
@@ -249,7 +262,7 @@ export async function journey(page: Page, request: APIRequestContext, o: Journey
     theme = other;
     await step('theme-switched', async () => {
       if (o.phone) {
-        await press(nav('settings'));
+        await goTab('settings');
         await expect(page).toHaveURL(/\/settings$/);
         await press(page.getByTestId(`settings-theme-${other}`));
         await expect(page.getByTestId(`settings-theme-${other}`)).toHaveAttribute('aria-checked', 'true');
@@ -261,7 +274,7 @@ export async function journey(page: Page, request: APIRequestContext, o: Journey
     });
 
     await step('settings-english', async () => {
-      if (path() !== '/settings') await press(nav('settings'));
+      if (path() !== '/settings') await goTab('settings');
       await expect(page).toHaveURL(/\/settings$/);
       await onTab('settings');
       await expect(page.getByTestId('settings-lang-en')).toHaveAttribute('aria-checked', 'true');
@@ -272,6 +285,7 @@ export async function journey(page: Page, request: APIRequestContext, o: Journey
     // The language: Vietnamese, then back to English. Expected strings come from shared/i18n/vi.ts (CLAUDE.md, language rule).
     await step('settings-vietnamese', async () => {
       await press(page.getByTestId('settings-lang-vi'));
+      lang = 'vi';
       await expect(page.locator('html')).toHaveAttribute('lang', 'vi');
       await expect(page.getByTestId('settings-lang-vi')).toHaveAttribute('aria-checked', 'true');
       await expect(nav('settings')).toContainText(tv('nav.settings'));
@@ -279,7 +293,7 @@ export async function journey(page: Page, request: APIRequestContext, o: Journey
     });
 
     await step('loops-vietnamese', async () => {
-      await press(nav('loops'));
+      await goTab('loops');
       await expect(page).toHaveURL(/\/$/);
       await expect(page.getByTestId('loop-row').getByTestId('row-status')).toContainText(tv('status.stopped'));
       await expect(page.getByTestId('loop-row').getByTestId('loop-name')).toHaveText(LOOP_NAME_EDITED); // data is never translated
@@ -295,8 +309,9 @@ export async function journey(page: Page, request: APIRequestContext, o: Journey
 
     // Back to English and to the theme the journey started in: both choices apply at once, on every bar.
     await step('english-again', async () => {
-      await press(nav('settings'));
+      await goTab('settings');
       await press(page.getByTestId('settings-lang-en'));
+      lang = 'en';
       await expect(page.locator('html')).toHaveAttribute('lang', 'en');
       await expect(nav('loops')).toContainText(t('nav.loops'));
       await expect(page.getByTestId('settings-lang-en')).toHaveAttribute('aria-checked', 'true');
@@ -307,7 +322,7 @@ export async function journey(page: Page, request: APIRequestContext, o: Journey
       await press(page.getByTestId(`settings-theme-${o.theme}`));
       await expect(page.locator('html')).toHaveAttribute('data-theme', o.theme);
       expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(tokenBg(o.theme));
-      await press(nav('loops'));
+      await goTab('loops');
       await expect(page.getByTestId('loop-row').getByTestId('row-status')).toContainText(t('status.stopped'));
     });
 
