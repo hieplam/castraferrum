@@ -10,7 +10,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import pg from 'pg';
 import { en } from '../../../shared/i18n/en';
-import { DS_DATA_JS, PREVIEW_NOW, previewData, previewDirs, previewFolderWorld, seedMacRepos, seedPreviewWorld, wipe } from '../../support/preview-world';
+import { DS_DATA_JS, PREVIEW_NOW, previewData, previewDirs, previewFolderWorld, seedMacRepos, seedPreviewWorld } from '../../support/preview-world';
 import { liveDbUrl, ServerProcess } from '../../support/server-process';
 import { PHONE_VIEW, PREVIEW_VIEW, regions, setLang, snap, writeReport, type RegionSpec } from './kit';
 
@@ -40,11 +40,10 @@ function useServer() {
     ctx.sp = await ServerProcess.launch();
     ctx.db = new pg.Pool({ connectionString: liveDbUrl(), max: 2 });
     ctx.world = async (page, kind) => {
-      // Leave the app first: its requests would race the TRUNCATE below.
+      // Leave the app first: its reads would race the reset's TRUNCATE (castraferrum#170).
       await page.goto('about:blank');
       expect((await ctx.sp.api('POST', '/api/__test/reset')).status).toBe(204);
       expect((await ctx.sp.api('POST', '/api/__test/clock', { at: PREVIEW_NOW.toISOString() })).status).toBe(200);
-      await wipe(ctx.db);
       if (kind === 'overview') await seedPreviewWorld(ctx.db, {}, DS_DATA_JS);
       const mac = kind === 'mac' ? await seedMacRepos(ctx.db, DS_DATA_JS) : {};
       // Registering checks the real disk: the folder that `repos-err-dup-name` registers is forced present.

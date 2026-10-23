@@ -16,7 +16,7 @@ test.afterAll(() => db.end());
 
 type Loop = { id: string; activeRun: { id: string } | null; currentExecution: { id: string } | null };
 
-async function call<T = unknown>(request: APIRequestContext, method: 'GET' | 'POST', path: string, body?: unknown): Promise<{ status: number; body: T }> {
+async function call<T = unknown>(request: APIRequestContext, method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown): Promise<{ status: number; body: T }> {
   const res = await request.fetch(path, { method, ...(body === undefined ? {} : { data: body }) });
   const text = await res.text();
   return { status: res.status(), body: (text ? JSON.parse(text) : null) as T };
@@ -77,7 +77,10 @@ test.beforeEach(async ({ request }) => {
 test.describe('loop detail · execution · run', () => {
   test('UC-06: click a loop -> Start -> the running run prints working… every second (new line shows within 1 s), history matches the DB, longest execution is right, Stop right there', { tag: '@UC-06' }, async ({ page, request }) => {
     test.setTimeout(90_000);
-    const loop = await createLoop(request, 'UC-06 live log', { durationSec: 6 });
+    // Run #1 must still be going when Stop is pressed, after the log, history and DB checks below: 30 seconds (line 6 shows
+    // after about 5 of them). With 6 seconds a loaded machine finished the run first, and Stop found it `succeeded`.
+    // Once a year: a :00 or :30 boundary inside the test would add a skipped run to the history the test compares.
+    const loop = await createLoop(request, 'UC-06 live log', { durationSec: 30 }, '0 0 1 1 *');
     // Record when each log line (data-seq) appears in the live log block - machine clock, same machine as the server.
     await page.addInitScript(() => {
       const seen: Record<string, number> = {};
@@ -109,7 +112,7 @@ test.describe('loop detail · execution · run', () => {
       const lag = (seen[String(l.seq)] as number) - l.at.getTime();
       expect(lag, `line #${l.seq} «${l.message}» appeared after ${lag} ms`).toBeLessThanOrEqual(1_000);
     }
-    await expect(live.locator('[data-seq="2"]')).toContainText('working… (1/6)');
+    await expect(live.locator('[data-seq="2"]')).toContainText('working… (1/30)');
 
     // Execution + run history = DB.
     const execs = await rows<{ id: string }>('SELECT id FROM loop_executions WHERE loop_id = $1', [loop.id]);
@@ -133,6 +136,21 @@ test.describe('loop detail · execution · run', () => {
     await expect(latest).toHaveAttribute('data-status', 'cancelled');
 
     // Execution #2: finish a run then Stop while waiting for the next one -> stops straight away, no question (D-UI1).
+    // A run takes its executor config when it starts: run #2 is a 6-second run.
+    const cur = (await call<Loop & Record<string, unknown>>(request, 'GET', `/api/loops/${loop.id}`)).body;
+    const edited = await call(request, 'PUT', `/api/loops/${loop.id}`, {
+      repoId: (cur.repo as { id: string }).id,
+      name: cur.name,
+      description: cur.description,
+      prompt: cur.prompt,
+      cron: cur.cron,
+      timezone: cur.timezone,
+      timeoutSec: cur.timeoutSec,
+      maxConcurrent: cur.maxConcurrent,
+      executor: { kind: 'mock', config: { failRate: 0, durationSec: 6 } },
+      version: cur.version,
+    });
+    expect(edited.status).toBe(200);
     await page.getByTestId('loop-start').click();
     await loopSays(page, 'running', t('now.working', { n: 2 }));
     await loopSays(page, 'active', t('now.waiting'), 15_000);

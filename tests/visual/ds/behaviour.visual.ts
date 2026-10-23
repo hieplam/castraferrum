@@ -5,7 +5,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import pg from 'pg';
 import { en } from '../../../shared/i18n/en';
-import { DS_DATA_JS, loopId, PREVIEW_NOW, previewDirs, seedPreviewWorld, wipe } from '../../support/preview-world';
+import { DS_DATA_JS, loopId, PREVIEW_NOW, previewDirs, seedPreviewWorld } from '../../support/preview-world';
 import { liveDbUrl, ServerProcess } from '../../support/server-process';
 import { PHONE_VIEW, PREVIEW_VIEW } from './kit';
 
@@ -131,7 +131,6 @@ function useLoopWorld() {
     expect((await ctx.sp.api('POST', '/api/__test/reset')).status).toBe(204);
     expect((await ctx.sp.api('POST', '/api/__test/clock', { at: PREVIEW_NOW.toISOString() })).status).toBe(200);
     expect((await ctx.sp.api('POST', '/api/__test/dirs', { paths: previewDirs(DS_DATA_JS) })).status).toBe(204);
-    await wipe(ctx.db);
     await seedPreviewWorld(ctx.db, { history: true }, DS_DATA_JS);
     ctx.loopUrl = `${ctx.sp.baseUrl}/loops/${loopId('pilot', DS_DATA_JS)}`;
   });

@@ -8,7 +8,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import pg from 'pg';
 import { en } from '../../../shared/i18n/en';
-import { DS_DATA_JS, PREVIEW_NOW, previewDirs, seedPreviewWorld, wipe } from '../../support/preview-world';
+import { DS_DATA_JS, PREVIEW_NOW, previewDirs, seedPreviewWorld } from '../../support/preview-world';
 import { liveDbUrl, ServerProcess } from '../../support/server-process';
 import { PHONE_VIEW, PREVIEW_VIEW, regions, setLang, snap, writeReport } from './kit';
 
@@ -29,7 +29,6 @@ function useServer() {
       // The server clock BEFORE seeding, or the ticker would run the runs that are already overdue.
       expect((await ctx.sp.api('POST', '/api/__test/clock', { at: PREVIEW_NOW.toISOString() })).status).toBe(200);
       expect((await ctx.sp.api('POST', '/api/__test/dirs', { paths: previewDirs(DS_DATA_JS) })).status).toBe(204);
-      await wipe(ctx.db);
       await seedPreviewWorld(ctx.db, {}, DS_DATA_JS);
       await page.clock.setFixedTime(PREVIEW_NOW);
     };

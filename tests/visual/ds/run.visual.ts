@@ -12,7 +12,7 @@ import pg from 'pg';
 import { en } from '../../../shared/i18n/en';
 import { vi } from '../../../shared/i18n/vi';
 import { previewTranscriptLength, writePreviewTranscript, type PreviewTranscriptKey } from '../../support/preview-transcripts';
-import { DS_DATA_JS, PREVIEW_NOW, previewDirs, runId, seedPreviewWorld, sid, wipe } from '../../support/preview-world';
+import { DS_DATA_JS, PREVIEW_NOW, previewDirs, runId, seedPreviewWorld, sid } from '../../support/preview-world';
 import { liveDbUrl, ServerProcess } from '../../support/server-process';
 import { PHONE_VIEW, PREVIEW_VIEW, regions, setLang, snap, writeReport } from './kit';
 
@@ -46,11 +46,12 @@ function useServer() {
     ctx.db = new pg.Pool({ connectionString: liveDbUrl(), max: 2 });
     ctx.write = (k) => writePreviewTranscript(join(config, 'projects'), k, DS_DATA_JS);
     ctx.world = async (page) => {
+      // Leave the app first: its reads would race the reset's TRUNCATE (castraferrum#170).
+      await page.goto('about:blank');
       expect((await ctx.sp.api('POST', '/api/__test/reset')).status).toBe(204);
       // The server clock BEFORE seeding, or the ticker would run the runs that are already overdue.
       expect((await ctx.sp.api('POST', '/api/__test/clock', { at: PREVIEW_NOW.toISOString() })).status).toBe(200);
       expect((await ctx.sp.api('POST', '/api/__test/dirs', { paths: previewDirs(DS_DATA_JS) })).status).toBe(204);
-      await wipe(ctx.db);
       await seedPreviewWorld(ctx.db, { history: true }, DS_DATA_JS);
       await page.clock.setFixedTime(PREVIEW_NOW);
     };
