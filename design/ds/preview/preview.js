@@ -731,7 +731,7 @@
       return `<div class="card is-pad" data-testid="sched-out" data-state="error"><p class="sched-desc">-</p><p class="hint is-err">${t('error.INVALID_CRON')}</p><p class="hint">${t('sched.out.none')}</p></div>`;
     }
     const warns = ((SCH.warn[s.cron] || {})[LANG] || []).map((w) => `<p class="hint is-warn" data-testid="sched-warn-${s.warn}">${esc(w)}</p>`).join('');
-    const next = (SCH.next[s.key] || []).map(([d, date, at, sec]) => `<li><span>${t('day.short.' + d)} ${date} · ${at}</span><span data-testid="sched-next-when">${t('rel.in', { d: durLong(sec) })}</span></li>`).join('');
+    const next = (SCH.next[s.key] || []).map(([d, date, at, sec]) => `<li><span data-testid="sched-next-when">${t('day.short.' + d)} ${date} · ${at}</span><span>${t('rel.in', { d: durLong(sec) })}</span></li>`).join('');
     return `<div class="card is-pad" data-testid="sched-out" data-state="ok"><p class="sched-desc" data-testid="sched-desc">${esc(schedDesc(s.cron))}</p>` +
       `<p class="note">${t('editor.stored', { cron: s.cron, tz: TZ })}</p>${warns}<ol class="next-runs" data-testid="sched-next" aria-label="${t('editor.nextRuns')}">${next}</ol></div>`;
   }

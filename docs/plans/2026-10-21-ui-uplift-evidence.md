@@ -1429,3 +1429,70 @@ pixels of the page region, light / dark, from `reports/compare/ds/results/<suite
 Mismatched pixels of the page regions of the 9 corrected states (18 pairs), summed: 2558 + 76 + 284 = 2918 ->
 24 + 29 + 55 = 108. The 108 left are residuals the same states had before these corrections and that their neighbours
 share (dialog pixels of `loop-stop-confirm`, the run page and editor page residuals).
+
+## U20
+
+Status: done. `tests/e2e/list.spec.ts` and `tests/e2e/form.spec.ts` run in `chromium-new` as well as `chromium`; the seven
+use cases UC-01, UC-02, UC-03, UC-04, UC-05, UC-09 and UC-10 are green in both projects.
+
+### What changed
+
+- `playwright.config.ts`: `**/list.spec.ts` and `**/form.spec.ts` added to the `testMatch` of `chromium-new`.
+- `tests/support/ui.ts`: new-UI branches for `revealRowActions` (row actions are visible at rest, D9) and
+  `pickScheduleKind` (the Repeat select `sched-kind`).
+- The two specs choose the expected text of a step that differs by design at the call site (spec 7.2): the new keys of
+  Appendix B (`stop.title`, `stop.body`, `editor.edit`, `editor.editRunning`, `editor.conflict`, `editor.duplicated`,
+  `editor.errSummary`, `status.*`, `row.*`), `data-value` on the summary items, the row's `row-last` and `row-next`,
+  and the loop page's `fig-runs`, `fig-active` and current period head for the per-row figures. No classic assertion was
+  removed or loosened.
+- New-UI fix: the editor's `sched-next-when` was on the relative time ("in 18 h 29 min"). Spec 7.1 gives it the classic
+  meaning, the run's date ("Mon 19/10 · 08:30"), so it moved to the date span in `ScheduleFields.tsx` and in
+  `design/ds/preview/preview.js`. This changes no pixel.
+- Three choices made without the owner (the rule of 2026-10-23):
+  - The approved preview writes a tab as `Running 2` (a space between the label and the count). The new branch expects
+    the space.
+  - The new editor has no "opens as Advanced" note: the approved `form-sched-advanced` state draws none. The new branch
+    checks that the Repeat select reads `editor.kind.advanced` instead.
+  - The malformed time "eight" did not have to become an empty time: `sched-time` is a text field, so "eight" shows
+    `error-sched-time` and locks Save as the step expects.
+
+### Ratchet
+
+- UCs green in both `chromium` and `chromium-new` (from `reports/e2e.json`): `0` -> `7`.
+- `npm run ratchets`: `e2e expects: 724 (min 712)` -> `e2e expects: 749 (min 749)`; `e2eExpectsMin` `712` -> `749`.
+- `npx vitest run --project unit tests/tools/ui-branches.test.ts`: `helpers without a new branch: 14` -> `12`.
+
+### Red
+
+`npm run build`, then `npx playwright test --project=chromium-new tests/e2e/list.spec.ts tests/e2e/form.spec.ts` (the
+plan's `--project chromium-new <files>` makes Playwright read the file names as project names, so `=` is used):
+`7 failed`.
+
+- UC-01: `getByTestId('sched-kind-minutes')`, `element(s) not found`.
+- UC-02: `locator.click: Test timeout of 30000ms exceeded` (`sched-kind-weekly`).
+- UC-09: `form-edit-running` received the `editor.editRunning` text.
+- UC-10: `getByText('Copy created as Stopped — no executions or runs carried over. Edit, then save.')`, not found.
+- UC-03: `row-counts`, `element(s) not found`.
+- UC-04: `row-start` `Expected: hidden`, `Received: visible`.
+- UC-05: `stop-dialog` expected `Stop “Loop Stop”?`, received `Stop Loop Stop?Run #1 has been working for 0:04. …`.
+
+### Green
+
+- (1) `npx playwright test --project=chromium-new tests/e2e/list.spec.ts tests/e2e/form.spec.ts`: `7 passed (34.1s)`.
+- (2) `npx playwright test --project=chromium tests/e2e/list.spec.ts tests/e2e/form.spec.ts`: `7 passed (34.7s)`.
+- (3) `npx vitest run --project unit tests/tools/ui-branches.test.ts`: `Tests  2 passed (2)`,
+  `helpers without a new branch: 12`. `tests/tools/e2e-selectors.test.ts`: `2 passed`.
+- (4) `npm run verify`: exit 0. `states with shots: 120/120`, `ratchets: ok`, unit `510 passed | 2 skipped (512)`,
+  contract `114 passed`, api `115 passed`, e2e `120 passed (17.2m)`, `UCs with a green e2e: 32/32`. In
+  `reports/e2e.json` the seven UCs are `expected` in both `chromium` and `chromium-new`.
+- (5) `npm run ratchets`: `e2e expects: 749 (min 749)`, `ratchets: ok`.
+
+Run with `LOOPS_TEST_DATABASE_URL` pointing at a lane database named `loops_u20_test` and `LOOPS_E2E_PORT=7182`
+(test mode refuses a database whose name does not end in `_test`).
+
+### Stub check
+
+- `pickScheduleKind` with an empty new branch: UC-02 in `chromium-new` fails at the weekday chips
+  (`locator.getAttribute: Test timeout of 30000ms exceeded`), `1 failed`.
+- The new UI without the `sched-next-when` fix: UC-02 in `chromium-new` fails, `expect(received).toEqual(expected)`,
+  received `"in 18 h 29 min", …` for `"Mon 19/10 · 08:30", …`.

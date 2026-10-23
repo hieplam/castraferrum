@@ -169,8 +169,8 @@ export function ScheduleOut({ draft, timezone, result, now }: { draft: ScheduleD
           const p = runParts(at, timezone, far);
           return (
             <li key={at.getTime()} data-at={at.toISOString()}>
-              <span>{`${t(`day.short.${p.dow}` as MessageKey)} ${p.date} · ${p.time}`}</span>
-              <span data-testid="sched-next-when">{fmtRelative(t, Math.floor((at.getTime() - now.getTime()) / 1000))}</span>
+              <span data-testid="sched-next-when">{`${t(`day.short.${p.dow}` as MessageKey)} ${p.date} · ${p.time}`}</span>
+              <span>{fmtRelative(t, Math.floor((at.getTime() - now.getTime()) / 1000))}</span>
             </li>
           );
         })}
