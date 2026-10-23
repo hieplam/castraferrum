@@ -1937,3 +1937,125 @@ Run with `LOOPS_TEST_DATABASE_URL` pointing at the lane database `loops_u22_test
   `element(s) not found`, `1 failed`.
 - A picker that registers without the name field (`AddRepo` sending only the path): UC-29 in `chromium-new` fails at
   the DB row, `expect(received).toEqual(expected)` (name `deep` for `deep-picked`), `1 failed`.
+
+## U25
+
+Status: done. The console has one UI: the classic code, CSS, fonts, preview, shots, visual tests, the `?ui=` flag and
+the classic `chromium` project are gone; `chromium-new` is now `chromium`. The app imports `web/ui/kit/styles.css` and
+`web/ui/kit/fonts.ts` statically and renders `AppRoutes`; `<html data-ui>` is gone. This pull request also closes
+castraferrum#157 (the flaky classic `tests/visual/list.visual.ts` is deleted).
+
+### What changed
+
+- Deleted: the 37 files of `scripts/classic-ui-files.json` and the list itself (`web/app/AppShell.tsx`, `TopBar.tsx`,
+  `ConnectionBanner.tsx`, `ClassicRoutes.tsx`, the seven classic pages, the classic feature components, `web/ui/components.tsx`,
+  `Combo.tsx`, `DropMenu.tsx`, `KvGrid.tsx`, `LogView.tsx`, `TranscriptView.tsx`, `styles.css`, `fonts.ts`,
+  `web/prefs/ui-version.ts` and its test). Kept: the shared models of spec section 7, `web/data/`, `web/api/`,
+  `web/ui/toast.tsx`.
+- `web/main.tsx`: static imports of `./ui/kit/fonts` and `./ui/kit/styles.css`, `<App />` with no flag; `web/app/App.tsx`
+  renders `AppRoutes`. `viewport-fit=cover`, which `main.tsx` added at run time for the new UI only, is now in the
+  viewport meta of `web/index.html` (`tests/tools/pwa.test.ts` checks it there; `design/ds/SYSTEM.md`, "iOS", says so).
+  `web/prefs/prefs.tsx` sets the theme colour on every theme change (it read `data-ui` before).
+- Deleted the classic design: `design/tokens.css`, `components.css`, `STATES.md`, `contrast-pairs-classic.json`,
+  `design/system/`, `design/preview/` (with its 184 shots). `.gitignore` drops the classic preview's build output.
+- Design scripts: `scripts/design-states.mjs` (`DEFAULT_DESIGN` = `design/ds`), `design-shots.mjs` and
+  `design-compare.mjs` (comments and the printed path `design/compare/ds/index.html`); `npm run verify` calls
+  `design:states` without `--design`. `tests/support/preview-world.ts`: `DATA_JS` is `design/ds/preview/data.js`
+  (`DS_DATA_JS` stays as the same file, for the visual tests); the classic old-prompt rule is gone.
+  `scripts/design-lint.mjs` reads `design/ds/components.css` only (its test now uses a class `ds/components.css` lacks).
+- The rule `no-new-ui-to-classic`: removed from `.dependency-cruiser.cjs`, with its fixture
+  `tests/arch-fixtures/web/pages/violates-imports-classic.tsx` and its row of the browser-side table of
+  `docs/ARCHITECTURE.md`. `npm run arch`: `arch-fixtures: 26/26` -> `25/25` (one rule and one fixture fewer),
+  `dependency-cruiser: 0 violations`.
+- Tests:
+  - Deleted the classic visual tests `tests/visual/{detail,form,list,repo,shell,transcript}.visual.ts` (21 tests) and
+    `tests/visual/compare-kit.ts`; `tests/visual/ds/kit.ts` computes its output folder itself and loses `useNewUi`
+    (the seven `tests/visual/ds/*.visual.ts` files drop their `beforeEach`).
+  - Deleted `tests/e2e/ui-switch.spec.ts` (3 tests) and the classic `chromium` project. `chromium-new` is renamed
+    `chromium`, with no `storageState` and no `testMatch`; `webkit-phone` has no `storageState` either.
+  - `tests/support/ui.ts`: the classic branches, `isNewUi`, `projectUi` and `revealRowActions` (a hover the classic UI
+    needed) are gone; `gotoApp` is `page.goto`; `lampState(page)` takes no lamp. The spec files keep only the new-UI side
+    of every `isNewUi` / `projectUi` branch (below). `tests/tools/ui-branches.test.ts` is deleted: it compared each
+    helper's new branch with its classic branch, and no helper has branches any more.
+    `tests/tools/e2e-selectors.test.ts` no longer exempts `tests/support/ui.ts` (no class selector is left in it).
+  - `scripts/phone-check.mts` loses `--ui new` (and waits for `conn` only); `npm run verify` calls
+    `phone:check -- --max 0`.
+- `package.json`: `@fontsource/ibm-plex-sans` and `@fontsource/ibm-plex-mono` removed (and from `package-lock.json`).
+- Docs: `README.md` (two reference shots of `design/ds/preview/shots/`, the design links, the Repos page wording),
+  `docs/ARCHITECTURE.md` (the UI row: CSS from `design/ds/`; the `web/ui/` and `web/app/` rows), `docs/USE-CASES.md`
+  (UC-03, UC-06, UC-08 and UC-31 as spec section 6 words them; "active period" for execution in the texts; API and
+  database names unchanged), `design/README.md` (only the new system), `design/APPROVED.md` (the cut-over entry),
+  `CLAUDE.md` and `CONTRIBUTING.md` ("until the cut-over" dropped from the design-system rule). Comments in `web/` and
+  `design/ds/` that named the deleted classic files now name the `design/ds/` ones.
+
+### Removed classic branches and tests (the e2e `expect` floor)
+
+`npm run ratchets` counts the `expect(`, `expect.soft(` and `expect.poll(` calls of `tests/e2e` and `tests/support`;
+per file, main -> this branch:
+
+| File | Before | After | What went |
+|---|---|---|---|
+| `tests/e2e/ui-switch.spec.ts` | 11 | 0 | the file (3 tests of the flag) |
+| `tests/support/ui.ts` | 1 | 0 | `isNewUi`'s check of `html[data-ui]` |
+| `tests/e2e/list.spec.ts` | 125 | 102 | classic row figures (`row-counts`, `row-exec`, `row-right`, `row-meta`), top-bar sentences, `aria-current` row, hidden row actions |
+| `tests/e2e/detail.spec.ts` | 132 | 114 | classic lamp, header text, `kv-longest`, `run.noSession`, `data-ended`, `exec-api`, archived banner, `loop-start` disabled, the classic `checkTable` of UC-31 (9) |
+| `tests/e2e/system.spec.ts` | 110 | 95 | classic lamp, `Run #n in progress`, `row-counts` and `row-exec` (9), `last-run-failed`, figure sentence, `row-status` text, `server-down-banner` |
+| `tests/e2e/shell.spec.ts` | 65 | 55 | classic banner texts (4), `topstats` stale (2), `toggle-lang` (3), one more banner text |
+| `tests/e2e/repo.spec.ts` | 96 | 88 | `repo-path` emptied, `last-run-failed` / `last-run-repo-missing`, `run-session` / `run-cost`, `run-executor-used` with the limit, `loop-repo`, `f-repo` path |
+| `tests/e2e/repo-browse.spec.ts` | 34 | 26 | the classic path field, `folder-choose` flow (4), `folder.target.taken` / `folder-choose` disabled, `repo-path` emptied |
+| `tests/e2e/concurrency.spec.ts` | 40 | 37 | the classic executor line and list-pane checks |
+| `tests/e2e/form.spec.ts` | 109 | 107 | the pressed `sched-kind-<k>` button, the `sched.autoAdvanced` note |
+| `tests/e2e/transcript.spec.ts` | 51 | 49 | `tx.start`, the `run-kv` note |
+| `tests/e2e/phone.spec.ts` | 31 | 30 | `expect(await isNewUi(page)).toBe(true)` |
+| total | 847 | 745 | k = 102 |
+
+No new-UI assertion was removed or loosened; a ternary `fresh ? new : classic` became its new side. `scripts/ratchets.json`:
+`e2eExpectsMin` `847` -> `745` with `"e2eExpectsLoweredBy": { "task": "U25", "from": 847, "classicBranchExpects": 102 }`
+(the 102 include the 11 of the deleted flag spec and the flag check of `ui.ts`).
+
+### Ratchet
+
+- `npm run design:lint`: `native title: 8` -> `0`, `unknown classes: 0` -> `0`, `literal styles: 0` -> `0`,
+  `css violations: 0` -> `0`. `scripts/ratchets.json` `lint`: `maxTitle` `8` -> `0` (`maxUnknown`, `maxLiteral` stay 0).
+- Tokens: `{ "file": "design/tokens.css", "removedBy": "U25" }` (tombstone); `design/ds/tokens.css` unchanged.
+- `git archive HEAD:design | wc -c`: `49141760` -> `25579520` (under 30000000).
+- UI implementations: 2 -> 1 (`web/app/App.tsx` renders `AppRoutes` only).
+- Tests per project (`npx playwright test --list`): `chromium` 40 (classic) and `chromium-new` 41 -> `chromium` 38
+  (the 41 minus the 3 of `ui-switch.spec.ts`; the 40 classic runs of the same specs are gone); `webkit-phone` 1 -> 1;
+  `visual` 73 -> 52 (the 21 classic visual tests).
+- e2e `expect` floor: `847` -> `745` (k = 102, table above).
+- `uc-coverage`: `UCs with a green e2e: 33/33` (main, U22's verify) -> `33/33` (this branch's verify; floor `--min 33` unchanged).
+
+### Red
+
+On `main` (0bef160), `git ls-files design/preview design/tokens.css design/components.css design/system
+web/app/AppShell.tsx web/app/ClassicRoutes.tsx | wc -l`: `195` (the first lines: `design/components.css`,
+`design/preview/app.html`, `design/preview/data.js`, ...).
+
+### Green
+
+- (1) `git ls-files design/preview design/tokens.css design/components.css design/system web/app/AppShell.tsx
+  web/app/ClassicRoutes.tsx`: prints nothing.
+- (2) `npm run design:lint`: `native title: 0`, `unknown classes: 0`, `dynamic classes: 0 (not checked)`,
+  `literal styles: 0`, `css violations: 0`.
+- (3) `git archive HEAD:design | wc -c`: `25579520` (under 30000000).
+- (4) `npm run build`, then `npx playwright test --project=chromium`: `38 passed (5.5m)`;
+  `npx playwright test --project=webkit-phone`: `1 passed (14.0s)`; `--project=visual` ran inside the e2e step of (5):
+  from that run's `reports/e2e.json`, `chromium` 38, `webkit-phone` 1 and `visual` 52 tests `expected`, none failed.
+  (`--project=` because the plan's space form makes Playwright read the next word as a project.)
+- (5) `npm run verify` (with `LOOPS_TEST_DATABASE_URL` on this lane's database and `LOOPS_E2E_PORT=7188`), exit 0:
+  `states with shots: 120/120`, typecheck clean, `baseline check: ok`, `dependency-cruiser: 0 violations`,
+  `arch-fixtures: 25/25 violations caught`, unit `514 passed | 2 skipped`, contract `114 passed`, api `115 passed`,
+  api-smoke passes, e2e `91 passed (9.9m)` with no failure and no flaky test, `phone overflow: 0/12`,
+  `UCs with a green e2e: 33/33` (the floor before the cut-over: 33).
+- (6) `npm run ratchets -- --base main`: `design/tokens.css: removed by U25`, `native title: 0`, `e2e expects: 745
+  (min 745)`, `base main: every limit held`, `ratchets: ok`.
+
+### Stub check
+
+- Leaving the classic files: the `git ls-files` line prints 195 paths, and `npm run design:lint` with the classic files
+  (as on `main` before this task) reports `native title: 8`, which `maxTitle: 0` fails.
+- A broken import (for example `web/main.tsx` still importing `./prefs/ui-version`): `npm run typecheck` fails in
+  `verify` (run on this branch: `web/main.tsx(10,27): error TS2307: Cannot find module './prefs/ui-version'`).
+- A lowered floor without the note: `compareRatchets` reports `e2eExpectsMin: lowered 847 -> 745 without a matching
+  e2eExpectsLoweredBy note` and `ratchets: failed` (run on this branch with the note deleted from `scripts/ratchets.json`, then restored).
