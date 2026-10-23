@@ -1349,7 +1349,7 @@ choose.
 ### Green
 
 - (1) `npx playwright test --project=visual tests/visual/ds/form.visual.ts`: `5 passed`, exit 0.
-  `node -e "console.log(require('./reports/compare/ds/results/form.json').length)"`: `50`. 53 regions, 18 at 0 mismatched
+  `node -e "console.log(require('./reports/compare/ds/results/form.json').length)"`: `50`. 64 regions, 28 at 0 mismatched
   pixels, worst ratio `0.00012` (`form-duplicate`, the back link above); the others at most `0.00005` (the stored-cron line).
 - (2) `npx vitest run --project unit web/features/loop-form`: `20 passed (20)`; `form-model.ts`, `schedule-draft.ts`,
   `time-zones.ts` and `use-duplicate-loop.ts` are unchanged.
