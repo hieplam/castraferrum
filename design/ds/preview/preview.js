@@ -547,7 +547,7 @@
       `<div class="tx-head"><span>${e.at}</span><span class="tx-kind">${t(key, p)}</span></div>${body}</div>`;
   }
   // tx = { mode: following | paused | ended | waiting | missing | noSession, data: key of PV.transcripts, page: the last
-  // page loaded (older entries left: "loading older…" at the top) }.
+  // page loaded (older entries left: "loading older…" at the top) }. The bar counts the loaded entries, as the app does.
   function transcript(r, s, tx) {
     const help = `<button class="help" type="button" aria-label="${t('tx.help')}" aria-haspopup="dialog">${icon('help')}</button>`;
     const head = `<div class="section-head"><h2 data-testid="run-transcript-title">${t('run.transcript')}</h2>${help}</div>`;
@@ -560,7 +560,7 @@
     const end = live
       ? `<div class="tx-entry" data-cursor="live"><div class="tx-head"><span>${D.now}</span></div><div class="tx-body"><span class="cursor"></span></div></div>`
       : `<div class="tx-end" data-testid="run-transcript-edge">${t('tx.end', { t: addSec(r.start, r.dur) })}</div>`;
-    return head + `<div class="tx" data-testid="run-transcript" data-paused="${tx.mode === 'paused'}"><div class="tx-bar"><span>${tn('tx.entries', all.length)}</span><span>${right}</span></div>` +
+    return head + `<div class="tx" data-testid="run-transcript" data-paused="${tx.mode === 'paused'}"><div class="tx-bar"><span>${tn('tx.entries', list.length)}</span><span>${right}</span></div>` +
       `<div class="tx-scroll" data-testid="run-transcript-scroll">${top}${list.map(txEntry).join('')}${end}</div></div>`;
   }
 
@@ -762,7 +762,8 @@
     const locked = o.saving || o.noRepos || !!SCH.error[s.cron];
     const label = o.saving ? t('form.saving') : t(edit ? 'editor.save' : 'editor.create');
     const submit = `<button class="btn primary${PHONE ? ' lg block' : ''}" type="submit" form="loop-form" data-testid="form-submit"${locked ? ' disabled' : ''}>${label}</button>`;
-    const back = edit ? D.loops[o.key].name : t('nav.loops');
+    // The back link names the loop being edited as it is saved (a copy's editor names the copy), not the draft name.
+    const back = edit ? (o.saved ?? D.loops[o.key].name) : t('nav.loops');
     // The phone's navigation bar holds the heading (Cancel at the start, the title centred); from 640px the page does.
     const page = (PHONE ? '' : backlink(back) + `<div class="page-head"><h1 class="page-title">${title}</h1></div>`) + (o.banner || '') +
       `<form id="loop-form" data-testid="loop-form" style="display:contents">${details}${prompt}${schedule}${agent}</form>` +
@@ -985,7 +986,7 @@
     'form-saving': () => formApp({ mode: 'new', v: sampleNew(), s: SCHED.weekly, saving: true }),
     'form-edit-running': () => formApp({ mode: 'edit', key: 'pilot', v: valuesOf('pilot'), s: SCHED.minutes30, banner: formBanner.running() }),
     'form-conflict': () => formApp({ mode: 'edit', key: 'pilot', v: valuesOf('pilot', { effort: 'max' }), s: SCHED.minutes30, banner: formBanner.conflict() }),
-    'form-duplicate': () => formApp({ mode: 'edit', key: 'pilot', v: valuesOf('pilot', { name: D.loops.pilot.name + ' (copy)' }), s: SCHED.minutes30, banner: formBanner.duplicated() }),
+    'form-duplicate': () => formApp({ mode: 'edit', key: 'pilot', saved: D.loops.pilot.name + ' (copy)', v: valuesOf('pilot', { name: D.loops.pilot.name + ' (copy)' }), s: SCHED.minutes30, banner: formBanner.duplicated() }),
     'form-loading': () => formLoading(),
     'form-repo-required': () => formApp({ mode: 'new', v: Object.assign(sampleNew(), { repo: null }), s: SCHED.daily, errs: { repo: t('val.repoRequired') }, banner: formBanner.errors(1) }),
     'form-no-repos': () => formApp({ mode: 'new', v: emptyNew(), s: SCHED.minutes30, noRepos: true }),
