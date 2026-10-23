@@ -1833,8 +1833,13 @@ manifest, its three icons and the iOS head. The check on a real iPhone stays wit
 - (5) `npm run verify` (lane database `loops_u24_test`, port 7186), exit 0: `states with shots: 120/120`, typecheck,
   lang-scan, arch `0 violations`, `ratchets: ok`, unit `520 passed | 2 skipped`, contract `114 passed`, api
   `115 passed`, api-smoke, build, e2e `139 passed`, `phone overflow: 0/12`, `UCs with a green e2e: 33/33` (main: 32/32).
-  The first verify run also had the known flaky classic `list.visual.ts` "LOOP_ALREADY_ACTIVE toast" (castraferrum#157)
-  fail once; it passed in the next run.
+  That run was on `main` after U21. After the rebase on U23, `npm run verify` ran every step up to the e2e: the same
+  numbers (`e2e expects: 835 (min 835)`), e2e `147 passed`, `2 failed`, both known flakes outside this task: the classic
+  `list.visual.ts` "LOOP_ALREADY_ACTIVE toast" (castraferrum#157) and a `deadlock detected` in the `TRUNCATE` of
+  `tests/support/preview-world.ts` under `tests/visual/ds/form.visual.ts` "edit a running loop ..." (opened as
+  castraferrum#170). Re-run alone: `2 passed`. Then the remaining steps run separately:
+  `npm run phone:check -- --ui new --max 0` -> `phone overflow: 0/12`, exit 0, and `npm run uc-coverage -- --min 33` on
+  that run's report -> `UCs with a green e2e: 33/33`.
 
 ### Stub check
 
