@@ -2059,3 +2059,44 @@ web/app/AppShell.tsx web/app/ClassicRoutes.tsx | wc -l`: `195` (the first lines:
   `verify` (run on this branch: `web/main.tsx(10,27): error TS2307: Cannot find module './prefs/ui-version'`).
 - A lowered floor without the note: `compareRatchets` reports `e2eExpectsMin: lowered 847 -> 745 without a matching
   e2eExpectsLoweredBy note` and `ratchets: failed` (run on this branch with the note deleted from `scripts/ratchets.json`, then restored).
+
+## Issue 175
+
+Status: done. A records fix found by U26 step 4, outside the plan: 11 closed tasks of the epic failed
+`epic.mjs check <n> --dry-run` although their work was verified. Nothing that was verified changed; only the merged
+pull request bodies were restructured so that GitHub links them as closing pull requests
+(`closedByPullRequestsReferences`, the field the check reads) and the check finds their `## Verify` section.
+GitHub links a merged pull request when its body gains a `Closes` line after the merge, so no issue was reopened.
+
+- https://github.com/hieplam/castraferrum/issues/77: https://github.com/hieplam/castraferrum/pull/136, the plain `Verify:` line became a `## Verify` heading.
+- https://github.com/hieplam/castraferrum/issues/112, https://github.com/hieplam/castraferrum/issues/124 and https://github.com/hieplam/castraferrum/issues/125: https://github.com/hieplam/castraferrum/pull/128, `Refs` became full-URL `Closes` lines (its
+  `## Verify` section was already there).
+- https://github.com/hieplam/castraferrum/issues/108, https://github.com/hieplam/castraferrum/issues/110 and https://github.com/hieplam/castraferrum/issues/123: https://github.com/hieplam/castraferrum/pull/129, `Refs` became `Closes`; a `## Verify` heading
+  was added above its `## Red` and `## Green`, which became `###` so the section reaches its Stub check line.
+- https://github.com/hieplam/castraferrum/issues/106, https://github.com/hieplam/castraferrum/issues/114 and https://github.com/hieplam/castraferrum/issues/122: https://github.com/hieplam/castraferrum/pull/130, `Refs` became `Closes`; a `## Verify` heading
+  was added above its `## Red (before)`, `## Green (after)` and `## Stub check`, which became `###`.
+- https://github.com/hieplam/castraferrum/issues/134: https://github.com/hieplam/castraferrum/pull/135, `Refs` became `Closes`; a `## Verify` heading was added above its Ratchet, Red,
+  Green, State by state and Stub check sections, which became `###`.
+
+### Red
+
+`node <epic-loop>/scripts/epic.mjs check <n> --dry-run` for the 11 issues: 11 FAIL. 77: castraferrum#136 `has no "## Verify"
+section`; 106, 108, 110, 112, 114, 122, 123, 124, 125 and 134: `no merged pull request closes it`.
+
+### Green
+
+- The same command prints `PASS` for the 11: 77 via 136; 106, 114, 122 via 130; 108, 110, 123 via 129; 112, 124,
+  125 via 128; 134 via 135.
+- Over all 45 closed sub-issues of the epic (walked recursively): 43 PASS, 2 FAIL. The two are the phase issues 65
+  and 68, which `epic.mjs` closes itself when their sub-issues finish and which have no pull request by design. So
+  43/43 closed task issues PASS.
+
+### Stub check
+
+An issue closed without a pull request still fails: `check 65 --dry-run` prints `FAIL #65 - no merged pull request
+closes it`. The check needs a merged pull request in `closedByPullRequestsReferences` whose body has a `## Verify`
+section naming Red, Green and Stub; a `Closes` line alone fails, as 77 did.
+
+### Ratchet
+
+Closed task issues of the epic that fail `check --dry-run`: 11 -> 0.
