@@ -1,7 +1,7 @@
 // Form pieces: the segmented control (`.seg`), the field cell (`.fcell`) that holds a label and a control in a group (above it,
 // or as a row: the label at the start, the value and a chevron at the end), the text field, the text area, the native select,
-// the stepper, the chip (`.chip`) and the search field (`.search`). Every text is a prop (no i18n in the kit).
-import type { ReactNode } from 'react';
+// the stepper, the chip (`.chip`), the switch (`.switch`) and the search field (`.search`). Every text is a prop (no i18n in the kit).
+import type { KeyboardEvent, ReactNode } from 'react';
 import { cx } from './cx';
 import { Icon } from './Icon';
 
@@ -52,6 +52,7 @@ export function Search({
   onChange,
   testId,
   disabled,
+  onKeyDown,
 }: {
   label: string;
   placeholder?: string;
@@ -59,11 +60,24 @@ export function Search({
   onChange: (value: string) => void;
   testId?: string;
   disabled?: boolean;
+  /** Keys the caller handles (the folder picker moves through its list with the arrow keys). */
+  onKeyDown?: (e: KeyboardEvent<HTMLInputElement>) => void;
 }) {
   return (
     <label className="search">
       <Icon name="search" />
-      <input type="search" data-testid={testId} placeholder={placeholder} aria-label={label} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
+      <input
+        type="search"
+        data-testid={testId}
+        placeholder={placeholder}
+        aria-label={label}
+        value={value}
+        disabled={disabled}
+        autoComplete="off"
+        spellCheck={false}
+        onKeyDown={onKeyDown}
+        onChange={(e) => onChange(e.target.value)}
+      />
     </label>
   );
 }
@@ -130,6 +144,8 @@ export function HintLine({ hint }: { hint: Hint }) {
 }
 
 type FieldBase = { id: string; testId?: string; invalid?: boolean; disabled?: boolean; label?: string; form?: string };
+/** `data-*` attributes the tests read (the operating system of the folder picker's path field). */
+type DataAttrs = Record<`data-${string}`, string | undefined>;
 
 /**
  * A one-line text field. `time` = a 24-hour `HH:MM` text field (a browser's time field shows 12 hours in an English browser);
@@ -148,7 +164,8 @@ export function Input({
   time,
   data,
   placeholder,
-}: FieldBase & { value: string; onChange: (value: string) => void; type?: 'text' | 'number'; time?: boolean; data?: boolean; placeholder?: string }) {
+  attrs,
+}: FieldBase & { value: string; onChange: (value: string) => void; type?: 'text' | 'number'; time?: boolean; data?: boolean; placeholder?: string; attrs?: DataAttrs }) {
   return (
     <input
       className={cx('input', invalid && 'is-err', data && 'is-data')}
@@ -164,6 +181,7 @@ export function Input({
       autoComplete="off"
       spellCheck={false}
       {...(time ? { inputMode: 'numeric' as const, maxLength: 5, pattern: '([01][0-9]|2[0-3]):[0-5][0-9]' } : {})}
+      {...attrs}
       onChange={(e) => onChange(e.target.value)}
     />
   );
@@ -266,6 +284,19 @@ export function StepperCell({ title, meta, error, errorTestId, ...stepper }: Par
       </span>
       <Stepper {...stepper} />
     </div>
+  );
+}
+
+/**
+ * An on or off setting (`.switch`): a button with `role="switch"` and `aria-checked`; the thumb moves to the end and the track
+ * turns to the accent when it is on. `children` is its label, which says what the setting does.
+ */
+export function Switch({ on, onToggle, testId, disabled, children }: { on: boolean; onToggle: () => void; testId?: string; disabled?: boolean; children: ReactNode }) {
+  return (
+    <button type="button" className="switch" role="switch" aria-checked={on} data-testid={testId} disabled={disabled} onClick={onToggle}>
+      <span className="switch-track" />
+      {children}
+    </button>
   );
 }
 

@@ -186,3 +186,21 @@ All shots re-shot with `npm run design:shots -- --design design/ds`, light and d
 Evidence: the section "Issues 156, 159 and 161" of
 [`../docs/plans/2026-10-21-ui-uplift-evidence.md`](../docs/plans/2026-10-21-ui-uplift-evidence.md). The classic preview
 in [`preview/`](preview/) keeps its approved figures; `tests/visual/detail.visual.ts` still masks them there.
+
+## Agent corrections under the owner's rule of 2026-10-23 - the Repos page and folder picker (U19), 2026-10-23
+
+Made by the agent of task U19 (castraferrum#87) under the same rule (the app's honest behaviour wins, the preview is
+corrected and re-shot, this file records it; a gap in the system is closed inside the rules of `ds/SYSTEM.md`).
+
+- **Order of the folders next to the repos in quick access** (preview vs app): the preview listed the folders that hold
+  registered repos in the order of the sample repos ("work", then "Documents - alice"). The server sorts them, most repos
+  first, then by path (`GET /api/folders/places`, `nearRepos`), so the app lists "Documents - alice" before "work". The
+  preview's `picker()` in [`ds/preview/preview.js`](ds/preview/preview.js) now sorts them the same way. Re-shot with
+  `npm run design:shots -- --design design/ds`, light and dark: `repos-add`, `vi-repos-add`, `repos-add-notfound`,
+  `repos-err-missing`, `repos-err-dup-path` and `repos-err-dup-name` (12 shots); no other shot changed (the phone's chips
+  row does not reach those chips, and the Mac has one such folder).
+- **A cell's `⋯` menu in an inset list** (system gap): a repo's `⋯` opens a popover menu on the desktop, and `.group`
+  clipped it (`overflow: hidden`), so the menu of the last repo was cut. As for the combobox, a group that holds an open
+  menu of one of its cells stops clipping: [`ds/components.css`](ds/components.css)
+  `.group:has(.cell .menu) { overflow: visible; }`, written in `ds/SYSTEM.md`, "Inset list". No state draws the open
+  menu, so no shot changed.

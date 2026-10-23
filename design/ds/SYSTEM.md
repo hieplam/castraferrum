@@ -298,6 +298,9 @@ Screens put kit components together in `web/features/`. Never add a class that i
   (`--font-data`). `.cell-row` wraps its parts onto the next line when they do not fit. A `.cell-meta` made of
   spans (a loop row: repo, short schedule, next run) wraps between its spans, never inside one; `.is-one-line` cuts
   a single long value (a path) with an ellipsis.
+- **A cell's menu.** A `⋯` at the trailing edge of a cell (a repo: Delete) opens a popover `.menu` on the desktop and a
+  sheet on the phone. A `.group` that holds an open menu of one of its cells stops clipping, so the menu of the last
+  cell is not cut by the card (as with the combobox, see Fields).
 - **Do not** use a table for these lists.
 - **Phone:** cells at least `--size-row` tall, hairlines inset by `--space-4`. **Desktop:** at least `--size-row-sm`.
 - **States:** hover, pressed, selected (`.is-sel`, with the rail), focus.
@@ -422,7 +425,7 @@ Screens put kit components together in `web/features/`. Never add a class that i
 - **Phone:** menus, confirmations and toggletips open as sheets from the bottom; `.fullsheet` for the folder picker.
   **Desktop:** popover menus, popovers and centred dialogs.
 - **States:** open; Escape closes; focus is trapped inside and given back to the opener.
-- **Wrapper:** `web/ui/kit/Overlay.tsx`: `Sheet`, `Dialog`, `Menu`, `Popover`, `Tooltip`, `Toggletip` (U14).
+- **Wrapper:** `web/ui/kit/Overlay.tsx`: `Sheet`, `Dialog`, `Menu`, `Popover`, `Tooltip`, `Toggletip` (U14); `FullSheet` (U19).
 
 ### Toast
 
