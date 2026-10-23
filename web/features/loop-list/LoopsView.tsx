@@ -89,7 +89,11 @@ export function LoopsView() {
   const neverCreated = total !== undefined && total.all + total.archived === 0;
   // Count per tab by the repo filter; with no filter it is the same count as the figures' loops.
   const counts = repoId ? tabCounts.data?.loops : total;
-  const off = list.isPending || list.isError || neverCreated;
+  // The database down (castraferrum#196): a list already loaded stays (like the figures), a failed reload never hides it;
+  // with no list yet the error state shows at once, never a skeleton that waits for a database that does not answer.
+  const loaded = list.data !== undefined;
+  const failed = !loaded && (list.isError || status.db === 'down');
+  const off = !loaded || neverCreated;
   const confirmLoop = list.data?.find((l) => l.id === actions.confirmId);
   const pickedRepo = repos?.find((r) => r.id === repoId) ?? null;
 
@@ -111,8 +115,8 @@ export function LoopsView() {
   }
 
   let body;
-  if (list.isPending) body = <Skeleton />;
-  else if (list.isError) {
+  if (!loaded && !failed) body = <Skeleton />;
+  else if (failed) {
     body = (
       <div className="empty is-err" data-testid="list-error" role="alert">
         <b>{t('list.error.title')}</b>

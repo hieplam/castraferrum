@@ -370,3 +370,28 @@ Re-shot with `npm run design:shots -- --design design/ds`, light and dark (24 sh
 `phone-form-new`, `phone-form-errors`, `phone-form-repo-pick`, `phone-form-sched-daily`, `phone-form-sched-weekly`,
 `phone-loop-running`, `phone-loop-last-failed`, `phone-loop-runs`, `phone-loop-settings`, `phone-run-succeeded`,
 `phone-settings`, `phone-vi-settings`. No other shot changed.
+
+## Agent corrections under the owner's rule of 2026-10-23 - states and shot tooling (U27 defects), 2026-10-24
+
+Made by the agent of the U27 defect lane "states and tooling" under the owner's rule of 2026-10-23 (the app's honest
+behaviour wins, the preview is corrected and re-shot, this file records it; the owner is not asked).
+
+- **`frame-db-down` keeps the last loops list** (castraferrum#196): the preview draws the list the console had loaded
+  when the database stopped answering, and the app now does the same. A failed reload no longer replaces a loaded list
+  with the error state, and a list never loaded shows the failed `.empty.is-err` at once instead of a skeleton that
+  waits for the database. Written in `ds/SYSTEM.md`, "Misc" (the `.skeleton` "Do not" line). No shot changed: the
+  preview already drew the last list.
+- **`repos-loading` shows Repos with no count** (castraferrum#197): while the repo list loads the app cannot know the
+  count, so its top bar shows "Repos" alone; the preview drew "Repos 4". In [`ds/preview/preview.js`](ds/preview/preview.js)
+  `repoCount: null` means "not known yet" and draws no count; `reposApp({ loading: true })` passes it. Re-shot:
+  `repos-loading`.
+- **Tall shots draw the fixed bars at the bottom of the page** (castraferrum#198): a full-page capture painted the tab
+  bar or the action bar where the first 844px screen ends, over the content. `npm run design:shots` (and
+  `tests/visual/ds/kit.ts` for the app) now makes the viewport as tall as the page for the shot, and reports a page whose
+  fixed bars would still sit mid-page as a problem. Re-shot (only the bars moved): `phone-frame-loading`,
+  `phone-frame-disconnected`, `phone-loops-overview`, `phone-vi-loops-overview`, `phone-loop-running`,
+  `phone-loop-last-failed`, `phone-form-new`, `phone-form-sched-daily`, `phone-form-sched-weekly`, `phone-form-errors`,
+  `phone-settings` and `phone-vi-settings`.
+
+All shots re-shot with `npm run design:shots -- --design design/ds --compress`, light and dark: 26 shots changed (the 13
+states above), no other shot.

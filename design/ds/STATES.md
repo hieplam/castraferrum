@@ -29,7 +29,7 @@ separate id `phone-<id>` that draws its base state at 390 by 844. Open a state l
 | `frame-disconnected` | Lost connection: red banner with the attempt and the retry time, figures frozen | - |
 | `phone-frame-disconnected` | `frame-disconnected` on the phone | - |
 | `frame-reconnected` | Info banner: reconnected, data refreshed | - |
-| `frame-db-down` | Server up, database not answering: warning banner, the connection shows "Database not answering" | - |
+| `frame-db-down` | Server up, database not answering: warning banner, the connection shows "Database not answering", the last loops list stays | - |
 | `not-found` | Unknown URL: empty state with a link to Loops | - |
 | `phone-not-found` | `not-found` on the phone | - |
 
@@ -156,7 +156,7 @@ separate id `phone-<id>` that draws its base state at 390 by 844. Open a state l
 | `repos-list` | The four sample repos, one whose folder is gone | - |
 | `phone-repos-list` | `repos-list` on the phone | `m-repos-light` |
 | `repos-empty` | No repo yet | - |
-| `repos-loading` | Skeleton | - |
+| `repos-loading` | Skeleton, Repos with no count in the top bar | - |
 | `repos-add` | The folder picker open (a full-height sheet on the phone, a wide dialog on the desktop), a git folder selected, the name filled in | - |
 | `phone-repos-add` | `repos-add` on the phone | `m-folder-light` |
 | `repos-add-notfound` | A typed path that does not exist: the error under the path, the list keeps the open folder | - |

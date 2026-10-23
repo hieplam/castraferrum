@@ -146,8 +146,10 @@ test.describe('desktop Repos page against the preview', () => {
     await page.route('**/api/repos', () => undefined); // never answers
     await page.goto(`${base}/repos`);
     await expect(page.getByTestId('repo-loading')).toBeVisible();
+    // castraferrum#197: the repo count is not known yet, so the top bar shows Repos with no count, as the preview does.
+    await expect(page.getByTestId('nav-repos')).toHaveText(tEn('nav.repos'));
     await still(page);
-    await snap(page, 'repos-loading', 'Loading the repos: skeleton cells', page1());
+    await snap(page, 'repos-loading', 'Loading the repos: skeleton cells, Repos with no count', [regions.topbar(), regions.page()]);
     await page.unroute('**/api/repos');
 
     // Delete a repo no loop uses: the confirmation.
