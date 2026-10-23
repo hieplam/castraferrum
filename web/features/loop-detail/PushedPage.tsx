@@ -83,11 +83,11 @@ export function PageSkeleton() {
 }
 
 /** A loop, a period or a run that does not exist (or could not load): its title is the page's one heading (D28). */
-export function PageNotFound({ title }: { title: string }) {
+export function PageNotFound({ title, testId }: { title: string; testId?: string }) {
   const t = useT();
   return (
     <PushedPage back={useBackToLoops()} backlink={false}>
-      <div className="empty is-err" role="alert">
+      <div className="empty is-err" role="alert" data-testid={testId}>
         <b role="heading" aria-level={1}>
           {title}
         </b>

@@ -111,13 +111,14 @@ export function Cols({ main, side }: { main: ReactNode; side: ReactNode }) {
 
 /**
  * The phone's navigation bar of a pushed page (`.navbar`, hidden from 640px): the way back (`back`, a link the caller builds with
- * `navbar-back`), an empty title (the page's own `h1` names the page, D28) and the page's actions.
+ * `navbar-back`), an empty title (the page's own `h1` names the page, D28) and the page's actions. A page with no heading of its
+ * own on the phone (the editor) passes `title`: it is centred in the bar and is the page's one `h1`.
  */
-export function NavBar({ back, actions }: { back: ReactNode; actions?: ReactNode }) {
+export function NavBar({ back, title, actions }: { back: ReactNode; title?: ReactNode; actions?: ReactNode }) {
   return (
     <nav className="navbar">
       {back}
-      <span className="navbar-title" />
+      {title === undefined ? <span className="navbar-title" /> : <h1 className="navbar-title">{title}</h1>}
       <div className="navbar-actions">{actions}</div>
     </nav>
   );
