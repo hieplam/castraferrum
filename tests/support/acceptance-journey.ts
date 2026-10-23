@@ -98,6 +98,8 @@ export async function journey(page: Page, request: APIRequestContext, o: Journey
       const { scrollWidth, innerWidth } = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth }));
       expect(scrollWidth, `${name}: the page scrolls sideways`).toBeLessThanOrEqual(innerWidth);
       await page.evaluate(() => document.fonts.ready.then(() => undefined));
+      // A full-page shot taken while scrolled would paint the sticky bars in the middle of the page: shoot from the top.
+      await page.evaluate(() => window.scrollTo(0, 0));
       steps += 1;
       const file = `${SHOTS}/${o.label}-${theme}-${String(steps).padStart(2, '0')}-${name}.png`;
       await page.screenshot({ path: file, fullPage: true, animations: 'disabled', caret: 'hide' });
