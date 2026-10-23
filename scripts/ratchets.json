@@ -4,5 +4,5 @@
     { "file": "design/ds/tokens.css", "pairs": "design/ds/contrast-pairs.json", "require": "design/ds/required-tokens.json", "maxEmpty": 0, "maxMissingDark": 0, "maxContrast": 0, "maxMissing": 0 }
   ],
   "lint": { "maxTitle": 8, "maxUnknown": 0, "maxLiteral": 0 },
-  "e2eExpectsMin": 804
+  "e2eExpectsMin": 835
 }

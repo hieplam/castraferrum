@@ -223,3 +223,21 @@ castraferrum#165.
   `loop-archived`, `loop-stop-confirm`, `loop-stopping`, `loop-disconnected`, `loop-help`, `loop-menu`,
   `phone-loop-running`, `phone-loop-last-failed`); 634 to 3993 pixels each, the title's colour. Every other shot is
   unchanged.
+
+## Agent corrections under the owner's rule of 2026-10-23 - phone touch targets (U24), 2026-10-23
+
+Made by the agent of task U24 (castraferrum#92) under the same rule (a gap in the system is closed inside the rules of
+`ds/SYSTEM.md`, and this file records it).
+
+- **Every target on the phone is at least `--size-touch`** (system gap): `ds/SYSTEM.md` ("iOS") already asked for it, and
+  the phone sets `--size-control` to 44px, but some parts a finger taps were smaller than their 44px frame. The UC-34 walk
+  (`tests/e2e/phone.spec.ts`) measured them: a `.seg` button 38px tall (the frame's padding and border), a `.stepper`
+  button 42px (the border), the period link of a `.group-cap` 18px (U21's caption link), a `.chip` with a short label ("C:") 39px wide, and the value of a `.fcell.is-row` 32px tall.
+  [`ds/components.css`](ds/components.css), phone only: `.seg button` and `.stepper button` are `--size-touch` tall (their
+  frame grows by 6px and 2px), `.group-cap .link` is `--size-touch` tall, `.chip` has `min-width: var(--size-touch)`, and `.fcell.is-row` values are
+  `--size-touch` tall while the row keeps `--size-row` (its padding becomes `--space-1h`). Written in `ds/SYSTEM.md`,
+  "Fields" (Phone) and "Inset list". Re-shot with `npm run design:shots -- --design design/ds`, light and dark: `phone-form-new`,
+  `phone-form-errors`, `phone-form-sched-daily`, `phone-form-sched-weekly`, `phone-frame-disconnected`,
+  `phone-frame-loading`, `phone-loops-overview`, `phone-vi-loops-overview`, `phone-loops-repo-filter`,
+  `phone-loops-stop-confirm`, `phone-loop-running`, `phone-loop-last-failed`, `phone-settings` and `phone-vi-settings`
+  (28 shots: 6 to 26px taller where a segmented control, a stepper, a row or a caption link grew); no desktop shot changed.

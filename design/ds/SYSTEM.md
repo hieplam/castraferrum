@@ -294,7 +294,8 @@ Screens put kit components together in `web/features/`. Never add a class that i
   (`.is-plain`), `.cell-row`, `.cell-meta` (`.is-one-line`, `.is-data`), `.cell-sum`, `.cell-value` (`.is-data`), `.chev`.
 - **Use it** for every list (runs, repos, active periods, folders, settings rows) on every screen size, and for the
   Loops list on the phone. A `.cell.is-link` opens a page and shows a `.chev`. A `.group-cap` that heads the runs of one
-  active period starts with a `.link` to that period's page (the current period on the loop page), at the caption's size.
+  active period starts with a `.link` to that period's page (the current period on the loop page), at the caption's size. On
+  the phone that link is `--size-touch` tall (task U24).
 - **Data text.** A path, an address or a version in a cell is `.cell-meta.is-data` or `.cell-value.is-data`
   (`--font-data`). `.cell-row` wraps its parts onto the next line when they do not fit. A `.cell-meta` made of
   spans (a loop row: repo, short schedule, next run) wraps between its spans, never inside one; `.is-one-line` cuts
