@@ -81,6 +81,9 @@ export function AddRepo({ onClose }: { onClose(): void }) {
   /** Going up selects the folder just left. */
   const reselect = useRef<string | null>(null);
   const opened = useRef(false);
+  /** The user typed into the path field since the last step they took on purpose (Go, a place, up, opening a folder): a folder that
+   * arrives then (the opening folder loading late) must not replace what they typed. */
+  const keepTyped = useRef(false);
 
   // Opening: the folder opened last time, then the folder that holds the most repos, then the home folder.
   useEffect(() => {
@@ -90,11 +93,14 @@ export function AddRepo({ onClose }: { onClose(): void }) {
     void nav.open([...new Set(tries), null]);
   }, [places.isPending, places.data, nav]);
 
-  // Arriving at a folder: the field shows its path, the filter empties, the folder just left is selected (going up).
+  // Arriving at a folder: the field shows its path (unless the user typed one since their last step), the filter empties, the folder
+  // just left is selected (going up).
   useEffect(() => {
     if (!folder) return;
-    setTyped(folder.path);
-    setTypedOwn(false);
+    if (!keepTyped.current) {
+      setTyped(folder.path);
+      setTypedOwn(false);
+    }
     setFilter('');
     setSel(reselect.current);
     reselect.current = null;
@@ -110,6 +116,7 @@ export function AddRepo({ onClose }: { onClose(): void }) {
   const go = useCallback(
     (path: string | null, fresh?: boolean) => {
       reselect.current = null;
+      keepTyped.current = false;
       setHideNavErr(false);
       return nav.go(path, fresh);
     },
@@ -118,6 +125,7 @@ export function AddRepo({ onClose }: { onClose(): void }) {
   const up = () => {
     if (!folder?.parent) return;
     reselect.current = folder.path;
+    keepTyped.current = false;
     setHideNavErr(false);
     void nav.go(folder.parent);
   };
@@ -220,6 +228,7 @@ export function AddRepo({ onClose }: { onClose(): void }) {
           onChange={(v) => {
             setTyped(v);
             setTypedOwn(true);
+            keepTyped.current = true;
             setHideNavErr(true);
             setSel(null);
             setRegErr(null);
