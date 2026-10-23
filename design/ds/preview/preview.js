@@ -532,7 +532,7 @@
   function txEntry(e) {
     const [cls, key] = TX_KIND[e.kind] || TX_KIND.system;
     let body;
-    if (e.kind === 'user') body = fold(`${esc(firstLine(e.text))} · ${tn('tx.lines', e.text.split('\n').length)}`);
+    if (e.kind === 'user') body = fold(`${esc(firstLine(e.text))} <span class="keep">· ${tn('tx.lines', e.text.split('\n').length)}</span>`);
     else if (e.kind === 'thinking') body = `<div class="tx-body is-think">${e.text.trim() ? esc(e.text) : t('tx.thinkingEmpty')}</div>`;
     else if (e.kind === 'tool_use') {
       const o = txFields(e.text) || {};

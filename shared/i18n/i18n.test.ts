@@ -27,16 +27,3 @@ describe('i18n key sets en <-> vi', () => {
     expect(mismatched).toEqual([]);
   });
 });
-
-describe('counts (castraferrum#186)', () => {
-  it('joins a count and its word with a no-break space where a fold label or a log header can wrap', () => {
-    const msgs: Record<string, Record<string, string>> = { en, vi };
-    for (const lang of ['en', 'vi'])
-      for (const base of ['tx.lines', 'tx.input', 'log.saved'])
-        for (const form of ['one', 'other']) {
-          const text = msgs[lang]![`${base}.${form}`];
-          expect(text, `${lang} ${base}.${form}`).toMatch(/(\{n\}|\b1)\u00a0\p{L}/u);
-          expect(text, `${lang} ${base}.${form}`).not.toMatch(/(\{n\}|\b1) \p{L}/u);
-        }
-  });
-});

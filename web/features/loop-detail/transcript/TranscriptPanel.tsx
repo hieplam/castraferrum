@@ -54,7 +54,7 @@ function toEntry(t: T, e: TranscriptEntryDto, tz: string): TranscriptEntry {
         ...base,
         label: t('tx.prompt'),
         body: (
-          <TxFold label={`${firstLine(e.text)} · ${t.tn('tx.lines', lineCount(e.text))}`}>
+          <TxFold label={<>{firstLine(e.text)} <span className="keep">{`· ${t.tn('tx.lines', lineCount(e.text))}`}</span></>}>
             <TxBody variant="code">{e.text}</TxBody>
           </TxFold>
         ),

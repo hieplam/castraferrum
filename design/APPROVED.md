@@ -325,14 +325,14 @@ the rules of `ds/SYSTEM.md`, the preview is corrected and re-shot, and this file
 
 Made by the agent of the "text and counts" lane of the U27 defects (castraferrum#185, castraferrum#186, castraferrum#190,
 castraferrum#191, castraferrum#195) under the owner's rule of 2026-10-23 (the owner is not asked). Each is a defect the
-preview and the app shared; both are fixed from the same source (the locale files, the system's `.data`), and the
+preview and the app shared; both are fixed from the same source (the locale files, the system's `.keep` and `.data`), and the
 preview is re-shot.
 
 - **A count of one is singular** (castraferrum#185): `log.saved`, `tx.input` and `runs.all` become plural keys
   (`.one`, `.other`) in both locales, read with `tn()`: "stored log · 1 line", "input · 1 line", "1 run".
-- **A count and its word stay together** (castraferrum#186): in `tx.lines`, `tx.input` and `log.saved` the number and
-  its word are joined by a no-break space, so the prompt fold "… · 3 lines" wraps before the count, never inside it.
-  Written in [`ds/SYSTEM.md`](ds/SYSTEM.md), "Content" ("Words that stay together").
+- **A count and its word stay together** (castraferrum#186): the prompt fold of the transcript puts "· 3 lines" in
+  a `.keep` (the class of the page layout lane, castraferrum#200, "Separators" in `ds/SYSTEM.md`), so the label wraps
+  before the separator, never inside the count.
 - **An interrupted run is not failed** (castraferrum#190): the counts of an active period name the states of its list;
   the API's period stats count `interrupted` on its own (`failed` = failed and timed out), and the words read
   "3 succeeded · 1 interrupted". In [`ds/preview/data.js`](ds/preview/data.js) period #2 of `pilot` counts
