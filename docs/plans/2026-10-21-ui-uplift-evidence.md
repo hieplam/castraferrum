@@ -2376,8 +2376,8 @@ changed since; only the screenshot capture has.
   over 240 shot files, `maxRatio` 0.001, worst 0.0002, 0 over the limit.
 - (4) Every compared pair (240) and every journey screenshot (120) has one line below. Compared: 170 match, 70
   cosmetic. Journey: 26 match, 94 cosmetic. **Functional: 0.**
-- `npm run goal:check -- docs/plans/2026-10-21-ui-uplift-goals.json`: GOALCHECK_RESULT
-- `npm run verify`: VERIFY_RESULT
+- `npm run goal:check -- docs/plans/2026-10-21-ui-uplift-goals.json`: exit 0, `G1 pass` to `G8 pass`, `goals passed: 8/8` (G5 runs `npm run verify` itself).
+- `npm run verify`: exit 0: unit `532 passed | 2 skipped`, contract `114 passed`, api `115 passed`, Playwright `115 passed (11.0m)` (all projects, the six acceptance journeys included), `phone overflow: 0/12`, `UCs with a green e2e: 33/33`.
 
 ### Stub check
 
