@@ -412,3 +412,18 @@ draws a note or card under a group on a page (the folder sheet's hint keeps the 
 Re-shot with `npm run design:shots -- --design design/ds`, light and dark (10 shots), the phone editor states:
 `phone-form-new`, `phone-form-errors`, `phone-form-repo-pick`, `phone-form-sched-daily`, `phone-form-sched-weekly`.
 No other shot changed.
+
+## Agent correction under the owner's rule of 2026-10-23 - phone section heads, 2026-10-24
+
+Made by the agent of the U27 defect lane "section head spacing" (epic 63) under the rule in the epic's body (the owner
+is not asked). castraferrum#207: on the phone run page the Transcript and Log `.section-head`s sat the page's
+`--space-5` (20px) above what they head; `reference/m-run-light.png` draws `--space-2` (8px): the Transcript heading's
+line box ends at about y 775 and the transcript starts at y 783, the Log heading's ends at about y 1686 and the stored
+log starts at y 1694. A "Heads on the phone" rule in [`ds/SYSTEM.md`](ds/SYSTEM.md) ("Section head") covers every
+screen, with one selector in [`ds/components.css`](ds/components.css) ("Section head"): whatever follows a
+`.section-head` in the page sits `--space-2` under it. It replaces the `.section-head + .group-cap` part of the caption
+rule (the loop page's Recent runs head, unchanged at 8px). `tests/visual/ds/layout.visual.ts` measures every phone head
+in the real app: the loop page, and the run page succeeded, running and skipped (transcript note, log, log note).
+
+Re-shot with `npm run design:shots -- --design design/ds`, light and dark (6 shots): `phone-run-running`,
+`phone-run-succeeded`, `phone-run-transcript-running`. No other shot changed.
