@@ -2332,3 +2332,438 @@ U27 defects of the lane "states and tooling" (castraferrum#196, castraferrum#197
 ### Ratchet
 
 - Open defects of the lane: 3 -> 0. Tall shots with a mid-page fixed bar (`design:shots --dry`): 24 (12 states) -> 0.
+
+## U27
+
+Acceptance by an agent (castraferrum#94, as rewritten by the owner on 2026-10-23), judged by the stop criterion the
+coordinator recorded on castraferrum#94 on 2026-10-24: a screen is accepted when every compared pair is at or under
+`MAX_RATIO` and the journey shows no functional defect; purely cosmetic differences go into one `design-system`
+follow-up outside the epic.
+
+- **Attempt 1** (on `main` 16f4464): the journey passed, and the look at every image found 16 visible defects. They
+  were filed as castraferrum#183 to castraferrum#198 under the epic, blocking U27, and all are fixed and merged
+  (castraferrum#200, castraferrum#201, castraferrum#203, castraferrum#204, castraferrum#206, castraferrum#208,
+  castraferrum#210; with the follow-ups castraferrum#202, castraferrum#205, castraferrum#207).
+- **Attempt 2, the final pass** (this section; branch rebased on `main` efee09e): no functional defect. The cosmetic
+  findings are collected in castraferrum#211 (labelled `design-system`, outside epic 63, not linked to U27). The phone
+  page head spacing is the earlier follow-up castraferrum#209.
+
+### Environment
+
+- Machine quiet before every heavy run: no ffmpeg, no headless browser burst (31 `chrome.exe` were all the owner's
+  Chrome in `C:\Program Files\Google\Chrome\Application`). Docker `loop_console_pg` healthy. Default `loops_test`
+  DB, port 7071, one heavy slot held per run.
+- LAN: the server still listens on `127.0.0.1` only (`--host` is castraferrum#47 L1/L2), so the `iphone-lan` project
+  reaches it through a TCP relay on `0.0.0.0` at the machine's LAN IPv4. The run printed
+  `iPhone 13 (webkit) served from http://192.168.100.25:50617`, and every step asserts that origin.
+- `npm run goal:check` without the manifest exits 2 (usage line), so it needs no change.
+
+### Red
+
+The journey spec on a `git worktree add` of 0bef160 (the commit before the cut-over castraferrum#173), built there
+(attempt 1): `1 failed` at step 1 `loops-first-visit`, the first new-UI assertion:
+`expect(getByTestId('nav-loops')).toHaveAttribute('aria-current', 'page')` received `null`. The steps have not
+changed since; only the screenshot capture has.
+
+### Green
+
+- (1) `npx playwright test tests/e2e/acceptance.journey.spec.ts tests/e2e/acceptance.iphone.spec.ts` on the rebased
+  build: `6 passed (1.2m)`. The four chromium tests cover 1440 and 390 px, light-first and dark-first; each prints
+  `acceptance steps: 20`.
+- (2) The two `iphone-lan` tests (WebKit, Playwright `iPhone 13`, LAN address) of that run: both passed, each
+  `acceptance steps: 20`.
+- (3) `npm run design:compare`: exit 0, `61 passed (5.0m)`. `design/compare/ds/report.json` has 248 measured pairs
+  over 240 shot files, `maxRatio` 0.001, worst 0.0002, 0 over the limit.
+- (4) Every compared pair (240) and every journey screenshot (120) has one line below. Compared: 170 match, 70
+  cosmetic. Journey: 26 match, 94 cosmetic. **Functional: 0.**
+- `npm run goal:check -- docs/plans/2026-10-21-ui-uplift-goals.json`: GOALCHECK_RESULT
+- `npm run verify`: VERIFY_RESULT
+
+### Stub check
+
+With `<Route path="runs/:id" .../>` removed from `web/app/AppRoutes.tsx` (rebuilt, rebased tree), the journey at
+1440 light gives `1 failed` at step `run-live`:
+`expect(getByTestId('run-header')).toHaveAttribute('data-status', 'running')`, `element(s) not found`. Route
+restored and rebuilt. Every step asserts visible text, a state pill or the URL, plus no native `title` tooltip and no
+sideways scroll, so a journey that only navigates fails.
+
+### Ratchet
+
+- Acceptance journey steps: 0 -> 20 per journey (`JOURNEY_STEPS`), 6 journeys, 120 screenshots.
+- Open defects: 16 after attempt 1 -> 0 functional now. 16 cosmetic items are in castraferrum#211 (non-blocking).
+
+### How the images were looked at
+
+Review subagents read the batches in parallel, judging by the stop criterion; each one opened both the approved
+preview shot and the app shot of every compared pair. Each finding they reported was then checked by the U27 agent.
+One finding was reported as functional and was re-judged cosmetic: at journey step 07 at 390 px, the live log cursor
+shows a time 1 s before a line that has just arrived. It is the 1-second clock tick: it corrects at the next tick,
+and the line's own time is right (castraferrum#211 item 15). Each `-dark`/`-light` part of a journey file name is the
+theme that page shows: after step 14 a journey carries the other theme, so `<w>-dark-14..19` belong to the
+light-first journey.
+
+### Compared screens (preview | app), one line each
+
+- `form-conflict-dark`: ratio 0.00002, matches
+- `form-conflict-light`: ratio 0.00002, matches
+- `form-duplicate-dark`: ratio 0.00002, matches
+- `form-duplicate-light`: ratio 0.00002, matches
+- `form-edit-claude-dark`: ratio 0.00001, matches
+- `form-edit-claude-light`: ratio 0.00001, matches
+- `form-edit-running-dark`: ratio 0.00002, matches
+- `form-edit-running-light`: ratio 0.00002, matches
+- `form-errors-dark`: ratio 0.00002, matches
+- `form-errors-light`: ratio 0.00002, matches
+- `form-exec-mock-dark`: ratio 0, matches
+- `form-exec-mock-light`: ratio 0, matches
+- `form-loading-dark`: ratio 0, matches
+- `form-loading-light`: ratio 0, matches
+- `form-new-dark`: ratio 0.00002, matches
+- `form-new-light`: ratio 0.00002, matches
+- `form-no-repos-dark`: ratio 0.00002, matches
+- `form-no-repos-light`: ratio 0.00002, matches
+- `form-repo-pick-dark`: ratio 0, matches
+- `form-repo-pick-light`: ratio 0, matches
+- `form-repo-required-dark`: ratio 0, matches
+- `form-repo-required-light`: ratio 0, matches
+- `form-saving-dark`: ratio 0.00002, matches
+- `form-saving-light`: ratio 0.00002, matches
+- `form-sched-advanced-dark`: ratio 0, matches
+- `form-sched-advanced-error-dark`: ratio 0, matches
+- `form-sched-advanced-error-light`: ratio 0, matches
+- `form-sched-advanced-light`: ratio 0.00001, matches
+- `form-sched-daily-dark`: ratio 0, matches
+- `form-sched-daily-light`: ratio 0, matches
+- `form-sched-hours-dark`: ratio 0.00001, matches
+- `form-sched-hours-light`: ratio 0.00001, matches
+- `form-sched-minutes-uneven-dark`: ratio 0.00001, matches
+- `form-sched-minutes-uneven-light`: ratio 0.00001, matches
+- `form-sched-monthly-warn-dark`: ratio 0.00001, matches
+- `form-sched-monthly-warn-light`: ratio 0.00001, matches
+- `form-sched-weekly-dark`: ratio 0.00002, matches
+- `form-sched-weekly-light`: ratio 0.00002, matches
+- `frame-db-down-dark`: ratio 0.00004, cosmetic: the "Loops 7" tab in the top bar has the --hover tint (hex 263230, a block about 85 x 52 px at x 173-257, y 0-51) where the preview draws the tab at rest; tests/visual/ds/frame.visual.ts clicks nav-loops (line 134) and snaps without moving the pointer away, so this is the pointer resting on the tab during capture, not the app's rest state; label, count and underline are unchanged and legible; see castraferrum#211
+- `frame-db-down-light`: ratio 0.00003, cosmetic: the same pointer-hover tint on the "Loops 7" tab (hex ece4d2, about 85 x 52 px at x 173-257, y 0-51), left by the click in frame.visual.ts line 134 before the snap; label, count and underline unchanged; see castraferrum#211
+- `frame-disconnected-dark`: ratio 0.00004, matches
+- `frame-disconnected-light`: ratio 0.00003, matches
+- `frame-loading-dark`: ratio 0, matches
+- `frame-loading-light`: ratio 0, matches
+- `frame-reconnected-dark`: ratio 0, matches
+- `frame-reconnected-light`: ratio 0, matches
+- `loop-archived-dark`: ratio 0, matches
+- `loop-archived-light`: ratio 0, matches
+- `loop-disconnected-dark`: ratio 0, matches
+- `loop-disconnected-light`: ratio 0, matches
+- `loop-help-dark`: ratio 0, matches
+- `loop-help-light`: ratio 0, matches
+- `loop-idle-dark`: ratio 0, matches
+- `loop-idle-light`: ratio 0, matches
+- `loop-last-failed-dark`: ratio 0, matches
+- `loop-last-failed-light`: ratio 0, matches
+- `loop-loading-dark`: ratio 0, matches
+- `loop-loading-light`: ratio 0, matches
+- `loop-menu-dark`: ratio 0, matches
+- `loop-menu-light`: ratio 0, matches
+- `loop-never-run-dark`: ratio 0, matches
+- `loop-never-run-light`: ratio 0, matches
+- `loop-not-found-dark`: ratio 0, matches
+- `loop-not-found-light`: ratio 0, matches
+- `loop-running-dark`: ratio 0, matches
+- `loop-running-light`: ratio 0, matches
+- `loop-runs-dark`: ratio 0, matches
+- `loop-runs-light`: ratio 0, matches
+- `loop-server-down-dark`: ratio 0, matches
+- `loop-server-down-light`: ratio 0, matches
+- `loop-settings-dark`: ratio 0, matches
+- `loop-settings-light`: ratio 0, matches
+- `loop-stop-confirm-dark`: ratio 0.00007, matches
+- `loop-stop-confirm-light`: ratio 0.0002, matches
+- `loop-stopped-dark`: ratio 0, matches
+- `loop-stopped-light`: ratio 0, matches
+- `loop-stopping-dark`: ratio 0, matches
+- `loop-stopping-light`: ratio 0, matches
+- `loops-action-error-dark`: ratio 0.00004, matches
+- `loops-action-error-light`: ratio 0.00003, matches
+- `loops-empty-dark`: ratio 0, matches
+- `loops-empty-light`: ratio 0, matches
+- `loops-error-dark`: ratio 0, matches
+- `loops-error-light`: ratio 0, matches
+- `loops-filter-archived-dark`: ratio 0, matches
+- `loops-filter-archived-light`: ratio 0, matches
+- `loops-many-dark`: ratio 0, matches
+- `loops-many-light`: ratio 0.00001, matches
+- `loops-overview-dark`: ratio 0.00004, matches
+- `loops-overview-light`: ratio 0.00003, matches
+- `loops-repo-filter-dark`: ratio 0.00004, matches
+- `loops-repo-filter-light`: ratio 0.00003, matches
+- `loops-row-menu-dark`: ratio 0.00004, matches
+- `loops-row-menu-light`: ratio 0.00003, matches
+- `loops-search-empty-dark`: ratio 0, matches
+- `loops-search-empty-light`: ratio 0, matches
+- `loops-stop-confirm-dark`: ratio 0.00007, matches
+- `loops-stop-confirm-light`: ratio 0.0002, matches
+- `not-found-dark`: ratio 0, matches
+- `not-found-light`: ratio 0, matches
+- `period-copied-dark`: ratio 0, matches
+- `period-copied-light`: ratio 0, matches
+- `period-not-found-dark`: ratio 0, matches
+- `period-not-found-light`: ratio 0, matches
+- `period-running-dark`: ratio 0, matches
+- `period-running-light`: ratio 0, matches
+- `period-server-down-dark`: ratio 0, matches
+- `period-server-down-light`: ratio 0, matches
+- `period-stopped-dark`: ratio 0, matches
+- `period-stopped-light`: ratio 0, matches
+- `phone-form-errors-dark`: ratio 0.00004, cosmetic: same editor spacing as phone-form-sched-daily-light against design/reference/m-form-light.png: the Description field row is 75 px tall where the board draws 71 px (+4 px), and in the schedule preview card the cron line sits 35 px under the title line where the board has 28 px, the first date 40 px under the cron line where it has 36 px, and the date rows are 33 px apart where they are 35 px (measured top to top); the app matches the preview; see castraferrum#211
+- `phone-form-errors-light`: ratio 0.00004, cosmetic: same editor spacing as phone-form-sched-daily-light against design/reference/m-form-light.png: the Description field row is 75 px tall where the board draws 71 px (+4 px), and in the schedule preview card the cron line sits 35 px under the title line where the board has 28 px, the first date 40 px under the cron line where it has 36 px, and the date rows are 33 px apart where they are 35 px (measured top to top); the app matches the preview; see castraferrum#211
+- `phone-form-new-dark`: ratio 0.00005, cosmetic: same editor spacing as phone-form-sched-daily-light against design/reference/m-form-light.png: the Name and Description field rows are 76 and 75 px tall where the board draws 72 and 71 px (+4 px each), and in the schedule preview card the cron line sits 35 px under the title line where the board has 28 px, the first date 40 px under the cron line where it has 36 px, and the date rows are 33 px apart where they are 35 px (measured top to top); the app matches the preview; see castraferrum#211
+- `phone-form-new-light`: ratio 0.00005, cosmetic: same editor spacing as phone-form-sched-daily-light against design/reference/m-form-light.png: the Name and Description field rows are 76 and 75 px tall where the board draws 72 and 71 px (+4 px each), and in the schedule preview card the cron line sits 35 px under the title line where the board has 28 px, the first date 40 px under the cron line where it has 36 px, and the date rows are 33 px apart where they are 35 px (measured top to top); the app matches the preview; see castraferrum#211
+- `phone-form-repo-pick-dark`: ratio 0, cosmetic: behind the sheet, the Name and Description field rows are 76 and 75 px tall where design/reference/m-form-light.png draws 72 and 71 px (+4 px each, so the repo note and Prompt caption sit 8 px lower), as in phone-form-sched-daily-light; the sheet itself matches the preview; see castraferrum#211
+- `phone-form-repo-pick-light`: ratio 0, cosmetic: behind the sheet, the Name and Description field rows are 76 and 75 px tall where design/reference/m-form-light.png draws 72 and 71 px (+4 px each, so the repo note and Prompt caption sit 8 px lower), as in phone-form-sched-daily-light; the sheet itself matches the preview; see castraferrum#211
+- `phone-form-sched-daily-dark`: ratio 0.00001, cosmetic: same as phone-form-sched-daily-light (the board is light only; the dark shot has the same layout to the pixel row); see castraferrum#211
+- `phone-form-sched-daily-light`: ratio 0, cosmetic: against design/reference/m-form-light.png, which draws this exact state, the Name and Description field rows are 76 and 75 px tall where the board draws 72 and 71 px (+4 px each, so everything from the repo note down sits 8 px lower), and the schedule preview card is 267 px tall where the board draws 257 px (title 22 px under the card top vs 18, cron line 35 px under the title vs 28, first date 40 px under the cron line vs 36, date rows 33 px apart vs 35, measured top to top); the gaps between groups, captions and notes are the board's; the preview draws the same and the app matches the preview; see castraferrum#211
+- `phone-form-sched-weekly-dark`: ratio 0.00004, cosmetic: same editor spacing as phone-form-sched-daily-light against design/reference/m-form-light.png: the Name and Description field rows are 76 and 75 px tall where the board draws 72 and 71 px (+4 px each), and in the schedule preview card the cron line sits 35 px under the title line where the board has 28 px, the first date 40 px under the cron line where it has 36 px, and the date rows are 33 px apart where they are 35 px (measured top to top); the app matches the preview; see castraferrum#211
+- `phone-form-sched-weekly-light`: ratio 0.00004, cosmetic: same editor spacing as phone-form-sched-daily-light against design/reference/m-form-light.png: the Name and Description field rows are 76 and 75 px tall where the board draws 72 and 71 px (+4 px each), and in the schedule preview card the cron line sits 35 px under the title line where the board has 28 px, the first date 40 px under the cron line where it has 36 px, and the date rows are 33 px apart where they are 35 px (measured top to top); the app matches the preview; see castraferrum#211
+- `phone-frame-disconnected-dark`: ratio 0.00006, cosmetic: page head spacing, see castraferrum#209 (the 507 differing pixels are sub-pixel anti-aliasing of the "·" separators and single glyphs in the row meta lines, y 543-1230, invisible at 1x)
+- `phone-frame-disconnected-light`: ratio 0.0001, cosmetic: page head spacing, see castraferrum#209 (the 498 differing pixels are sub-pixel anti-aliasing of the "·" separators and single glyphs in the row meta lines, y 543-1230, invisible at 1x)
+- `phone-frame-loading-dark`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (tab-root title ink at y 51-78 where m-loops draws 59-86, 8 px higher; byte-identical to the preview)
+- `phone-frame-loading-light`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (tab-root title 8 px higher than m-loops; byte-identical to the preview)
+- `phone-loop-help-dark`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (loop head behind the scrim; the help sheet itself matches m-help-dark, its top about 4 px lower than the board)
+- `phone-loop-help-light`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (loop head behind the scrim; the help sheet itself matches m-help-light)
+- `phone-loop-last-failed-dark`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (title to pill to description ink gaps about 23-25 px where m-loop draws 11-13 px; the 43 differing pixels are value-1 noise in the Stop loop bar, y 1673-1722, invisible)
+- `phone-loop-last-failed-light`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (title to pill to description ink gaps about 23-25 px where m-loop draws 11-13 px)
+- `phone-loop-menu-dark`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (loop head behind the scrim; the menu sheet with Duplicate and the locked Archive is legible and matches)
+- `phone-loop-menu-light`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (loop head behind the scrim; the menu sheet matches)
+- `phone-loop-never-run-dark`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (title ink 65-89, pill 112-133, description 158 where m-loop draws 57-81, 92-113, 126)
+- `phone-loop-never-run-light`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (same offsets as the dark shot)
+- `phone-loop-running-dark`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (title to pill 23 px, pill to description 25 px of ink gap where m-loop draws 11 and 13 px); also the Typical run tile reads "14:52 / average of 9" where m-loop reads "18:47 / minutes, average of 9": without the unit the duration looks like a clock time next to "Next run 14:30" (text, value is correct, same in the approved preview); the 43 differing pixels are value-1 noise in the Stop loop bar, invisible; see castraferrum#211
+- `phone-loop-running-light`: ratio 0, cosmetic: page head spacing, see castraferrum#209; also the Typical run tile reads "14:52 / average of 9" without the board's unit "minutes", so the duration looks like a clock time next to "Next run 14:30" (text, value is correct, same in the approved preview); see castraferrum#211
+- `phone-loop-runs-dark`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (All runs title ink ends at y 84, description starts at 116, about 31 px)
+- `phone-loop-runs-light`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (same offsets as the dark shot)
+- `phone-loop-settings-dark`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (title ink 65-89, first card at 112, about 23 px; "Claude opus · effort high" wraps to two lines, readable)
+- `phone-loop-settings-light`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (same offsets as the dark shot)
+- `phone-loop-stop-confirm-dark`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (loop head behind the scrim; the stop sheet matches m-stop-dark, its top about 4 px lower than the board)
+- `phone-loop-stop-confirm-light`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (loop head behind the scrim; the stop sheet matches m-stop-light)
+- `phone-loops-empty-dark`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (tab-root title ink 51-78 where m-loops draws 59-86, 8 px higher)
+- `phone-loops-empty-light`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (tab-root title 8 px higher than m-loops)
+- `phone-loops-overview-dark`: ratio 0.00007, cosmetic: page head spacing, see castraferrum#209 (tab-root title 8 px higher, + button 4 px higher than m-loops; the 507 differing pixels are sub-pixel anti-aliasing of "·" separators in row meta lines, y 461-1148, invisible)
+- `phone-loops-overview-light`: ratio 0.00011, cosmetic: page head spacing, see castraferrum#209 (tab-root title 8 px higher, + button 4 px higher than m-loops; the 498 differing pixels are sub-pixel anti-aliasing of "·" separators in row meta lines, invisible)
+- `phone-loops-repo-filter-dark`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (tab root behind the scrim; the 116 differing pixels are the anti-aliased rounded corners of the selected "All repos" row, y 542-553, and one meta line behind the scrim, invisible)
+- `phone-loops-repo-filter-light`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (tab root behind the scrim; 84 differing pixels of anti-aliasing in one meta line behind the scrim)
+- `phone-loops-stop-confirm-dark`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (tab root behind the scrim; 105 differing pixels of edge and meta-line anti-aliasing)
+- `phone-loops-stop-confirm-light`: ratio 0, cosmetic: page head spacing, see castraferrum#209; also the whole "Issue backlog worker" row behind the scrim (x 17-372, y 391-487, 31 071 px) is drawn in the pressed tint: measured 151,144,128, which is --pressed hex e6dcc6 under the scrim, where the preview has 163,159,150 (--surface under the scrim); the dark shot does not show it, so it is a capture-timing :active state of the tapped row; it only marks the loop being stopped, nothing is hidden; see castraferrum#211
+- `phone-not-found-dark`: ratio 0, matches
+- `phone-not-found-light`: ratio 0, matches
+- `phone-period-running-dark`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (title ink 65-89, pill 112-133, stat tiles at 154)
+- `phone-period-running-light`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (same offsets as the dark shot)
+- `phone-repos-add-dark`: ratio 0.00004, cosmetic: the target line "Adds C:\Users\alice\work\acme-tools as acme-tools" is cut with an ellipsis right after "acme-tools" (one line at y about 666, where m-folder wraps it to two lines), so "as acme-tools" is hidden; not functional because the whole path is visible and the Name field right below shows acme-tools; same in the approved preview; the 1 253 differing pixels are sub-pixel glyph and edge rendering of Go, the quick-access chips and Add repo (best match at shift 0,0, label centroid moves 0.02 px); see castraferrum#211
+- `phone-repos-add-light`: ratio 0.00015, cosmetic: the target line "Adds C:\Users\alice\work\acme-tools as acme-tools" is cut with an ellipsis right after "acme-tools" (where m-folder wraps it to two lines), so "as acme-tools" is hidden; not functional because the whole path is visible and the Name field right below shows acme-tools; the 1 271 differing pixels are sub-pixel rendering of Go, the chips and Add repo; see castraferrum#211
+- `phone-repos-delete-confirm-dark`: ratio 0.00013, cosmetic: page head spacing, see castraferrum#209 (tab root behind the scrim; the 182 differing pixels are sub-pixel glyph rendering of "dotfiles?" in the sheet title, centroid moves 0.01 px)
+- `phone-repos-delete-confirm-light`: ratio 0.00008, cosmetic: page head spacing, see castraferrum#209 (tab root behind the scrim; the 183 differing pixels are sub-pixel glyph rendering of "dotfiles?" in the sheet title)
+- `phone-repos-list-dark`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (tab-root title ink 51-78 where m-repos draws 59-86, 8 px higher)
+- `phone-repos-list-light`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (tab-root title 8 px higher than m-repos)
+- `phone-run-running-dark`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (title to pill 28, pill to meta 23, meta to description 28 px of ink gap where m-run draws 16, 11 and 16 px); also in the meta line "Sun 18/10 · since 14:00 · 0:42" the last "·" sits 9 px from "0:42" where the other separators have 4-5 px (about 5 px extra); and the transcript's Bash commands wrap inside flags at the hyphens ("gh issue list --" / "state open", "--limit 100 --" / "json", "--dry-run --" / "verbose"), readable in order and nothing lost, same in the approved preview; the 60 differing pixels are anti-aliasing of one "·"; see castraferrum#211
+- `phone-run-running-light`: ratio 0, cosmetic: page head spacing, see castraferrum#209; also the last "·" of the meta line sits 9 px from "0:42" where the other separators have 4-5 px; and the transcript's Bash commands wrap inside flags at the hyphens ("list --" / "state", "100 --" / "json", "--dry-run --" / "verbose"), readable and nothing lost, same in the approved preview; see castraferrum#211
+- `phone-run-succeeded-dark`: ratio 0, cosmetic: page head spacing, see castraferrum#209; meta line has an 8 px gap between "took" and "23:04" where every other word gap is 4 px and m-run draws one 4 px space (the duration is its own flex item in `.page-meta`, gap `--space-2`, web/features/loop-detail/RunView.tsx); in the "Reopen this session on your computer" card "Copy command" starts at x 40, 10 px right of the command text at x 30, where m-run aligns both at x 33-34, and the card is 107 px tall against 117 px on the board; the cost "$1.92" is set in the UI font where m-run and SYSTEM.md ("costs use --font-data") use the data font. The 60 px that differ from the preview are antialiasing of one "·"; see castraferrum#211
+- `phone-run-succeeded-light`: ratio 0, cosmetic: page head spacing, see castraferrum#209; meta line has an 8 px gap between "took" and "23:04" where every other word gap is 4 px and m-run draws one 4 px space (same `.page-meta` flex-gap cause); "Copy command" starts 10 px right of the command text (x 40 against x 30; m-run aligns both at x 33-34) and the Reopen card is 107 px tall against 117 px; "$1.92" is in the UI font where m-run and SYSTEM.md use `--font-data`; see castraferrum#211
+- `phone-run-transcript-running-dark`: ratio 0, cosmetic: page head spacing, see castraferrum#209; meta line has an 8 px gap between "since 14:00 ·" and "0:42" where the other word gaps are 3-5 px (the duration is its own `.page-meta` flex item, as on the ended run); see castraferrum#211
+- `phone-run-transcript-running-light`: ratio 0, cosmetic: page head spacing, see castraferrum#209; meta line has an 8 px gap between "since 14:00 ·" and "0:42" where the other word gaps are 3-5 px (same `.page-meta` flex-gap cause); see castraferrum#211
+- `phone-settings-dark`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (large title top at y 50 against 58 on m-settings); the Connection and This device cards are each 3 px taller than on m-settings (171 against 168 px, 77 against 74 px). Console address and version differ only inside the intended mask; see castraferrum#211
+- `phone-settings-light`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (large title top at y 50 against 58 on m-settings); the Connection and This device cards are each 3 px taller than on m-settings (171 against 168 px, 77 against 74 px). Console address and version differ only inside the intended mask; see castraferrum#211
+- `phone-vi-loops-overview-dark`: ratio 0.00009, cosmetic: page head spacing, see castraferrum#209 (title top at y 51 against 59 on m-loops); the status segmented control sits 10 px under the search field (y 310 to 321) where m-loops draws 24 px (y 248 to 272), from the phone `.toolbar` grid gap `--space-2`. The 423 px that differ from the preview are antialiasing of Vietnamese diacritics in the cell meta lines; nothing moves; see castraferrum#211
+- `phone-vi-loops-overview-light`: ratio 0.00014, cosmetic: page head spacing, see castraferrum#209 (title top at y 51 against 59 on m-loops); the status segmented control sits 10 px under the search field (y 310 to 321) where m-loops draws 24 px (y 248 to 272), from the phone `.toolbar` grid gap `--space-2`. The 424 px that differ from the preview are diacritic antialiasing; nothing moves; see castraferrum#211
+- `phone-vi-settings-dark`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (large title top at y 50 against 58 on m-settings); the Connection and This device cards are each 3 px taller than on m-settings (171 against 168 px, 77 against 74 px). Console address and version differ only inside the intended mask; see castraferrum#211
+- `phone-vi-settings-light`: ratio 0, cosmetic: page head spacing, see castraferrum#209 (large title top at y 50 against 58 on m-settings); the Connection and This device cards are each 3 px taller than on m-settings (171 against 168 px, 77 against 74 px). Console address and version differ only inside the intended mask; see castraferrum#211
+- `repos-add-dark`: ratio 0, matches
+- `repos-add-denied-dark`: ratio 0, matches
+- `repos-add-denied-light`: ratio 0, matches
+- `repos-add-light`: ratio 0, matches
+- `repos-add-mac-dark`: ratio 0, matches
+- `repos-add-mac-light`: ratio 0, matches
+- `repos-add-notfound-dark`: ratio 0, matches
+- `repos-add-notfound-light`: ratio 0, matches
+- `repos-delete-blocked-dark`: ratio 0, matches
+- `repos-delete-blocked-light`: ratio 0, matches
+- `repos-delete-confirm-dark`: ratio 0.0001, matches
+- `repos-delete-confirm-light`: ratio 0.0002, matches
+- `repos-empty-dark`: ratio 0, matches
+- `repos-empty-light`: ratio 0, matches
+- `repos-err-dup-name-dark`: ratio 0, matches
+- `repos-err-dup-name-light`: ratio 0, matches
+- `repos-err-dup-path-dark`: ratio 0, cosmetic: on the selected acme-api row of the folder list the "already a repo" tag loses its chip, because `.tag.repo` is filled with `--selected`, the selected row's own fill; the label reads as bare teal text 15 px after the git chip (unselected rows show the chip). Still readable; see castraferrum#211
+- `repos-err-dup-path-light`: ratio 0, cosmetic: on the selected acme-api row of the folder list the "already a repo" tag loses its chip, because `.tag.repo` is filled with `--selected`, the selected row's own fill; the label reads as bare teal text 15 px after the git chip (unselected rows show the chip). Still readable; see castraferrum#211
+- `repos-err-missing-dark`: ratio 0, matches
+- `repos-err-missing-light`: ratio 0, matches
+- `repos-list-dark`: ratio 0, matches
+- `repos-list-light`: ratio 0, matches
+- `repos-loading-dark`: ratio 0, matches
+- `repos-loading-light`: ratio 0, matches
+- `run-cancelled-dark`: ratio 0.00003, cosmetic: meta line has an 8 px gap between "took" and "0:12" where the other word gaps are 4 px and m-run draws one 4 px space (the duration is its own `.page-meta` flex item); in the "Reopen this session on your computer" card "Copy command" starts at x 972, 10 px right of the command text at x 962 (m-run aligns them). The pixels that differ from the preview are glyph antialiasing in the meta line and the "Agent at run time" note; see castraferrum#211
+- `run-cancelled-light`: ratio 0.00003, cosmetic: meta line has an 8 px gap between "took" and "0:12" where the other word gaps are 4 px and m-run draws one 4 px space (same `.page-meta` flex-gap cause); "Copy command" starts at x 972, 10 px right of the command text at x 962 (m-run aligns them); see castraferrum#211
+- `run-failed-dark`: ratio 0.00001, cosmetic: meta line has a 9 px gap between "took" and "3:05" where the other word gaps are 4 px and m-run draws one 4 px space (same `.page-meta` flex-gap cause); "Copy command" starts at x 972, 10 px right of the command text at x 962 (m-run aligns them). The pixels that differ from the preview are glyph antialiasing in the banner and the "Agent at run time" note; see castraferrum#211
+- `run-failed-light`: ratio 0.00001, cosmetic: meta line has a 9 px gap between "took" and "3:05" where the other word gaps are 4 px and m-run draws one 4 px space (same `.page-meta` flex-gap cause); "Copy command" starts at x 972, 10 px right of the command text at x 962 (m-run aligns them); see castraferrum#211
+- `run-interrupted-dark`: ratio 0.00001, cosmetic: meta line has an 8 px gap between "took" and "1:05" where the other word gaps are 4 px and m-run draws one 4 px space (same `.page-meta` flex-gap cause); "Copy command" starts at x 972, 10 px right of the command text at x 962 (m-run aligns them). The pixels that differ from the preview are glyph antialiasing in the meta lines and the "Agent at run time" note; see castraferrum#211
+- `run-interrupted-light`: ratio 0.00001, cosmetic: meta line has an 8 px gap between "took" and "1:05" where the other word gaps are 4 px and m-run draws one 4 px space (same `.page-meta` flex-gap cause); "Copy command" starts at x 972, 10 px right of the command text at x 962 (m-run aligns them); see castraferrum#211
+- `run-loading-dark`: ratio 0, matches
+- `run-loading-light`: ratio 0, matches
+- `run-not-found-dark`: ratio 0, matches
+- `run-not-found-light`: ratio 0, matches
+- `run-repo-missing-dark`: ratio 0.00003, matches
+- `run-repo-missing-light`: ratio 0.00004, matches
+- `run-resume-copied-dark`: ratio 0, matches
+- `run-resume-copied-light`: ratio 0, matches
+- `run-running-dark`: ratio 0.00001, matches
+- `run-running-light`: ratio 0.00001, matches
+- `run-skipped-dark`: ratio 0.00007, matches
+- `run-skipped-light`: ratio 0.0001, matches
+- `run-succeeded-dark`: ratio 0.00001, matches
+- `run-succeeded-light`: ratio 0.00001, matches
+- `run-timed-out-dark`: ratio 0.00002, matches
+- `run-timed-out-light`: ratio 0.00002, matches
+- `run-transcript-missing-dark`: ratio 0.00001, matches
+- `run-transcript-missing-light`: ratio 0.00001, matches
+- `run-transcript-no-session-dark`: ratio 0.00007, matches
+- `run-transcript-no-session-light`: ratio 0.0001, matches
+- `run-transcript-paused-dark`: ratio 0.00001, matches
+- `run-transcript-paused-light`: ratio 0.00001, matches
+- `run-transcript-running-dark`: ratio 0.00001, matches
+- `run-transcript-running-light`: ratio 0.00001, matches
+- `run-transcript-waiting-dark`: ratio 0.00002, matches
+- `run-transcript-waiting-light`: ratio 0.00001, matches
+- `settings-dark`: ratio 0, matches
+- `settings-db-down-dark`: ratio 0, cosmetic: the Settings link in the top bar is drawn in its hover state (an 86 x 52 px --hover fill, hex 263230, at x 352-437, y 0-51) where the preview draws it at rest (hex 161b1a); a capture artefact, not an app defect: tests/visual/ds/frame.visual.ts line 118 clicks nav-settings and leaves the pointer on it before the shot, and the compare colour threshold lets it through (top bar ratio 0); label, active underline and dark theme are all correct; see castraferrum#211
+- `settings-db-down-light`: ratio 0, cosmetic: the Settings link in the top bar is drawn in its hover state (an 86 x 52 px --hover fill, hex ece4d2, at x 352-437, y 0-51) where the preview draws it at rest (hex faf6ec); same capture artefact as the dark shot (frame.visual.ts line 118 leaves the pointer on nav-settings), label and active underline legible and correct; see castraferrum#211
+- `settings-light`: ratio 0, matches
+- `vi-form-errors-dark`: ratio 0, matches
+- `vi-form-errors-light`: ratio 0, matches
+- `vi-loops-overview-dark`: ratio 0.00004, matches
+- `vi-loops-overview-light`: ratio 0.00003, matches
+- `vi-repos-add-dark`: ratio 0, matches
+- `vi-repos-add-light`: ratio 0, matches
+- `vi-repos-list-dark`: ratio 0, matches
+- `vi-repos-list-light`: ratio 0, matches
+- `vi-run-transcript-dark`: ratio 0.0001, matches
+- `vi-run-transcript-light`: ratio 0.00012, matches
+
+### Journey screenshots, one line each
+
+- `1440-dark-01-loops-first-visit.png`: matches
+- `1440-dark-02-repos-empty.png`: matches
+- `1440-dark-03-folder-picker.png`: cosmetic: Add a repo dialog, the target line "Adds C:\...\cf-acceptance-OtucBu\lc-fake-claud…" (y 586) is cut by the one-line ellipsis at about 640 px, so its tail and " as lc-fake-claude-journey" are not shown (m-folder board wraps this line to 2 lines and shows the name); not functional because the chosen folder (selected row, y 354) and the name (Name field, y 663) are both readable on the same dialog, and the length comes from the long temp path; see castraferrum#211
+- `1440-dark-04-repo-registered.png`: matches
+- `1440-dark-05-editor-new.png`: cosmetic: editor, the repo note under Details breaks the path inside the folder name ("...\lc-" at x 1028, y 461 / "fake-claude-journey" at y 479) where m-form draws the path whole on its own line; readable; see castraferrum#211
+- `1440-dark-06-loop-created.png`: cosmetic: Settings and prompt card, the prompt clamp fades the last line ("wait for a review.", y 865) of a 3-line prompt that is not cut (clamp is 5 lines), peak contrast drops from 16.0:1 to 6.9:1, and "Show the full prompt" is offered though the whole prompt is visible; readable; see castraferrum#211
+- `1440-dark-07-loop-running.png`: cosmetic: same prompt fade on the uncut 3-line prompt in the side card (y 885); Running pill, Run #1 is working, live log line "Start round #1 · session ..." and "following" all shown; see castraferrum#211
+- `1440-dark-08-run-live.png`: matches
+- `1440-dark-09-transcript-live.png`: matches
+- `1440-dark-10-loop-stopped.png`: cosmetic: same prompt fade on the uncut 3-line prompt in the side card (y 865); see castraferrum#211
+- `1440-dark-11-editor-edit.png`: cosmetic: same repo note path break inside the folder name ("...\lc-" / "fake-claude-journey", y 461-479) as step 05; new name typed, Save changes shown; see castraferrum#211
+- `1440-dark-12-loop-edited.png`: cosmetic: same prompt fade on the uncut 3-line prompt in the side card (y 865); the new name "Review open pull requests daily" is shown; see castraferrum#211
+- `1440-dark-13-loops-list.png`: matches
+- `1440-dark-14-theme-switched.png`: matches
+- `1440-dark-15-settings-english.png`: matches
+- `1440-dark-16-settings-vietnamese.png`: matches
+- `1440-dark-17-loops-vietnamese.png`: matches
+- `1440-dark-18-loop-vietnamese.png`: cosmetic: figures, second row: the Vietnamese Typical run label wraps to 2 lines while the Next run label takes 1, so the two values of that row sit 20 px apart (y 368 and 388) and their sub lines too (y 396 and 416); the last word of the Runs-in-it label stands alone on line 2; plus the same prompt fade on the uncut prompt (y 905); all readable; see castraferrum#211
+- `1440-dark-19-english-again.png`: matches
+- `1440-dark-20-theme-back.png`: matches
+- `1440-light-01-loops-first-visit.png`: matches
+- `1440-light-02-repos-empty.png`: matches
+- `1440-light-03-folder-picker.png`: cosmetic: Add a repo dialog, the target line "Adds C:\...\cf-acceptance-rIacQD\lc-fake-claud…" (y 586) is cut by the one-line ellipsis at about 640 px, so its tail and " as lc-fake-claude-journey" are not shown (m-folder board wraps it and shows the name); not functional because the selected row (y 354) and the Name field (y 663) show the folder and the name; see castraferrum#211
+- `1440-light-04-repo-registered.png`: matches
+- `1440-light-05-editor-new.png`: cosmetic: editor, the repo note breaks the path inside the folder name ("...\lc-" at x 1025, y 461 / "fake-claude-journey" at y 479) where m-form draws the path whole on its own line; readable; see castraferrum#211
+- `1440-light-06-loop-created.png`: cosmetic: Settings and prompt card, the prompt clamp fades the last line ("wait for a review.", y 865) of a 3-line prompt that is not cut, peak contrast drops from 12.8:1 to 4.3:1 (below the 4.5:1 body-text level, still legible at this size), and "Show the full prompt" is offered though the whole prompt is visible; see castraferrum#211
+- `1440-light-07-loop-running.png`: cosmetic: same prompt fade on the uncut 3-line prompt in the side card (y 885, about 4.3:1); Running pill, Run #1 is working, live log line and "following" all shown; see castraferrum#211
+- `1440-light-08-run-live.png`: matches
+- `1440-light-09-transcript-live.png`: matches
+- `1440-light-10-loop-stopped.png`: cosmetic: same prompt fade on the uncut 3-line prompt in the side card (y 865, about 4.3:1); see castraferrum#211
+- `1440-light-11-editor-edit.png`: cosmetic: same repo note path break inside the folder name ("...\lc-" / "fake-claude-journey", y 461-479) as step 05; new name typed, Save changes shown; see castraferrum#211
+- `1440-light-12-loop-edited.png`: cosmetic: same prompt fade on the uncut 3-line prompt in the side card (y 865, about 4.3:1); the new name is shown; see castraferrum#211
+- `1440-light-13-loops-list.png`: matches
+- `1440-light-14-theme-switched.png`: matches
+- `1440-light-15-settings-english.png`: matches
+- `1440-light-16-settings-vietnamese.png`: matches
+- `1440-light-17-loops-vietnamese.png`: matches
+- `1440-light-18-loop-vietnamese.png`: cosmetic: figures, second row values 20 px apart (y 368 and 388; sub lines y 396 and 416) because the Vietnamese Typical run label wraps to 2 lines and the Next run label does not; the last word of the Runs-in-it label stands alone on line 2; plus the same prompt fade on the uncut prompt (y 905, about 4.3:1); all readable; see castraferrum#211
+- `1440-light-19-english-again.png`: matches
+- `1440-light-20-theme-back.png`: matches
+- `390-dark-01-loops-first-visit.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-dark-02-repos-empty.png`: cosmetic: page head spacing, see castraferrum#209; the current Repos tab is filled with the pressed colour (`--pressed`, sampled hex 2c3936, a 124 x 50 px pill at x 133-257, y 794-844) after the click that opened it, where m-repos-light.png draws the current tab with no fill; `.tabbar-item` gets that fill only from `:active` (the app never sets `.is-pressed`), so Chromium still held `:active` at capture; a minimal page clicked the same way does not keep it, so the cause is not proven; see castraferrum#211
+- `390-dark-03-folder-picker.png`: matches
+- `390-dark-04-repo-registered.png`: cosmetic: page head spacing, see castraferrum#209 (the long repo name and path are cut by the system ellipsis, as m-repos cuts them)
+- `390-dark-05-editor-new.png`: cosmetic: the Repo row's value "lc-fake-claude-journey" wraps at its hyphen onto two right-aligned lines ("lc-fake-claude-" / "journey"), so the row is 72 px tall (hairlines at y 163 and 235) where m-form-light.png draws a 56 px one-line row; it stays readable; see castraferrum#211
+- `390-dark-06-loop-created.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-dark-07-loop-running.png`: cosmetic: page head spacing, see castraferrum#209; the live log cursor shows 10:31:26 under a line stamped 10:31:27, the 1-second clock tick lagging a line that just arrived (it corrects at the next tick, the line's own time is right), so not a wrong value; see castraferrum#211 item 15
+- `390-dark-08-run-live.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-dark-09-transcript-live.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-dark-10-loop-stopped.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-dark-11-editor-edit.png`: cosmetic: the Repo row's value wraps onto two lines as in step 05 (72 px row vs the board's 56 px); the nav bar title is cut to "Edit Review open pu..." (about 186 px wide, centred, with about 85 px left empty on its right), and the loop's name stays readable in the Name field; see castraferrum#211
+- `390-dark-12-loop-edited.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-dark-13-loops-list.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-dark-14-theme-switched.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-dark-15-settings-english.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-dark-16-settings-vietnamese.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-dark-17-loops-vietnamese.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-dark-18-loop-vietnamese.png`: cosmetic: page head spacing, see castraferrum#209; the Vietnamese labels of the "Last active period" and "Typical run" figure cards wrap onto two lines, so in each row of figure cards the two values and captions sit about 17 px apart vertically (the 2-second value's top at y 548 vs the run count's at y 531; captions at y 685 vs 702). It stays readable; see castraferrum#211
+- `390-dark-19-english-again.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-dark-20-theme-back.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-light-01-loops-first-visit.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-light-02-repos-empty.png`: cosmetic: page head spacing, see castraferrum#209; the current Repos tab is filled with the pressed colour (`--pressed`, sampled hex e6dcc6, a 124 x 50 px pill at x 133-257, y 794-844) after the click that opened it, where m-repos-light.png draws the current tab with no fill; same cause as the dark shot (Chromium still held `:active` at capture, not proven); see castraferrum#211
+- `390-light-03-folder-picker.png`: matches
+- `390-light-04-repo-registered.png`: cosmetic: page head spacing, see castraferrum#209 (the long repo name and path are cut by the system ellipsis, as m-repos cuts them)
+- `390-light-05-editor-new.png`: cosmetic: the Repo row's value "lc-fake-claude-journey" wraps at its hyphen onto two right-aligned lines, so the row is about 72 px tall where m-form-light.png draws a 56 px one-line row; it stays readable; see castraferrum#211
+- `390-light-06-loop-created.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-light-07-loop-running.png`: cosmetic: page head spacing, see castraferrum#209; the live log cursor shows 10:31:19 under a line stamped 10:31:20, the 1-second clock tick lagging a line that just arrived (it corrects at the next tick), so not a wrong value; see castraferrum#211 item 15
+- `390-light-08-run-live.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-light-09-transcript-live.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-light-10-loop-stopped.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-light-11-editor-edit.png`: cosmetic: the Repo row's value wraps onto two lines as in step 05 (about 72 px row vs the board's 56 px); the nav bar title is cut to "Edit Review open pu..." (about 186 px wide, centred, with about 85 px left empty on its right), and the loop's name stays readable in the Name field; see castraferrum#211
+- `390-light-12-loop-edited.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-light-13-loops-list.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-light-14-theme-switched.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-light-15-settings-english.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-light-16-settings-vietnamese.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-light-17-loops-vietnamese.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-light-18-loop-vietnamese.png`: cosmetic: page head spacing, see castraferrum#209; the two-line Vietnamese labels of the "Last active period" and "Typical run" figure cards push their values and captions about 17 px below the ones beside them in the same row. It stays readable; see castraferrum#211
+- `390-light-19-english-again.png`: cosmetic: page head spacing, see castraferrum#209
+- `390-light-20-theme-back.png`: cosmetic: page head spacing, see castraferrum#209
+- `iphone13-dark-01-loops-first-visit.png`: cosmetic: page head spacing, see castraferrum#209 (large title top at 51 px, the m-loops board at 59 px); the rest matches the approved phone-loops-empty preview
+- `iphone13-dark-02-repos-empty.png`: cosmetic: page head spacing, see castraferrum#209 (Repos title top at 51 px, m-repos at 59 px)
+- `iphone13-dark-03-folder-picker.png`: cosmetic: known, already judged: the "Adds" target line cuts the long temp path with an ellipsis ("...\Local\T…"), as the approved phone-repos-add preview does; the chosen folder is selected with its rail and the name is filled; see castraferrum#211
+- `iphone13-dark-04-repo-registered.png`: cosmetic: page head spacing, see castraferrum#209 (title top 51 px vs 59 px; the long repo name and path are cut by the system ellipsis, as m-repos cuts them)
+- `iphone13-dark-05-editor-new.png`: cosmetic: known, already judged: the Repo row value "lc-fake-claude-journey" wraps at its hyphen (Details group, y about 190-215 px); see castraferrum#211
+- `iphone13-dark-06-loop-created.png`: cosmetic: page head spacing, see castraferrum#209 (title top 66 px vs 57 px on m-loop, pill 118 px vs 98 px)
+- `iphone13-dark-07-loop-running.png`: cosmetic: page head spacing, see castraferrum#209 (title 66 vs 57 px, pill 118 vs 98 px); the Running pill and the live log line are shown
+- `iphone13-dark-08-run-live.png`: cosmetic: page head spacing, see castraferrum#209 (title 66 vs 58 px on m-run, pill 118 vs 98 px, meta 157 vs 124 px)
+- `iphone13-dark-09-transcript-live.png`: cosmetic: page head spacing, see castraferrum#209; five transcript entries, "5 entries" and "following" are shown
+- `iphone13-dark-10-loop-stopped.png`: cosmetic: page head spacing, see castraferrum#209
+- `iphone13-dark-11-editor-edit.png`: cosmetic: known, already judged: the navigation bar title "Edit Review open pu…" is cut by an ellipsis, and the Repo row value wraps at its hyphen; see castraferrum#211
+- `iphone13-dark-12-loop-edited.png`: cosmetic: page head spacing, see castraferrum#209
+- `iphone13-dark-13-loops-list.png`: cosmetic: page head spacing, see castraferrum#209 (title top 51 px vs 59 px)
+- `iphone13-dark-14-theme-switched.png`: cosmetic: page head spacing, see castraferrum#209 (Settings title top 49 px, m-settings 58 px)
+- `iphone13-dark-15-settings-english.png`: cosmetic: page head spacing, see castraferrum#209
+- `iphone13-dark-16-settings-vietnamese.png`: cosmetic: page head spacing, see castraferrum#209
+- `iphone13-dark-17-loops-vietnamese.png`: cosmetic: page head spacing, see castraferrum#209
+- `iphone13-dark-18-loop-vietnamese.png`: cosmetic: page head spacing, see castraferrum#209; in the 2 x 2 figures the Vietnamese labels of Last active period and Typical run wrap to two lines and push their values about 17 px below the value of the figure beside them (Last active period value top 549 px vs Runs in it 532 px; Typical run value 674 px vs Next run about 657 px); there is no Vietnamese board, and all text stays readable; see castraferrum#211
+- `iphone13-dark-19-english-again.png`: cosmetic: page head spacing, see castraferrum#209
+- `iphone13-dark-20-theme-back.png`: cosmetic: page head spacing, see castraferrum#209
+- `iphone13-light-01-loops-first-visit.png`: cosmetic: page head spacing, see castraferrum#209 (large title top at 51 px, the m-loops board at 59 px); the rest matches the approved phone-loops-empty preview
+- `iphone13-light-02-repos-empty.png`: cosmetic: page head spacing, see castraferrum#209 (Repos title top at 51 px, m-repos at 59 px)
+- `iphone13-light-03-folder-picker.png`: cosmetic: known, already judged: the "Adds" target line cuts the long temp path with an ellipsis ("...\Local\T…"), as the approved phone-repos-add preview does; the chosen folder is selected with its rail and the name is filled; see castraferrum#211
+- `iphone13-light-04-repo-registered.png`: cosmetic: page head spacing, see castraferrum#209 (title top 51 px vs 59 px; the long repo name and path are cut by the system ellipsis, as m-repos cuts them)
+- `iphone13-light-05-editor-new.png`: cosmetic: known, already judged: the Repo row value "lc-fake-claude-journey" wraps at its hyphen (Details group, y about 190-215 px); see castraferrum#211
+- `iphone13-light-06-loop-created.png`: cosmetic: page head spacing, see castraferrum#209 (title top 66 px vs 57 px on m-loop, pill 118 px vs 98 px)
+- `iphone13-light-07-loop-running.png`: cosmetic: page head spacing, see castraferrum#209 (title 66 vs 57 px, pill 118 vs 98 px); the Running pill and the live log line are shown
+- `iphone13-light-08-run-live.png`: cosmetic: page head spacing, see castraferrum#209 (title 66 vs 58 px on m-run, pill 118 vs 98 px, meta 157 vs 124 px)
+- `iphone13-light-09-transcript-live.png`: cosmetic: page head spacing, see castraferrum#209; five transcript entries, "5 entries" and "following" are shown
+- `iphone13-light-10-loop-stopped.png`: cosmetic: page head spacing, see castraferrum#209
+- `iphone13-light-11-editor-edit.png`: cosmetic: known, already judged: the navigation bar title "Edit Review open pu…" is cut by an ellipsis, and the Repo row value wraps at its hyphen; see castraferrum#211
+- `iphone13-light-12-loop-edited.png`: cosmetic: page head spacing, see castraferrum#209
+- `iphone13-light-13-loops-list.png`: cosmetic: page head spacing, see castraferrum#209 (title top 51 px vs 59 px)
+- `iphone13-light-14-theme-switched.png`: cosmetic: page head spacing, see castraferrum#209 (Settings title top 49 px, m-settings 58 px)
+- `iphone13-light-15-settings-english.png`: cosmetic: page head spacing, see castraferrum#209
+- `iphone13-light-16-settings-vietnamese.png`: cosmetic: page head spacing, see castraferrum#209
+- `iphone13-light-17-loops-vietnamese.png`: cosmetic: page head spacing, see castraferrum#209
+- `iphone13-light-18-loop-vietnamese.png`: cosmetic: page head spacing, see castraferrum#209; in the 2 x 2 figures the Vietnamese labels of Last active period and Typical run wrap to two lines and push their values about 17 px below the value of the figure beside them (Last active period value top 549 px vs Runs in it 532 px; Typical run value 674 px vs Next run about 657 px); there is no Vietnamese board, and all text stays readable; see castraferrum#211
+- `iphone13-light-19-english-again.png`: cosmetic: page head spacing, see castraferrum#209
+- `iphone13-light-20-theme-back.png`: cosmetic: page head spacing, see castraferrum#209
