@@ -415,3 +415,62 @@ test.describe("phone notes and cards after a captioned group (castraferrum#205)"
     }
   });
 });
+
+test.describe("phone section heads (castraferrum#207)", () => {
+  test.use(PHONE_VIEW);
+  const ctx = useServer();
+
+  /** Every visible `.section-head` of the page: its title, what it heads (the next box) and the gap between them. */
+  const heads = (page: Page) =>
+    page.evaluate(() =>
+      [...document.querySelectorAll(".section-head")]
+        .filter((h) => h.getClientRects().length)
+        .map((head) => {
+          const next = head.nextElementSibling!;
+          return {
+            name: `${(head.querySelector("h2")?.textContent ?? "").trim()} > ${next.className}${next.getAttribute("data-testid") ? `#${next.getAttribute("data-testid")}` : ""}`,
+            gap: Math.round(
+              next.getBoundingClientRect().top -
+                head.getBoundingClientRect().bottom,
+            ),
+          };
+        }),
+    );
+
+  test("a section head sits --space-2 above what it heads, as m-run-light.png and m-loop-light.png draw", async ({
+    page,
+  }) => {
+    await ctx.world(page);
+    const pilot = loopId("pilot", DS_DATA_JS);
+    // [page, every head it shows > what that head heads]
+    const pages: [string, string[]][] = [
+      [`/loops/${pilot}`, ["Recent runs > group-cap"]],
+      [
+        `/runs/${runId("pilot", 68, "")}`,
+        ["Transcript > note#run-transcript-note", "Log > log#run-log"],
+      ],
+      [
+        `/runs/${runId("pilot", 69, "")}`,
+        ["Transcript > note#run-transcript-note", "Log > log#run-log"],
+      ],
+      [
+        `/runs/${runId("debt", null, "14:00:00")}`,
+        ["Transcript > note#run-transcript-note", "Log > note"],
+      ],
+    ];
+    await page.goto(`${ctx.sp.baseUrl}/settings`);
+    const gap = await tokenPx(page, "--space-2");
+    for (const [path, names] of pages) {
+      await page.goto(`${ctx.sp.baseUrl}${path}`);
+      await expect(page.locator(".skeleton")).toHaveCount(0);
+      await expect
+        .poll(async () => (await heads(page)).map((h) => h.name), {
+          message: path,
+        })
+        .toEqual(names);
+      await page.evaluate(() => document.fonts.ready);
+      for (const h of await heads(page))
+        expect.soft(h.gap, `${path} "${h.name}": head to what it heads`).toBe(gap);
+    }
+  });
+});

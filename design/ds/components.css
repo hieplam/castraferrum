@@ -303,7 +303,7 @@ body {
      editor's repo note, schedule preview, mock agent note, Register a repo) is in the same section: --space-2 under the
      list (reference/m-form-light.png). */
   .page .group-cap { margin-bottom: calc(var(--space-2) - var(--space-5)); }
-  .section-head + .group-cap, .section-head + .group-cap + .group + .group-cap { margin-top: calc(var(--space-2) - var(--space-5)); }
+  .section-head + .group-cap + .group + .group-cap { margin-top: calc(var(--space-2) - var(--space-5)); }
   .page > .group-cap:first-child, .page > form:first-child > .group-cap:first-child { margin-top: var(--space-2); }
   .group-cap + .group + :is(.group-note, .note, .card, .btn) { margin-top: calc(var(--space-2) - var(--space-5)); }
 }
@@ -472,6 +472,9 @@ body {
 @media (max-width: 639.98px) {
   .section-head { gap: var(--space-1); padding: 0 var(--space-1); }
   .section-head h2 { font-weight: var(--fw-bold); }
+  /* A section head and what it heads are one section (reference/m-run-light.png, m-loop-light.png): whatever follows the
+     head (a caption, a note, a transcript, a log) sits --space-2 under it, not the page's --space-5. */
+  .page .section-head + * { margin-top: calc(var(--space-2) - var(--space-5)); }
   .help { width: var(--size-touch); height: var(--size-touch); margin: calc(-1 * var(--space-2)) 0; }
   .help::after { content: none; }
 }
