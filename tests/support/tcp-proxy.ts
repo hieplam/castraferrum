@@ -3,7 +3,8 @@ import { connect, createServer, type AddressInfo, type Server, type Socket } fro
 /**
  * A TCP proxy in front of Postgres to fake "Postgres dies midway" without stopping the shared container:
  * `stop()` cuts every open connection abruptly (RST - the client gets ECONNRESET as when Postgres is stopped) + stops listening;
- * `start(port)` listens again on the same port.
+ * `start(port)` listens again on the same port. `start(port, '0.0.0.0')` listens on every interface: the acceptance journey
+ * (tests/e2e/acceptance.journey.spec.ts) reaches the test server through the machine's LAN address that way.
  */
 export class TcpProxy {
   readonly #target: { host: string; port: number };
@@ -14,7 +15,7 @@ export class TcpProxy {
     this.#target = target;
   }
 
-  async start(port = 0): Promise<number> {
+  async start(port = 0, host = '127.0.0.1'): Promise<number> {
     const server = createServer((client) => {
       const upstream = connect(this.#target.port, this.#target.host);
       const kill = () => {
@@ -33,7 +34,7 @@ export class TcpProxy {
     });
     await new Promise<void>((resolve, reject) => {
       server.once('error', reject);
-      server.listen(port, '127.0.0.1', resolve);
+      server.listen(port, host, resolve);
     });
     this.#server = server;
     return (server.address() as AddressInfo).port;

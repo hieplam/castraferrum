@@ -14,9 +14,12 @@ export default defineConfig({
   use: { baseURL: `http://127.0.0.1:${port}`, trace: 'retain-on-failure' },
   projects: [
     // e2e tests carry @UC-xx tags (counted by uc-coverage) plus @smoke / @shell. phone.spec.ts (UC-34) also runs in webkit-phone.
-    { name: 'chromium', testDir: 'tests/e2e', use: { ...devices['Desktop Chrome'] } },
+    // acceptance.iphone.spec.ts is the iPhone part of the U27 acceptance journey: it runs only in iphone-lan.
+    { name: 'chromium', testDir: 'tests/e2e', testIgnore: ['**/acceptance.iphone.spec.ts'], use: { ...devices['Desktop Chrome'] } },
     // The phone in WebKit (task U24, UC-34): an emulated iPhone 15. Installed by scripts/install-webkit.mjs.
     { name: 'webkit-phone', testDir: 'tests/e2e', testMatch: ['**/phone.spec.ts'], use: { ...devices['iPhone 15'] } },
+    // The acceptance journey (task U27, G9) in WebKit as an iPhone 13, through the machine's LAN address (a relay on 0.0.0.0).
+    { name: 'iphone-lan', testDir: 'tests/e2e', testMatch: ['**/acceptance.iphone.spec.ts'], use: { ...devices['iPhone 13'] } },
     // screenshots of the real app next to the approved preview + pixel diff (tests/visual/ds/); written to reports/compare/ds/ or
     // design/compare/ds/ (npm run design:compare)
     { name: 'visual', testDir: 'tests/visual', testMatch: '*.visual.ts', use: { ...devices['Desktop Chrome'] } },
