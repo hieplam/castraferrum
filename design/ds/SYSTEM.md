@@ -370,6 +370,11 @@ Screens put kit components together in `web/features/`. Never add a class that i
 - **Use it** above a section: its title, a `?` toggletip (`.help`) that explains it, and a `.link` to more (All runs).
 - **Do not** put an explanation in a tooltip.
 - **Phone:** `.help` is 44px. **Desktop:** `.help` is 26px with a 44px hit area on coarse pointers.
+- **Heads on the phone.** A `.section-head` and what it heads are one section, as the boards draw it
+  (`reference/m-run-light.png`, `m-loop-light.png`): whatever follows the head on the page (the Recent runs caption,
+  the run page's transcript or its note, the log or its note) sits `--space-2` under it, while sections stay the page's
+  `--space-5` apart. One rule of `components.css` ("Section head") does this for every screen; a screen never sets the
+  margins of what a head heads.
 - **States:** hover, pressed, focus.
 - **Wrapper:** `Toggletip` of `web/ui/kit/Overlay.tsx` for `.help` (U14).
 
