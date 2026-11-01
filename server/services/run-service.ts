@@ -46,6 +46,10 @@ export class DefaultRunService implements RunService {
     return this.#begin(loopId, executionId, 'schedule', scheduledFor);
   }
 
+  startClaimed(loopId: string, executionId: string, claim: { runId: string; taskKey: string }): Promise<RunView> {
+    return this.#begin(loopId, executionId, 'probe', null, claim);
+  }
+
   async cancel(runId: string, reason: 'cancelled' | 'timed_out'): Promise<RunView> {
     const d = this.#d;
     const run = await d.runs.findById(runId);
@@ -102,7 +106,13 @@ export class DefaultRunService implements RunService {
 
   // ---------------------------------------------------------------- internals
 
-  async #begin(loopId: string, executionId: string, trigger: RunTrigger, scheduledFor: Date | null): Promise<RunView> {
+  async #begin(
+    loopId: string,
+    executionId: string,
+    trigger: RunTrigger,
+    scheduledFor: Date | null,
+    claim: { runId: string; taskKey: string } | null = null,
+  ): Promise<RunView> {
     const d = this.#d;
     const loop = await d.loops.findById(loopId);
     if (!loop) throw new DomainError('LOOP_NOT_FOUND', `No loop ${loopId}`);
@@ -111,8 +121,11 @@ export class DefaultRunService implements RunService {
     if (!repo) throw new Error(`Loop ${loopId} points at repo ${loop.repoId} which does not exist (the foreign key should prevent this)`);
     const now = d.clock.now();
     const snapshot = { promptSnapshot: loop.prompt, executorKind: loop.executorKind, executorConfig: loop.executorConfig };
+    // A claimed run keeps the id that its claim row already holds, also when the row becomes `skipped`.
+    const runId = claim?.runId ?? d.ids.newId();
+    const taskKey = claim?.taskKey ?? null;
     const res = await d.runs.start({
-      id: d.ids.newId(),
+      id: runId,
       loopId,
       executionId,
       trigger,
@@ -120,12 +133,13 @@ export class DefaultRunService implements RunService {
       startedAt: now,
       // Unlimited → no deadline: expireOverdue never picks this run (UC-24).
       deadlineAt: loop.timeoutSec === null ? null : new Date(now.getTime() + loop.timeoutSec * 1000),
+      taskKey,
       ...snapshot,
     });
     if (res.kind === 'busy') {
       // N runs already going — the DB refused, record a "skipped" row.
       const skipReason = skipReasonOf(res.active, res.limit);
-      const skipped = await d.runs.recordSkipped({ id: d.ids.newId(), loopId, executionId, scheduledFor, at: now, skipReason, ...snapshot });
+      const skipped = await d.runs.recordSkipped({ id: runId, trigger: claim ? 'probe' : undefined, taskKey, loopId, executionId, scheduledFor, at: now, skipReason, ...snapshot });
       d.events.publish({ type: 'run.skipped', at: now, loopId, executionId, runId: skipped.id, reason: skipReason });
       return skipped;
     }
@@ -184,7 +198,7 @@ export class DefaultRunService implements RunService {
         else {
           outcome =
             ev.outcome === 'succeeded'
-              ? { status: 'succeeded', summary: ev.summary ?? null, costUsd: ev.costUsd ?? null }
+              ? { status: 'succeeded', summary: ev.summary ?? null, costUsd: ev.costUsd ?? null, endResult: ev.end?.result ?? null, endPr: ev.end?.pr ?? null }
               : { status: 'failed', summary: ev.summary ?? null, error: ev.error ?? 'Unknown error', costUsd: ev.costUsd ?? null };
           break; // `result` is the last event
         }

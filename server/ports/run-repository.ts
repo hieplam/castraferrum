@@ -22,6 +22,12 @@ export type RunRecord = {
   error: string | null;
   costUsd: number | null;
   sessionId: string | null;
+  /** The claimed task of a run that a probe started. */
+  taskKey: string | null;
+  slot: number | null;
+  /** The `result` word and the pull request of the run-end signal (spec 2.3). */
+  endResult: string | null;
+  endPr: string | null;
 };
 
 /** Snapshot of the prompt + executor at run time: editing the loop later does not change history. `id` is issued by the service. */
@@ -37,9 +43,13 @@ export type StartRunInput = {
   promptSnapshot: string;
   executorKind: string;
   executorConfig: unknown;
+  taskKey?: string | null;
 };
 
 export type SkippedRunInput = {
+  /** Default `schedule`. */
+  trigger?: RunTrigger;
+  taskKey?: string | null;
   id: string;
   loopId: string;
   executionId: string;
@@ -57,6 +67,8 @@ export type RunOutcome = {
   summary?: string | null;
   error?: string | null;
   costUsd?: number | null;
+  endResult?: string | null;
+  endPr?: string | null;
 };
 
 export type RunOverviewCounts = { running: number; startedSince: number; failedSince: number };

@@ -290,6 +290,8 @@ export interface RunService {
   startFirst(loopId: string, executionId: string): Promise<RunView>;
   /** A scheduled run; if the loop already has a running run → returns a `skipped` run. */
   startScheduled(loopId: string, executionId: string, scheduledFor: Date): Promise<RunView>;
+  /** A run for a claimed task (trigger `probe`), with the id that the claim row holds. Full lanes give a `skipped` run with that id. */
+  startClaimed(loopId: string, executionId: string, claim: { runId: string; taskKey: string }): Promise<RunView>;
   /** Cancel a running run: the DB changes at once, the executor receives the signal. A finished run → returned unchanged. Throws RUN_NOT_FOUND. */
   cancel(runId: string, reason: 'cancelled' | 'timed_out'): Promise<RunView>;
   /** Runs past their deadline → cancelled with reason `timed_out`. Returns the count. */
@@ -375,7 +377,7 @@ export interface BackgroundService {
 }
 
 export interface ProbeService extends BackgroundService {
-  /** Calls each due probe (decision 22) and stores its line. Starts no run. */
+  /** Releases orphaned claims, then calls each due probe (decision 22), stores its line, and starts the tasks of a `take` (decision 23). */
   tick(): Promise<ProbeTickReport>;
   /** A loop with no probe gives `null`. Throws LOOP_NOT_FOUND. */
   get(loopId: string): Promise<ProbeView | null>;

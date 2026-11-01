@@ -119,6 +119,7 @@ export const en = {
   'reason.server_down': 'Server shutdown',
   'trigger.start': 'Start',
   'trigger.schedule': 'schedule',
+  'trigger.probe': 'probe',
 
   'crumb.loops': 'Loops',
   'loop.copySuffix': '{name} (copy)',
@@ -630,6 +631,7 @@ export const en = {
   'run.of': '{loop} · active period #{k}',
   'run.summary': 'Summary',
   'run.startedBy': 'Started by',
+  'run.byProbe': 'Probe',
   'run.bySchedule': 'Schedule',
   'run.byStart': 'Start',
   'run.costNote': 'reported by the SDK, not money charged',

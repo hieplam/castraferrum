@@ -167,10 +167,10 @@ network. Component tests plug `FakeLoopsApi` and `FakeLiveEvents` into the same 
 ### Ports (what services call, `server/ports/`)
 
 Repositories (`LoopRepository`, `ExecutionRepository`, `RunRepository`, `RunLogRepository`,
-`HeartbeatRepository`, `RepoRepository`, `LoopProbeRepository`), `Clock`, `IdGenerator`, `DbProbe`,
+`HeartbeatRepository`, `RepoRepository`, `LoopProbeRepository`, `ClaimRepository`), `Clock`, `IdGenerator`, `DbProbe`,
 `DirectoryProbe`, `FolderBrowser`, `ActiveRunRegistry`, `EventPublisher` and `EventSource`, `TranscriptSource`,
-`CommandRunner` (runs a command with no shell, and kills a hung command with its whole process tree), and
-`LoopExecutor`.
+`CommandRunner` (runs a command with no shell, and kills a hung command with its whole process tree),
+`ClaimGateway` (runs the claim and release commands of a probe row, `adapters/claims/`), and `LoopExecutor`.
 
 Rules every repository follows (held by the contract tests):
 
@@ -253,18 +253,29 @@ Start gives it `next_run_at` null and no first run, so `findDue` skips it. A loo
 
 ```
 if the previous tick has not finished: return           // no overlap
+for each open run_claims row whose run is not running:  // also of a stopped loop; a row with no run counts
+    release (a failed command keeps the row, next try 60 s later), then close
 for each loop_probes row, at the same time, each caught alone:
     skip a loop that is not active, or is archived
     skip until 60 s after last_probe_at, or until a run ended after last_probe_at
     skip a loop with no free lane                       // running runs >= max_concurrent
     commands.run({ argv, cwd: repo.path, timeoutMs: 30000 }), then parseProbeLine
     probes.record(state, lastLine, the tick's now)      // a run that ends during the call gives a new probe
+    for each task of a take, until the free lanes end:
+        claims.open                                     // `taken` goes to the next task
+        claimGateway.claim                              // a refusal closes the row and goes to the next task
+        runService.startClaimed                         // a skipped run gives an excused release and a close
 ```
 
 `server/scheduler/background-ticker.ts` keeps one in-flight promise for each service, and a busy service skips a
 beat. So a hung probe holds back its own service for at most 31 seconds, and it cannot hold back the schedule
 tick, which has its own ticker. Exit 0 with a valid line sets the state of the action. A bad exit, a time-out or
-a bad line sets `probe_failed`. This task starts no run: the probe tick only stores the line.
+a bad line sets `probe_failed`.
+
+The order `open`, `claim`, run means that a claim on a task always has its row, so a claim cannot outlive its run. The
+close reason is `run <status>[ <end word>]`. A release is excused for `interrupted`, `skipped`, a row with no run and
+`RESOURCE_DOWN`, because none of them is a failure of the task. Each release carries `--if-claimed`, because a plain
+release reopens a closed issue. `RunService` writes the run-end signal of the final text to `end_result` and `end_pr`.
 
 ### One run (`RunService`)
 
@@ -446,8 +457,9 @@ is committed and applied at startup):
 | `repos` | registered repositories: id, name, path | unique lower(name); unique path (real path at registration) |
 | `loops` | configuration, status, `next_run_at`, counters (`run_counter`, `execution_counter`), `version`, `max_concurrent`, `timeout_sec` (null = no limit), `archived_at` | unique live name; `archived_at` only when stopped; `next_run_at` only when active; FK to `repos` |
 | `loop_executions` | one Start-to-Stop span: `seq`, `started_at`, `ended_at`, `end_reason` (`stopped` or `server_down`) | unique (loop, seq); at most one open per loop |
-| `runs` | one firing: `iteration`, `trigger` (`start` or `schedule`), `status`, `skip_reason`, timestamps, `deadline_at`, `duration_ms`, prompt and executor snapshot, `summary`, `error`, `cost_usd`, `session_id` | trigger `runs_max_concurrent_per_loop` (lock the loop row, count `running`, reject at `max_concurrent`); unique (loop, iteration) |
+| `runs` | one firing: `iteration`, `trigger` (`start`, `schedule` or `probe`), `status`, `skip_reason`, timestamps, `deadline_at`, `duration_ms`, prompt and executor snapshot, `summary`, `error`, `cost_usd`, `session_id`, `task_key`, `slot`, `end_result`, `end_pr` | trigger `runs_max_concurrent_per_loop` (lock the loop row, count `running`, reject at `max_concurrent`); unique (loop, iteration) |
 | `run_logs` | lines of a run: `seq`, `at`, `level`, `message`, `data` | primary key (run, seq) |
+| `run_claims` | the claim of a task for one run: `task_key`, `run_id` (no FK: the row comes before the run), `opened_at`, `closed_at`, `close_reason` | primary key `id`; FK to `loops`; partial unique index: one open row for each `loop_id` and `task_key` |
 | `loop_probes` | the probe of a loop: argv commands (`command`, `claim`, `release`), `resources`, lane settings, `restart_policy`, `state`, `last_line`, `last_probe_at` | primary key `loop_id`; FK to `loops` |
 | `server_heartbeat` | a single row written every 10 seconds | `id` is a fixed boolean |
 

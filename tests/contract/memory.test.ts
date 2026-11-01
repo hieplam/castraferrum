@@ -28,6 +28,10 @@ describe('memory', () => {
           error: null,
           costUsd: null,
           sessionId: null,
+          taskKey: null,
+          slot: null,
+          endResult: null,
+          endPr: null,
         },
         true,
       );

@@ -5,7 +5,7 @@ export type ExecutionEndReason = 'stopped' | 'server_down';
 
 export const RUN_STATUSES = ['running', 'succeeded', 'failed', 'cancelled', 'timed_out', 'interrupted', 'skipped'] as const;
 export type RunStatus = (typeof RUN_STATUSES)[number];
-export type RunTrigger = 'start' | 'schedule';
+export type RunTrigger = 'start' | 'schedule' | 'probe';
 /** Final status that `RunRepository.finish` can write (interrupted comes only from recovery, skipped only from recordSkipped). */
 export type FinishStatus = 'succeeded' | 'failed' | 'cancelled' | 'timed_out';
 export type LogLevel = 'info' | 'warn' | 'error';

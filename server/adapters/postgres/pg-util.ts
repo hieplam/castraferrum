@@ -97,6 +97,10 @@ export function toRun(r: Row): RunRecord {
     // numeric as a string so no precision is lost; the money figures in phase 2 only need 6 decimal places.
     costUsd: r.cost_usd === null || r.cost_usd === undefined ? null : Number(r.cost_usd),
     sessionId: (r.session_id as string | null) ?? null,
+    taskKey: (r.task_key as string | null) ?? null,
+    slot: (r.slot as number | null) ?? null,
+    endResult: (r.end_result as string | null) ?? null,
+    endPr: (r.end_pr as string | null) ?? null,
   };
 }
 

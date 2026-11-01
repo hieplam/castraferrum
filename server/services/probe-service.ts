@@ -5,23 +5,31 @@ import {
   PROBE_ACTION_STATE,
   PROBE_RAW_MAX_BYTES,
   RESERVED_RESOURCE,
+  type ProbeLine,
   type ProbeRecord,
   type ProbeSettings,
   type ProbeState,
 } from '../../shared/domain/goal-loop';
+import type { ClaimConfig, ClaimGateway, OrphanedClaim } from '../ports/claims';
 import type { Clock } from '../ports/clock';
 import type { CommandResult, CommandRunner } from '../ports/command-runner';
+import type { IdGenerator } from '../ports/ids';
 import type { LoopRecord } from '../ports/loop-repository';
 import type { Repositories } from '../ports/repositories';
-import type { ProbeInput, ProbeService, ProbeTickReport, ProbeView, ValidationIssue } from './contracts';
+import type { ProbeInput, ProbeService, ProbeTickReport, ProbeView, RunService, ValidationIssue } from './contracts';
 
-export type ProbeServiceDeps = Pick<Repositories, 'loops' | 'probes' | 'repos' | 'runs'> & {
+export type ProbeServiceDeps = Pick<Repositories, 'claims' | 'executions' | 'loops' | 'probes' | 'repos' | 'runs'> & {
   commands: CommandRunner;
+  claimGateway: ClaimGateway;
+  runService: Pick<RunService, 'startClaimed'>;
   clock: Clock;
+  ids: IdGenerator;
 };
 
 const PROBE_EVERY_MS = 60_000;
 const PROBE_TIMEOUT_MS = 30_000;
+const RELEASE_RETRY_MS = 60_000;
+const ORPHANS_PER_TICK = 50;
 
 const BASE_PORT_MIN = 1024;
 const BASE_PORT_MAX = 65_000;
@@ -30,11 +38,14 @@ const EVERY_SEC_MAX = 86_400;
 
 /**
  * The probe of a loop: validates and stores its settings, and calls it on the tick (decision 22). The console reads one word and a
- * few opaque fields from a command that the loop owns, and it starts no session here (ADR 0004).
+ * few opaque fields from a command that the loop owns (ADR 0004). A tick first ends the claims of finished runs, then starts the tasks of a
+ * `take` (decision 23). The order is `open`, `claim`, run, so a claim always has its row before it exists on the task.
  */
 export class DefaultProbeService implements ProbeService {
   readonly #d: ProbeServiceDeps;
   #busy = false;
+  /** Claim id -> the time of the next try, after a failed release. In memory: a restart only gives an earlier try. */
+  readonly #retryAt = new Map<string, number>();
 
   constructor(deps: ProbeServiceDeps) {
     this.#d = deps;
@@ -64,6 +75,7 @@ export class DefaultProbeService implements ProbeService {
     this.#busy = true;
     try {
       report.ran = true;
+      await this.#releaseOrphans(now, report); // first, so that a probe sees the tasks that this tick freed
       const probes = await this.#d.probes.list();
       // Together, so a hung probe delays no other loop: the command runner ends each call in 30 s.
       await Promise.all(probes.map((p) => this.#probeLoop(p, now, report)));
@@ -83,14 +95,70 @@ export class DefaultProbeService implements ProbeService {
       const repo = await d.repos.findById(loop.repoId);
       if (!repo) throw new Error(`Loop points at repo ${loop.repoId} which does not exist`);
       const result = await d.commands.run({ argv: probe.command, cwd: repo.path, timeoutMs: PROBE_TIMEOUT_MS });
-      const { state, lastLine } = readResult(result);
+      const { state, lastLine, line } = readResult(result);
       // The tick's `now`, not the time of the answer: a run that ends during the call is later than this mark, so it gives a new probe.
       await d.probes.record(loop.id, { state, lastLine, at: now });
       report.probed.push(loop.id);
       if (state === 'probe_failed') report.failed.push(loop.id);
+      if (line?.action === 'take') await this.#take(loop, probe, repo.path, line, now, report);
     } catch (err) {
       report.errors.push({ loopId: probe.loopId, message: err instanceof Error ? err.message : String(err) });
     }
+  }
+
+  /** Decision 23: `taken` goes to the next task, a refused claim closes its row, and the lanes end the list. */
+  async #take(loop: LoopRecord, probe: ProbeRecord, cwd: string, line: ProbeLine, now: Date, report: ProbeTickReport): Promise<void> {
+    const d = this.#d;
+    const execution = await d.executions.findOpen(loop.id); // a Stop during the probe call leaves none
+    if (!execution) return;
+    let lanes = loop.maxConcurrent - (await d.runs.listActive(loop.id)).length; // read again: the probe call took time
+    const cfg: ClaimConfig = { claim: probe.claim, release: probe.release, cwd };
+    for (const task of line.tasks) {
+      if (lanes <= 0) return;
+      const claimId = d.ids.newId();
+      const runId = d.ids.newId();
+      if ((await d.claims.open({ id: claimId, loopId: loop.id, taskKey: task.key, runId, at: now })) === 'taken') continue;
+      const answer = await d.claimGateway.claim(cfg, task);
+      if (!answer.ok) {
+        await d.claims.close(claimId, `refused: ${answer.reason}`, d.clock.now());
+        continue;
+      }
+      const run = await d.runService.startClaimed(loop.id, execution.id, { runId, taskKey: task.key });
+      if (run.status === 'skipped') await this.#endClaim({ id: claimId, loopId: loop.id, taskKey: task.key, runStatus: 'skipped', endResult: null }, now, report);
+      if (run.status !== 'running') return; // no lane after all, or a Stop came first: the orphan step ends what is left
+      lanes--;
+    }
+  }
+
+  /** A claim ends with its run, also for a stopped loop. So this reads every open claim, not the probes that are due. */
+  async #releaseOrphans(now: Date, report: ProbeTickReport): Promise<void> {
+    const orphans = await this.#d.claims.findOrphaned(ORPHANS_PER_TICK);
+    const due = orphans.filter((c) => (this.#retryAt.get(c.id) ?? 0) <= now.getTime());
+    await Promise.all(due.map((c) => this.#endClaim(c, now, report)));
+  }
+
+  /** A failed release keeps the row open for a try 60 s later, so a `gh` failure cannot lose a release. */
+  async #endClaim(claim: Pick<OrphanedClaim, 'id' | 'loopId' | 'taskKey' | 'runStatus' | 'endResult'>, now: Date, report: ProbeTickReport): Promise<void> {
+    const d = this.#d;
+    const why = releaseWhy(claim);
+    try {
+      const cfg = await this.#claimConfig(claim.loopId);
+      if (cfg) await d.claimGateway.release(cfg, { key: claim.taskKey }, why);
+      await d.claims.close(claim.id, why.reason, now);
+      this.#retryAt.delete(claim.id);
+    } catch (err) {
+      this.#retryAt.set(claim.id, now.getTime() + RELEASE_RETRY_MS);
+      report.errors.push({ loopId: claim.loopId, message: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
+  /** `null`: the owner removed the probe of a stopped loop. No release command is left, so the row can only close. */
+  async #claimConfig(loopId: string): Promise<ClaimConfig | null> {
+    const d = this.#d;
+    const [probe, loop] = await Promise.all([d.probes.get(loopId), d.loops.findById(loopId)]);
+    const repo = loop && (await d.repos.findById(loop.repoId));
+    if (!probe || !repo) return null;
+    return { claim: probe.claim, release: probe.release, cwd: repo.path };
   }
 
   async #isDue(probe: ProbeRecord, now: Date): Promise<boolean> {
@@ -113,13 +181,22 @@ export class DefaultProbeService implements ProbeService {
 }
 
 /** Spec 2.1: only exit 0 with a valid last line counts. Each other result gives `probe_failed`, with the raw line or the error. */
-function readResult(result: CommandResult): { state: ProbeState; lastLine: string } {
-  const failed = (text: string) => ({ state: 'probe_failed' as const, lastLine: cutBytes(text, PROBE_RAW_MAX_BYTES) });
+function readResult(result: CommandResult): { state: ProbeState; lastLine: string; line: ProbeLine | null } {
+  const failed = (text: string) => ({ state: 'probe_failed' as const, lastLine: cutBytes(text, PROBE_RAW_MAX_BYTES), line: null });
   if (result.timedOut) return failed(`timed out after ${PROBE_TIMEOUT_MS / 1000} s`);
   if (result.exitCode !== 0) return failed(result.error ?? `exit ${result.exitCode}`);
   const parsed = parseProbeLine(result.stdout);
   if (!parsed.ok) return failed(parsed.raw || parsed.reason);
-  return { state: PROBE_ACTION_STATE[parsed.line.action], lastLine: parsed.raw };
+  return { state: PROBE_ACTION_STATE[parsed.line.action], lastLine: parsed.raw, line: parsed.line };
+}
+
+/**
+ * Decision 23. A restart, a full lane and a run that never started are not the fault of the task, and `RESOURCE_DOWN` is not either: each of them is
+ * excused, so it spends no attempt.
+ */
+function releaseWhy({ runStatus, endResult }: Pick<OrphanedClaim, 'runStatus' | 'endResult'>): { reason: string; excused: boolean } {
+  const excused = runStatus === null || runStatus === 'interrupted' || runStatus === 'skipped' || endResult === 'RESOURCE_DOWN';
+  return { reason: `run ${runStatus ?? 'missing'}${endResult ? ` ${endResult}` : ''}`, excused };
 }
 
 /** Defaults plus the data rules of spec 2.1: an argv has the placeholders `{key}` and `{reason}`; `plan-window` is reserved. */

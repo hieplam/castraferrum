@@ -37,7 +37,7 @@ export async function openDb(url: string, opts: { waitMs?: number; log?: (msg: s
 
 /** Test mode (`POST /api/__test/reset`): wipe all data, keep the schema. */
 export async function truncateAll(pool: pg.Pool): Promise<void> {
-  await pool.query('TRUNCATE run_logs, runs, loop_executions, loop_probes, loops, repos, server_heartbeat, notices, standing_goals, standing_issues, standing_schedule');
+  await pool.query('TRUNCATE run_logs, runs, run_claims, loop_executions, loop_probes, loops, repos, server_heartbeat, notices, standing_goals, standing_issues, standing_schedule');
 }
 
 async function waitUntilReachable(pool: pg.Pool, waitMs: number, log?: (msg: string) => void): Promise<void> {
