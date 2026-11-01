@@ -1,0 +1,5 @@
+{
+  "goals": [
+    { "id": "G7", "outcome": "not measured yet, its tool test passes", "d7": true, "checks": [{ "run": "node -e \"console.log('ok')\"" }] }
+  ]
+}
