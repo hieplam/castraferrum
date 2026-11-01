@@ -86,13 +86,13 @@ describe('process-file-issues', () => {
     expect(JSON.parse(r.out)).toEqual({ created: ['aaaaaaaaaaaa'], updated: [], skipped: [] });
     const issues = gh.read().issues;
     expect(issues).toHaveLength(1);
-    expect(issues[0].title).toBe('process-review: cause of usage-limit');
-    expect(issues[0].body).toContain('<!-- fingerprint:aaaaaaaaaaaa -->');
-    expect(issues[0].body).toContain('Events: 3');
-    expect(issues[0].body).toContain('2026-10-19T08:00:00.000Z to 2026-10-22T09:30:00.000Z');
-    expect(issues[0].body).toContain('hook');
-    expect(issues[0].body).toContain('hooks/usage-limit.mjs');
-    expect(issues[0].body).toContain('node hooks/usage-limit.mjs --replay');
+    expect(issues[0]!.title).toBe('process-review: cause of usage-limit');
+    expect(issues[0]!.body).toContain('<!-- fingerprint:aaaaaaaaaaaa -->');
+    expect(issues[0]!.body).toContain('Events: 3');
+    expect(issues[0]!.body).toContain('2026-10-19T08:00:00.000Z to 2026-10-22T09:30:00.000Z');
+    expect(issues[0]!.body).toContain('hook');
+    expect(issues[0]!.body).toContain('hooks/usage-limit.mjs');
+    expect(issues[0]!.body).toContain('node hooks/usage-limit.mjs --replay');
   });
 
   it('1 event opens no issue and is skipped', () => {
@@ -129,9 +129,9 @@ describe('process-file-issues', () => {
     expect(JSON.parse(r.out)).toEqual({ created: [], updated: ['aaaaaaaaaaaa'], skipped: [] });
     const issues = gh.read().issues;
     expect(issues).toHaveLength(1);
-    expect(issues[0].comments).toHaveLength(1);
-    expect(issues[0].comments[0].body).toContain('3 events');
-    expect(issues[0].comments[0].body).toContain('2026-10-22T09:30:00.000Z');
+    expect(issues[0]!.comments).toHaveLength(1);
+    expect(issues[0]!.comments[0]!.body).toContain('3 events');
+    expect(issues[0]!.comments[0]!.body).toContain('2026-10-22T09:30:00.000Z');
   });
 
   it('a repeat on a closed issue reopens it, then comments', () => {
@@ -142,8 +142,8 @@ describe('process-file-issues', () => {
     expect(JSON.parse(r.out).updated).toEqual(['aaaaaaaaaaaa']);
     const w = gh.read();
     expect(w.issues).toHaveLength(1);
-    expect(w.issues[0].state).toBe('OPEN');
-    expect(w.issues[0].comments).toHaveLength(1);
+    expect(w.issues[0]!.state).toBe('OPEN');
+    expect(w.issues[0]!.comments).toHaveLength(1);
     expect(writeCalls(gh).map((c) => c.args[1])).toEqual(['reopen', 'comment']);
   });
 
