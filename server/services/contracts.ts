@@ -23,7 +23,9 @@ export type { Page, PageRequest } from '../ports/page';
 export type HealthReport = { ok: boolean; db: 'up' | 'down' };
 
 /** One row of `goals/health.json`, with its command as an argv array. */
-export type StandingRow = { id: string; outcome: string; run: string[]; timeoutSec: number };
+export type StandingRow = { id: string; outcome: string; run: string[]; timeoutSec: number; verbatim?: boolean };
+
+export type HealthInput = { repo: string; cwd: string; text: string; now: Date; platform?: string };
 
 export type StandingPassInput = { repo: string; cwd: string; rows: StandingRow[]; maxNewIssues?: number; now: Date };
 
@@ -35,6 +37,8 @@ export interface StandingGoalService {
   /** True with no schedule, or when the next time has come. */
   isDue(repo: string, now: Date): Promise<boolean>;
   markRan(repo: string, cron: string, timezone: string, now: Date): Promise<void>;
+  /** Parses `goals/health.json`, runs its rows when the schedule is due, then marks the pass. `null` when it is not due. */
+  runHealth(input: HealthInput): Promise<StandingPassResult | null>;
 }
 
 export interface HealthService {

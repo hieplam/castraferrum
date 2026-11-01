@@ -1,0 +1,21 @@
+{
+  "v": 1,
+  "cron": "0 2 * * *",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "epic": 0,
+  "maxNewIssuesPerPass": 3,
+  "rows": [
+    {
+      "id": "H1",
+      "outcome": "The full verify passes on main.",
+      "run": "npm run verify",
+      "timeoutSec": 3600
+    },
+    {
+      "id": "H2",
+      "outcome": "Every merged pull request has a passing gate status.",
+      "run": "node scripts/merge-audit.mjs -R {repo} --since 2026-11-01T00:00:00Z",
+      "timeoutSec": 600
+    }
+  ]
+}
