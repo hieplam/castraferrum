@@ -264,7 +264,7 @@ Each task is one PR. A star: it can start at once. Column ap: blank is cf. Needs
 
 Tasks: foundation 13, issue 212: 15, 213: 12, 214: 6, 215: 9, 216: 7. Total 62.
 
-**Spikes.** Answers go to the evidence log. A changed design adds a line to section 6.
+**Spikes.** Answers go to the evidence log. A changed design adds a decision.
 
 | Id | Literal question | Way to answer | If no |
 |---|---|---|---|
@@ -304,8 +304,8 @@ Pages open from a `.cell.is-link`. The tab bar stays.
 11. The model groups, a script files, so G14 has a stable recorded test.
 12. The goal writer waits for K11 and T5, not pages.
 13. `resetsAt` is in epoch seconds (checked on session `464e9f06`). It sits in `rate_limit_info` and is optional.
-14. Real rows hold Vietnamese text. S5 writes English fixture lines, and F0 prints no loop name.
-15. A 60 s probe fits: `E next` took 4.3 s on 67 tasks.
+14. Real rows hold Vietnamese. S5 writes English lines, and F0 prints no loop name.
+15. A 60 s probe fits: `E next` took 4.3 s.
 16. F0 counts G1 from transcripts with no `Edit`, `Write`, `git push`, `gh pr create`. F0's number wins.
 17. Task sections are written in waves: plans written far ahead go stale (issue 214), and spikes can change later designs.
 
@@ -316,5 +316,5 @@ Pages open from a `.cell.is-link`. The tab bar stays.
 ## 7. Outside this epic
 
 - Cabal: `tools/preflight.js` as a probe, a `client-verify` gate step, sensors as standing goals, rule errors as review input, `docs/VISION.md` as writer input.
-- A GitHub Pro ruleset on the status.
+- A GitHub Pro ruleset.
 - Issues 209, 211, the stale `uc-coverage` number, a real phone push after epic 46.
