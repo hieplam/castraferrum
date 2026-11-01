@@ -1287,7 +1287,7 @@ Green, the same command after the rebase:
     Test Files  1 passed (1)
     Tests  14 passed (14)
 
-`npx vitest run --project contract -t goal_runs`: `Tests  4 passed | 206 skipped (210)`. `npx vitest run --project unit server/adapters/github`: `Tests  18 passed (18)`, 16 before. `npm run verify`: exit 0, last line `UCs with a green e2e: 35/35`, e2e `123 passed`.
+`npx vitest run --project contract -t goal_runs`: `Tests  4 passed | 244 skipped (248)`. `npx vitest run --project unit server/adapters/github`: `Tests  18 passed (18)`, 16 before. `npm run verify`: exit 0, last line `UCs with a green e2e: 35/35`, e2e `123 passed`.
 
 Nightly rows after a merge: the test `a nightly row does not run after a merge` records each row that ran. The log is `['A', 'B']`, not `N`, and the command is `node scripts/goal-check.mjs goals/g.json --json --cadence merge`.
 
@@ -1298,7 +1298,7 @@ Stub checks, each run and restored:
 - Goals after the next job: `Tests  1 failed | 13 skipped (14)`, the order test, `expected +0 to be 1`.
 - Let a failure throw: the first run passed, because `finish` keeps the first state. The mutant wrote a `failure` status on the merged commit. The test now reads that status: `Tests  1 failed | 13 skipped (14)`, `expected 'failure' to be 'success'`.
 
-Ratchet: unit tests + 16 (goal service 0 to 14, adapter 16 to 18). Contract 110 to 112 per side. Duplicate fall issues in the test: 0.
+Ratchet: unit tests + 16 (goal service 0 to 14, adapter 16 to 18). Contract 113 to 115 per side. Duplicate fall issues in the test: 0.
 
 <!-- T3 -->
 
