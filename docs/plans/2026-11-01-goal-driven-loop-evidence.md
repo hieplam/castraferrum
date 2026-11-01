@@ -1486,9 +1486,13 @@ real-model spend-usd 0.0128
 real-model verdict: pass
 exit 0
 ```
+After the last rebase and the last code change, one more real run printed `real rest 201`, 8 clusters with sizes 63, 43, 11, 33, 3, 2, 5 and 6, `real-model new causes 8`, `real-model spend-usd 0.0182`, `real-model verdict: pass`, exit 0. The number of clusters changes from run to run, so `new causes` has no target. The unit and replay commands printed the same totals.
+
+Light verify after the rebase, in `slot-1`: every step exits 0. Unit `1135 passed | 3 skipped`, contract `238 passed`, api `306 passed | 2 skipped`, `ratchets: ok`. `git diff --name-only origin/main` holds no file under `server/` or `web/`, and `grep -rn "model-run\|process-review/groups" server web` prints nothing, so e2e did not run.
+
 The 28 tests are 13 in `process-review-model-run.test.ts` and 15 in `process-review.test.ts`, so the R5 file keeps its count.
 
-Real spend, all three sessions on haiku: 0.0072 USD to record `groups-haiku.json`, 0.0128 USD for the real run, 0.0032 USD for the budget stub. The total is 0.0232 USD, under the limit of 1.00 USD. No sonnet run was needed. Each session used a fresh `lc-real-claude-r6-*` folder, and none of these folders is left. `docker ps -a` shows the same 23 container names before and after.
+Real spend, all four sessions on haiku: 0.0072 USD to record `groups-haiku.json`, 0.0128 and 0.0182 USD for the two real runs, 0.0032 USD for the budget stub. The total is 0.0414 USD, under the limit of 1.00 USD. No sonnet run was needed. Each session used a fresh `lc-real-claude-r6-*` folder, and none of these folders is left. `docker ps -a` shows the same 23 container names before and after.
 
 Stub check, each one run and restored:
 - `modelRun` returns `pass` with no clusters: `Tests  10 failed | 3 passed (13)`. The empty-clusters test is in the 10.
@@ -1506,7 +1510,7 @@ exit 1
 
 Limit: `pass` proves that the model grouped valid rows under a valid check, not that a cause is real. On the fixture, haiku also grouped 6 successful runs as one cause, and the recorded file keeps that cluster. So a pass on the real rows can count groups of successful runs. R6 is accepted only after the coordinator runs `model-run --real --model haiku --show-causes` at the gate and judges each cause. The `--show-causes` flag was not run in this task, and no cause text is in this log.
 
-Ratchet: tests 0 to 17 (13 unit, 4 replay), up only. Real `new causes`: 7, no target. F0 `causes-found`: D7.
+Ratchet: tests 0 to 17 (13 unit, 4 replay), up only. Real `new causes`: 7 and 8, no target. F0 `causes-found`: D7.
 
 <!-- R7 -->
 
