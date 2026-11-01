@@ -1110,6 +1110,19 @@ Decisions and limits are in the PR body.
 
 <!-- T5 -->
 
+## T5
+
+Red, before building: `npx vitest run --project unit shared/domain/health-goals.test.ts` and `npx vitest run --project api tests/api/health-goals.test.ts` each printed `Test Files  1 failed (1)` (the modules did not exist).
+
+Green, after the rebase on `origin/main`: unit `Tests  10 passed (10)`; api `Tests  8 passed (8)`; `tests/api/standing-goals.test.ts` `Tests  11 passed (11)`; `node scripts/merge-audit.mjs` printed `merge-audit: -R <owner/name> is required`, exit 2.
+
+Stub check, run for real and restored:
+- `runHealth` returns `null`: `Tests  7 failed | 1 passed (8)`.
+- `parseHealthFile` skips the `--since` rule: the unit test `refuses an audit row with no --since` fails (`1 failed | 9 passed`).
+- `merge-audit.mjs` exits 0 with `0 incidents` on a failed `gh` call: the two broken-`gh` tests fail (`2 failed | 6 passed`).
+
+Ratchet: unit tests 1015 to 1025 (+10), api tests 162 to 170 (+8). Duplicate issues in the api test: 0 (one issue after two failing passes, `Failed passes: 2`). Merged PRs with no gate status that H2 finds in the planted test: 1 of 1.
+
 <!-- T6 -->
 
 <!-- R1 -->
