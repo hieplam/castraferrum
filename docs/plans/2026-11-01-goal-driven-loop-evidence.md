@@ -848,6 +848,50 @@ Ratchet, tests in `goal-check.test.ts`: 11 before, 25 after.
 
 <!-- T4 -->
 
+## T4
+
+Red, before the build:
+
+    $ npx vitest run --project unit shared/domain/fingerprint.test.ts
+     Test Files  1 failed (1)
+          Tests  no tests
+    $ npx vitest run --project api tests/api/standing-goals.test.ts
+     Test Files  1 failed (1)
+          Tests  no tests
+
+Green, after the last rebase:
+
+    $ npx vitest run --project unit shared/domain/fingerprint.test.ts
+     Test Files  1 passed (1)
+          Tests  7 passed (7)
+    $ npx vitest run --project api tests/api/standing-goals.test.ts
+     Test Files  1 passed (1)
+          Tests  10 passed (10)
+    $ npx vitest run --project unit server/adapters/github
+          Tests  11 passed (11)
+    $ npm run test:contract
+    memory: 70 passed · postgres: 70 passed
+    executor contract — claude (fake query): 7 passed · mock: 7 passed
+    $ npm run arch
+    arch exit 0
+
+The golden hashes of the plan passed on the first run, and no golden changed.
+
+Full `npm run verify` exited 0 on the commit before the last rebase. That rebase brought only a plan document. Log tail: `Tests  898 passed | 2 skipped (900)` for unit, `115 passed (13.8m)` for visual, `phone overflow: 0/12`, `UCs with a green e2e: 33/33`, `ratchets: ok`.
+
+Stub check, each run for real and then restored:
+
+    constant hash:               Tests  3 failed | 4 passed (7)
+    normalize only lower-cases:  Tests  5 failed | 2 passed (7)
+    always opens:                Tests  5 failed | 5 passed (10)   (includes tests 1, 2 and 7)
+    adoption removed:            Tests  1 failed | 9 passed (10)   (the adoption test)
+    never closes:                Tests  3 failed | 7 passed (10)   (includes test 3)
+    no maxNewIssues limit:       Tests  2 failed | 8 passed (10)   (includes test 5)
+
+Ratchet, on the same base commit: contract tests 140 to 148 (`memory` and `postgres` 63 to 67 each). New tests of the unit and api projects: 7 + 2 + 10 = 19, because the plan's 17 does not count the 2 adapter tests. The tool counted 781 before, and 827 after the rebases that also brought other lanes' tests. The duplicates target is 0: the api test finds 1 issue in the fake world after 2 failing passes.
+
+Decisions and limits are in the PR body.
+
 <!-- T5 -->
 
 <!-- T6 -->
