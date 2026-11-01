@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { ErrorCode } from '../../shared/domain/errors';
 import type { ProbeSettings } from '../../shared/domain/goal-loop';
 import type { NewLoopRecord } from '../../server/ports/loop-repository';
+import type { NewNoticeRecord } from '../../server/ports/notice-repository';
 import type { NewRepoRecord } from '../../server/ports/repo-repository';
 import type { Repositories } from '../../server/ports/repositories';
 import type { RunRecord, StartRunInput } from '../../server/ports/run-repository';
@@ -869,6 +870,61 @@ export function repositoryContract(env: () => ContractEnv): void {
       await r.probes.upsert(loop.id, settings());
       await r.probes.record(loop.id, { state: 'probe_failed', lastLine: null, at: at(60) });
       expect(await r.probes.get(loop.id)).toMatchObject({ state: 'probe_failed', lastLine: null, lastProbeAt: at(60) });
+    });
+  });
+
+  describe('notices', () => {
+    const newNotice = (over: Partial<NewNoticeRecord> = {}): NewNoticeRecord => ({
+      id: randomUUID(),
+      dedupeKey: `key-${randomUUID().slice(0, 8)}`,
+      kind: 'hold',
+      loopId: null,
+      messageKey: 'notice.hold',
+      params: { reason: 'the CI is red' },
+      at: at(10),
+      ...over,
+    });
+
+    it('insertUnread returns the stored unread record; null loopId and params survive the round trip', async () => {
+      const n = newNotice({ loopId: null, params: { reason: 'two words' } });
+      expect(await r.notices.insertUnread(n)).toEqual({ ...n, readAt: null });
+      expect(await r.notices.listUnread(10)).toEqual([{ ...n, readAt: null }]);
+    });
+
+    it('a second unread notice with the same dedupeKey is a no-op and returns null', async () => {
+      const first = newNotice({ dedupeKey: 'same' });
+      await r.notices.insertUnread(first);
+      expect(await r.notices.insertUnread(newNotice({ dedupeKey: 'same', params: { reason: 'other' } }))).toBeNull();
+      expect(await r.notices.listUnread(10)).toEqual([{ ...first, readAt: null }]);
+    });
+
+    it('listUnread is newest first, cuts at the limit, and an equal time is ordered by id descending', async () => {
+      const old = newNotice({ at: at(1) });
+      const mid = newNotice({ at: at(2) });
+      const tieA = newNotice({ at: at(3), id: '00000000-0000-4000-8000-00000000000a' });
+      const tieB = newNotice({ at: at(3), id: '00000000-0000-4000-8000-00000000000b' });
+      for (const n of [mid, tieA, old, tieB]) await r.notices.insertUnread(n);
+      expect((await r.notices.listUnread(10)).map((n) => n.id)).toEqual([tieB.id, tieA.id, mid.id, old.id]);
+      expect((await r.notices.listUnread(2)).map((n) => n.id)).toEqual([tieB.id, tieA.id]);
+    });
+
+    it('markRead removes the notice from the unread list and frees its key for a new unread notice', async () => {
+      const first = newNotice({ dedupeKey: 'again' });
+      await r.notices.insertUnread(first);
+      await r.notices.markRead(first.id, at(20));
+      expect(await r.notices.listUnread(10)).toEqual([]);
+      const second = newNotice({ dedupeKey: 'again', at: at(30) });
+      expect(await r.notices.insertUnread(second)).toEqual({ ...second, readAt: null });
+      expect((await r.notices.listUnread(10)).map((n) => n.id)).toEqual([second.id]);
+    });
+
+    it('markRead on an unknown id throws NOTICE_NOT_FOUND, and marking a read notice again does not throw', async () => {
+      await expectCode(r.notices.markRead(randomUUID(), at(20)), 'NOTICE_NOT_FOUND');
+      const n = newNotice();
+      await r.notices.insertUnread(n);
+      await r.notices.markRead(n.id, at(20));
+      await expect(r.notices.markRead(n.id, at(40))).resolves.toBeUndefined();
+      expect(await r.notices.listUnread(10)).toEqual([]);
     });
   });
 }

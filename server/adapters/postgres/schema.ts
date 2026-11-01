@@ -199,3 +199,24 @@ export const loopProbes = pgTable(
     ),
   ],
 );
+
+/** Notices (spec 2.6): at most one UNREAD notice for each `dedupe_key`; a read notice does not count, so the key can come back. */
+export const notices = pgTable(
+  'notices',
+  {
+    id: uuid('id').primaryKey(),
+    dedupeKey: text('dedupe_key').notNull(),
+    kind: text('kind').notNull(),
+    // Nullable: a notice can be about the whole console. No foreign key: a notice outlives the loop it names.
+    loopId: uuid('loop_id'),
+    messageKey: text('message_key').notNull(),
+    params: jsonb('params').notNull(),
+    at: ts('at').notNull(),
+    readAt: ts('read_at'),
+  },
+  (t) => [
+    check('notices_kind', sql`${t.kind} IN ('wait','hold','blocked','gate','goal_card','probe_failed')`),
+    uniqueIndex('notices_one_unread_per_key').on(t.dedupeKey).where(sql`${t.readAt} IS NULL`),
+    index('notices_unread_by_time').on(t.at.desc()).where(sql`${t.readAt} IS NULL`),
+  ],
+);

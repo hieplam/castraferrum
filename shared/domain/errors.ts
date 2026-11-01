@@ -19,7 +19,9 @@ export type ErrorCode =
   /** Deleting a repo that loops still use (archived ones included) - `details.loops` = the names of those loops. */
   | 'REPO_IN_USE'
   /** Transcript: the turn has no session, or the JSONL file of the session was not found. */
-  | 'TRANSCRIPT_NOT_FOUND';
+  | 'TRANSCRIPT_NOT_FOUND'
+  /** Marking a notice as read: no notice has this id. */
+  | 'NOTICE_NOT_FOUND';
 
 export class DomainError extends Error {
   readonly code: ErrorCode;

@@ -40,6 +40,12 @@ prefix of the first path.
 | GET | `/loops/:id/probe` | the probe of the loop `{ probe: { loopId, command, claim, release, resources, laneEnv, laneBasePort, restartPolicy, state, lastLine, lastProbeAt } }`; a loop with no probe gives `{ probe: null }` | `LOOP_NOT_FOUND` |
 | PUT | `/loops/:id/probe` | save the probe `{ command, claim?, release?, resources?, laneEnv?, laneBasePort?, restartPolicy? }` (each command is an argv array, no shell); answers 200 with `{ probe }`. The loop must be stopped and not archived. `details.issues` can hold `claim:missingKey`, `release:missingKey`, `release:missingReason`, `resources:reserved` | `LOOP_NOT_FOUND`, `LOOP_IS_ACTIVE`, `LOOP_ARCHIVED`, `VALIDATION_FAILED` |
 | DELETE | `/loops/:id/probe` | delete the probe, answers 204 (a loop with no probe is not an error). The loop must be stopped and not archived | `LOOP_NOT_FOUND`, `LOOP_IS_ACTIVE`, `LOOP_ARCHIVED` |
+| GET | `/notices` | unread notices, newest first, at most 100: `{ items: [{ id, dedupeKey, kind, loopId, messageKey, params, at }] }`; `kind` is `wait`, `hold`, `blocked`, `gate`, `goal_card` or `probe_failed`; `messageKey` is an i18n key such as `notice.hold` that takes `params.reason` | - |
+| POST | `/notices/:id/read` | marks one notice read, answers 204; a later notice with the same `dedupeKey` is a new unread notice | `NOTICE_NOT_FOUND` |
+
+The console keeps at most one unread notice for each `dedupeKey`. If the variable `LOOPS_NOTIFY_WEBHOOK` holds an
+`http://` or `https://` URL, each new unread notice is also posted there once as JSON `{ kind, text, at }` (`text` is
+the English text, the wait is at most 5 seconds, a failed post is dropped). When the variable is unset, nothing is posted.
 
 ## Test-mode routes
 

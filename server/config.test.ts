@@ -45,4 +45,14 @@ describe('config', () => {
   it('hides the password when printing a URL', () => {
     expect(redactUrl('postgres://loops:secret@127.0.0.1:55432/loops')).toBe('postgres://loops:***@127.0.0.1:55432/loops');
   });
+
+  it('LOOPS_NOTIFY_WEBHOOK is unset by default, and an http or https URL is kept', () => {
+    expect(loadConfig({}).notifyWebhook).toBeUndefined();
+    expect(loadConfig({ LOOPS_NOTIFY_WEBHOOK: 'http://127.0.0.1:9/hook' }).notifyWebhook).toBe('http://127.0.0.1:9/hook');
+  });
+
+  it('LOOPS_NOTIFY_WEBHOOK that is not an http or https URL → refuses to start without echoing the value', () => {
+    expect(() => loadConfig({ LOOPS_NOTIFY_WEBHOOK: 'not a url' })).toThrow(/not a valid URL/);
+    expect(() => loadConfig({ LOOPS_NOTIFY_WEBHOOK: 'ftp://example.invalid/x' })).toThrow(/http:\/\/ or https:\/\//);
+  });
 });
