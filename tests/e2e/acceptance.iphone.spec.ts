@@ -7,6 +7,7 @@ import { networkInterfaces } from 'node:os';
 import { expect, test as base } from '@playwright/test';
 import { JOURNEY_STEPS, journey, type Theme } from '../support/acceptance-journey';
 import { closeDb } from '../support/form-kit';
+import { ignoreHostKeys } from '../support/host-keys';
 import { TcpProxy } from '../support/tcp-proxy';
 
 /** The machine's first non-internal IPv4 address (the LAN address a phone would use). */
@@ -44,6 +45,13 @@ for (const theme of ['light', 'dark'] as const satisfies readonly Theme[]) {
       expect(browserName).toBe('webkit');
       expect(new URL(lanOrigin).hostname).not.toMatch(/^(127\.|localhost$)/);
       console.log(`[acceptance] iPhone 13 (${browserName}) served from ${lanOrigin}`);
+      await ignoreHostKeys(page);
+      // A Shift held on the machine that runs the test must not change where a tab goes. `tap` cannot carry the key to the
+      // click, so a real click with the key held stands in for it.
+      await page.goto('/');
+      await page.getByTestId('tab-repos').click({ modifiers: ['Shift'] });
+      await expect(page).toHaveURL(/\/repos$/);
+      expect(page.context().pages(), 'a tab opened in the same page').toHaveLength(1);
       const steps = await journey(page, request, { label: 'iphone13', theme, phone: true, touch: true, origin: lanOrigin });
       expect(steps).toBe(JOURNEY_STEPS);
     });
