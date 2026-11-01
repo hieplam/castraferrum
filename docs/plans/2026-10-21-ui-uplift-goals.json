@@ -31,8 +31,8 @@
       "id": "G3",
       "outcome": "The new preview shows every screen and state of spec section 5, on the phone and the desktop, light and dark, and the owner approved it.",
       "checks": [
-        { "run": "npm run design:shots -- --design design/ds --dry", "expect": ["drawn 120 states x 2 themes, 0 problems"] },
-        { "run": "npm run design:states -- --design design/ds", "expect": ["states with shots: 120/120"] },
+        { "run": "npm run design:shots -- --design design/ds --dry", "expect": ["drawn 142 states x 2 themes, 0 problems"] },
+        { "run": "npm run design:states -- --design design/ds", "expect": ["states with shots: 142/142"] },
         { "file": "design/APPROVED.md", "contains": "new design system and preview" },
         { "run": "gh issue view 77 --json state -q .state", "expect": ["CLOSED"] }
       ]

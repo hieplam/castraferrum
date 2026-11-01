@@ -556,6 +556,28 @@ Screens put kit components together in `web/features/`. Never add a class that i
 | Run | cancelled / interrupted / skipped | `.s-skip` / `.s-int` / `.s-skip` | Cancelled / Interrupted / Skipped |
 | Repo | folder is gone | `.s-warn` | Folder is gone |
 | Active period | still active / stopped by you / ended by the server | `.s-run` / `.s-stop` / `.s-int` | Still active / Stopped by you / Ended by server |
+| Loop | a person must act (probe `wait`) | `.s-warn` | Waiting for you |
+| Loop | blocking issues stop it (probe `blocked`) | `.s-fail` | Blocked |
+| Loop | a resource hold stops it (probe `hold`) | `.s-int` | Held |
+| Loop | it reached `token_budget` | `.s-warn` | Budget used |
+| Loop | every goal passes (probe `done`) | `.s-ok` | Goal met |
+| Loop | the probe gave a bad line, a non-zero exit or a time-out | `.s-fail` | Probe failed |
+| Run | waits for a hold, keeps its session | `.s-int` | Held |
+| Period end | closed by probe `done` | `.s-ok` | Goal met |
+| Gate job | waits for its turn | `.s-wait` | Queued |
+| Gate job | a step is working | `.s-run` | Running |
+| Gate job | the gate merged the pull request | `.s-ok` | Merged |
+| Gate job | a step failed | `.s-fail` | Failed |
+| Gate job | it changes a guarded path | `.s-warn` | Needs ratification |
+| Card | waits for an answer | `.s-wait` | Proposed |
+| Card | the owner said yes | `.s-ok` | Accepted |
+| Card | the owner said no | `.s-stop` | Refused |
+| Card | its goal is running | `.s-run` | Started |
+| Door | the goal can be undone | `.s-skip` | Two-way |
+| Door | the goal cannot be undone | `.s-warn` | One-way |
+
+The goal-loop rows (issue 263) add no class, token or colour. Their words are the keys `goalLoop.<group>.<state>`. A
+goal row and a standing goal use two of these words: Goal met when the row passes, Failed when it fails.
 
 The state of an active period is the pill in the head of its page (`period.pill.*`); the lowercase phrase of a cell
 (`period.stillActive`, `period.byYou`, `period.byServer`) is for the meta line of a list.
@@ -607,9 +629,15 @@ The state of an active period is the pill in the head of its page (`period.pill.
   meaning. Do not invent an id that the contract lacks without adding it to the spec.
 - **`data-status`** on `loop-row`, `row-status`, `loop-status` and `loop-header` uses the loop kinds:
   `running` (a run is working), `active` (waiting for the next run), `stopped`, `archived`, `server_down`, and
-  `cancelled` while stopping, whatever word the pill shows.
+  `cancelled` while stopping, whatever word the pill shows. A probe loop also has the states of the goal-loop spec, 2.2:
+  `waiting`, `blocked`, `held`, `budget_limited`, `complete` and `probe_failed`.
 - Run rows and run pills carry the run status: `running`, `succeeded`, `failed`, `timed_out`, `cancelled`,
-  `interrupted`, `skipped`.
+  `interrupted`, `skipped`, `held`.
+- The goal-loop pages add these ids: `fig-goals`, `probe-line`, `banner-hold`, `hold-list`, `blocker-list`, `blocker-row`,
+  `gate-switch`, `gate-queue`, `gate-record`, `gate-job`, `gate-ratify`, `gate-job-status`, `gate-failed-step`, `gate-steps`,
+  `gate-step`, `gate-output`, `gate-requeue`, `goal-figures`, `goal-rows`, `goal-row`, `standing-goals`, `standing-row`,
+  `goal-loops`, `goal-loop-row`, `score-figures`, `score-weeks`, `score-week`, `score-causes`, `score-cause`, `goal-card`,
+  `card-status`, `card-door`, `card-accept`, `card-refuse`, `card-rows`, `card-history`.
 
 ## How to change the system
 
