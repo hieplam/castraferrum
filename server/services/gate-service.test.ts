@@ -110,7 +110,7 @@ describe('gate_service', { timeout: 120_000 }, () => {
     const id = await queue(pr);
     await service.tick();
     expect((await result(id)).state).toBe('needs_ratification');
-    expect(await repos.gate.ratify(id, clock.now())).toBe(true);
+    expect(await repos.gate.ratify(id, clock.now())).toBe('ratified');
     await service.tick();
 
     const job = await result(id);
