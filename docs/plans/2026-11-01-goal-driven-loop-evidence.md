@@ -234,6 +234,16 @@ Consequence for the design of K8: a `PreToolUse` hook is a working block for `gh
 
 <!-- K1 -->
 
+## K1
+
+Goal: G9, a PR cannot lower its bar, and a plan PR only adds keys. Issue 242, PR 252.
+
+- Red (before building): `npx vitest run --project unit shared/domain/scope-guard.test.ts` printed `Error: Cannot find module './scope-guard' imported from .../shared/domain/scope-guard.test.ts`, `Test Files  1 failed (1)`, `Tests  no tests`.
+- Green: `npx vitest run --project unit shared/domain/scope-guard.test.ts` printed `Tests  78 passed (78)`. `npx vitest run --project unit tests/tools/gate-data.test.ts` printed `Tests  6 passed (6)`. Extra attack file `shared/domain/scope-guard-attacks.test.ts`: `Tests  90 passed (90)`.
+- Stub check, always `pass`: `Tests  58 failed | 26 passed (84)`. Always `guarded`: `Tests  14 failed | 70 passed (84)` (the pass and plan cases fail). `verifyEntryFiles` returning `[]`: `Tests  3 failed | 81 passed (84)`, and the fixture line fails. The code was restored after each run.
+- Ratchet: `npx vitest list --project unit | wc -l` went 438 -> 532 (rebased base). The list counts an `it.each` once, so +94 here is not the plan's +84 (which counts each case).
+- Decisions: the plan said 33 entries, spec 2.9 holds 29, so 4 near-miss tests fill the 33. The import check in `gate-data.test.ts` stops at test files (issue 251 covers `tests/support`, `postinstall`, `vite.config.ts`, `.npmrc`).
+
 <!-- K2 -->
 
 <!-- K3 -->
