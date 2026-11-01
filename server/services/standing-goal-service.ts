@@ -1,10 +1,11 @@
 import { fingerprint, firstFailingLine } from '../../shared/domain/fingerprint';
+import { parseHealthFile } from '../../shared/domain/health-goals';
 import { nextRuns } from '../../shared/domain/schedule';
 import type { CommandResult, CommandRunner } from '../ports/command-runner';
 import type { GitHost } from '../ports/git-host';
 import type { GoalRepository } from '../ports/goal-repository';
 import type { IdGenerator } from '../ports/ids';
-import type { StandingGoalService, StandingPassInput, StandingPassResult, StandingRow } from './contracts';
+import type { HealthInput, StandingGoalService, StandingPassInput, StandingPassResult, StandingRow } from './contracts';
 
 export type StandingGoalServiceDeps = {
   goals: GoalRepository;
@@ -32,10 +33,19 @@ export class DefaultStandingGoalService implements StandingGoalService {
   async runPass({ repo, cwd, rows, maxNewIssues = DEFAULT_MAX_NEW_ISSUES, now }: StandingPassInput): Promise<StandingPassResult> {
     const result: StandingPassResult = { opened: 0, updated: 0, closed: 0, deferred: 0 };
     for (const row of rows) {
-      const r = await this.#d.runner.run({ argv: row.run, cwd, timeoutMs: row.timeoutSec * 1000 });
+      const r = await this.#d.runner.run({ argv: row.run, cwd, timeoutMs: row.timeoutSec * 1000, windowsVerbatimArguments: row.verbatim });
       if (r.exitCode === 0) result.closed += await this.#passed({ repo, now }, row);
       else result[await this.#failed({ repo, now }, row, outputOf(r), result.opened < maxNewIssues)]++;
     }
+    return result;
+  }
+
+  async runHealth({ repo, cwd, text, now, platform = process.platform }: HealthInput): Promise<StandingPassResult | null> {
+    const file = parseHealthFile(text, repo, platform);
+    if (!(await this.isDue(repo, now))) return null;
+    // A throw from runPass skips markRan, so the next call tries again.
+    const result = await this.runPass({ repo, cwd, rows: file.rows, maxNewIssues: file.maxNewIssuesPerPass, now });
+    await this.markRan(repo, file.cron, file.timezone, now);
     return result;
   }
 
