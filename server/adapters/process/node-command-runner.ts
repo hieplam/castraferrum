@@ -75,6 +75,7 @@ export class NodeCommandRunner implements CommandRunner {
           env: { ...process.env, ...req.env },
           shell: false,
           windowsHide: true,
+          windowsVerbatimArguments: req.windowsVerbatimArguments ?? false,
           detached: process.platform !== 'win32',
           stdio: ['ignore', 'pipe', 'pipe'],
         });
