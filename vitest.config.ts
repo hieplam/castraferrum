@@ -21,6 +21,8 @@ export default defineConfig({
       {
         test: {
           name: 'contract',
+          // Tests that apply every migration or start a real server pass 5 s under load with no fault (issue 271).
+          testTimeout: 30_000,
           include: ['tests/contract/**/*.test.ts'],
           globalSetup: dbSetup,
           fileParallelism: false,
@@ -30,6 +32,8 @@ export default defineConfig({
       {
         test: {
           name: 'api',
+          // Tests that apply every migration or start a real server pass 5 s under load with no fault (issue 271).
+          testTimeout: 30_000,
           include: ['tests/api/**/*.test.ts'],
           globalSetup: dbSetup,
           fileParallelism: false,
