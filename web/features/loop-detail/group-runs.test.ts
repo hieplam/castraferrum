@@ -28,6 +28,10 @@ function run(executionId: string, iteration: number | null, min: number, status:
     error: null,
     costUsd: null,
     sessionId: null,
+    taskKey: null,
+    slot: null,
+    endResult: null,
+    endPr: null,
   };
 }
 

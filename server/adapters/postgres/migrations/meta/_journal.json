@@ -50,6 +50,13 @@
       "when": 1793528216697,
       "tag": "0006_standing_goals",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793530558267,
+      "tag": "0007_run_claims",
+      "breakpoints": true
     }
   ]
 }

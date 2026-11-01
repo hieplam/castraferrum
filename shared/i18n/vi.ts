@@ -131,6 +131,7 @@ export const vi: Record<MessageKey, string> = {
   'reason.server_down': 'Server tắt',
   'trigger.start': 'Start',
   'trigger.schedule': 'lịch',
+  'trigger.probe': 'probe',
 
   // ── Chi tiết loop ───────────────────────────────────────────
   'crumb.loops': 'Loop',
@@ -650,6 +651,7 @@ export const vi: Record<MessageKey, string> = {
   'run.of': '{loop} · giai đoạn hoạt động #{k}',
   'run.summary': 'Tóm tắt',
   'run.startedBy': 'Bắt đầu bởi',
+  'run.byProbe': 'Probe',
   'run.bySchedule': 'Lịch chạy',
   'run.byStart': 'Bắt đầu',
   'run.costNote': 'do SDK báo, không phải tiền bị trừ',

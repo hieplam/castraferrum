@@ -37,8 +37,8 @@ export class PgRunRepository implements RunRepository {
           try {
             const { rows } = await c.query(
               `INSERT INTO runs (id, loop_id, execution_id, iteration, trigger, status, scheduled_for, started_at,
-                                 deadline_at, prompt_snapshot, executor_kind, executor_config)
-               VALUES ($1, $2, $3, $4, $5, 'running', $6, $7, $8, $9, $10, $11)
+                                 deadline_at, prompt_snapshot, executor_kind, executor_config, task_key)
+               VALUES ($1, $2, $3, $4, $5, 'running', $6, $7, $8, $9, $10, $11, $12)
                RETURNING *`,
               [
                 input.id,
@@ -52,6 +52,7 @@ export class PgRunRepository implements RunRepository {
                 input.promptSnapshot,
                 input.executorKind,
                 json(input.executorConfig),
+                input.taskKey ?? null,
               ],
             );
             return toRun(rows[0]);
@@ -74,8 +75,8 @@ export class PgRunRepository implements RunRepository {
   async recordSkipped(input: SkippedRunInput): Promise<RunRecord> {
     const { rows } = await this.#pool.query(
       `INSERT INTO runs (id, loop_id, execution_id, iteration, trigger, status, skip_reason, scheduled_for, started_at,
-                         finished_at, duration_ms, prompt_snapshot, executor_kind, executor_config)
-       VALUES ($1, $2, $3, NULL, 'schedule', 'skipped', $4, $5, $6, $6, 0, $7, $8, $9)
+                         finished_at, duration_ms, prompt_snapshot, executor_kind, executor_config, task_key)
+       VALUES ($1, $2, $3, NULL, $10, 'skipped', $4, $5, $6, $6, 0, $7, $8, $9, $11)
        RETURNING *`,
       [
         input.id,
@@ -87,6 +88,8 @@ export class PgRunRepository implements RunRepository {
         input.promptSnapshot,
         input.executorKind,
         json(input.executorConfig),
+        input.trigger ?? 'schedule',
+        input.taskKey ?? null,
       ],
     );
     return toRun(rows[0]);
@@ -101,10 +104,19 @@ export class PgRunRepository implements RunRepository {
     const { rows } = await this.#pool.query(
       `UPDATE runs SET status = $2, finished_at = $3,
                        duration_ms = round(extract(epoch FROM ($3::timestamptz - started_at)) * 1000)::int,
-                       summary = $4, error = $5, cost_usd = $6
+                       summary = $4, error = $5, cost_usd = $6, end_result = $7, end_pr = $8
         WHERE id = $1 AND status = 'running'
     RETURNING *`,
-      [id, outcome.status, outcome.finishedAt, outcome.summary ?? null, outcome.error ?? null, outcome.costUsd ?? null],
+      [
+        id,
+        outcome.status,
+        outcome.finishedAt,
+        outcome.summary ?? null,
+        outcome.error ?? null,
+        outcome.costUsd ?? null,
+        outcome.endResult ?? null,
+        outcome.endPr ?? null,
+      ],
     );
     if (rows[0]) return toRun(rows[0]);
     const current = await this.findById(id);

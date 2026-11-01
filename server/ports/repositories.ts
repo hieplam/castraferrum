@@ -1,3 +1,4 @@
+import type { ClaimRepository } from './claims';
 import type { ExecutionRepository } from './execution-repository';
 import type { GoalRepository } from './goal-repository';
 import type { HeartbeatRepository } from './heartbeat-repository';
@@ -19,4 +20,5 @@ export type Repositories = {
   notices: NoticeRepository;
   probes: LoopProbeRepository;
   goals: GoalRepository;
+  claims: ClaimRepository;
 };

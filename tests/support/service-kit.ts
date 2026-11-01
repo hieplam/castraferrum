@@ -24,6 +24,7 @@ import { DefaultRecoveryService } from '../../server/services/recovery-service';
 import { DefaultRepoService } from '../../server/services/repo-service';
 import { DefaultRunService } from '../../server/services/run-service';
 import { DefaultSchedulingService } from '../../server/services/scheduling-service';
+import { FakeClaimGateway } from './fake-claim-gateway';
 import { fakeQuery } from './fake-claude-query';
 import { FakeCommandRunner } from './fake-command-runner';
 
@@ -176,7 +177,8 @@ export function makeKit(opts: { db?: MemoryDb; clock?: OffsetClock; mock?: MockE
   const loopService = new DefaultLoopService({ ...repos, runService, executors, clock, ids, events: publisher });
   const scheduling = new DefaultSchedulingService({ loops: repos.loops, heartbeat: repos.heartbeat, runService, clock });
   const commands = new FakeCommandRunner();
-  const probeService = new DefaultProbeService({ ...repos, commands, clock });
+  const claimGateway = new FakeClaimGateway();
+  const probeService = new DefaultProbeService({ ...repos, commands, claimGateway, runService, clock, ids });
   const recovery = new DefaultRecoveryService({ ...repos, clock });
   const live = new DefaultLiveService({ runs: repos.runs, logs: repos.logs, source: bus });
   const repoService = new DefaultRepoService({ repos: repos.repos, directories: new NodeDirectoryProbe(), clock, ids });
@@ -216,6 +218,7 @@ export function makeKit(opts: { db?: MemoryDb; clock?: OffsetClock; mock?: MockE
     loopService,
     scheduling,
     commands,
+    claimGateway,
     probeService,
     recovery,
     live,
