@@ -1403,6 +1403,8 @@ Full `npm run verify` after the last rebase (lane database `loops_r8_test`, port
     UCs with a green e2e: 34/34
     exit code 0
 
+`origin/main` moved by 5 commits (a gate restart fix, a release, three docs) after that run. After the final rebase these steps ran again, and they passed: `typecheck`, `arch`, `ratchets -- --base main`, `rule-lint -- --base main`, `test:unit` (`Tests  1068 passed | 3 skipped (1071)`), `test:contract` (`memory: 96 passed · postgres: 96 passed`), `test:api` (`Tests  241 passed | 1 skipped (242)`) and `api-smoke`. The e2e, `phone:check` and `uc-coverage` steps were not run again: the rebase brought no web change.
+
 <!-- R9 -->
 
 <!-- W1 -->
