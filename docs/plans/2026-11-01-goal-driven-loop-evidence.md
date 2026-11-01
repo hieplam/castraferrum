@@ -227,6 +227,61 @@ Consequence for the design of K8: a `PreToolUse` hook is a working block for `gh
 
 <!-- S3 -->
 
+## S3
+
+Question: how long is a stub run on the largest of the last 100 merged PRs, and does a CSS-only change go red?
+
+Answer lines (the Green command counts these five):
+
+S3 largest-pr: 173
+S3 stub-seconds: 5
+S3 stub-red: yes
+S3 css-pr: none
+S3 css-stub-red: n/a
+
+Method, step 1 (largest PR). `gh pr list --state merged --limit 300` returned 106 merged PRs (numbers 1 to 293), so the look-back of 300 covers every PR. `gh` caps the file list at 100 per PR, so the file counts come from `git diff --name-only <merge>~1 <merge>` instead. Test files = `*.test.ts` and `tests/**`. Top of the last 100 by non-test files changed:
+
+    PR  non-test  test  note
+    39       410   133  the import of the whole project (540 added files, 3 modified)
+    173      267    39  cut-over to the new UI only (241 deleted, 59 modified non-test files)
+    137      244     1  freeze of the reference shots
+    99        96     0
+    200       70     1
+
+Decision: PR 39 is the first import. All its files are new, so there is no base to restore, and a stub of it would be the empty project. The standing rule "use the equivalent that proves the same goal" picks PR 173, the largest PR that has a base. Its merge commit is `63cf76c`, its base is `63cf76c~1`.
+
+Method, step 2 (stub run). A detached worktree at `63cf76c`, `npm ci` done. Each non-test file of the PR went back to the base (`git checkout <base> -- <file>`, 300 files, deleted files restored). Test files stayed at the PR version. The PR changed four unit test files (`tests/tools/design-lint`, `e2e-selectors`, `pixel-diff`, `pwa`). Run:
+
+    $ npx vitest run --project unit tests/tools/design-lint.test.ts tests/tools/e2e-selectors.test.ts tests/tools/pixel-diff.test.ts tests/tools/pwa.test.ts
+     FAIL  |unit| tests/tools/e2e-selectors.test.ts > e2e selectors > no e2e test or support file selects by class or XPath
+     FAIL  |unit| tests/tools/pwa.test.ts > web/index.html head (spec 4.9) > asks for the whole screen with viewport-fit=cover (the bars pad themselves with the safe-area insets)
+     Test Files  2 failed | 2 passed (4)
+          Tests  2 failed | 20 passed (22)
+       Duration  1.31s
+    exit code 1, wall clock 5167 ms (`stub-seconds: 5`)
+
+Limits of this number: the wall clock includes the start of `npx` and vitest. It does not include `npm ci` (47 s, once per worktree). The PR also changed 11 e2e specs and 8 visual files. I did not time them in a stub run. A real e2e run of the whole suite takes about 19 minutes on this machine, so K4 must not run e2e specs in the gate. Only the vitest files fit in a gate budget.
+
+Method, step 3 (CSS). No merged PR out of the 106 has only `*.css` files, and none has only CSS plus test files. So `css-pr: none` and `css-stub-red: n/a`. The question is answered by a local mutation instead, in a detached worktree at `f5df61c` (the main of that time), never committed. The mutation adds 4 px to the height of `.topbar`:
+
+    $ git diff --stat
+     design/ds/components.css | 2 +-
+     1 file changed, 1 insertion(+), 1 deletion(-)
+
+Steps: `npm ci`, `npm run build`, then `npx playwright test --project visual --workers 1` with the lane database and port, inside one heavy-command slot.
+
+    baseline (no mutation): 61 passed (8.1m), exit code 0, wall clock 490 s
+    mutated (+4 px topbar): 8 failed, 21 did not run, 32 passed (5.8m), exit code 1, wall clock 351 s
+    failed: form, frame, loop, loops, repos, run, system-page (light and dark)
+
+Answer: a CSS change goes red against the visual tests, because the pixel comparison against the approved preview sees a 4 px change of one bar on 8 of the desktop screens. The run stops after 8 failures, so a red stub run still takes about 6 minutes. The full visual project takes about 8 minutes.
+
+Consequences for K4:
+
+- A stub run of vitest files is fast (5 s for the largest real PR). It fits in a gate.
+- A CSS-only task can go red, but only through `--project visual`. That run needs `npm run build` first and a database, and costs 6 to 8 minutes. K4 should run it only for a task that names a visual test in its Verify block.
+- The fallback of spec section 4 (`stub.none`) is not needed for the CSS case. It stays needed for a task with no test at all.
+
 <!-- S4 -->
 
 ## S4
