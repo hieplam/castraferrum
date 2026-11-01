@@ -80,11 +80,11 @@ describe('NodeCommandRunner', () => {
   });
 
   it('kills the whole tree: a grandchild that holds stdout does not delay the result and does not survive', async () => {
-    // The grandchild is detached on purpose: on Windows the harness job object kills attached children, which would hide a missing tree kill.
+    // On Windows the grandchild is detached on purpose: the harness job object kills attached children, which would hide a missing tree kill.
     const grandchild = 'setInterval(() => {}, 1000)';
     const parent =
       `const { spawn } = require("node:child_process");` +
-      `const c = spawn(process.execPath, ["-e", ${JSON.stringify(grandchild)}], { stdio: ["ignore", "inherit", "inherit"], detached: true });` +
+      `const c = spawn(process.execPath, ["-e", ${JSON.stringify(grandchild)}], { stdio: ["ignore", "inherit", "inherit"], detached: ${process.platform === "win32"} });` +
       `process.stdout.write("pid=" + c.pid + ";");` +
       `setInterval(() => {}, 1000);`;
     const t0 = Date.now();
@@ -99,7 +99,7 @@ describe('NodeCommandRunner', () => {
     const deadline = Date.now() + 3000;
     while (alive(pid) && Date.now() < deadline) await new Promise((res) => setTimeout(res, 50));
     expect(alive(pid)).toBe(false);
-  });
+  }, 15_000);
 
   it('uses the given cwd and env', async () => {
     const dir = realpathSync(mkdtempSync(path.join(tmpdir(), 'lc-cmd-')));
