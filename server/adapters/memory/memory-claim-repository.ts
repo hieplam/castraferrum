@@ -13,9 +13,9 @@ export class MemoryClaimRepository implements ClaimRepository {
   }
 
   async open(input: OpenClaimInput): Promise<'opened' | 'taken'> {
-    const { at, ...rest } = input;
+    const { at, kind, ...rest } = input;
     try {
-      this.#db.writeClaim({ ...rest, openedAt: at, closedAt: null, closeReason: null, owner: 'run', gateJobId: null });
+      this.#db.writeClaim({ ...rest, kind: kind ?? 'task', openedAt: at, closedAt: null, closeReason: null, owner: 'run', gateJobId: null });
       return 'opened';
     } catch (err) {
       if (err instanceof ConstraintViolation && err.constraint === 'run_claims_one_open_per_task') return 'taken';

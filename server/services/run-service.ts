@@ -147,7 +147,10 @@ export class DefaultRunService implements RunService {
     if (!repo) throw new Error(`Loop ${loopId} points at repo ${loop.repoId} which does not exist (the foreign key should prevent this)`);
     const now = d.clock.now();
     // A claimed run starts with the line that tells the model which task is its own (spec 2.7). A run with no probe keeps the loop prompt.
-    const promptSnapshot = claim ? `${claimedLine(claim.taskKey, claim.action)}\n\n${loop.prompt}` : loop.prompt;
+    const head = claim
+      ? [claimedLine(claim.taskKey, claim.action), ...(claim.failing?.length ? [`Failing goal rows: ${claim.failing.join(', ')}.`] : [])].join('\n')
+      : null;
+    const promptSnapshot = head ? `${head}\n\n${loop.prompt}` : loop.prompt;
     const snapshot = { promptSnapshot, executorKind: loop.executorKind, executorConfig: loop.executorConfig };
     // A claimed run keeps the id that its claim row already holds, also when the row becomes `skipped`.
     const runId = claim?.runId ?? d.ids.newId();

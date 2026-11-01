@@ -266,8 +266,11 @@ for each loop_probes row, at the same time, each caught alone:
     skip a loop with no free lane                       // running + held runs >= max_concurrent
     commands.run({ argv, cwd: repo.path, timeoutMs: 30000 }), then parseProbeLine
     probes.record(state, lastLine, the tick's now)      // a run that ends during the call gives a new probe
+    a wait or blocked line sends one notice, only when the stored line had another action or reason (decision 46)
+    a failed probe sends one notice, only when the stored state was not probe_failed
     a hold line opens that hold
-    for each task of a take, until the free lanes end:
+    a done line: finishGoal when no run of the loop lives (running or held), else nothing until the next probe
+    for each task of a take, or the plan of a plan line (one task, kind plan, no claimGateway call), until the free lanes end:
         skip a task that lists a resource with an open hold
         claims.open                                     // `taken` goes to the next task
         claimGateway.claim                              // a refusal closes the row and goes to the next task
@@ -283,6 +286,12 @@ The order `open`, `claim`, run means that a claim on a task always has its row, 
 close reason is `run <status>[ <end word>]`. A release is excused for `interrupted`, `skipped`, a row with no run,
 `RESOURCE_DOWN` and `USAGE_LIMIT`, because none of them is a failure of the task. Each release carries `--if-claimed`, because a plain
 release reopens a closed issue. `RunService` writes the run-end signal of the final text to `end_result` and `end_pr`.
+
+A `plan` line starts one run with a row of kind `plan`. The row holds the key of the plan and calls no `ClaimGateway`, so no label exists. The partial
+unique index gives `taken` while a run of this key lives, also a held run. The run ends the row with a close only. The prompt of the run is the claimed
+line, the line `Failing goal rows: G4, G5.`, a blank line and the loop prompt. A `done` line calls `LoopService.finishGoal`, which closes the execution with
+`goal_met` and cancels nothing. With a running or held run, the state is `complete` and the loop closes on the first probe after the run ends. A `wait`,
+`blocked` or `probe_failed` result sends a notice with the key `wait:<loop>:<reason>`, `blocked:<loop>:<reason>` or `probe_failed:<loop>`.
 
 ### Holds (every second, `HoldService.tick`)
 
@@ -553,11 +562,11 @@ is committed and applied at startup):
 |---|---|---|
 | `repos` | registered repositories: id, name, path | unique lower(name); unique path (real path at registration) |
 | `loops` | configuration, status, `next_run_at`, counters (`run_counter`, `execution_counter`), `version`, `max_concurrent`, `timeout_sec` (null = no limit), `archived_at` | unique live name; `archived_at` only when stopped; `next_run_at` only when active; FK to `repos` |
-| `loop_executions` | one Start-to-Stop span: `seq`, `started_at`, `ended_at`, `end_reason` (`stopped` or `server_down`) | unique (loop, seq); at most one open per loop |
+| `loop_executions` | one Start-to-Stop span: `seq`, `started_at`, `ended_at`, `end_reason` (`stopped`, `server_down` or `goal_met`) | unique (loop, seq); at most one open per loop |
 | `runs` | one firing: `iteration`, `trigger` (`start`, `schedule` or `probe`), `status`, `skip_reason`, timestamps, `deadline_at`, `duration_ms`, prompt and executor snapshot, `summary`, `error`, `cost_usd`, `session_id`, `task_key`, `slot`, `end_result`, `end_pr`, `resume_count` | trigger `runs_max_concurrent_per_loop` (lock the loop row, count `running`, reject at `max_concurrent`); unique (loop, iteration) |
 | `run_logs` | lines of a run: `seq`, `at`, `level`, `message`, `data` | primary key (run, seq) |
 | `resource_holds` | a stop on a resource: `resource`, `reason`, `opened_at`, `until` (null when the end is not known), `checked_at`, `closed_at`, `opened_by_run_id`, `trial_run_id` (no FK: a hold outlives its run) | primary key `id`; partial unique index: one open row for each `resource` |
-| `run_claims` | the claim of a task for one run: `task_key`, `run_id` (no FK: the row comes before the run), `opened_at`, `closed_at`, `close_reason`, `owner` (`run` or `gate`, decision 4), `gate_job_id` (set when the gate owns the row) | primary key `id`; FK to `loops` and to `gate_jobs`; partial unique index: one open row for each `loop_id` and `task_key`; a row has `gate_job_id` exactly when its owner is `gate` |
+| `run_claims` | the claim of a task for one run: `task_key`, `run_id` (no FK: the row comes before the run), `opened_at`, `closed_at`, `close_reason`, `kind` (`task`, or `plan` for a row with no label), `owner` (`run` or `gate`, decision 4), `gate_job_id` (set when the gate owns the row) | primary key `id`; FK to `loops` and to `gate_jobs`; partial unique index: one open row for each `loop_id` and `task_key`; a row has `gate_job_id` exactly when its owner is `gate` |
 | `loop_probes` | the probe of a loop: argv commands (`command`, `claim`, `release`), `resources`, lane settings, `restart_policy`, `state`, `last_line`, `last_probe_at` | primary key `loop_id`; FK to `loops` |
 | `repo_gate` | the merge gate of a repository: `enabled` (default false: the gate is off until a person turns it on), `github_repo`, `check_command` (argv), `updated_at` | primary key `repo_id`; FK to `repos` (deleted with it) |
 | `gate_jobs` | one PR head in the gate queue: `repo_id`, `pr_number`, `head_sha`, `task_key`, `state`, `failed_step`, `queued_at`, `started_at`, `finished_at`, `ratified_at` | partial unique index `gate_jobs_one_running`: at most one `running` job; partial unique index `gate_jobs_one_live_per_head`: at most one `queued` or `running` row for each repo, PR and head commit; FK to `repos` |
