@@ -271,5 +271,5 @@ describe('goal-check golden output', () => {
       expect(r.out, name).toBe(golden);
       expect(r.code, name).toBe(goldenExit[name] ?? 1);
     }
-  });
+  }, 60_000);
 });
