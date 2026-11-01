@@ -232,6 +232,74 @@ Ratchet, answer lines for S4: 0 before, 5 after. Stub check: with the section re
 
 <!-- S5 -->
 
+## S5
+
+Question: does a read-only haiku run on sanitized rows name both causes of G14 in 3 of 3 tries? Answer: no. Each model names each cause on the fixture, but no try meets the grade, and on the real rows the grade is `none`.
+
+Answer lines:
+
+S5 try-1-haiku: one
+S5 try-2-haiku: one
+S5 try-3-haiku: one
+S5 tries-naming-both: 0
+S5 sonnet-tries-naming-both: 0
+S5 real-rows: none
+S5 fixture-events: 40
+S5 spend-usd: 0.18
+
+Setup: a Node script in the temporary folder `lc-real-claude-s5` imported the SDK 0.3.303 from `<main checkout>/node_modules` (read-only). Options: effort `low`, `tools: []`, `settingSources: []`, `persistSession: false`, `maxTurns: 1`, `GH_TOKEN=invalid`. The prompt asks for the repeated causes as a JSON list of `{cause, ids}` and names no cause. The script printed counts and the short cause names, and it wrote no file. The real rows stayed in memory and went only to the model session: 227 rows, ids replaced by `r001` and on, loops replaced by `loop-a` and on, `text` from the columns `error`, `summary`, `skip_reason`.
+
+The labels of the real rows come from a plain text match in memory: 12 failed rows whose error starts with the limit text, and 14 rows that contain `smart app control`, all with status `succeeded`, in the column `summary`. The two sets do not overlap.
+
+Fixture: `tests/fixtures/process-review/events.json` has 12 usage-limit rows (the real English error text and start times), 14 Smart App Control rows, 14 neutral rows. The builder wrote the 14 Smart App Control lines and the 14 neutral lines new, and did not read the real rows.
+
+Grade rule, unchanged from the plan: one cluster holds at least 10 usage-limit ids, and a different cluster holds at least 10 Smart App Control ids.
+
+Fixture results (a cell gives usage-limit ids, Smart App Control ids and the size of the cluster):
+
+| Try | Grade | Cost USD | Cluster "weekly limit" | Cluster "session limit" | Cluster "Smart App Control" |
+|---|---|---|---|---|---|
+| haiku 1 | one | 0.0020 | 3, 0, 3 | 9, 0, 9 | 0, 14, 14 |
+| haiku 2 | one | 0.0022 | 3, 0, 3 | 9, 0, 9 | 0, 14, 14 |
+| haiku 3 | one | 0.0014 | 3, 0, 3 | 9, 0, 9 | 0, 14, 14 |
+| sonnet 1 | one | 0.1333 | 3, 0, 3 | 9, 0, 9 | 0, 14, 14 |
+| sonnet 2 | one | 0.0057 | 3, 0, 3 | 9, 0, 9 | 0, 14, 14 |
+| sonnet 3 | one | 0.0167 | 3, 0, 3 | 9, 0, 9 | 0, 14, 14 |
+
+Each of the six tries splits the 12 usage-limit rows into two clusters, because the error text has two forms: `weekly limit` (3 rows) and `session limit` (9 rows). The largest usage-limit cluster holds 9 ids, so the Smart App Control cluster alone reaches the grade of `one`. The split has no wrong member: 12 of 12 usage-limit rows are in the two clusters, and no other row is.
+
+Real-rows result: one haiku try, cost 0.0166 USD, 8 clusters, grade `none`.
+
+| Cluster, in the words of this log | Size | Usage-limit ids | Smart App Control ids |
+|---|---|---|---|
+| Weekly usage limit | 3 | 3 | 0 |
+| Session usage limit | 9 | 9 | 0 |
+| Smart App Control | 12 | 0 | 8 |
+| Runs cancelled before the end | 3 | 0 | 0 |
+| Previous run still active, run skipped | 45 | 0 | 0 |
+| Task already claimed by another run | 21 | 0 | 0 |
+| Task label left in progress | 44 | 0 | 0 |
+| Waiting for a human decision | 44 | 0 | 1 |
+
+What the model found in place of the two causes:
+
+- Usage limits: the same split as on the fixture, with all 12 rows found and no wrong member.
+- Smart App Control: a cluster of 12 rows that holds 8 of the 14 matched rows, so it is under the grade of 10. One matched row is in the cluster "Waiting for a human decision", and the model left out the other 5. The other 4 rows of the cluster do not contain the words `smart app control`. Nobody read them, so this log does not say if they are correct.
+- Most rows that the model reported are not these two causes: 157 of 181 rows in clusters are about cancelled runs, skipped runs, claimed tasks, in-progress labels and waiting for a person.
+
+Limit of the honest check: one real try is one sample. The fixture is easier than the real rows, because each of its Smart App Control lines names the cause in English and in a short text.
+
+Consequence for the design: the fallback of spec section 4 for S5 applies (try sonnet, then give counts of normalized lines). The sonnet tries did not meet the grade. The fallback alone does not fix the split: `normalized` of spec section 2.11 keeps the words `weekly` and `session`, so the two error forms stay two lines. A review that takes the clusters as they are opens two usage-limit issues, not the one that G14 asks for.
+
+Red (before the fixture and this section):
+
+    $ grep -cP '^S5 (try-...)\r?$' $LOG
+    0
+    $ node -e "console.log(JSON.parse(require('fs').readFileSync('tests/fixtures/process-review/events.json','utf8')).length)"
+    Error: ENOENT: no such file or directory, open '<worktree>/tests/fixtures/process-review/events.json'
+
+Ratchet, answer lines for S5: 0 before, 8 after. Spend: 0.0056 (haiku) + 0.1557 (sonnet) + 0.0166 (real rows) = 0.1779 USD, written as `0.18` (rounded up). The limit was 3.00 USD.
+
 <!-- S6 -->
 
 <!-- D1 -->
