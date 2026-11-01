@@ -18,6 +18,7 @@
 // `-R <owner/name>` and `--repo` are accepted and ignored: the fake holds one repository.
 //   pr create --head --base --title --body        prints https://github.com/fake/repo/pull/<n>
 //   pr list --json <fields>        pr view <n> --json <fields>
+//       a pull request that is not in the world prints the real text: `GraphQL: Could not resolve to a PullRequest with the number of <n>. (repository.pullRequest)`, exit 1
 //   (a pull request has `closingIssuesReferences`: [{ number }], read from "Closes #n" in its body at `pr create`; a test can seed it)
 //   pr merge <n> --squash [--match-head-commit <sha>]
 //       real git in the bare repository `world.bare`; a wrong sha prints
@@ -231,7 +232,10 @@ function prCmd(w, sub, rest) {
   } else if (sub === 'list') {
     print(w.prs.map((p) => pick(p, json)));
   } else if (sub === 'view') {
-    print(pick(find(w.prs, positional[0], 'pull request'), json));
+    // The text that the real `gh pr view <n>` prints for a pull request that does not exist (exit 1).
+    const hit = w.prs.find((x) => x.number === Number(positional[0]));
+    if (!hit) throw new Exit(1, `GraphQL: Could not resolve to a PullRequest with the number of ${positional[0]}. (repository.pullRequest)`);
+    print(pick(hit, json));
   } else if (sub === 'merge') {
     const p = find(w.prs, positional[0], 'pull request');
     if (p.state !== 'OPEN') throw new Exit(1, `fake-gh: pull request ${p.number} is not open`);
