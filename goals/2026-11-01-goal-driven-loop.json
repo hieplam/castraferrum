@@ -1,5 +1,8 @@
 {
-  "setup": [],
+  "setup": [
+    "npm run build",
+    "git clone --depth 1 https://github.com/hieplam/agent-plugins.git agent-plugins-checkout || git -C agent-plugins-checkout pull --ff-only"
+  ],
   "epic": 217,
   "opened": {
     "at": "2026-11-01T00:00:00Z",
@@ -39,7 +42,7 @@
       "outcome": "A usage limit pauses a run, and it continues with no person",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/usage-hold.test.ts",
+          "run": "npx vitest run --project api tests/api/usage-hold.test.ts --reporter verbose",
           "expect": [
             "usage-hold",
             "passed"
@@ -58,7 +61,7 @@
       "outcome": "A claim never outlives its run",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/claims.test.ts",
+          "run": "npx vitest run --project api tests/api/claims.test.ts --reporter verbose",
           "expect": [
             "claims",
             "passed"
@@ -83,7 +86,7 @@
       "outcome": "No PR merges with a failing check",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/gate-red.test.ts",
+          "run": "npx vitest run --project api tests/api/gate-red.test.ts --reporter verbose",
           "expect": [
             "gate-red",
             "passed"
@@ -96,7 +99,7 @@
       "outcome": "Empty work cannot merge",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/gate-stub.test.ts",
+          "run": "npx vitest run --project api tests/api/gate-stub.test.ts --reporter verbose",
           "expect": [
             "gate-stub",
             "passed"
@@ -109,7 +112,7 @@
       "outcome": "A run does not wait for tests or CI",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/gate-handover.test.ts",
+          "run": "npx vitest run --project api tests/api/gate-handover.test.ts --reporter verbose",
           "expect": [
             "gate-handover",
             "passed"
@@ -122,7 +125,7 @@
       "outcome": "A PR cannot lower its own bar",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/gate-scope.test.ts",
+          "run": "npx vitest run --project api tests/api/gate-scope.test.ts --reporter verbose",
           "expect": [
             "gate-scope",
             "passed"
@@ -135,7 +138,7 @@
       "outcome": "A new epic shows a failing goal check before any build task",
       "checks": [
         {
-          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G10: \" ../agent-plugins/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
+          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G10: \" agent-plugins-checkout/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
           "expect": [
             "✔ G10: ",
             "ℹ fail 0"
@@ -155,7 +158,7 @@
           ]
         },
         {
-          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G11: \" ../agent-plugins/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
+          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G11: \" agent-plugins-checkout/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
           "expect": [
             "✔ G11: ",
             "ℹ fail 0"
@@ -180,7 +183,7 @@
       "outcome": "A regression gives one issue, and a repeat gives no second issue",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/standing-goals.test.ts",
+          "run": "npx vitest run --project api tests/api/standing-goals.test.ts --reporter verbose",
           "expect": [
             "standing-goals",
             "passed"
@@ -193,7 +196,7 @@
       "outcome": "A repeated cause opens one issue with no owner message",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/process-review.test.ts",
+          "run": "npx vitest run --project api tests/api/process-review-replay.test.ts --reporter verbose",
           "expect": [
             "process-review",
             "passed"
@@ -206,7 +209,7 @@
       "outcome": "A cause stops after its check merges",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/scoreboard.test.ts",
+          "run": "npx vitest run --project api tests/api/scoreboard.test.ts --reporter verbose",
           "expect": [
             "scoreboard",
             "passed"
@@ -232,10 +235,12 @@
       "outcome": "A loop tool change cannot make the loop worse",
       "checks": [
         {
-          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G17: \" ../agent-plugins/plugins/epic-loop/skills/epic-loop/scripts/evals/eval-gate.test.mjs",
+          "run": "python3 -m unittest discover -v -s agent-plugins-checkout/scripts/evals/tests -p test_eval_gate.py",
           "expect": [
-            "✔ G17: ",
-            "ℹ fail 0"
+            "test_five_of_five_to_two_of_five_is_refused (test_eval_gate.Decide.test_five_of_five_to_two_of_five_is_refused) ... ok",
+            "test_verify_result_passes_on_the_committed_tree (test_eval_gate.VerifyResult.test_verify_result_passes_on_the_committed_tree) ... ok",
+            "Ran 13 tests",
+            "OK"
           ]
         }
       ]
@@ -258,7 +263,7 @@
       "outcome": "A refused goal does not start",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/goal-cards.test.ts",
+          "run": "npx vitest run --project api tests/api/goal-cards.test.ts --reporter verbose",
           "expect": [
             "goal-cards",
             "passed"
@@ -271,7 +276,7 @@
       "outcome": "A one-way goal never starts alone",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/goal-cards.test.ts",
+          "run": "npx vitest run --project api tests/api/goal-cards.test.ts --reporter verbose",
           "expect": [
             "goal-cards",
             "passed"
@@ -309,7 +314,7 @@
       "outcome": "One root cause gives one hold and one push",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/holds.test.ts",
+          "run": "npx vitest run --project api tests/api/holds.test.ts --reporter verbose",
           "expect": [
             "holds",
             "passed"
@@ -322,7 +327,7 @@
       "outcome": "Each lane has its own number, database and port",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/lanes.test.ts",
+          "run": "npx vitest run --project api tests/api/lanes.test.ts --reporter verbose",
           "expect": [
             "lanes",
             "passed"
@@ -335,14 +340,14 @@
       "outcome": "Failing rows write the next tasks",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/plan-action.test.ts",
+          "run": "npx vitest run --project api tests/api/plan-action.test.ts --reporter verbose",
           "expect": [
             "plan-action",
             "passed"
           ]
         },
         {
-          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G25: \" ../agent-plugins/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
+          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G25: \" agent-plugins-checkout/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
           "expect": [
             "✔ G25: ",
             "ℹ fail 0"
@@ -355,7 +360,7 @@
       "outcome": "An epic closes on the check, not on an empty list",
       "checks": [
         {
-          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G26: \" ../agent-plugins/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
+          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G26: \" agent-plugins-checkout/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
           "expect": [
             "✔ G26: ",
             "ℹ fail 0"
@@ -368,7 +373,7 @@
       "outcome": "A run cannot merge",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/merge-guard.test.ts",
+          "run": "npx vitest run --project api tests/api/merge-guard.test.ts --reporter verbose",
           "expect": [
             "merge-guard",
             "passed"
@@ -394,7 +399,7 @@
       "outcome": "A task that ships a screen carries its own acceptance, not a last-day task",
       "checks": [
         {
-          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G29: \" ../agent-plugins/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
+          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G29: \" agent-plugins-checkout/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
           "expect": [
             "✔ G29: ",
             "ℹ fail 0"
