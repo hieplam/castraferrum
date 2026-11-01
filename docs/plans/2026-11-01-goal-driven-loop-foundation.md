@@ -1,6 +1,6 @@
 # Plan: foundation (baselines, spikes, design) of the goal-driven loop
 
-Phase 0 of epic 217. Spec: [../specs/2026-11-01-goal-driven-loop.md](../specs/2026-11-01-goal-driven-loop.md). Plan index: [2026-11-01-goal-driven-loop.md](2026-11-01-goal-driven-loop.md). Evidence log: [2026-11-01-goal-driven-loop-evidence.md](2026-11-01-goal-driven-loop-evidence.md). Wave 1 covers F0, F1, F2, S1 to S6, D1 and D2 here. Z1 and Z2 get their sections in a later wave.
+Phase 0 of epic 217. Spec: [../specs/2026-11-01-goal-driven-loop.md](../specs/2026-11-01-goal-driven-loop.md). Plan index: [2026-11-01-goal-driven-loop.md](2026-11-01-goal-driven-loop.md). Evidence log: [2026-11-01-goal-driven-loop-evidence.md](2026-11-01-goal-driven-loop-evidence.md). Wave 1 covers F0, F1, F2, S1 to S6, D1 and D2 here. Z1 and Z2 are in wave 5, at the end of this file.
 
 Rules for every section: `LOG` means `docs/plans/2026-11-01-goal-driven-loop-evidence.md`. A spike writes exact answer lines into the section `## <id>` of `LOG`. A real Claude session follows the lane rules (haiku, low effort, folder `lc-real-claude-<id>` in the machine temp folder, `GH_TOKEN=invalid`, no write tools, never a real repository). Each spike states its own spend limit and stops when the running total passes it.
 
@@ -236,3 +236,64 @@ Rules for every section: `LOG` means `docs/plans/2026-11-01-goal-driven-loop-evi
 **Stub check:** with no owner action the count is 0 and the state is `OPEN`. A session cannot approve unless the owner delegates it in writing on this issue.
 
 **Ratchet:** not applicable (human gate). The epic has one owner gate: this one.
+
+## Z1 - Verify: goal:check, E check --dry-run on each task
+
+Wave 5. `E` is `epic.mjs` of the epic-loop skill. `LOG` is the evidence log. `GM` is `goals/2026-11-01-goal-driven-loop.json`. Z1 needs every other task and every open issue under epic 217, so it runs last but for Z2.
+
+**Files:** the section `## Z1` of `LOG`, directly under `<!-- Z1 -->`. Nothing else. Z1 changes no goal row, no test and nothing under `goals/`: a verifier does not edit its own exam. A failing row becomes a fix issue.
+
+**Steps:**
+1. Gate. `E status 217 --json` must show every task `done` except Z1 and Z2. Else stop with BLOCKED and list the open ones.
+2. Issue 336 is a blocker of Z1, and Z1 does not fix its rows. Reason: a fix edits `GM`, the exam of the epic. The fix is a normal PR with its own Verify block (the gate is off, so `goals/**` needs no ratification yet). Preconditions on `origin/main`, each literal: `grep -c "\.\./" GM` prints `0`; `grep -c test_eval_gate GM` prints `1` or more; `grep -c eval-gate.test.mjs GM` prints `0`. Row G17 must name the Python test `scripts/evals/tests/test_eval_gate.py` of `agent-plugins` (R7 shipped no `node --test` file).
+3. Pull the skill clone. Only Z1 does this. `git -C ../agent-plugins status --porcelain` must print nothing. Then `git -C ../agent-plugins pull --ff-only origin master`. Then `git -C ../agent-plugins rev-parse HEAD` must equal `git -C ../agent-plugins rev-parse origin/master`. The coordinator runs `E` through a junction to that clone, and on 2026-11-01 its `master` was 13 commits behind: without the pull `E check` lacks the gate status (K10) and the `Acceptance:` rule (T3). Not a fast-forward, or a dirty clone: BLOCKED.
+4. Worktree `../castraferrum-z1` from `origin/main`; `npm ci`; `npm run build` (rows G1, G2, G11, G18, G28 need `dist/web`); the lane database and port of the brief.
+5. Full run, in a heavy-command slot. Estimated run time 25 minutes (not measured: a subset of the 20-minute `verify`, plus 5 e2e files); stop and report at 45. Command: `node scripts/goal-check.mjs GM 2>&1 | tee z1-goal-check.out`. No `goals passed:` line means the machine stopped it: run again once.
+6. Paste `z1-goal-check.out` into `LOG` as an indented block, after the line `Z1 sha: <git rev-parse --short=7 HEAD>`.
+7. Each task. `E status 217 --json | node -e` with a body that prints `<KEY> <issue>` for each task whose title matches `^([A-Z]\d+) - `, except Z1 and Z2, into `z1-tasks.txt` (60 lines). Then for each line: `E check <issue> --dry-run --evidence docs/plans/2026-11-01-goal-driven-loop-evidence.md --heading "## <KEY>"`. Write the first output line into `LOG` as `Z1 check <KEY> issue <issue>: <line>` with each `#<digits>` turned into the digits (the scanner refuses a number sign with 3 digits). Key D2 has no PR: `gh issue view 235 --json state -q .state` prints `CLOSED`, `grep -c "^## the goal-loop screens" design/APPROVED.md` prints `1`, and the line is `Z1 check D2 issue 235: CLOSED by the owner`.
+8. Any red row or `FAIL` line: change nothing. File one issue with the literal output, `E link <new> --parent 217 --blocks <Z1 issue>`, release Z1, report BLOCKED. Nobody lowers a bar.
+9. `agent-plugins` tests that fail for other reasons. `scripts/evals/tests` had 12 failures and 21 errors on `origin/master`, and eval 4 of the skill fails on every commit because the agent does not load the skill. No row of `GM` reaches them: G17 runs only `test_eval_gate.py`, and `grep -c "run_evals\|test_run_evals\|test_process_tree" GM` prints `0`. So Z1 does not run them, does not excuse a failing G17 with them, and files no issue for them (they threaten no goal row). Write the two numbers in `LOG` as `Z1 known, outside the goals: 12 failures, 21 errors, eval 4 fails`.
+
+**Goal:** all goals. Every row of the manifest passes on `main` with one committed tool, and `E check` passes on every closed task.
+
+**Red:** not applicable, because Z1 writes no code. Before Z1, `grep -c "^## Z1$" LOG` prints `0`.
+
+**Green:** with `ZONE` = `sed -n '/^## Z1$/,/^<!-- Z2 -->$/p' LOG`: `ZONE | grep -c "^    G[0-9]* pass"` prints `29`; `ZONE | grep -c "^    goals passed: 29/29$"` prints `1`; `ZONE | grep -c "goal-check: exit 0 after"` prints 32 or more (one per check; G3, G11, G25 have two); `ZONE | grep -c "^Z1 check "` equals `wc -l < z1-tasks.txt`, which is `60`; `ZONE | grep "^Z1 check " | grep -vc PASS` prints `1` (D2); `ZONE | grep -c FAIL` prints `0`. `node scripts/lang-scan.mjs --check-baseline` exits 0 and `node scripts/lang-scan.mjs --history --coupling` prints `coupling: 0`. The coordinator runs `node scripts/goal-check.mjs GM` again before it merges.
+
+**Stub check:** with no section, or the 29 lines alone, `grep -c "^## Z1$"` and the `goal-check: exit` count fail. A section with a lowered row cannot hide: step 2 reads `GM` from `origin/main`, and the coordinator re-runs the tool.
+
+**Ratchet:** goals passing, `p/29` at the first run of step 5 to `29/29` (`goal-check`, last line). It only rises. Open fix issues under epic 217 at merge: only Z2.
+
+## Z2 - Agent acceptance, all new screens
+
+Wave 5. Z2 needs Z1, and through Z1 the five screen tasks P15, K12, T6, R9, W7 and the owner approval D2. An agent does what the owner would do: it opens every new screen on the real build, next to its approved preview. Nobody asks the owner (the epic has one owner gate, D2).
+
+**Screens** (spec section 5; preview ids from `design/ds/STATES.md`, each with a `phone-<id>` twin):
+- Loop page `/loops/:id`: `probe-waiting`, `probe-held`, `probe-blocked`, `probe-complete` (P15).
+- Run page: `run-held` (P15).
+- Gate page `/repos/:id/gate`: `gate-queue`, `gate-failed` (K12).
+- Goals page `/loops/:id/goals`: `goal-rows` (T6).
+- Scoreboard `/scoreboard`: `scoreboard` (R9).
+- Goal cards `/repos/:id/goal-cards`: `card-two-way`, `card-one-way` (W7).
+- Probe settings fields (command, rank, token budget) and the notices banner (P15, W7): no preview id. Judge them against `design/ds/SYSTEM.md` and `components.css`. A missing state is a `design-system` issue that blocks Z2.
+
+**Files:** new `tests/e2e/acceptance.goal-loop.spec.ts`, `tests/support/acceptance-goal-loop.ts`; append `## Z2` to `LOG`. Model: `tests/e2e/acceptance.journey.spec.ts` and `tests/support/acceptance-journey.ts` (task U27 of epic 63).
+
+**Steps:**
+1. Real build: `npm ci`, `npm run build`, a fresh lane database. Never the preview world.
+2. `goalLoopJourney(page, request, opts: JourneyOpts)` drives the UI only and reaches the 13 states (the 11 preview ids and the 2 unpreviewed items above). Seed each state with the function that the visual test of the owning task uses (`tests/visual/ds/*.visual.ts`); if it is not exported, move it into `tests/support/` (no copy). Each step asserts the state word from the `en.ts` keys `goalLoop.*` (D1), the URL, no element with a native `title`, no sideways scroll, and saves `reports/acceptance/goal-loop-<width>-<theme>-<nn>-<step>.png`. `export const GOAL_LOOP_STEPS = 13`.
+3. The spec file runs the journey at 1440 and 390 px, each from the light and the dark system theme: 4 tests, as `acceptance.journey.spec.ts` does. No Vietnamese text in the file. No new Playwright project: a WebKit run stays with epic 63.
+4. `npm run design:compare` exits 0. In `design/compare/ds/report.json`, the 22 ids (11 and 11 phone) in 2 themes are 44 pairs, each region at or under `maxRatio`.
+5. Look at every image with Read. For each of the 44 pairs, open `design/ds/preview/shots/<id>-<theme>.png` and `design/compare/ds/shots/<id>-<theme>.png`. Write `Z2 pair <id>-<theme>: matches` or `Z2 pair <id>-<theme>: <the visible defect>`. For each of the 52 journey shots (4 x 13) write `Z2 shot <width>-<theme>-<nn>: matches` or the defect. Judge by `SYSTEM.md`: legible type, no hover-only control, no native tooltip, correct dark theme, nothing clipped at 390 px.
+6. Each defect: one issue, `E link <new> --parent 217 --blocks <Z2 issue>`, then release Z2. The loop fixes it and takes Z2 again. A difference in sample data only: the app wins, re-shoot the preview with `design:shots`, and record it in `design/APPROVED.md` (standing rule, `goal-loop.md` section 4). Z2 merges with 0 open defects.
+7. The PR body has `Acceptance: "pairs": <pairs>, "worstRatio": <worstRatio>` from `report.json`, inside `## Verify`.
+
+**Goal:** all goals. Every new screen on the shipped build matches its approved preview, desktop and phone, light and dark.
+
+**Red:** `npx playwright test tests/e2e/acceptance.goal-loop.spec.ts --project chromium --reporter list` prints `Error: No tests found`.
+
+**Green:** the same command prints `4 passed`. `npm run design:compare` exits 0. With `ZONE` = `sed -n '/^## Z2$/,/^<!-- /p' LOG`: `ZONE | grep -c "^Z2 pair "` prints `44`; `ZONE | grep -c "^Z2 shot "` prints `52`; `ZONE | grep "^Z2 " | grep -vc "matches$"` prints `0`. `E status 217` shows no open issue except Z2. The coordinator opens 3 of the 96 images at random next to their references before it merges.
+
+**Stub check:** a journey that only navigates fails review: every step asserts a state word. Run it once with the URL of the `scoreboard` step changed to `/scoreboard-x`: the test fails at that step on the state word. Record the step, restore.
+
+**Ratchet:** journey steps 0 to 13 (`GOAL_LOOP_STEPS`). Pairs looked at 0 to 44. Open defects at merge 0. Each can only move that way.
