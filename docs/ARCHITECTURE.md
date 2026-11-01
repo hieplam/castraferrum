@@ -185,19 +185,21 @@ Rules every repository follows (held by the contract tests):
 ### The executor contract
 
 An executor is `{ kind, describe(), execute(input, signal) }` where `execute` returns an async iterable of
-events: `session`, `log` and one final `result`. Every implementation passes the same suite
+events: `session`, `log` and one final `result` or `usage_limit`. Every implementation passes the same suite
 (`tests/contract/executor.contract.ts`):
 
 - exactly one `session` before any other event (the Agent SDK reports it in the `system` init message, so a
   cancelled or timed-out run still has a session id);
-- then zero or more `log` events, then exactly one `result`, or a thrown error;
+- then zero or more `log` events, then exactly one `result` or `usage_limit`, or a thrown error;
 - never throw synchronously (a bad configuration only fails on iteration);
 - when the signal aborts (even before the call) the iterable ends within `describe().cancelWithinMs` and emits
   no `result` after the abort;
 - one session id per run; no database access; no knowledge of services.
 
 The one exception to "session first": a run that fails before the agent starts (the repo directory is
-missing) emits an error `log` and a failed `result` without a session.
+missing) emits an error `log` and a failed `result` without a session. A `usage_limit` before any message that
+holds an id has no session either. The two `usage_limit` cases of the suite run on mock and on the fake `query`,
+not on real Claude, because no agent can force a limit.
 
 ## Composition root
 
@@ -370,6 +372,25 @@ from its own start when Claude Code woke the agent), and the process has 120 sec
 after a `stopTask` that never finishes) before the abort controller kills it. The run still ends `failed` with
 "Waited more than 30 minutes for background tasks - stopped: ...", while its summary and cost come from the
 cleanup answer. The four time limits are constructor options so tests can shrink them.
+
+### A usage limit ends a run with its own event
+
+Three messages are triggers, each one alone and in any order, also from a subagent: `rate_limit_event` with
+status `rejected`, an assistant message with `error: 'rate_limit'`, and an error `result` with the text
+`You've hit your`. The statuses `allowed` and `allowed_warning` never stop a run. No stored run holds a
+`rate_limit_event` or a `result`, so the design depends on none of them (evidence S1 in the goal-driven loop
+plan).
+
+After the first trigger the executor reads on until a `result`, the end of the stream, or `limitSettleMs`
+(5 seconds), so a hung stream cannot hang a run. It merges what it saw, aborts the process, writes one
+`Error · <message>` line and emits `usage_limit`. A limit is applied over a later `result` and over the
+over-ceiling error. A `resetsAt` that is missing, not positive, or 1e11 or more (not epoch seconds) gives `null`.
+`RunService` writes `failed` with the message for every loop.
+
+`rate_limit_event` can come before `system/init`, so `session` comes from the first message that holds an id.
+With `resumeSessionId` the executor sets the SDK option `resume`, sends the prompt as the head message and logs
+`Resume round #N · session <id>`. The session id stays, and `total_cost_usd` does not restart at 0. So the cost
+of a resumed run replaces the stored cost and is never added to it.
 
 Facts measured on Claude Code 2.1.x with Agent SDK 0.3.x that this design depends on:
 

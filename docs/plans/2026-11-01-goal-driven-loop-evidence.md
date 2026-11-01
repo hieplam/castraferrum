@@ -726,6 +726,47 @@ The verify log did not reach `UCs with a green e2e`, because `test:e2e` failed b
 
 <!-- P7 -->
 
+## P7
+
+**Red**, before the build, with the test file and the fake helpers only:
+
+    $ npx vitest run --project unit server/adapters/executors/claude/claude-agent-executor.limit.test.ts
+          Tests  21 failed (21)
+
+**Green**, on main 076c6a3 (main did not move, so the rebase changed nothing):
+
+    $ npx vitest run --project unit server/adapters/executors/claude/claude-agent-executor.limit.test.ts
+          Tests  21 passed (21)
+    $ npx vitest run --project contract tests/contract/executor-mock.test.ts --reporter verbose
+     tests/contract/executor-mock.test.ts > executor contract > mock > usage_limit: the final event of the run, with session first, no result, and a message
+     tests/contract/executor-mock.test.ts > executor contract > mock > usage_limit: a resume of that session keeps the same session id
+    $ LC_REAL_CLAUDE=1 npx vitest run --project unit server/adapters/executors/claude/claude-agent-executor.real.test.ts -t resume
+    [R-c] session 7b2995f8-e0ab-4893-9af7-987be1bddd4d · 7b2995f8-e0ab-4893-9af7-987be1bddd4d · cost 0.00401361 then 0.00615892 USD
+          Tests  1 passed | 2 skipped (3)
+
+Full `npm run verify`, in slot-1, one run that ended by itself with exit 0:
+
+    base main: every limit held
+    ratchets: ok
+          Tests  1015 passed | 3 skipped (1018)
+          Tests  204 passed (204)
+          Tests  162 passed (162)
+      115 passed (13.8m)
+    phone overflow: 0/12
+    UCs with a green e2e: 33/33
+
+**Stub check**, each one run on the executor, then restored:
+
+    no handler (no message is a trigger)     Tests  19 failed | 2 passed (21)
+    only rate_limit_event (no assistant)     Tests  7 failed | 14 passed (21)
+    adding costs                             Tests  1 failed | 20 passed (21)
+    allowed stops a run                      Tests  2 failed | 19 passed (21)
+    no settle timer (hung stream)            Tests  2 failed | 19 passed (21)
+
+With no handler the 2 resume tests pass, because they do not need one. The Red run shows that they fail with no resume code.
+
+**Ratchet:** `npx vitest list --project unit` printed 797 lines on 076c6a3 and 822 on the branch, so unit count +25 (plan +24, plus one `[limit]` test of `test-mode-query`). `limit-failures` printed 12 runs before the change: decision 7, not measured yet after it.
+
 <!-- P8 -->
 
 <!-- P9 -->

@@ -37,6 +37,9 @@ export type MockExecutorOptions = {
 };
 
 const PROMPT_EXCERPT = 80;
+/** A prompt with this mark ends the run at a simulated usage limit. */
+const USAGE_LIMIT_PROMPT = '[usage-limit]';
+const USAGE_LIMIT_MESSAGE = "You've hit your limit (simulated)";
 
 export class MockExecutor implements LoopExecutor {
   readonly kind = 'mock';
@@ -63,9 +66,14 @@ export class MockExecutor implements LoopExecutor {
 
   async *#run(input: ExecutionInput, signal: AbortSignal): AsyncGenerator<ExecutionEvent> {
     const cfg = mockConfigSchema.parse(input.config ?? {});
-    yield { type: 'session', sessionId: this.#newSessionId() };
+    yield { type: 'session', sessionId: input.resumeSessionId ?? this.#newSessionId() };
     if (signal.aborted) return;
     yield { type: 'log', level: 'info', message: `Start round #${input.iteration} — prompt: «${excerpt(input.prompt)}»` };
+    if (input.prompt.includes(USAGE_LIMIT_PROMPT)) {
+      yield { type: 'log', level: 'error', message: `Error · ${USAGE_LIMIT_MESSAGE}` };
+      yield { type: 'usage_limit', resetsAt: null, limitType: null, message: USAGE_LIMIT_MESSAGE };
+      return;
+    }
     // Fail at second failAt (1…durationSec) with failRate % probability.
     const failAt = this.#random() * 100 < cfg.failRate ? 1 + Math.floor(this.#random() * cfg.durationSec) : null;
     for (let k = 1; k <= cfg.durationSec; k++) {

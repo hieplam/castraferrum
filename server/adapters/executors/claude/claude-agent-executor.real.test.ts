@@ -128,4 +128,30 @@ describe.skipIf(!REAL)('ClaudeAgentExecutor on real Claude Code - background tas
     },
     TEST_TIMEOUT,
   );
+
+  it(
+    '(R-c) resume: a second executor call with resumeSessionId keeps the session id, and its cumulative cost is not lower than the first cost',
+    async () => {
+      const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'lc-real-claude-')));
+      const config = { model: 'haiku', effort: 'low' };
+      const once = async (prompt: string, resumeSessionId?: string) => {
+        const inp: ExecutionInput = { runId: 'r', loopId: 'l', executionId: 'e', iteration: 1, prompt, config, cwd, ...(resumeSessionId ? { resumeSessionId } : {}) };
+        const events: ExecutionEvent[] = [];
+        const executor = new ClaudeAgentExecutor({ env: () => ({ ...cleanEnv(), GH_TOKEN: 'invalid' }) });
+        for await (const e of executor.execute(inp, new AbortController().signal)) events.push(e);
+        const logs = events.filter((e) => e.type === 'log').map((e) => (e as { message: string }).message);
+        return { sessionId: (events[0] as { sessionId: string }).sessionId, logs, result: events.at(-1) as Result };
+      };
+      const first = await once('Reply with exactly one word: one');
+      const second = await once('Reply with exactly one word: two', first.sessionId);
+      console.log(`[R-c] session ${first.sessionId} · ${second.sessionId} · cost ${first.result.costUsd} then ${second.result.costUsd} USD`);
+
+      expect(first.result.outcome).toBe('succeeded');
+      expect(second.result.outcome).toBe('succeeded');
+      expect(second.sessionId).toBe(first.sessionId);
+      expect(second.logs[0]).toBe(`Resume round #1 · session ${first.sessionId}`);
+      expect(second.result.costUsd).toBeGreaterThanOrEqual(first.result.costUsd!);
+    },
+    TEST_TIMEOUT,
+  );
 });
