@@ -639,6 +639,50 @@ Ratchet: tests in `process-file-issues.test.ts`, 0 before, 15 after (the plan sa
 
 <!-- R7 -->
 
+## R7
+
+Task: eval gate for `references/tick.md` and `references/drive.md` of the epic-loop skill. The change is in hieplam/agent-plugins, pull request 20 (branch `epic-loop/eval-gate`). Goal G17.
+
+Red (tests first, `eval_gate.py` absent):
+
+```
+$ python3 -m unittest discover -s scripts/evals/tests -t . -p test_eval_gate.py
+FileNotFoundError: [Errno 2] No such file or directory: '<worktree>/scripts/evals/eval_gate.py'
+Ran 1 test in 0.004s
+FAILED (errors=1)
+```
+
+Green, after the rebase on `origin/master`:
+
+```
+$ python3 -m unittest discover -s scripts/evals/tests -t . -p test_eval_gate.py
+Ran 13 tests in 0.149s
+OK
+$ python3 scripts/evals/eval_gate.py verify-result --skill-dir plugins/epic-loop/skills/epic-loop
+verify-result: ok
+$ python3 scripts/evals/eval_gate.py check --baseline baseline/benchmark.json --candidate candidate-merged.json
+eval 1 3/5 -> 2/5 ok
+eval 2 4/5 -> 3/5 ok
+eval 3 2/5 -> 3/5 ok
+eval 4 0/5 -> 0/5 ok
+eval 5 5/5 -> 5/5 ok
+eval 6 5/5 -> 5/5 ok
+eval 7 5/5 -> 4/5 ok
+verdict: pass
+```
+
+Executor cost (haiku, executor calls only, `--jobs 2`, `GH_TOKEN=invalid`): baseline 0.229 USD, candidate 0.229 USD. One extra pass of eval 4 cost 0.043 USD, because one candidate run of eval 4 hit the 420 s timeout and the gate said `verdict: error`. Eval 4 ran again with `--eval-id 4 --runs 5` and was merged with `merge_benchmarks.py`. Each side took about 20 minutes. One orphan `find.exe` (from eval 4, `-path *notes*`) was stopped.
+
+Stub check, each stub applied for real and then restored:
+
+- `decide` always passes: 7 tests fail.
+- `decide` always refuses: 7 tests fail.
+- `verify-result` ignores the hashes: 1 test fails (the changed-copy test).
+- A line added to the real `tick.md`: 1 test fails (the committed-tree test). After the restore: `OK`.
+
+Ratchet: tests in `test_eval_gate.py`, 0 before, 13 after. `gate-result.json` pooled passes over 7 evals x 5 runs: baseline 24 of 35, candidate 22 of 35. It records `origin/master` against itself, with no target, because eval 3 varies from run to run.
+
+
 <!-- R8 -->
 
 <!-- R9 -->
