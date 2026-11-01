@@ -343,8 +343,10 @@ export function repositoryContract(env: () => ContractEnv): void {
     it('stopAll keeps the loops in the list active, with their next_run_at', async () => {
       const kept = await activeLoop();
       const stops = await activeLoop();
+      const before = await r.loops.findById(kept.loop.id);
+      expect(before?.status).toBe('active');
       expect(await r.loops.stopAll(at(900), [kept.loop.id])).toBe(1);
-      expect(await r.loops.findById(kept.loop.id)).toMatchObject({ status: 'active', updatedAt: kept.loop.updatedAt, nextRunAt: kept.loop.nextRunAt });
+      expect(await r.loops.findById(kept.loop.id)).toEqual(before);
       expect(await r.loops.findById(stops.loop.id)).toMatchObject({ status: 'stopped', nextRunAt: null });
     });
   });
