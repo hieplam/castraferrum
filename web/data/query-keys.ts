@@ -21,6 +21,8 @@ export const qk = {
   folders: () => ['folders'] as const,
   folder: (path: string | null) => ['folders', 'dir', path] as const,
   folderPlaces: () => ['folders', 'places'] as const,
+  /** The process scoreboard - read when Settings or its page opens; no live event changes it. */
+  scoreboard: (tz: string) => ['scoreboard', tz] as const,
   health: () => ['health'] as const,
   executors: () => ['executors'] as const,
   schedulePreview: (cron: string, tz: string, lang: string) => ['schedule-preview', cron, tz, lang] as const,

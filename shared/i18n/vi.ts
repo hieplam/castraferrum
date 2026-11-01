@@ -899,6 +899,7 @@ export const vi: Record<MessageKey, string> = {
   'goalLoop.goals.standing': 'Mục tiêu thường trực',
   'goalLoop.goals.loops': 'Các loop đã dừng ở các mục tiêu này',
   'goalLoop.goals.issue': 'Issue {n}',
+  'goalLoop.score.link': 'Bảng điểm quy trình',
   'goalLoop.score.title': 'Bảng điểm quy trình',
   'goalLoop.score.desc': 'Một nguyên nhân đã biết lặp lại bao nhiêu lần, trước và sau khi kiểm tra của nó được merge.',
   'goalLoop.score.causes': 'Nguyên nhân tìm thấy',

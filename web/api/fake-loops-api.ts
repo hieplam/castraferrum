@@ -18,6 +18,7 @@ import type {
 } from '../../shared/contracts/loops';
 import type { FolderDto, FolderPlacesDto } from '../../shared/contracts/folders';
 import type { RepoDto, RepoInputBody, RepoListItemDto } from '../../shared/contracts/repos';
+import type { ScoreboardDto } from '../../shared/contracts/scoreboard';
 import type { TranscriptPageDto } from '../../shared/contracts/transcript';
 import { ApiError, type LoopListFilter, type LoopsApi, type Page, type PageRequest } from './loops-api';
 
@@ -198,6 +199,10 @@ export class FakeLoopsApi implements LoopsApi {
       todayFrom: now,
       now,
     };
+  }
+  async scoreboard(): Promise<ScoreboardDto> {
+    this.calls.push('scoreboard');
+    return { figures: { causes: 0, checks: 0, before: 0, after: 0 }, weeks: [], causes: [] };
   }
   async listRepos(): Promise<RepoListItemDto[]> {
     this.calls.push('listRepos');

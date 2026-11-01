@@ -18,6 +18,7 @@ import type {
 } from '../../shared/contracts/loops';
 import type { FolderDto, FolderPlacesDto } from '../../shared/contracts/folders';
 import type { RepoDto, RepoInputBody, RepoListItemDto } from '../../shared/contracts/repos';
+import type { ScoreboardDto } from '../../shared/contracts/scoreboard';
 import type { TranscriptPageDto } from '../../shared/contracts/transcript';
 
 export type LoopListFilter = {
@@ -61,6 +62,8 @@ export interface LoopsApi {
   folderPlaces(): Promise<FolderPlacesDto>;
   /** `GET /stats?tz=` - the overview bar + loops per tab (UC-03); "today" in time zone `tz`. */
   overview(tz?: string, repoId?: string): Promise<OverviewDto>;
+  /** `GET /process/scoreboard?tz=` - the repeats of each known cause before and after the date its check merged (spec 2.12); weeks start on Monday in `tz`. */
+  scoreboard(tz?: string): Promise<ScoreboardDto>;
   /** `/api/health` - also returns on 503 (`{ ok: false, db: 'down' }`); only throws when the server cannot be reached. */
   health(): Promise<HealthResponse>;
 }
