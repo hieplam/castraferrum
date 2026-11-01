@@ -1,6 +1,6 @@
 # Plan of issue 213: gate
 
-Phase: issue 213 of epic 217. Spec: [goal-driven loop](../specs/2026-11-01-goal-driven-loop.md). Plan index: [index](2026-11-01-goal-driven-loop.md). Later waves add the other tasks of this phase. Unit count below means `npx vitest list --project unit 2>/dev/null | wc -l`: 428 on 2026-11-01, measure yours at Red. In the `agent-plugins` task, `SK` is `plugins/epic-loop/skills/epic-loop`.
+Phase: issue 213 of epic 217. Spec: [goal-driven loop](../specs/2026-11-01-goal-driven-loop.md). Plan index: [index](2026-11-01-goal-driven-loop.md). Later waves add the other tasks of this phase. Unit count below means `npx vitest list --project unit 2>/dev/null | wc -l`: 428 on 2026-11-01, measure yours at Red. In the `agent-plugins` task, `SK` is `plugins/epic-loop/skills/epic-loop`. Wave 2: each code task changes existing server code, so its Green ends with one full `npm run verify`, in a slot, about 20 minutes. A `verify` failure that your change cannot reach follows the lane rules (issues 265, 272, 274). Concurrency tests use `k.clock`, `flush()`, `until()` and deferred promises, as `scheduling-service.test.ts` does. They never sleep and never assert on elapsed real time.
 
 ## K1 - gate.json, verify data, scope guard
 
@@ -93,3 +93,46 @@ Phase: issue 213 of epic 217. Spec: [goal-driven loop](../specs/2026-11-01-goal-
 **Stub check:** ignoring status fails the `failure` test. A polling tick fails the grader of eval 7.
 
 **Ratchet:** `node --test` count 49 to 54.
+
+## K2 - Gate tables, repo_gate
+
+**Files:** `schema.ts`, migration, `db.ts`; `server/ports/gate-repository.ts`, `server/ports/claims.ts`; `shared/domain/gate.ts`; gate and claim adapters, `memory-db.ts`, 3 repositories files; `tests/contract/repositories.contract.ts`.
+
+**Steps:**
+1. Migration `gate` (spec 3, decision 30). `gate_jobs`, `gate_steps`: 2.8. Add to `truncateAll`.
+2. Partial unique indexes: one `running` job; one row per `repo_id`, `pr_number`, `head_sha` in `queued` or `running`.
+3. `gate.ts`: `GATE_STEPS`, `GATE_JOB_STATES`, types `GateJob`, `GateStep`, `RepoGate`. `Repositories.gate`.
+4. `GateRepository`: `getRepoGate(repoId)`; `setRepoGate(repoId, { enabled, githubRepo, checkCommand }, at)`, `REPO_NOT_FOUND`; `enqueue({ id, repoId, prNumber, headSha, taskKey, at }): 'queued' | 'duplicate'`; `takeNext(at): GateJob | null`, oldest `queued` to `running`, `null` while one runs; `finish(id, { state, failedStep, at })`, from `running` only; `ratify(id, at)`, `needs_ratification` to `queued`; `appendStep(step)`; `listSteps(jobId)`, by `seq`; `get(id)`; `list(limit)`, newest first.
+5. `ClaimRepository.handOver(id, gateJobId): boolean`, `false` on a closed row. `findOrphaned` reads `owner = 'run'` only (decision 4).
+6. Tests, 15, `describe('gate_tables')`: repo gate none, set, replace, unknown; enqueue, duplicate, again after finish; `takeNext` order, `null` while running, empty; `finish` first wins; `ratify`, wrong state; steps by `seq`; `handOver` then no orphan.
+
+**Goal:** G6. The gate keeps one job at a time, a record of each step, and each claim that it owns.
+
+**Red:** `npx vitest run --project contract -t gate_tables` prints `30 failed`.
+
+**Green:** the same command prints `30 passed`. `npx vitest run --project api tests/api/db-migrate.test.ts` exits 0. `npm run verify` exits 0.
+
+**Stub check:** a `takeNext` that ignores a running job fails `null while running`. A `handOver` that does nothing fails the orphan case. Run both.
+
+**Ratchet:** `npm run test:contract`: each side rises by 15.
+
+## K8 - Merge guard hook
+
+**Files:** `shared/domain/merge-guard.ts`; `server/ports/executor.ts`; `claude-agent-executor.ts`; `tests/api/merge-guard.test.ts`; `docs/ARCHITECTURE.md`.
+
+**Steps:**
+1. `checkMergeCommand(toolName: string, command: unknown): { deny: false } | { deny: true; rule: string; reason: string }`, by spec 2.15. A pure function with no shell parse.
+2. `ExecutionInput.gateGuard?: boolean`. On: option `hooks: { PreToolUse: [{ matcher: 'Bash|PowerShell|mcp__.*', hooks: [guard] }] }`. `guard` reads `tool_name`, `tool_input.command`. A refusal returns `{ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: reason } }`, else `{}`.
+3. Off: no `hooks` key, so a run works as today. K7 sets it (decision 29).
+4. `ARCHITECTURE.md`, The Claude executor: the guard and its limit.
+5. Tests, `describe('merge-guard')`. `it.each` over each line of Refused (35, with `rule`) and Allowed (16) of 2.15. Wiring 5 on the fake query: on, `gh pr merge 1` gives `deny`; the same with `agent_id`, `agent_type`; `gh pr view 1` gives `{}`; a non-string `command` gives `deny`; off gives no `hooks`. Real 1, `LC_REAL_CLAUDE=1` only: the setup of S2 in the evidence log, a haiku run asks for `gh pr merge 1`, `gh.log` has 0 lines.
+
+**Goal:** G27. A run asked to merge, in any form of 2.15, does not reach `gh`.
+
+**Red:** `npx vitest run --project api tests/api/merge-guard.test.ts` prints `Cannot find module`.
+
+**Green:** the same command prints `merge-guard`, `Tests  56 passed | 1 skipped (57)`. With `LC_REAL_CLAUDE=1` and `-t real` it prints `1 passed`. `npm run verify` exits 0.
+
+**Stub check:** always `{ deny: false }` fails each Refused line. Always `deny` fails each Allowed line. Only `gh pr merge` fails the REST, GraphQL and `git push` lines. Run all three.
+
+**Ratchet:** `npx vitest list --project api 2>/dev/null | wc -l` rises by 57.
