@@ -78,6 +78,8 @@ S1 order: rate_limit_event > assistant_error > result
 S1 resume-keeps-session-id: yes
 S1 cost-restarts-at-zero: no
 S1 spend-usd: 0.04
+S1 rate-limit-info-keys: status, resetsAt, rateLimitType, overageStatus, overageDisabledReason, isUsingOverage, unifiedWindows
+S1 resets-at-unit: seconds
 
 Raw order in the 12 failed transcripts (line number of the event):
 
@@ -101,7 +103,8 @@ Evidence and limits:
 - Resume with streaming input kept `session_id` in 4 of 4 resumed passes (each run printed `same session id: true`). The resumed stream was `system:init > assistant > rate_limit_event > result:success`.
 - `total_cost_usd` does not restart at 0. In the last pass the resumed `modelUsage` held `inputTokens 1191, outputTokens 908, cacheReadInputTokens 7376`, which is the sum of both turns (first pass: 1189, 905, 4599). The resumed `total_cost_usd` equals the `costUSD` of that `modelUsage`. Comparing the cost of the two passes alone were not decisive (the resumed turn re-creates the cache), so the claim rests on the token sums. P8 must treat the cost of a resumed run as cumulative for the session, as the executor already does for turns inside one process.
 - A limit can only be seen as `assistant_error` in the transcript store. The `usage_limit` trigger on `rate_limit_info.status === 'rejected'` has no stored sample. Not verified: `resetsAt` (the spec records it checked on session 464e9f06; that transcript has no `rate_limit_event`).
-- Spend: 4 script runs of 2 passes, summed `total_cost_usd` 0.0318, rounded up to 0.04 USD (limit 0.50).
+- `resetsAt` unit: one more live haiku stream (script `rl.mjs`, same options, `maxBudgetUsd 0.05`) printed this `rate_limit_info`: `status` "allowed", `resetsAt` 1793527200, `rateLimitType` "five_hour", `isUsingOverage` false, `unifiedWindows.five_hour` `{utilization 0.25, resetsAt 1793527200}`, `unifiedWindows.seven_day` `{utilization 0.46, resetsAt 1793923200}`. The number has 10 digits and reads as 2026-11-01 as seconds since 1970 (as milliseconds it would be January 1970). So the unit is seconds, and the spec line is proven for an `allowed` event. Not verified: `resetsAt` of a `rejected` event. `utilization` is not at top level here, only in `unifiedWindows`. Cost of this run 0.0005 USD.
+- Spend: 5 script runs, summed `total_cost_usd` 0.0323, rounded up to 0.04 USD (limit 0.50).
 
 Script (`run.mjs`, 24 lines):
 
