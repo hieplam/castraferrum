@@ -104,3 +104,28 @@ Wave 3 adds T2. The contract is decision 42 of the spec. Its tests use small fak
 **Stub check:** comment only the merge rows: the `total` test fails. No `findOpen`: the second-merge test fails. Run goals after the next job: the order test fails. Let a failure throw: the job test fails. Run all four.
 
 **Ratchet:** unit count rises by 16, contract by 2 per side. Metric `status-questions`: decision 7.
+
+Wave 4 adds T5. The contract is decision 51 of the spec. Its tests use the fake `gh`, never a real repository.
+
+## T5 - goals/health.json, audit row
+
+**Needs** T4 (issue 282) and K9 (issue 244), both merged. Read `server/services/standing-goal-service.ts` and `tests/api/standing-goals.test.ts` first. `scripts/merge-audit.mjs` already has `--since`, `-R` and exit 2 for a failed `gh` call. T5 does not change it.
+
+**Files:** `goals/health.json`; `shared/domain/{health-goals.ts,health-goals.test.ts}`; `server/services/{standing-goal-service.ts,contracts.ts}`; `tests/api/health-goals.test.ts`.
+
+**Steps** (spec 2.10, decision 51):
+1. `goals/health.json`: `{"v":1,"cron":"0 2 * * *","timezone":"Asia/Ho_Chi_Minh","epic":0,"maxNewIssuesPerPass":3,"rows":[H1,H2]}`. H1: outcome `The full verify passes on main.`, `run` `npm run verify`, `timeoutSec` 3600. H2: outcome `Every merged pull request has a passing gate status.`, `run` `node scripts/merge-audit.mjs -R {repo} --since 2026-11-01T00:00:00Z`, `timeoutSec` 600.
+2. `health-goals.ts` exports `parseHealthFile(text: string, repo: string, platform: string): HealthFile` with `rows: { id; outcome; run: string[]; timeoutSec; verbatim: boolean }[]`. It replaces `{repo}` in each `run`, then `shellArgv(run, platform)` (decision 31). `verbatim` is true on `win32`. It throws `DomainError VALIDATION_FAILED` for: bad JSON, `v` not 1, a cron or timezone that `nextRuns` refuses, no rows, a repeated row id, a row without `id`, `outcome` or `run`, `timeoutSec` outside 1 to 86400, `maxNewIssuesPerPass` outside 1 to 10, and a row that names `merge-audit.mjs` with no `--since <ISO date>`.
+3. `StandingRow` gains `verbatim?: boolean`; `runPass` passes it as `windowsVerbatimArguments`. `StandingGoalService.runHealth({ repo, cwd, text, now, platform? }): Promise<StandingPassResult | null>`: parse, return `null` if `!isDue`, else `runPass` with the file's `maxNewIssuesPerPass`, then `markRan`. A throw from `runPass` skips `markRan`, so the next call tries again.
+4. Nothing calls `runHealth` in `compose.ts`, `main.ts` or `server/scheduler/`. Do not add a ticker. The file is inert until a later task wires it.
+5. The PR changes `goals/**`, a guarded path. With the gate on, it ends at `needs_ratification`. Say so in the PR body.
+
+**Goal:** G13, G6. A failing health row gives one issue and a repeat gives no second one. The audit row finds a merge that has no gate status, and a broken `gh` call never reads as a pass.
+
+**Red:** write 10 unit tests in `health-goals.test.ts`: the real file parses (rows `H1`, `H2`, `epic` 0, cron `0 2 * * *`); `{repo}` filled and argv `['sh','-c','node scripts/merge-audit.mjs -R o/r --since 2026-11-01T00:00:00Z']` on linux with `verbatim` false; the same on `win32` as `['cmd.exe','/d','/s','/c','"node ..."']` with `verbatim` true; bad JSON; `v` 2; cron `61 * * * *`; a repeated row id; `timeoutSec` 0; `maxNewIssuesPerPass` 11; an audit row with no `--since`. Write 8 api tests on Postgres, the fake `gh` (env `LOOPS_GH_BIN`, `FAKE_GH_WORLD`) and the real `NodeCommandRunner`, with the H2 row of the real file: a planted merge with no status gives 1 issue titled `standing goal H2: ...` with a fingerprint and `PR 2`; a repeat on the next day gives still 1 issue and `Failed passes: 2`; a broken `LOOPS_GH_BIN` gives 1 issue and `closed` 0; the same with an open incident issue keeps it open; all merges with a status give a pass that closes the open issue; a merge before `--since` gives no issue; a second call on the same day returns `null` and runs 0 commands; the sources `compose.ts`, `main.ts` and `server/scheduler/` hold neither `health.json` nor `runHealth`. `npx vitest run --project unit shared/domain/health-goals.test.ts` and `npx vitest run --project api tests/api/health-goals.test.ts` each print `Test Files  1 failed (1)`.
+
+**Green:** the same commands print `Tests  10 passed (10)` and `Tests  8 passed (8)`. `npx vitest run --project api tests/api/standing-goals.test.ts` still prints `Tests  11 passed (11)`. `node scripts/merge-audit.mjs` prints `merge-audit: -R <owner/name> is required` and exits 2. `npm run verify` exits 0.
+
+**Stub check:** a `runHealth` that returns `null` fails 7 api tests. A `parseHealthFile` that skips the `--since` rule fails the last unit test. A `merge-audit.mjs` copy that prints `0 incidents` and exits 0 on a failed `gh` call fails the broken-`gh` test. Run all, restore.
+
+**Ratchet:** unit tests, B to B + 10. Api tests, C to C + 8. Up only. Duplicate issues in the api test: 0 (G13). Merged PRs with no gate status found by H2 in the planted test: 1 of 1 (G6).
