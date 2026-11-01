@@ -1,5 +1,6 @@
 import type { ExecutionRepository } from './execution-repository';
 import type { HeartbeatRepository } from './heartbeat-repository';
+import type { LoopProbeRepository } from './loop-probe-repository';
 import type { LoopRepository } from './loop-repository';
 import type { RepoRepository } from './repo-repository';
 import type { RunLogRepository } from './run-log-repository';
@@ -13,4 +14,5 @@ export type Repositories = {
   runs: RunRepository;
   logs: RunLogRepository;
   heartbeat: HeartbeatRepository;
+  probes: LoopProbeRepository;
 };

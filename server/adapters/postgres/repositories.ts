@@ -2,6 +2,7 @@ import type pg from 'pg';
 import type { Repositories } from '../../ports/repositories';
 import { PgExecutionRepository } from './pg-execution-repository';
 import { PgHeartbeatRepository } from './pg-heartbeat-repository';
+import { PgLoopProbeRepository } from './pg-loop-probe-repository';
 import { PgLoopRepository } from './pg-loop-repository';
 import { PgRepoRepository } from './pg-repo-repository';
 import { PgRunLogRepository } from './pg-run-log-repository';
@@ -15,5 +16,6 @@ export function createPgRepositories(pool: pg.Pool): Repositories {
     runs: new PgRunRepository(pool),
     logs: new PgRunLogRepository(pool),
     heartbeat: new PgHeartbeatRepository(pool),
+    probes: new PgLoopProbeRepository(pool),
   };
 }
