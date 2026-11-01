@@ -22,7 +22,8 @@ export class DefaultRecoveryService implements RecoveryService {
     const lastHeartbeatAt = await d.heartbeat.last();
     const shutdownAt = lastHeartbeatAt ?? now;
     // The duration of an unfinished run counts up to the last heartbeat (when it really stopped running), finished_at = the restart time.
-    const interruptedRuns = await d.runs.markAllRunningInterrupted(now, shutdownAt);
+    // Every loop stops here (P11 adds the loops that stay active), so no held run has a loop to resume in. The next probe tick releases their claims as excused.
+    const interruptedRuns = (await d.runs.markAllRunningInterrupted(now, shutdownAt)) + (await d.runs.markHeldInterrupted(now, shutdownAt, []));
 
     // For each running loop: endedAt = the last heartbeat, but not earlier than Start (Start right after the last heartbeat, then
     // the server dies → last heartbeat < startedAt; use startedAt so "how long it ran" is not negative, still off by at most 10 seconds).

@@ -247,5 +247,8 @@ export function claimedLine(key: string, action: 'take' | 'plan'): string {
   return `[Castraferrum] The console claimed task ${key} for this run (action ${action}). Do not run next or claim. Do this task only.`;
 }
 
+/** `runs.end_result` of a run that hit a usage limit with no session id: nothing can resume it, so it fails, and its release is excused (decision 26). */
+export const USAGE_LIMIT_END = 'USAGE_LIMIT';
+
 /** The message that resumes a run after a usage limit (spec 2.7). */
 export const RESUME_LINE = '[Castraferrum] The usage limit has reset. Continue the same task from where you stopped.';

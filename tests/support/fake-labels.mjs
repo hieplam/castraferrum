@@ -2,6 +2,7 @@
 // A label is the folder `label-<key>`. It has the rules of `epic.mjs`: a claim on a label refuses, and a release of a task with no label writes
 // nothing if it has `--if-claimed`. A plain release of such a task leaves the file `reopened-<key>`, which a test must never see.
 // The file `stale-offers` makes `next` also offer a labelled task: the answer of a probe that another worker overtook.
+// An entry of `queue.json` is a key, or `{key, resources}` for a task that needs a resource.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -12,8 +13,9 @@ appendFileSync(path('calls.log'), `${JSON.stringify([command, key ?? null, ...re
 if (command === 'next') {
   const queue = JSON.parse(readFileSync(path('queue.json'), 'utf8'));
   const stale = existsSync(path('stale-offers'));
-  const ready = queue.filter((k) => !existsSync(path(`done-${k}`)) && (stale || !existsSync(path(`label-${k}`))));
-  console.log(JSON.stringify(ready.length ? { v: 1, action: 'take', tasks: ready.map((k) => ({ key: k })) } : { v: 1, action: 'skip' }));
+  const tasks = queue.map((entry) => (typeof entry === 'string' ? { key: entry } : entry));
+  const ready = tasks.filter(({ key: k }) => !existsSync(path(`done-${k}`)) && (stale || !existsSync(path(`label-${k}`))));
+  console.log(JSON.stringify(ready.length ? { v: 1, action: 'take', tasks: ready } : { v: 1, action: 'skip' }));
 } else if (command === 'claim') {
   try {
     mkdirSync(path(`label-${key}`));

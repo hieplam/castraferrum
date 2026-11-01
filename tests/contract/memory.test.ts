@@ -44,6 +44,7 @@ describe('memory', () => {
           slot: null,
           endResult: null,
           endPr: null,
+          resumeCount: 0,
         },
         true,
       );

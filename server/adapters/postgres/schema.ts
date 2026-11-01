@@ -144,12 +144,14 @@ export const runs = pgTable(
     /** The run-end signal (spec 2.3). */
     endResult: text('end_result'),
     endPr: text('end_pr'),
+    /** How many times the run went on after a hold (spec 2.5). */
+    resumeCount: integer('resume_count').notNull().default(0),
   },
   (t) => [
     check('runs_trigger', sql`${t.trigger} IN ('start','schedule','probe')`),
     check(
       'runs_status',
-      sql`${t.status} IN ('running','succeeded','failed','cancelled','timed_out','interrupted','skipped')`,
+      sql`${t.status} IN ('running','succeeded','failed','cancelled','timed_out','interrupted','skipped','held')`,
     ),
     unique('runs_loop_iteration').on(t.loopId, t.iteration),
     // each loop has at most `max_concurrent` running runs — trigger runs_max_concurrent_per_loop (migration 0003);
@@ -158,6 +160,7 @@ export const runs = pgTable(
     index('runs_by_loop').on(t.loopId, t.startedAt.desc()),
     index('runs_by_execution').on(t.executionId, t.startedAt),
     index('runs_overdue').on(t.deadlineAt).where(sql`${t.status} = 'running'`),
+    index('runs_held').on(t.startedAt, t.id).where(sql`${t.status} = 'held'`),
   ],
 );
 
@@ -210,6 +213,25 @@ export const loopProbes = pgTable(
  * Claims (spec 2.4, decision 23): the console holds a task of a probe loop for one run. `run_id` has no foreign key, because the row is written
  * before the run row, and a row with no run counts as orphaned. At most one open row for each loop and task key.
  */
+/** A stop on a resource (spec 2.5). The name `plan-window` stops every probe loop, and any other name stops the tasks that list it. */
+export const resourceHolds = pgTable(
+  'resource_holds',
+  {
+    id: uuid('id').primaryKey(),
+    resource: text('resource').notNull(),
+    reason: text('reason').notNull(),
+    openedAt: ts('opened_at').notNull(),
+    until: ts('until'),
+    checkedAt: ts('checked_at'),
+    closedAt: ts('closed_at'),
+    // No foreign key, like `run_claims.run_id`: a probe opens a hold with no run, and a hold outlives its run.
+    openedByRunId: uuid('opened_by_run_id'),
+    /** The held run that tests a window with no known end (decision 44). */
+    trialRunId: uuid('trial_run_id'),
+  },
+  (t) => [uniqueIndex('resource_holds_one_open').on(t.resource).where(sql`${t.closedAt} IS NULL`)],
+);
+
 export const runClaims = pgTable(
   'run_claims',
   {

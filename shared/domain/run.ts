@@ -3,10 +3,10 @@
 export type LoopStatus = 'active' | 'stopped';
 export type ExecutionEndReason = 'stopped' | 'server_down';
 
-export const RUN_STATUSES = ['running', 'succeeded', 'failed', 'cancelled', 'timed_out', 'interrupted', 'skipped'] as const;
+export const RUN_STATUSES = ['running', 'succeeded', 'failed', 'cancelled', 'timed_out', 'interrupted', 'skipped', 'held'] as const;
 export type RunStatus = (typeof RUN_STATUSES)[number];
 export type RunTrigger = 'start' | 'schedule' | 'probe';
-/** Final status that `RunRepository.finish` can write (interrupted comes only from recovery, skipped only from recordSkipped). */
+/** Final status that `RunRepository.finish` can write (interrupted comes only from recovery, skipped only from recordSkipped). `held` is not final: `RunRepository.hold` writes it. */
 export type FinishStatus = 'succeeded' | 'failed' | 'cancelled' | 'timed_out';
 export type LogLevel = 'info' | 'warn' | 'error';
 

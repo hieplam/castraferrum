@@ -38,6 +38,7 @@ import type { BackgroundService, RecoveryReport } from './services/contracts';
 import { DefaultFolderService } from './services/folder-service';
 import { DefaultGateService } from './services/gate-service';
 import { DefaultHealthService } from './services/health-service';
+import { DefaultHoldService } from './services/hold-service';
 import { DefaultLiveService } from './services/live-service';
 import { DefaultLoopService } from './services/loop-service';
 import { DefaultNoticeService } from './services/notice-service';
@@ -135,11 +136,12 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
     onNew: new FanoutNotifier(opts.notifyWebhook ? [new WebhookNotifier(opts.notifyWebhook)] : []),
   });
   const active = new InMemoryActiveRuns();
-  const runService = new DefaultRunService({ ...repos, executors, active, clock, ids, events: bus });
+  const runService = new DefaultRunService({ ...repos, executors, active, clock, ids, events: bus, notifier });
   const loopService = new DefaultLoopService({ ...repos, runService, executors, clock, ids, events: bus });
   const commands = new NodeCommandRunner();
   const claimGateway = new CommandClaimGateway(commands);
-  const probeService = new DefaultProbeService({ ...repos, commands, claimGateway, runService, clock, ids });
+  const probeService = new DefaultProbeService({ ...repos, commands, claimGateway, runService, clock, ids, notifier });
+  const holdService = new DefaultHoldService({ ...repos, commands, runService, clock });
   // The gate merges only for a repository with `repo_gate.enabled`, which is false until a person turns it on.
   const gitHost = new GhGitHost({ runner: commands, ghBin: opts.ghBin ?? 'gh' });
   const gateService = new DefaultGateService({
@@ -186,7 +188,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
   }
 
   // Services that can wait on a slow command. Each has its own in-flight promise, so none of them holds back the schedule tick or another.
-  const background: BackgroundService[] = [probeService, gateService];
+  const background: BackgroundService[] = [probeService, gateService, holdService];
   let ticker: Ticker | null = null;
   let backgroundTicker: BackgroundTicker | null = null;
   let ticks = 0;

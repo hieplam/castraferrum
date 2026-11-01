@@ -106,7 +106,7 @@ export class PgRunRepository implements RunRepository {
       `UPDATE runs SET status = $2, finished_at = $3,
                        duration_ms = round(extract(epoch FROM ($3::timestamptz - started_at)) * 1000)::int,
                        summary = $4, error = $5, cost_usd = $6, end_result = $7, end_pr = $8
-        WHERE id = $1 AND status = 'running'
+        WHERE id = $1 AND status IN ('running', 'held')
     RETURNING *`,
       [
         id,
@@ -123,6 +123,29 @@ export class PgRunRepository implements RunRepository {
     const current = await this.findById(id);
     if (!current) throw new DomainError('RUN_NOT_FOUND', `No run ${id}`);
     return current;
+  }
+
+  async hold(id: string, costUsd: number | null): Promise<RunRecord | null> {
+    const { rows } = await this.#pool.query(`UPDATE runs SET status = 'held', cost_usd = coalesce($2, cost_usd) WHERE id = $1 AND status = 'running' RETURNING *`, [id, costUsd]);
+    return rows[0] ? toRun(rows[0]) : null;
+  }
+
+  async resume(id: string, deadlineAt: Date | null): Promise<RunRecord | null> {
+    const { rows } = await this.#pool.query(
+      `UPDATE runs SET status = 'running', deadline_at = $2, resume_count = resume_count + 1 WHERE id = $1 AND status = 'held' RETURNING *`,
+      [id, deadlineAt],
+    );
+    return rows[0] ? toRun(rows[0]) : null;
+  }
+
+  async listHeld(loopId: string): Promise<RunRecord[]> {
+    const { rows } = await this.#pool.query(`SELECT * FROM runs WHERE loop_id = $1 AND status = 'held' ORDER BY started_at, id`, [loopId]);
+    return rows.map(toRun);
+  }
+
+  async listAllHeld(): Promise<RunRecord[]> {
+    const { rows } = await this.#pool.query(`SELECT * FROM runs WHERE status = 'held' ORDER BY started_at, id`);
+    return rows.map(toRun);
   }
 
   async listByExecution(executionId: string): Promise<RunRecord[]> {
@@ -241,6 +264,16 @@ export class PgRunRepository implements RunRepository {
                        duration_ms = greatest(0, round(extract(epoch FROM (least($2::timestamptz, $1::timestamptz) - started_at)) * 1000))::int
         WHERE status = 'running'`,
       [now, aliveUntil],
+    );
+    return res.rowCount ?? 0;
+  }
+
+  async markHeldInterrupted(now: Date, aliveUntil: Date, keepLoopIds: string[]): Promise<number> {
+    const res = await this.#pool.query(
+      `UPDATE runs SET status = 'interrupted', finished_at = $1,
+                       duration_ms = greatest(0, round(extract(epoch FROM (least($2::timestamptz, $1::timestamptz) - started_at)) * 1000))::int
+        WHERE status = 'held' AND NOT (loop_id = ANY($3::uuid[]))`,
+      [now, aliveUntil, keepLoopIds],
     );
     return res.rowCount ?? 0;
   }

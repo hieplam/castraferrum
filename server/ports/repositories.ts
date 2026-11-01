@@ -3,6 +3,7 @@ import type { ExecutionRepository } from './execution-repository';
 import type { GateRepository } from './gate-repository';
 import type { GoalRepository } from './goal-repository';
 import type { HeartbeatRepository } from './heartbeat-repository';
+import type { HoldRepository } from './hold-repository';
 import type { LoopProbeRepository } from './loop-probe-repository';
 import type { LoopRepository } from './loop-repository';
 import type { NoticeRepository } from './notice-repository';
@@ -23,4 +24,5 @@ export type Repositories = {
   goals: GoalRepository;
   claims: ClaimRepository;
   gate: GateRepository;
+  holds: HoldRepository;
 };

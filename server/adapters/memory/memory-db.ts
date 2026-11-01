@@ -4,6 +4,7 @@ import { STANDING_GOAL_STATES, type StandingGoalRecord, type StandingIssueRecord
 import { GATE_JOB_STATES, GATE_STEPS, GATE_STEP_STATUSES, type GateJob, type GateStep, type RepoGate } from '../../../shared/domain/gate';
 import type { ClaimRecord } from '../../ports/claims';
 import type { ExecutionRecord } from '../../ports/execution-repository';
+import type { HoldRecord } from '../../ports/hold-repository';
 import type { LoopRecord } from '../../ports/loop-repository';
 import type { NoticeRecord } from '../../ports/notice-repository';
 import type { RepoRecord } from '../../ports/repo-repository';
@@ -50,6 +51,7 @@ export class MemoryDb {
   readonly logs = new Map<string, LogLine[]>();
   readonly probes = new Map<string, ProbeRecord>();
   readonly claims = new Map<string, ClaimRecord>();
+  readonly holds = new Map<string, HoldRecord>();
   readonly repoGates = new Map<string, RepoGate>();
   readonly gateJobs = new Map<string, GateJob>();
   /** Keyed by the job id and `seq`. */
@@ -69,6 +71,7 @@ export class MemoryDb {
     this.logs.clear();
     this.probes.clear();
     this.claims.clear();
+    this.holds.clear();
     this.repoGates.clear();
     this.gateJobs.clear();
     this.gateSteps.clear();
@@ -89,6 +92,7 @@ export class MemoryDb {
       logs: clone(this.logs),
       probes: clone(this.probes),
       claims: clone(this.claims),
+      holds: clone(this.holds),
       repoGates: clone(this.repoGates),
       gateJobs: clone(this.gateJobs),
       gateSteps: clone(this.gateSteps),
@@ -108,6 +112,7 @@ export class MemoryDb {
       restore(this.logs, before.logs);
       restore(this.probes, before.probes);
       restore(this.claims, before.claims);
+      restore(this.holds, before.holds);
       restore(this.repoGates, before.repoGates);
       restore(this.gateJobs, before.gateJobs);
       restore(this.gateSteps, before.gateSteps);
@@ -187,6 +192,16 @@ export class MemoryDb {
   // ------------------------------------------------------------------ run_claims
 
   /** INSERT or UPDATE: the partial unique index run_claims_one_open_per_task allows one open row for each loop and task key. */
+  /** The partial unique index: one open hold for each resource. */
+  writeHold(row: HoldRecord): void {
+    if (row.closedAt === null) {
+      for (const other of this.holds.values()) {
+        if (other.id !== row.id && other.closedAt === null && other.resource === row.resource) throw new ConstraintViolation('unique', 'resource_holds_one_open');
+      }
+    }
+    this.holds.set(row.id, clone(row));
+  }
+
   writeClaim(row: ClaimRecord): void {
     if (!this.loops.has(row.loopId)) throw new ConstraintViolation('foreign_key', 'run_claims_loop_id_loops_id_fk');
     if (row.owner !== 'run' && row.owner !== 'gate') throw new ConstraintViolation('check', 'run_claims_owner');

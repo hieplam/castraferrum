@@ -10,6 +10,7 @@ import { InMemoryActiveRuns } from '../../server/adapters/active-runs/in-memory-
 import { OffsetClock } from '../../server/adapters/clock/offset-clock';
 import { InProcessEventBus } from '../../server/adapters/events/in-process-event-bus';
 import { MockExecutor } from '../../server/adapters/executors/mock/mock-executor';
+import { StoreNotifier } from '../../server/adapters/notify/store-notifier';
 import { StaticExecutorRegistry } from '../../server/adapters/executors/static-executor-registry';
 import { RandomIdGenerator } from '../../server/adapters/ids/random-id-generator';
 import { createMemoryRepositories } from '../../server/adapters/memory';
@@ -17,6 +18,7 @@ import type { MemoryDb } from '../../server/adapters/memory/memory-db';
 import type { EventPublisher } from '../../server/ports/events';
 import type { ExecutionEvent, ExecutionInput, ExecutorDescriptor, LoopExecutor } from '../../server/ports/executor';
 import type { DomainEvent, LoopInput } from '../../server/services/contracts';
+import { DefaultHoldService } from '../../server/services/hold-service';
 import { DefaultLiveService } from '../../server/services/live-service';
 import { DefaultLoopService } from '../../server/services/loop-service';
 import { DefaultProbeService } from '../../server/services/probe-service';
@@ -60,8 +62,12 @@ export class ScriptedRun {
   session(sessionId: string): this {
     return this.#push({ type: 'session', sessionId });
   }
-  succeed(summary = 'xong'): this {
-    return this.#push({ type: 'result', outcome: 'succeeded', summary });
+  succeed(summary = 'xong', costUsd?: number): this {
+    return this.#push({ type: 'result', outcome: 'succeeded', summary, ...(costUsd === undefined ? {} : { costUsd }) });
+  }
+  /** A success with the run-end signal of spec 2.3. */
+  succeedWith(end: { result: string; pr?: string | null; resource?: string | null }): this {
+    return this.#push({ type: 'result', outcome: 'succeeded', summary: 'done', end: { result: end.result, pr: end.pr ?? null, resource: end.resource ?? null } });
   }
   fail(error = 'broken'): this {
     return this.#push({ type: 'result', outcome: 'failed', error });
@@ -69,8 +75,8 @@ export class ScriptedRun {
   throw(message = 'boom'): this {
     return this.#push({ type: 'throw', error: new Error(message) });
   }
-  usageLimit(message = "You've hit your limit", costUsd?: number): this {
-    return this.#push({ type: 'usage_limit', resetsAt: null, limitType: null, message, ...(costUsd === undefined ? {} : { costUsd }) });
+  usageLimit(message = "You've hit your limit", costUsd?: number, resetsAt: Date | null = null): this {
+    return this.#push({ type: 'usage_limit', resetsAt, limitType: null, message, ...(costUsd === undefined ? {} : { costUsd }) });
   }
   /** End the iterable without reporting a result (a badly written executor). */
   end(): this {
@@ -112,7 +118,7 @@ export class ScriptedRun {
 export class ScriptedExecutor implements LoopExecutor {
   readonly kind = 'scripted';
   readonly calls: ScriptedRun[] = [];
-  /** Emit `session` by itself right at the start (id `scripted-<n>`). */
+  /** Emit `session` by itself right at the start (id `scripted-<n>`, or the session that the input resumes). */
   autoSession = true;
   /** Simulate an executor that ignores the cancel signal. */
   ignoreSignal = false;
@@ -124,7 +130,7 @@ export class ScriptedExecutor implements LoopExecutor {
   execute(input: ExecutionInput, signal: AbortSignal): AsyncIterable<ExecutionEvent> {
     const run = new ScriptedRun(input, signal, this.ignoreSignal);
     this.calls.push(run);
-    return run.iterate(this.autoSession ? `scripted-${this.calls.length}` : null);
+    return run.iterate(this.autoSession ? (input.resumeSessionId ?? `scripted-${this.calls.length}`) : null);
   }
 
   /** The n-th run (counting from 1) the executor received. */
@@ -176,12 +182,14 @@ export function makeKit(opts: { db?: MemoryDb; clock?: OffsetClock; mock?: MockE
   const executors = new StaticExecutorRegistry([mock, scripted, claude]);
   const active = new InMemoryActiveRuns();
   const ids = new RandomIdGenerator();
-  const runService = new DefaultRunService({ ...repos, executors, active, clock, ids, events: publisher });
+  const notifier = new StoreNotifier({ notices: repos.notices, ids });
+  const runService = new DefaultRunService({ ...repos, executors, active, clock, ids, events: publisher, notifier });
   const loopService = new DefaultLoopService({ ...repos, runService, executors, clock, ids, events: publisher });
   const scheduling = new DefaultSchedulingService({ loops: repos.loops, heartbeat: repos.heartbeat, runService, clock });
   const commands = new FakeCommandRunner();
   const claimGateway = new FakeClaimGateway();
-  const probeService = new DefaultProbeService({ ...repos, commands, claimGateway, runService, clock, ids });
+  const probeService = new DefaultProbeService({ ...repos, commands, claimGateway, runService, clock, ids, notifier });
+  const holdService = new DefaultHoldService({ ...repos, commands, runService, clock });
   const recovery = new DefaultRecoveryService({ ...repos, clock });
   const live = new DefaultLiveService({ runs: repos.runs, logs: repos.logs, source: bus });
   const repoService = new DefaultRepoService({ repos: repos.repos, directories: new NodeDirectoryProbe(), clock, ids });
@@ -222,7 +230,9 @@ export function makeKit(opts: { db?: MemoryDb; clock?: OffsetClock; mock?: MockE
     scheduling,
     commands,
     claimGateway,
+    notifier,
     probeService,
+    holdService,
     recovery,
     live,
     repoService,

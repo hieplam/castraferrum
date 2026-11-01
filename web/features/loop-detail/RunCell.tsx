@@ -18,6 +18,7 @@ export const RUN_PILL: Record<RunDto['status'], readonly [PillTone, MessageKey]>
   timed_out: ['fail', 'status.timedOut'],
   cancelled: ['skip', 'status.cancelled'],
   interrupted: ['int', 'status.interrupted'],
+  held: ['int', 'status.held'],
   skipped: ['skip', 'status.skipped'],
 };
 

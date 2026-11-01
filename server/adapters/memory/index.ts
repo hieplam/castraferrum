@@ -5,6 +5,7 @@ import { MemoryExecutionRepository } from './memory-execution-repository';
 import { MemoryGateRepository } from './memory-gate-repository';
 import { MemoryGoalRepository } from './memory-goal-repository';
 import { MemoryHeartbeatRepository } from './memory-heartbeat-repository';
+import { MemoryHoldRepository } from './memory-hold-repository';
 import { MemoryLoopProbeRepository } from './memory-loop-probe-repository';
 import { MemoryLoopRepository } from './memory-loop-repository';
 import { MemoryNoticeRepository } from './memory-notice-repository';
@@ -27,5 +28,6 @@ export function createMemoryRepositories(db: MemoryDb = new MemoryDb()): Reposit
     goals: new MemoryGoalRepository(db),
     claims: new MemoryClaimRepository(db),
     gate: new MemoryGateRepository(db),
+    holds: new MemoryHoldRepository(db),
   };
 }

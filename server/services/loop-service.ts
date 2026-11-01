@@ -128,7 +128,8 @@ export class DefaultLoopService implements LoopService {
     // Close the execution FIRST (loop → stopped, no more schedule), only then cancel the runs: a tick sneaking in between cannot open a new run.
     const closed = await d.executions.close(id, 'stopped', now);
     if (!closed) throw new DomainError('LOOP_NOT_ACTIVE', `Loop ${id} is not running`);
-    for (const run of await d.runs.listActive(id)) await d.runService.cancel(run.id, 'cancelled'); // cancel every run
+    const [active, held] = await Promise.all([d.runs.listActive(id), d.runs.listHeld(id)]);
+    for (const run of [...active, ...held]) await d.runService.cancel(run.id, 'cancelled'); // cancel every run
     d.events.publish({ type: 'execution.ended', at: now, loopId: id, executionId: closed.id, reason: 'stopped' });
     d.events.publish({ type: 'loop.updated', at: now, loopId: id });
     return this.#viewOf(id);
@@ -283,7 +284,7 @@ export class DefaultLoopService implements LoopService {
       currentExecution: latest ? executionView(latest, stats) : null,
       activeRun: running.at(-1) ?? null,
       activeRuns: [...running].reverse(),
-      lastRun: recent.items.find((r) => r.status !== 'running' && r.status !== 'skipped') ?? null,
+      lastRun: recent.items.find((r) => r.status !== 'running' && r.status !== 'skipped' && r.status !== 'held') ?? null,
     };
   }
 

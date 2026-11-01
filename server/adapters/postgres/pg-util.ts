@@ -101,6 +101,7 @@ export function toRun(r: Row): RunRecord {
     slot: (r.slot as number | null) ?? null,
     endResult: (r.end_result as string | null) ?? null,
     endPr: (r.end_pr as string | null) ?? null,
+    resumeCount: r.resume_count as number,
   };
 }
 

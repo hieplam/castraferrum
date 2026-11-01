@@ -7,6 +7,7 @@ import {
   PROBE_ACTION_STATE,
   PROBE_RAW_MAX_BYTES,
   RESERVED_RESOURCE,
+  USAGE_LIMIT_END,
   type ProbeLine,
   type ProbeRecord,
   type ProbeSettings,
@@ -15,17 +16,22 @@ import {
 import type { ClaimConfig, ClaimGateway, OrphanedClaim } from '../ports/claims';
 import type { Clock } from '../ports/clock';
 import type { CommandResult, CommandRunner } from '../ports/command-runner';
+import type { HoldRecord } from '../ports/hold-repository';
 import type { IdGenerator } from '../ports/ids';
 import type { LoopRecord } from '../ports/loop-repository';
+import type { Notifier } from '../ports/notifier';
 import type { Repositories } from '../ports/repositories';
+import type { RunRecord } from '../ports/run-repository';
 import type { ProbeInput, ProbeService, ProbeTickReport, ProbeView, RunService, ValidationIssue } from './contracts';
+import { openHold } from './hold-open';
 
-export type ProbeServiceDeps = Pick<Repositories, 'claims' | 'executions' | 'loops' | 'probes' | 'repos' | 'runs'> & {
+export type ProbeServiceDeps = Pick<Repositories, 'claims' | 'executions' | 'holds' | 'loops' | 'probes' | 'repos' | 'runs'> & {
   commands: CommandRunner;
   claimGateway: ClaimGateway;
   runService: Pick<RunService, 'startClaimed'>;
   clock: Clock;
   ids: IdGenerator;
+  notifier: Notifier;
 };
 
 const PROBE_EVERY_MS = 60_000;
@@ -78,22 +84,27 @@ export class DefaultProbeService implements ProbeService {
     try {
       report.ran = true;
       await this.#releaseOrphans(now, report); // first, so that a probe sees the tasks that this tick freed
-      const probes = await this.#d.probes.list();
+      const [probes, holds] = await Promise.all([this.#d.probes.list(), this.#d.holds.listOpen()]);
       // Together, so a hung probe delays no other loop: the command runner ends each call in 30 s.
-      await Promise.all(probes.map((p) => this.#probeLoop(p, now, report)));
+      await Promise.all(probes.map((p) => this.#probeLoop(p, holds, now, report)));
       return report;
     } finally {
       this.#busy = false;
     }
   }
 
-  async #probeLoop(probe: ProbeRecord, now: Date, report: ProbeTickReport): Promise<void> {
+  async #probeLoop(probe: ProbeRecord, holds: HoldRecord[], now: Date, report: ProbeTickReport): Promise<void> {
     const d = this.#d;
     try {
       const loop = await d.loops.findById(probe.loopId);
       if (!loop || loop.status !== 'active' || loop.archivedAt) return;
+      if (holds.some((h) => h.resource === RESERVED_RESOURCE)) {
+        // Decision 44: no probe call in a closed window. The last line and the last call stay, so the first tick after the hold probes at once.
+        if (probe.state !== 'held') await d.probes.record(loop.id, { state: 'held', lastLine: probe.lastLine, at: probe.lastProbeAt ?? now });
+        return;
+      }
       if (!(await this.#isDue(probe, now))) return;
-      if ((await d.runs.listActive(loop.id)).length >= loop.maxConcurrent) return; // no free lane: the answer cannot be used
+      if ((await this.#lanesInUse(loop.id)).length >= loop.maxConcurrent) return; // no free lane: the answer cannot be used
       const repo = await d.repos.findById(loop.repoId);
       if (!repo) throw new Error(`Loop points at repo ${loop.repoId} which does not exist`);
       const result = await d.commands.run({ argv: probe.command, cwd: repo.path, timeoutMs: PROBE_TIMEOUT_MS });
@@ -102,23 +113,26 @@ export class DefaultProbeService implements ProbeService {
       await d.probes.record(loop.id, { state, lastLine, at: now });
       report.probed.push(loop.id);
       if (state === 'probe_failed') report.failed.push(loop.id);
-      if (line?.action === 'take') await this.#take(loop, probe, repo.path, line, now, report);
+      if (line?.action === 'take') await this.#take(loop, probe, repo.path, line, holds, now, report);
+      if (line?.action === 'hold') await openHold(d, { resource: line.resource!, reason: line.reason, until: dateOf(line.until), openedByRunId: null, now });
     } catch (err) {
       report.errors.push({ loopId: probe.loopId, message: err instanceof Error ? err.message : String(err) });
     }
   }
 
   /** Decision 23: `taken` goes to the next task, a refused claim closes its row, and the lanes end the list. */
-  async #take(loop: LoopRecord, probe: ProbeRecord, cwd: string, line: ProbeLine, now: Date, report: ProbeTickReport): Promise<void> {
+  async #take(loop: LoopRecord, probe: ProbeRecord, cwd: string, line: ProbeLine, holds: HoldRecord[], now: Date, report: ProbeTickReport): Promise<void> {
     const d = this.#d;
     const execution = await d.executions.findOpen(loop.id); // a Stop during the probe call leaves none
     if (!execution) return;
-    const active = await d.runs.listActive(loop.id); // read again: the probe call took time
+    const active = await this.#lanesInUse(loop.id); // read again: the probe call took time
     let lanes = loop.maxConcurrent - active.length;
     const used = active.map((r) => r.slot); // a slot taken in this tick joins the list, so two tasks of one tick never share it
     const cfg: ClaimConfig = { claim: probe.claim, release: probe.release, cwd };
+    const held = new Set(holds.map((h) => h.resource));
     for (const task of line.tasks) {
       if (lanes <= 0) return;
+      if (task.resources.some((r) => held.has(r))) continue; // a named hold stops only the tasks that list it
       const claimId = d.ids.newId();
       const runId = d.ids.newId();
       if ((await d.claims.open({ id: claimId, loopId: loop.id, taskKey: task.key, runId, at: now })) === 'taken') continue;
@@ -134,6 +148,12 @@ export class DefaultProbeService implements ProbeService {
       used.push(slot);
       lanes--;
     }
+  }
+
+  /** A held run keeps its lane and its slot, because it goes on with the same env (decision 24). */
+  async #lanesInUse(loopId: string): Promise<RunRecord[]> {
+    const [active, held] = await Promise.all([this.#d.runs.listActive(loopId), this.#d.runs.listHeld(loopId)]);
+    return [...active, ...held];
   }
 
   /** A claim ends with its run, also for a stopped loop. So this reads every open claim, not the probes that are due. */
@@ -197,12 +217,19 @@ function readResult(result: CommandResult): { state: ProbeState; lastLine: strin
 }
 
 /**
- * Decision 23. A restart, a full lane and a run that never started are not the fault of the task, and `RESOURCE_DOWN` is not either: each of them is
- * excused, so it spends no attempt.
+ * Decision 23. A restart, a full lane and a run that never started are not the fault of the task, and `RESOURCE_DOWN` and a usage limit are not either: each
+ * of them is excused, so it spends no attempt.
  */
 function releaseWhy({ runStatus, endResult }: Pick<OrphanedClaim, 'runStatus' | 'endResult'>): { reason: string; excused: boolean } {
-  const excused = runStatus === null || runStatus === 'interrupted' || runStatus === 'skipped' || endResult === 'RESOURCE_DOWN';
+  const excused = runStatus === null || runStatus === 'interrupted' || runStatus === 'skipped' || endResult === 'RESOURCE_DOWN' || endResult === USAGE_LIMIT_END;
   return { reason: `run ${runStatus ?? 'missing'}${endResult ? ` ${endResult}` : ''}`, excused };
+}
+
+/** The `until` of a probe line. Text that is not a date counts as no end. */
+function dateOf(text: string | null): Date | null {
+  if (text === null) return null;
+  const at = new Date(text);
+  return Number.isNaN(at.getTime()) ? null : at;
 }
 
 /** Defaults plus the data rules of spec 2.1: an argv has the placeholders `{key}` and `{reason}`; `plan-window` is reserved. */

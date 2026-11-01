@@ -782,6 +782,66 @@ With no handler the 2 resume tests pass, because they do not need one. The Red r
 
 <!-- P8 -->
 
+## P8
+
+**Red**, before the services were built. The test files, the kit, the fake helpers and a no-op `DefaultHoldService` were in place. The API run also had the migration, because its two controls read `resume_count`:
+
+    $ npx vitest run --project unit server/services/hold-service.test.ts
+          Tests  23 failed | 1 passed (24)
+    $ npx vitest run --project api tests/api/usage-hold.test.ts tests/api/holds.test.ts
+          Tests  4 failed | 2 passed (6)
+
+The passes are the no-probe controls.
+
+**Green**, full `npm run verify` in slot-1 on e45f9ce, one run that ended by itself:
+
+    base main: every limit held
+    ratchets: ok
+          Tests  1114 passed | 3 skipped (1117)
+          Tests  238 passed (238)
+          Tests  266 passed | 1 skipped (267)
+      123 passed (13.7m)
+    phone overflow: 0/12
+    UCs with a green e2e: 35/35
+    VERIFY EXIT 0
+
+Then main moved (R4 changed `run-service.ts`). After that rebase, on the tree of this pull request:
+
+    $ npm run typecheck                                                      exit 0
+    $ npx vitest run --project unit                                          Tests  1117 passed | 3 skipped (1120)
+    $ npx vitest run --project contract -t resource_holds                    Tests  24 passed | 214 skipped (238)
+    $ npx vitest run --project api tests/api/usage-hold.test.ts tests/api/holds.test.ts tests/api/review-profile.test.ts
+          Tests  42 passed | 1 skipped (43)
+
+The Green commands of the plan, each one alone, on e45f9ce:
+
+    $ npx vitest run --project unit server/services/hold-service.test.ts     Tests  24 passed (24)
+    $ npx vitest run --project unit server/services/run-usage-limit.test.ts  Tests  2 passed (2)
+    $ npx vitest run --project contract -t resource_holds                    Tests  24 passed | 214 skipped (238)
+    $ npx vitest run --project api tests/api/usage-hold.test.ts tests/api/holds.test.ts   Tests  6 passed (6)
+
+An earlier full run, before issue 362 was fixed, exited 1 on one test: `acceptance.iphone.spec.ts:42`, the link to the loops list did not change the URL in 5 s. All other 115 e2e tests passed. The same project then gave `2 passed (47.8s)` on the same code, and issue 362 fixed the cause in the test helper.
+
+**Stub check**, each one run on `hold-service.test.ts`, then restored:
+
+    fresh session on resume                  Tests  6 failed | 18 passed (24)
+    resume line missing                      Tests  2 failed | 22 passed (24)
+    no resume on close                       Tests  6 failed | 18 passed (24)
+    no hold test in the tick                 Tests  1 failed | 23 passed (24)
+    named hold stops nothing                 Tests  1 failed | 23 passed (24)
+    listActive only in Stop                  Tests  1 failed | 23 passed (24)
+    one row per limit                        Tests  8 failed | 16 passed (24)
+    each limit fails alone (no handler)      Tests  18 failed | 6 passed (24)
+    no trial                                 Tests  4 failed | 20 passed (24)
+    held runs hold no lane                   Tests  1 failed | 23 passed (24)
+    recovery leaves held runs                Tests  1 failed | 23 passed (24)
+    adding costs on a limit                  Tests  1 failed | 23 passed (24)
+    adding costs on a result                 Tests  1 failed | 23 passed (24)
+
+A first stub that added costs passed 24 of 24, so the cost test gained a second limit with a cost. The two lines above are from after that change.
+
+**Ratchet:** `hold-service.test.ts` +24 unit tests, `usage-hold.test.ts` and `holds.test.ts` +6 API tests, `resource_holds` +12 contract tests per side (24). `limit-failures` printed 12 runs and `blocked-runs` printed 12 runs before and after the change: decision 7, not measured yet after it.
+
 <!-- P9 -->
 
 ## P9

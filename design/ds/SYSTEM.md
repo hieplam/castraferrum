@@ -554,6 +554,7 @@ Screens put kit components together in `web/features/`. Never add a class that i
 | Loop | Stop pressed, run cancelling | `.s-run` | Stopping |
 | Run | running / succeeded / failed / timed out | `.s-run` / `.s-ok` / `.s-fail` / `.s-fail` | Running / Succeeded / Failed / Timed out |
 | Run | cancelled / interrupted / skipped | `.s-skip` / `.s-int` / `.s-skip` | Cancelled / Interrupted / Skipped |
+| Run | held for a resource | `.s-int` | Held |
 | Repo | folder is gone | `.s-warn` | Folder is gone |
 | Active period | still active / stopped by you / ended by the server | `.s-run` / `.s-stop` / `.s-int` | Still active / Stopped by you / Ended by server |
 | Loop | a person must act (probe `wait`) | `.s-warn` | Waiting for you |

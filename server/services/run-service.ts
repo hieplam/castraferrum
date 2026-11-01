@@ -1,25 +1,32 @@
 import { DomainError } from '../../shared/domain/errors';
-import { claimedLine } from '../../shared/domain/goal-loop';
+import { claimedLine, RESERVED_RESOURCE, RESUME_LINE, USAGE_LIMIT_END } from '../../shared/domain/goal-loop';
 import { parseToolProfile } from '../../shared/domain/review-guard';
 import type { LogLevel, RunTrigger } from '../../shared/domain/run';
 import type { ActiveRunRegistry } from '../ports/active-runs';
 import type { Clock } from '../ports/clock';
 import type { EventPublisher } from '../ports/events';
-import type { ExecutorRegistry, LoopExecutor } from '../ports/executor';
+import type { ExecutionEvent, ExecutorRegistry, LoopExecutor } from '../ports/executor';
 import type { IdGenerator } from '../ports/ids';
+import type { LoopRecord } from '../ports/loop-repository';
+import type { Notifier } from '../ports/notifier';
 import type { Page, PageRequest } from '../ports/page';
 import type { Repositories } from '../ports/repositories';
 import type { LogLine } from '../ports/run-log-repository';
 import type { RunOutcome, RunRecord } from '../ports/run-repository';
 import type { ClaimedStart, RunService, RunView } from './contracts';
+import { openHold } from './hold-open';
 
-export type RunServiceDeps = Pick<Repositories, 'repos' | 'loops' | 'executions' | 'runs' | 'logs'> & {
+export type RunServiceDeps = Pick<Repositories, 'repos' | 'loops' | 'executions' | 'runs' | 'logs' | 'holds'> & {
   executors: ExecutorRegistry;
   active: ActiveRunRegistry;
   clock: Clock;
   ids: IdGenerator;
   events: EventPublisher;
+  notifier: Notifier;
 };
+
+type UsageLimit = Extract<ExecutionEvent, { type: 'usage_limit' }>;
+type DriveOutcome = Omit<RunOutcome, 'finishedAt'>;
 
 const LOG_PAGE = 1000;
 
@@ -56,17 +63,34 @@ export class DefaultRunService implements RunService {
     const d = this.#d;
     const run = await d.runs.findById(runId);
     if (!run) throw new DomainError('RUN_NOT_FOUND', `No run ${runId}`);
-    if (run.status !== 'running') return run;
-    d.active.abort(runId, reason); // false = the run is not running in this process → only the DB needs writing
+    if (run.status !== 'running' && run.status !== 'held') return run;
+    d.active.abort(runId, reason); // false = no process of this run in this process (a held run has none) → only the DB needs writing
     const message =
-      reason === 'cancelled' ? 'Cancelled (Stop)' : `Timed out (${timeoutSecOf(run)} seconds) - cancelled`;
+      reason === 'cancelled' ? 'Cancelled (Stop)' : `Timed out (${await this.#timeoutSec(run)} seconds) - cancelled`;
     await this.#log(run, 'warn', message);
     const done = await this.#finish(run, {
       status: reason,
       finishedAt: d.clock.now(),
       error: reason === 'timed_out' ? message : null,
+      costUsd: run.costUsd, // `finish` replaces the cost, so a run that was held must pass its stored cost (decision 28)
     });
     return done ?? (await this.get(runId));
+  }
+
+  async resumeHeld(runId: string, { env }: { env: Record<string, string> }): Promise<RunView> {
+    const d = this.#d;
+    const held = await this.get(runId);
+    if (held.status !== 'held' || !held.sessionId) return held;
+    // Each read comes before `resume`: a missing dependency throws here, and the run stays held for the next tick.
+    const loop = await d.loops.findById(held.loopId);
+    if (!loop) throw new DomainError('LOOP_NOT_FOUND', `No loop ${held.loopId}`);
+    const repo = await d.repos.findById(loop.repoId);
+    if (!repo) throw new Error(`Loop ${loop.id} points at repo ${loop.repoId} which does not exist (the foreign key should prevent this)`);
+    const now = d.clock.now();
+    const run = await d.runs.resume(runId, deadlineOf(loop, now));
+    if (!run) return this.get(runId); // a Stop came first
+    d.events.publish({ type: 'loop.updated', at: now, loopId: run.loopId });
+    return this.#launch(run, repo.path, env, held.sessionId);
   }
 
   async expireOverdue(): Promise<number> {
@@ -136,7 +160,7 @@ export class DefaultRunService implements RunService {
       scheduledFor,
       startedAt: now,
       // Unlimited → no deadline: expireOverdue never picks this run (UC-24).
-      deadlineAt: loop.timeoutSec === null ? null : new Date(now.getTime() + loop.timeoutSec * 1000),
+      deadlineAt: deadlineOf(loop, now),
       taskKey,
       slot: claim?.slot ?? null,
       ...snapshot,
@@ -149,14 +173,20 @@ export class DefaultRunService implements RunService {
       return skipped;
     }
     const run = res.run;
+    d.events.publish({ type: 'run.started', at: now, loopId, executionId, runId: run.id, iteration: run.iteration ?? 0 });
+    return this.#launch(run, repo.path, claim?.env);
+  }
+
+  /** From a `running` row to a run in the background. `#begin` and `resumeHeld` share it, so a Stop reaches a resumed run like a new one. */
+  async #launch(run: RunRecord, cwd: string, env?: Record<string, string>, resumeSessionId?: string): Promise<RunView> {
+    const d = this.#d;
     // Register BEFORE any further await: a Stop sneaking in right now can still cancel the run.
     const controller = new AbortController();
     d.active.register(run.id, controller);
-    d.events.publish({ type: 'run.started', at: now, loopId, executionId, runId: run.id, iteration: run.iteration ?? 0 });
 
     // The execution was closed between the tick picking up the due loop and the run starting (a Stop sneaked in) → cancel at once.
-    const open = await d.executions.findOpen(loopId);
-    if (open?.id !== executionId) {
+    const open = await d.executions.findOpen(run.loopId);
+    if (open?.id !== run.executionId) {
       const done = await this.cancel(run.id, 'cancelled');
       d.active.release(run.id);
       return done;
@@ -170,16 +200,16 @@ export class DefaultRunService implements RunService {
       d.active.release(run.id);
       const error = `No such executor "${run.executorKind}"`;
       await this.#log(run, 'error', error);
-      return (await this.#finish(run, { status: 'failed', finishedAt: d.clock.now(), error })) ?? this.get(run.id);
+      return (await this.#finish(run, { status: 'failed', finishedAt: d.clock.now(), error, costUsd: run.costUsd })) ?? this.get(run.id);
     }
-    const profile = parseToolProfile(claim?.env.CASTRAFERRUM_TOOL_PROFILE);
+    const profile = parseToolProfile(env?.CASTRAFERRUM_TOOL_PROFILE); // from the env, so a resume keeps the profile of the run
     if (profile === null) {
       d.active.release(run.id);
-      const error = `Unknown tool profile "${claim?.env.CASTRAFERRUM_TOOL_PROFILE}"`;
+      const error = `Unknown tool profile "${env?.CASTRAFERRUM_TOOL_PROFILE}"`;
       await this.#log(run, 'error', error);
-      return (await this.#finish(run, { status: 'failed', finishedAt: d.clock.now(), error })) ?? this.get(run.id);
+      return (await this.#finish(run, { status: 'failed', finishedAt: d.clock.now(), error, costUsd: run.costUsd })) ?? this.get(run.id);
     }
-    const p = this.#drive(run, executor, controller, repo.path, claim?.env, profile)
+    const p = this.#drive(run, executor, controller, cwd, env, resumeSessionId, profile)
       .catch(() => {
         // DB broke mid-run: the run left `running` will be cancelled by expireOverdue at the deadline, or by recovery at startup.
       })
@@ -188,10 +218,13 @@ export class DefaultRunService implements RunService {
     return run;
   }
 
-  async #drive(run: RunRecord, executor: LoopExecutor, controller: AbortController, cwd: string, env?: Record<string, string>, profile: 'full' | 'review' = 'full'): Promise<void> {
+  async #drive(run: RunRecord, executor: LoopExecutor, controller: AbortController, cwd: string, env?: Record<string, string>, resumeSessionId?: string, profile: 'full' | 'review' = 'full'): Promise<void> {
     const d = this.#d;
     const signal = controller.signal;
-    let outcome: Omit<RunOutcome, 'finishedAt'> | null = null;
+    let outcome: DriveOutcome | null = null;
+    let limit: UsageLimit | null = null;
+    let resourceDown: string | null = null;
+    let sessionId = run.sessionId;
     let thrown: string | null = null;
     try {
       const input = {
@@ -199,29 +232,33 @@ export class DefaultRunService implements RunService {
         loopId: run.loopId,
         executionId: run.executionId,
         iteration: run.iteration ?? 0,
-        prompt: run.promptSnapshot,
+        prompt: resumeSessionId ? RESUME_LINE : run.promptSnapshot,
         config: run.executorConfig,
         cwd,
         ...(env ? { env } : {}),
+        ...(resumeSessionId ? { resumeSessionId } : {}),
         ...(profile === 'review' ? { toolProfile: profile } : {}),
       };
       for await (const ev of executor.execute(input, signal)) {
         if (signal.aborted) break; // already cancelled: the result is in the DB, drop the rest
-        if (ev.type === 'session') await d.runs.setSession(run.id, ev.sessionId);
-        else if (ev.type === 'log') await this.#log(run, ev.level, ev.message, ev.data);
+        if (ev.type === 'session') {
+          sessionId = ev.sessionId;
+          await d.runs.setSession(run.id, ev.sessionId);
+        } else if (ev.type === 'log') await this.#log(run, ev.level, ev.message, ev.data);
         else if (ev.type === 'usage_limit') {
-          // Every loop fails here for now: P8 adds `held`. The executor already wrote the `Error · ` line.
-          outcome = { status: 'failed', summary: null, error: ev.message, costUsd: ev.costUsd ?? null };
+          limit = ev; // the executor already wrote the `Error · ` line
           break; // `usage_limit` is the last event
         } else {
+          const costUsd = ev.costUsd ?? run.costUsd; // a cost replaces the stored one, and a resumed run with no cost keeps it (decision 28)
           outcome =
             ev.outcome === 'succeeded'
-              ? { status: 'succeeded', summary: ev.summary ?? null, costUsd: ev.costUsd ?? null, endResult: ev.end?.result ?? null, endPr: ev.end?.pr ?? null }
-              : { status: 'failed', summary: ev.summary ?? null, error: ev.error ?? 'Unknown error', costUsd: ev.costUsd ?? null };
+              ? { status: 'succeeded', summary: ev.summary ?? null, costUsd, endResult: ev.end?.result ?? null, endPr: ev.end?.pr ?? null }
+              : { status: 'failed', summary: ev.summary ?? null, error: ev.error ?? 'Unknown error', costUsd };
+          if (ev.end?.result === 'RESOURCE_DOWN') resourceDown = ev.end.resource;
           break; // `result` is the last event
         }
       }
-      if (!signal.aborted && !outcome) thrown = 'The executor ended without reporting a result';
+      if (!signal.aborted && !outcome && !limit) thrown = 'The executor ended without reporting a result';
     } catch (err) {
       if (!signal.aborted) thrown = err instanceof Error ? err.message : String(err);
     } finally {
@@ -230,9 +267,30 @@ export class DefaultRunService implements RunService {
     if (signal.aborted) return;
     if (thrown !== null) {
       await this.#log(run, 'error', thrown);
-      outcome = { status: 'failed', error: thrown };
+      outcome = { status: 'failed', error: thrown, costUsd: run.costUsd };
+    }
+    if (limit) outcome = await this.#onLimit(run, limit, sessionId);
+    if (resourceDown && run.trigger === 'probe') {
+      const now = d.clock.now();
+      await openHold(d, { resource: resourceDown, reason: `${resourceDown} is down`, until: null, openedByRunId: run.id, now });
     }
     if (outcome) await this.#finish(run, { ...outcome, finishedAt: d.clock.now() });
+  }
+
+  /**
+   * Decision 43. A loop with no probe fails as it always did (epic decision 4). A probe run opens `plan-window` first, so no tick can see a held run with no
+   * hold. With a session the run waits for the reset. `null` tells `#drive` that the run has no result to write yet, so it writes no `run.finished`.
+   */
+  async #onLimit(run: RunRecord, limit: UsageLimit, sessionId: string | null): Promise<DriveOutcome | null> {
+    const d = this.#d;
+    const failed: DriveOutcome = { status: 'failed', summary: null, error: limit.message, costUsd: limit.costUsd ?? run.costUsd };
+    if (run.trigger !== 'probe') return failed;
+    const now = d.clock.now();
+    await openHold(d, { resource: RESERVED_RESOURCE, reason: limit.message, until: limit.resetsAt, openedByRunId: run.id, now });
+    if (!sessionId) return { ...failed, endResult: USAGE_LIMIT_END };
+    await d.runs.hold(run.id, limit.costUsd ?? null);
+    d.events.publish({ type: 'loop.updated', at: now, loopId: run.loopId });
+    return null;
   }
 
   /** Record the result; only the place that really changed the run (DB: first one wins) emits `run.finished`. */
@@ -257,6 +315,12 @@ export class DefaultRunService implements RunService {
     }
   }
 
+  /** A resumed run has a later deadline than its start plus the limit, so the loop gives the limit. */
+  async #timeoutSec(run: RunRecord): Promise<number> {
+    if (run.resumeCount === 0) return timeoutSecOf(run);
+    return (await this.#d.loops.findById(run.loopId))?.timeoutSec ?? timeoutSecOf(run);
+  }
+
   async #log(run: RunRecord, level: LogLevel, message: string, data?: unknown): Promise<void> {
     const at = this.#d.clock.now();
     const [line] = await this.#d.logs.append(run.id, [{ at, level, message, data }]);
@@ -272,4 +336,9 @@ export function skipReasonOf(active: RunRecord[], limit: number): string {
 
 function timeoutSecOf(run: RunRecord): number {
   return run.deadlineAt ? Math.round((run.deadlineAt.getTime() - run.startedAt.getTime()) / 1000) : 0;
+}
+
+/** Unlimited → no deadline: expireOverdue never picks this run (UC-24). */
+function deadlineOf(loop: LoopRecord, now: Date): Date | null {
+  return loop.timeoutSec === null ? null : new Date(now.getTime() + loop.timeoutSec * 1000);
 }
