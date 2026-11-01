@@ -1,0 +1,44 @@
+{
+  "v": 1,
+  "files": [
+    "CLAUDE.md",
+    "CONTRIBUTING.md"
+  ],
+  "unchecked": [
+    {
+      "file": "CLAUDE.md",
+      "id": "bd68cd94a1d3",
+      "preview": "**Everything that lands in this repository is English**: file contents, file and"
+    },
+    {
+      "file": "CLAUDE.md",
+      "id": "b8ee001c637e",
+      "preview": "If the system has no component, state or rule for what the change needs, do not "
+    },
+    {
+      "file": "CLAUDE.md",
+      "id": "cbfbd906b768",
+      "preview": "Every change goes through a branch and a pull request; never commit directly to "
+    },
+    {
+      "file": "CONTRIBUTING.md",
+      "id": "5283e63eda0f",
+      "preview": "Work on a branch, one concern per branch; do not commit to `main`."
+    },
+    {
+      "file": "CONTRIBUTING.md",
+      "id": "bebc2675e1c6",
+      "preview": "Never lower a test count (unit, contract, API, e2e) or `uc-coverage` (32/32). A "
+    },
+    {
+      "file": "CONTRIBUTING.md",
+      "id": "25c468a9cf79",
+      "preview": "Never run `docker compose down -v` or remove the volume `loop_console_pg`: it ho"
+    },
+    {
+      "file": "CONTRIBUTING.md",
+      "id": "e10b825cec4d",
+      "preview": "Do not run `docker compose up` from a second checkout against a running console:"
+    }
+  ]
+}

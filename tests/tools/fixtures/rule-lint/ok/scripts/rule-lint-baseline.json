@@ -1,0 +1,18 @@
+{
+  "v": 1,
+  "files": [
+    "CLAUDE.md"
+  ],
+  "unchecked": [
+    {
+      "file": "CLAUDE.md",
+      "id": "bd0990bc2f8d",
+      "preview": "Always keep the pull request short."
+    },
+    {
+      "file": "CLAUDE.md",
+      "id": "5eaa984e6903",
+      "preview": "We never ship on a Friday afternoon."
+    }
+  ]
+}
