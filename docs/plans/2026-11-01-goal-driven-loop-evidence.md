@@ -1327,8 +1327,7 @@ Stub check, all run and restored:
 
 Ratchet: `npx vitest list --project api | wc -l` 142 to 150 (each `it.each` is one line, so it counts +8; `vitest run` counts 37 tests in the file). Unit tests 855 to 858 (up 3). Up only.
 
-Full verify: every step to `test:api` and `build` green; unit 1060 passed, contract 206, api 267. In `test:e2e`, one test failed in the first run (`acceptance.iphone.spec.ts` G9, step `loops-vietnamese`, URL stayed on `/settings`). A second run of that spec alone gave `2 passed`. The last two steps (`phone:check`, `uc-coverage`) ran apart, see the PR.
-
+Full verify (after the last rebase, on the code of this PR, `slot-1`, own mkdir): `npm run verify` exits 0. Unit `1074 passed | 3 skipped`, contract `210 passed`, api `286 passed | 2 skipped`, Playwright `120 passed`, `UCs with a green e2e: 34/34`. An earlier run, before the rebase on the iPhone fix, failed one iPhone journey step (URL stayed on `/settings`); that run is not counted.
 
 <!-- R5 -->
 
