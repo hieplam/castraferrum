@@ -130,15 +130,3 @@ A task adds its section directly under its own anchor line, so that parallel lan
 
 <!-- Z2 -->
 
-<!-- S1 -->
-
-<!-- S2 -->
-
-<!-- S3 -->
-
-<!-- S4 -->
-
-<!-- S5 -->
-
-<!-- S6 -->
-
