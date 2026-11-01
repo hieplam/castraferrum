@@ -1,0 +1,10 @@
+{
+  "clusters": [
+    {
+      "id": "stolen-row",
+      "cause": "A group that takes a row which a rule already holds.",
+      "ids": ["e06", "e08"],
+      "check": { "kind": "test", "name": "none.test.ts", "replay": "npx vitest run none.test.ts" }
+    }
+  ]
+}

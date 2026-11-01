@@ -1,0 +1,10 @@
+{
+  "clusters": [
+    {
+      "id": "invented-evidence",
+      "cause": "A group that names a row which does not exist.",
+      "ids": ["e06", "e99"],
+      "check": { "kind": "test", "name": "none.test.ts", "replay": "npx vitest run none.test.ts" }
+    }
+  ]
+}

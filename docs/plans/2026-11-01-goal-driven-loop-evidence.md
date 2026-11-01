@@ -982,6 +982,40 @@ Ratchet: tests in `process-file-issues.test.ts`, 0 before, 15 after (the plan sa
 
 <!-- R5 -->
 
+## R5
+
+Red, before the script existed:
+```
+$ npx vitest run --project unit tests/tools/process-review.test.ts
+ Test Files  1 failed (1)
+      Tests  12 failed (12)
+$ node --import tsx scripts/process-review.mjs first-pass --real
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '<worktree>/scripts/process-review.mjs'
+```
+Green, after the rebase on f851d05:
+```
+$ npx vitest run --project unit tests/tools/process-review.test.ts
+ Test Files  1 passed (1)
+      Tests  12 passed (12)
+$ node --import tsx scripts/process-review.mjs first-pass --real
+real usage-limit 12
+real smart-app-control 14
+real rest 201
+exit 0
+```
+The real command ran one time, read-only, with the default window (rows before 2026-10-23T00:00:00Z). The three counts add up to the 227 rows of that window. No row text left memory.
+
+Stub check, on the fixture, each one restored after the run:
+- An empty `rules.json` gives `Tests  7 failed | 5 passed (12)`. Tests 1 and 2 are in the 7.
+- A rule for `weekly` only fails test 1: `expected [ 'e08', 'e09', 'e10' ] to have a length of 12 but got 3`.
+- A script that puts every event in `rest` gives `Tests  8 failed | 4 passed (12)`. Test 3 is in the 8.
+
+The plan's "the real command prints `0`" was run on synthetic rows in the lane database, because the real database gets one run: a rule that matches nothing prints `real usage-limit 0`, `real rest 4`. An empty rules list prints only `real rest 4`.
+
+Limits: the rules were written after the answer was known, so they prove that known causes are filed, not that the review finds a new cause. R6 must prove the new-cause path (decision 21). The 14 Smart App Control rows are the rows that the same text match finds (S5). The 4 other rows of the S5 cluster are not judged.
+
+Ratchet: the largest usage-limit cluster on the real rows, 9 (S5, model) to 12. The largest Smart App Control cluster, 8 to 14. Tests in `process-review.test.ts`, 0 to 12. S5 grade on the real rows, `none` to `both` (issue 267).
+
 <!-- R6 -->
 
 <!-- R7 -->

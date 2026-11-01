@@ -1,0 +1,19 @@
+{
+  "v": 1,
+  "rules": [
+    {
+      "id": "usage-limit",
+      "cause": "The Claude usage limit stopped the run.",
+      "pattern": "^you['’]ve hit your\\b",
+      "flags": "im",
+      "check": { "kind": "test", "name": "usage-hold.test.ts", "replay": "npx vitest run usage-hold.test.ts" }
+    },
+    {
+      "id": "smart-app-control",
+      "cause": "Windows Smart App Control blocked an unsigned binary.",
+      "pattern": "smart\\s+app\\s+control",
+      "flags": "i",
+      "check": { "kind": "test", "name": "holds.test.ts", "replay": "npx vitest run holds.test.ts" }
+    }
+  ]
+}
