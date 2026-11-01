@@ -194,6 +194,42 @@ Consequence for the design of K8: a `PreToolUse` hook is a working block for `gh
 
 <!-- S4 -->
 
+## S4
+
+Commands: a Node script in the temporary folder `lc-real-claude-s4` imported the SDK 0.3.303 from `<main checkout>/node_modules` (read-only, through the environment variable `SDK`). Model `haiku`, effort `low`, `tools: []`, `GH_TOKEN=invalid`, `maxBudgetUsd` 0.05. The script ran two times (two runs of the same script, so two samples).
+
+Part 1: `query()` with an input stream that never sends a message. The script calls `usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET({ skipBehaviors: true })` and counts `assistant` messages in the output stream.
+
+Part 2: `query()` with the prompt `Say ok.`. The script walks every message and records each path that ends in `utilization`.
+
+Literal output, run 1:
+
+```
+usage-call ok model-turns 0 total_cost_usd 0 rate_limits_available true rate_limits keys [ ... 'limits', 'spend', ... ] util paths [ 'five_hour.utilization', 'seven_day.utilization', 'iguana_necktie.utilization', 'extra_usage.utilization', 'model_scoped.0.utilization' ]
+run cost 0.00194532 utilization at [ 'rate_limit_event:rate_limit_info.unifiedWindows.five_hour.utilization,rate_limit_info.unifiedWindows.seven_day.utilization' ]
+```
+
+Literal output, run 2 (only the two lines that matter):
+
+```
+usage-call ok model-turns 0 total_cost_usd 0 rate_limits_available true rate_limits keys [
+run cost 0.00039216 utilization at []
+```
+
+Reading: the usage call works with no user message and costs nothing (0 model turns, session cost 0). The plan window is in `rate_limits.five_hour.utilization` and `rate_limits.seven_day.utilization` (percent, 0 to 100). A normal run carries `utilization` only in the `rate_limit_event` message, at `rate_limit_info.unifiedWindows.<window>.utilization`, never at the top level of `rate_limit_info`. This matches the S1 finding. In run 2 the normal run carried no `utilization` at all, so a normal run does not always carry it. The rank rule must not depend on it; it can use the usage call instead.
+
+Answer lines:
+
+S4 usage-call-works: yes
+S4 model-turns: 0
+S4 rate-limits-available: yes
+S4 run-carries-utilization: yes
+S4 spend-usd: 0.01
+
+Where the utilization was found: inside `rate_limit_info.unifiedWindows` of a `rate_limit_event` (run 1 only), not at the top level.
+
+Ratchet, answer lines for S4: 0 before, 5 after. Stub check: with the section removed the Green count is 0 (the count printed 0 before this section). `model-turns` is 0, so the fallback of spec section 4 is not needed.
+
 <!-- S5 -->
 
 <!-- S6 -->
