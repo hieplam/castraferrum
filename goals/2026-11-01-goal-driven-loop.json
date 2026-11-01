@@ -42,7 +42,7 @@
       "outcome": "A usage limit pauses a run, and it continues with no person",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/usage-hold.test.ts",
+          "run": "npx vitest run --project api tests/api/usage-hold.test.ts --reporter verbose",
           "expect": [
             "usage-hold",
             "passed"
@@ -61,7 +61,7 @@
       "outcome": "A claim never outlives its run",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/claims.test.ts",
+          "run": "npx vitest run --project api tests/api/claims.test.ts --reporter verbose",
           "expect": [
             "claims",
             "passed"
@@ -183,7 +183,7 @@
       "outcome": "A regression gives one issue, and a repeat gives no second issue",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/standing-goals.test.ts",
+          "run": "npx vitest run --project api tests/api/standing-goals.test.ts --reporter verbose",
           "expect": [
             "standing-goals",
             "passed"
@@ -209,7 +209,7 @@
       "outcome": "A cause stops after its check merges",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/scoreboard.test.ts",
+          "run": "npx vitest run --project api tests/api/scoreboard.test.ts --reporter verbose",
           "expect": [
             "scoreboard",
             "passed"
@@ -314,7 +314,7 @@
       "outcome": "One root cause gives one hold and one push",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/holds.test.ts",
+          "run": "npx vitest run --project api tests/api/holds.test.ts --reporter verbose",
           "expect": [
             "holds",
             "passed"
@@ -327,7 +327,7 @@
       "outcome": "Each lane has its own number, database and port",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/lanes.test.ts",
+          "run": "npx vitest run --project api tests/api/lanes.test.ts --reporter verbose",
           "expect": [
             "lanes",
             "passed"
@@ -340,7 +340,7 @@
       "outcome": "Failing rows write the next tasks",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/plan-action.test.ts",
+          "run": "npx vitest run --project api tests/api/plan-action.test.ts --reporter verbose",
           "expect": [
             "plan-action",
             "passed"
@@ -373,7 +373,7 @@
       "outcome": "A run cannot merge",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/merge-guard.test.ts",
+          "run": "npx vitest run --project api tests/api/merge-guard.test.ts --reporter verbose",
           "expect": [
             "merge-guard",
             "passed"
