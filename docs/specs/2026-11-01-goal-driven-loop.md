@@ -167,6 +167,8 @@ Stub run: restore each changed file outside `testGlobs` to the base commit, and 
 
 `scripts/process-file-issues.mjs <file>`, no model, opens one issue per cluster with 2 or more events, by 2.11. Inputs: `GET /api/process/events?from&to` (`runs`, `gate_steps`), `loop-release:` and `loop-found:` comments.
 
+The review file is built in two steps (decision 21). `scripts/process-review.mjs first-pass` applies the rules of `scripts/process-review/rules.json` (`id`, `cause`, `pattern`, `flags`, `check`) to the event `text`, and the first rule that matches takes the event. The model groups only the rows that no rule took. `assemble` then sets `events`, `runIds`, `firstAt`, `lastAt` and `fingerprint` (2.11) of every cluster. The model writes none of them.
+
 ### 2.13 Charter, card
 
 `goals/charter.json`: `{"v":1,"purpose":"...","mayStartAlone":["..."],"neverAlone":["..."],"refusalWindow":{"enabled":false,"hours":8},"acceptedWithNoChange":0}`. `neverAlone`: the list of issue 216, plus "deleting a feature".
@@ -251,10 +253,10 @@ Each task is one PR. A star: it can start at once. Column ap: blank is cf. Needs
 | R2 | /api/process/events, fixture | | G14 | S5 | http, tests | s |
 | R3 | process-file-issues, review-due | | G14 | F2 | scripts | s |
 | R4 | Tool profile review | | G14 | K8 | executor | s |
-| R5 | Skill: process review | ap | G14 | S5 | skill | o: prompt |
-| R6 | Replay oracle, real and recorded | | G14 | R2-R5 | tests/api | o: model output |
+| R5 | Process review: first-pass rules, fingerprints, prompt | | G14 | S5, T4 | scripts | o: prompt |
+| R6 | Replay oracle, real and recorded. It must prove the new-cause path (decision 21): on the real rows that no rule took, a real model run names at least one repeated cause that no rule holds | | G14 | R2-R5 | tests/api | o: model output |
 | R7 | Eval gate for tick.md, drive.md | ap | G17 | S6 | scripts/evals | s |
-| R8 | Gate refusals as an input | | G14 | K5, R2 | http | s |
+| R8 | Gate refusals and the `loop-release:` and `loop-found:` comments as an input | | G14 | K5, R2 | http | s |
 | R9 | Scoreboard API, page | | G15 | D2, R8 | http, web | s |
 | W1 | Charter, card, GoalCardService | | G19, G20 | K11, T5 | services | o: door rules |
 | W2 | goal-writer-probe.mjs | | G18 | W1 | scripts | s |
@@ -315,6 +317,7 @@ Pages open from a `.cell.is-link`. The tab bar stays.
 18. `package.json` is outside `guarded`, with its own rule in 2.9. The gate runs `verify` from the PR, so `scripts` is part of the bar, but a dependency bump is not.
 19. `CASTRAFERRUM_GATE=1` tells a run that the gate is on. The prompt line of 2.7 is fixed, and a file on `main` cannot say it, because `repo_gate` is a console setting.
 20. Amendment of issue 251, under the standing rule "extend inside the rules and record it": the list of 2.9 missed files that `verify` and `npm ci` reach. `guarded` gains `scripts/install-webkit.mjs`, `vite.config.ts`, `.npmrc` and the three `tests/support` files that `phone:check` imports (`server-process.ts`, `test-repo.ts`, `tcp-proxy.ts`). The directory `tests/support/` stays unguarded, because task PRs add files there. `gate-data.test.ts` no longer exempts reached test files, and it checks `postinstall` and `prepare`. `server/config.ts`, which `server-process.ts` imports, stays unguarded: it is product code that `verify` exercises.
+21. Issue 267: the first pass of the review is a program, not a model. S5 showed that no model meets the grade: each try split the 12 usage-limit rows into `weekly` (3) and `session` (9), and on the real rows the Smart App Control cluster held 8 of 14. The fallback of section 4 does not fix this, because `normalized` of 2.11 keeps both words. So a list of rules in the data file `scripts/process-review/rules.json` runs first. Rule `usage-limit` takes both limit forms into one cluster. Rule `smart-app-control` takes every row that names Smart App Control. The model groups the rest. A later review adds a rule in a normal pull request, because the folder is outside `guarded`. R5 builds this and closes issue 267. This replaces the fallback of section 4 for S5, and it extends decision 11. The rules were written after the answer was known, so they prove that known causes are filed, not that the review finds a new cause. So R6 must prove the new-cause path: on the real rows that no rule took, a real model run names at least one repeated cause that no rule holds.
 
 **`docs/ARCHITECTURE.md`.** P4: services, ports, tables. P8: line 448 (no pause or resume) becomes "a hold pauses runs for a resource". P11: lines 447 and 231 (stop every loop on restart) become a per-loop `restartPolicy`, default `stop`.
 
