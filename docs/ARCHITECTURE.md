@@ -19,7 +19,7 @@ flowchart TB
     T["scheduler/ - 1 second ticker"] --> S
     S["services/ - Loop, Run, Scheduling, Recovery, Live, Transcript"] --> PO
     PO["ports/ - interfaces: repositories, executor, clock, event bus, id, transcript source, folder browser"]
-    AD["adapters/ - Postgres, executors, clock, in-process bus, filesystem, transcripts"] -. implements .-> PO
+    AD["adapters/ - Postgres, executors, clock, in-process bus, filesystem, process, transcripts"] -. implements .-> PO
     M["main.ts + compose.ts - composition root, the only place that wires interfaces to implementations"]
   end
   AD --> PG[("PostgreSQL - Docker")]
@@ -61,7 +61,7 @@ TypeScript 7 does not ship.
 | `shared/i18n/` | UI texts | itself | everything else |
 | `server/ports/` | interfaces a service needs: repositories, executor, clock, event bus, id, active-run registry, DB probe, transcript source, folder browser | `shared/domain` | services, http, adapters, other libraries |
 | `server/services/` | use cases; every service is an interface plus a `Default...` class | `shared/domain`, `server/ports` | http, scheduler, adapters, `fastify`, `drizzle-orm`, `pg`, Node modules (go through a port) |
-| `server/adapters/` | implementations of the ports: `postgres/`, `memory/` (test double), `executors/` (`claude/` is the only place that imports the Agent SDK), `fs/`, `transcripts/claude-jsonl/`, clock, event bus, ids, active runs | ports, shared, libraries | services, http |
+| `server/adapters/` | implementations of the ports: `postgres/`, `memory/` (test double), `executors/` (`claude/` is the only place that imports the Agent SDK), `fs/`, `process/` (runs a command with no shell), `transcripts/claude-jsonl/`, clock, event bus, ids, active runs | ports, shared, libraries | services, http |
 | `server/http/`, `server/scheduler/` | entry layer: take a request or a tick, call a service through its interface, map domain to DTO and errors to HTTP codes | `shared/*`, interfaces in `server/services/contracts.ts` | adapters, ports, `Default...` classes |
 | `server/main.ts`, `compose.ts`, `config.ts` | composition root and process (port, signals); environment | everything except `web/` | nobody imports `main.ts` |
 
