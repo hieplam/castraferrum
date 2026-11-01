@@ -33,6 +33,8 @@ export function pageKindOf(loop: LoopDetailDto, stopping: boolean, probe?: { sta
   return loop.currentExecution?.endReason === 'server_down' ? 'server_down' : 'stopped';
 }
 
+const MARK_CLASS = { ok: 'dot d-ok', fail: 'dot d-fail', warn: 'dot d-warn' } as const;
+
 function LiveOutput({ run, tz, now, offline }: { run: RunDto; tz: string; now: Date; offline: boolean }) {
   const t = useT();
   const logs = useRunLogs(run.id);
@@ -163,7 +165,7 @@ export function NowCard({ loop, kind, now, offline, probe }: { loop: LoopDetailD
   return (
     <div className="card" data-testid="now-card" data-state={state}>
       <div className="now">
-        {mark === 'pulse' ? <span className="pulse" /> : mark ? <span className={`dot d-${mark}`} /> : null}
+        {mark === 'pulse' ? <span className="pulse" /> : mark ? <span className={MARK_CLASS[mark]} /> : null}
         <div className="now-text">
           <b>{head}</b>
           {sub}
