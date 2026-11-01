@@ -66,6 +66,21 @@ Ratchet, metrics with a committed baseline: 0 before, 16 after (`baseline: 16 me
 
 <!-- F2 -->
 
+## F2
+
+Red: `npx vitest run --project unit tests/tools/fake-gh.test.ts`
+```
+ Test Files  1 failed (1)
+      Tests  no tests
+```
+Green: same command
+```
+ Test Files  1 passed (1)
+      Tests  10 passed (10)
+```
+Stub check: empty `fake-gh.mjs` gives `Tests  10 failed (10)`; deleted `fake-gh.mjs` gives `Tests  10 failed (10)`.
+Ratchet (`npm run test:unit`, Tests passed): 532 before, 542 after (one run showed 541 plus a load timeout of `arch-fixtures`, filed as issue 254).
+
 <!-- S1 -->
 
 <!-- S2 -->
