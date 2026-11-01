@@ -42,6 +42,9 @@ export class GitHostError extends Error {
   }
 }
 
+/** One issue comment that starts with `loop-release:`. `id` is the id of the comment on the host. */
+export type LoopComment = { issue: number; id: string; at: Date; body: string };
+
 export interface GitHost {
   pullRequest(repo: string, number: number): Promise<PullRequest>;
   /** Sets the commit status `castraferrum/gate` on `sha`. */
@@ -58,4 +61,9 @@ export interface GitHost {
   searchIssues(repo: string, query: string): Promise<IssueHit[]>;
   closeIssue(repo: string, number: number): Promise<void>;
   editIssueBody(repo: string, number: number, body: string): Promise<void>;
+  /**
+   * The comments that start with `loop-release:`, on the issues updated on or after the day of `since`. Throws a `GitHostError` when the
+   * host gives 1000 issues, because the list can be cut off.
+   */
+  loopComments(repo: string, since: Date): Promise<LoopComment[]>;
 }

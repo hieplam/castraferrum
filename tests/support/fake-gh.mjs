@@ -6,8 +6,10 @@
 //   issue create --title --body|--body-file [--label]...      prints https://github.com/fake/repo/issues/<n>
 //       as the real gh does, a label that is not in `world.labels` is refused: `could not add label: '<name>' not found`, exit 1
 //   label create <name> [--force]      adds <name> to `world.labels`; with no --force, an existing label is refused (exit 1)
-//   issue list [--state open|closed|all] [--search] [--label]... --json <fields>
-//       search = substring of title or body (case-insensitive); `in:body` and quotes are stripped
+//   issue list [--state open|closed|all] [--search] [--label]... [--limit <n>] --json <fields>
+//       search = substring of title or body (case-insensitive); `in:body` and quotes are stripped;
+//       `updated:>=YYYY-MM-DD` keeps the issues whose updatedAt is on or after that day
+//       (a comment has `id`, `createdAt` and `body`; `issue comment` sets the first two)
 //   issue view <n> --json <fields>
 //   issue comment <n> --body
 //   issue edit <n> [--body] [--add-label]... [--remove-label]...
@@ -126,7 +128,11 @@ function issueCmd(w, sub, rest) {
     console.log(`${REPO_URL}/issues/${n}`);
   } else if (sub === 'list') {
     const state = String(one(flags, 'state') ?? 'open').toLowerCase();
-    const search = String(one(flags, 'search') ?? '')
+    const rawSearch = String(one(flags, 'search') ?? '');
+    // `updated:>=YYYY-MM-DD` keeps the issues updated on or after that day (UTC), as GitHub does.
+    const since = /updated:>=(\d{4}-\d{2}-\d{2})/.exec(rawSearch)?.[1];
+    const search = rawSearch
+      .replace(/updated:>=\S+/g, '')
       .replace(/in:(body|title)/g, '')
       .replace(/["']/g, '')
       .trim()
@@ -136,14 +142,16 @@ function issueCmd(w, sub, rest) {
       (i) =>
         (state === 'all' || i.state.toLowerCase() === state) &&
         labels.every((l) => i.labels.some((x) => x.name === l)) &&
+        (!since || i.updatedAt.slice(0, 10) >= since) &&
         (!search || `${i.title}\n${i.body}`.toLowerCase().includes(search)),
     );
-    print(hits.map((i) => pick(i, json)));
+    const limit = one(flags, 'limit');
+    print((limit === undefined ? hits : hits.slice(0, Number(limit))).map((i) => pick(i, json)));
   } else if (sub === 'view') {
     print(pick(find(w.issues, positional[0], 'issue'), json));
   } else if (sub === 'comment') {
     const i = find(w.issues, positional[0], 'issue');
-    i.comments.push({ body: String(one(flags, 'body') ?? '') });
+    i.comments.push({ id: `IC_${i.number}_${i.comments.length + 1}`, createdAt: now(), body: String(one(flags, 'body') ?? '') });
     i.updatedAt = now();
     console.log(`${i.url}#issuecomment-${i.comments.length}`);
   } else if (sub === 'edit') {

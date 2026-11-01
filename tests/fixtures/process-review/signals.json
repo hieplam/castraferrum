@@ -1,0 +1,10 @@
+{
+  "gate": [
+    { "id": "gate:g1", "at": "2026-10-20T10:00:00.000Z", "kind": "gate", "text": "green: FAIL tests/x.test.ts expected 1 got 2" },
+    { "id": "gate:g2", "at": "2026-10-20T11:00:00.000Z", "kind": "gate", "text": "scope: Smart App Control refused to load the binary" }
+  ],
+  "comments": [
+    { "id": "comment:301:IC_1", "at": "2026-10-20T12:00:00.000Z", "kind": "comment", "text": "loop-release: the build step stopped" },
+    { "id": "comment:302:IC_2", "at": "2026-10-20T13:00:00.000Z", "kind": "comment", "text": "loop-release: Red does not fail as planned\nloop-found: #35 (each now blocks this task)" }
+  ]
+}

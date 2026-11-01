@@ -424,6 +424,7 @@ export const en = {
   // ── Phase 2 ──
   'error.REPO_NOT_FOUND': 'Repo not found',
   'error.GATE_OFF': 'The gate of this repo is off',
+  'error.GIT_HOST_FAILED': 'GitHub did not answer the call',
   'error.REPO_NAME_TAKEN': 'Another repo already has this name',
   'error.REPO_PATH_TAKEN': 'This path is already registered',
   'error.REPO_IN_USE': 'Loops still use this repo — cannot delete',

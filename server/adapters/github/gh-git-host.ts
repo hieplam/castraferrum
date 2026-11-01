@@ -5,6 +5,7 @@ import {
   type GitHost,
   type IssueHit,
   type IssueRef,
+  type LoopComment,
   type PullRequest,
   type StatusState,
 } from '../../ports/git-host';
@@ -13,6 +14,7 @@ const TIMEOUT_MS = 60_000;
 const STATUS_CONTEXT = 'castraferrum/gate';
 const MAX_DESCRIPTION = 140;
 const MAX_COMMENT = 20_000;
+const ISSUE_LIST_LIMIT = 1000;
 const PR_FIELDS = 'number,headRefOid,headRefName,baseRefName,state,title,body,url,mergedAt,closingIssuesReferences';
 
 export type GhGitHostOptions = {
@@ -160,5 +162,28 @@ export class GhGitHost implements GitHost {
 
   async editIssueBody(repo: string, number: number, body: string): Promise<void> {
     await this.gh(['issue', 'edit', String(number), '-R', repo, '--body', body]);
+  }
+
+  async loopComments(repo: string, since: Date): Promise<LoopComment[]> {
+    const issues = await this.json<{ number: number; comments: { id: string; createdAt: string; body: string }[] | null }[]>([
+      'issue',
+      'list',
+      '-R',
+      repo,
+      '--state',
+      'all',
+      '--search',
+      `updated:>=${since.toISOString().slice(0, 10)}`,
+      '--limit',
+      String(ISSUE_LIST_LIMIT),
+      '--json',
+      'number,comments',
+    ]);
+    if (issues.length >= ISSUE_LIST_LIMIT) throw new GitHostError(`gh issue list gave ${ISSUE_LIST_LIMIT} issues: the list can be cut off`, 0, '');
+    return issues.flatMap((i) =>
+      (i.comments ?? [])
+        .filter((c) => c.body.startsWith('loop-release:'))
+        .map((c) => ({ issue: i.number, id: c.id, at: new Date(c.createdAt), body: c.body })),
+    );
   }
 }

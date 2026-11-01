@@ -172,7 +172,36 @@ describe('fake gh', { timeout: 60_000 }, () => {
     expect(run('issue', 'reopen', '1', '-R', 'o/r').status).toBe(0);
     expect(run('issue', 'comment', '1', '-R', 'o/r', '--body', 'again').status).toBe(0);
     const v = JSON.parse(run('issue', 'view', '1', '--json', 'body,state,comments,closedAt').out);
-    expect(v).toEqual({ body: 'from a file', state: 'OPEN', comments: [{ body: 'again' }], closedAt: null });
+    expect(v).toEqual({ body: 'from a file', state: 'OPEN', comments: [expect.objectContaining({ body: 'again' })], closedAt: null });
+  });
+  it('issue list takes the updated:>= search and --limit, and a comment has an id and a createdAt (R8)', () => {
+    const { gh, run } = setup();
+    for (const t of ['one', 'two', 'three']) run('issue', 'create', '--title', t, '--body', 'b');
+    run('issue', 'comment', '2', '--body', 'loop-release: x');
+    const world = gh.read();
+    world.issues[0]!.updatedAt = '2026-10-10T00:00:00.000Z';
+    world.issues[1]!.updatedAt = '2026-10-20T00:00:00.000Z';
+    world.issues[2]!.updatedAt = '2026-10-21T00:00:00.000Z';
+    writeFileSync(gh.world, JSON.stringify(world));
+    const since = run('issue', 'list', '-R', 'o/r', '--state', 'all', '--search', 'updated:>=2026-10-20', '--json', 'number');
+    expect(JSON.parse(since.out)).toEqual([{ number: 2 }, { number: 3 }]);
+    const limited = run('issue', 'list', '--state', 'all', '--search', 'updated:>=2026-10-20', '--limit', '1', '--json', 'number');
+    expect(JSON.parse(limited.out)).toEqual([{ number: 2 }]);
+    const [comment] = JSON.parse(run('issue', 'view', '2', '--json', 'comments').out).comments;
+    expect(comment).toMatchObject({ body: 'loop-release: x' });
+    expect(comment.id).toMatch(/^IC_/);
+    expect(Date.parse(comment.createdAt)).not.toBeNaN();
+  });
+
+  it('a search with updated:>= and a word keeps only the issues that match both (R8)', () => {
+    const { gh, run } = setup();
+    run('issue', 'create', '--title', 'alpha', '--body', 'b');
+    run('issue', 'create', '--title', 'beta', '--body', 'b');
+    const world = gh.read();
+    for (const i of world.issues) i.updatedAt = '2026-10-20T00:00:00.000Z';
+    writeFileSync(gh.world, JSON.stringify(world));
+    expect(JSON.parse(run('issue', 'list', '--search', 'beta updated:>=2026-10-19', '--json', 'number').out)).toEqual([{ number: 2 }]);
+    expect(JSON.parse(run('issue', 'list', '--search', 'beta updated:>=2026-10-21', '--json', 'number').out)).toEqual([]);
   });
 });
 

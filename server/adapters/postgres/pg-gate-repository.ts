@@ -137,6 +137,15 @@ export class PgGateRepository implements GateRepository {
     return rows[0] ? toJob(rows[0]) : null;
   }
 
+  async listRefusedBetween(from: Date, to: Date): Promise<GateJob[]> {
+    const { rows } = await this.#pool.query(
+      `SELECT * FROM gate_jobs WHERE state IN ('failed', 'needs_ratification') AND finished_at >= $1 AND finished_at < $2
+        ORDER BY finished_at, id`,
+      [from, to],
+    );
+    return rows.map(toJob);
+  }
+
   async list(limit: number): Promise<GateJob[]> {
     const { rows } = await this.#pool.query('SELECT * FROM gate_jobs ORDER BY queued_at DESC, id DESC LIMIT $1', [limit]);
     return rows.map(toJob);
