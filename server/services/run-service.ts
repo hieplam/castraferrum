@@ -1,5 +1,6 @@
 import { DomainError } from '../../shared/domain/errors';
 import { claimedLine } from '../../shared/domain/goal-loop';
+import { parseToolProfile } from '../../shared/domain/review-guard';
 import type { LogLevel, RunTrigger } from '../../shared/domain/run';
 import type { ActiveRunRegistry } from '../ports/active-runs';
 import type { Clock } from '../ports/clock';
@@ -171,7 +172,14 @@ export class DefaultRunService implements RunService {
       await this.#log(run, 'error', error);
       return (await this.#finish(run, { status: 'failed', finishedAt: d.clock.now(), error })) ?? this.get(run.id);
     }
-    const p = this.#drive(run, executor, controller, repo.path, claim?.env)
+    const profile = parseToolProfile(claim?.env.CASTRAFERRUM_TOOL_PROFILE);
+    if (profile === null) {
+      d.active.release(run.id);
+      const error = `Unknown tool profile "${claim?.env.CASTRAFERRUM_TOOL_PROFILE}"`;
+      await this.#log(run, 'error', error);
+      return (await this.#finish(run, { status: 'failed', finishedAt: d.clock.now(), error })) ?? this.get(run.id);
+    }
+    const p = this.#drive(run, executor, controller, repo.path, claim?.env, profile)
       .catch(() => {
         // DB broke mid-run: the run left `running` will be cancelled by expireOverdue at the deadline, or by recovery at startup.
       })
@@ -180,7 +188,7 @@ export class DefaultRunService implements RunService {
     return run;
   }
 
-  async #drive(run: RunRecord, executor: LoopExecutor, controller: AbortController, cwd: string, env?: Record<string, string>): Promise<void> {
+  async #drive(run: RunRecord, executor: LoopExecutor, controller: AbortController, cwd: string, env?: Record<string, string>, profile: 'full' | 'review' = 'full'): Promise<void> {
     const d = this.#d;
     const signal = controller.signal;
     let outcome: Omit<RunOutcome, 'finishedAt'> | null = null;
@@ -195,6 +203,7 @@ export class DefaultRunService implements RunService {
         config: run.executorConfig,
         cwd,
         ...(env ? { env } : {}),
+        ...(profile === 'review' ? { toolProfile: profile } : {}),
       };
       for await (const ev of executor.execute(input, signal)) {
         if (signal.aborted) break; // already cancelled: the result is in the DB, drop the rest

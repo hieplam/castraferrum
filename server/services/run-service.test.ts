@@ -112,6 +112,46 @@ describe('RunService', () => {
     });
   });
 
+  describe('tool profile of a claimed run (decision 49)', () => {
+    const claim = (env: Record<string, string>, runId: string) => ({ runId, taskKey: 't1', slot: 0, env, action: 'take' as const });
+    const RUN_1 = '11111111-1111-4111-8111-111111111111';
+    const RUN_2 = '22222222-2222-4222-8222-222222222222';
+    /** A loop whose first run is done, then a claimed run for each env in turn. */
+    async function claimedRuns(...envs: Record<string, string>[]) {
+      const { loop } = await startedLoop();
+      k.scripted.call(1).succeed();
+      await flush();
+      const v = await k.loopService.get(loop.id);
+      const started = [];
+      for (const [i, env] of envs.entries()) {
+        started.push(await k.runService.startClaimed(loop.id, v.currentExecution!.id, claim(env, i === 0 ? RUN_1 : RUN_2)));
+        await flush();
+        if (i < envs.length - 1) {
+          k.scripted.call(i + 2).succeed(); // the limit is one running run: end this one before the next claim
+          await flush();
+        }
+      }
+      return started;
+    }
+
+    it('review: the executor receives toolProfile review', async () => {
+      await claimedRuns({ CASTRAFERRUM_TOOL_PROFILE: 'review' });
+      expect(k.scripted.call(2).input.toolProfile).toBe('review');
+    });
+
+    it('no variable, and full: the input holds no toolProfile key', async () => {
+      await claimedRuns({ LANE_PORT: '7100' }, { CASTRAFERRUM_TOOL_PROFILE: 'full' });
+      expect('toolProfile' in k.scripted.call(2).input).toBe(false);
+      expect('toolProfile' in k.scripted.call(3).input).toBe(false);
+    });
+
+    it('unknown word: the run fails before the executor with Unknown tool profile', async () => {
+      const [started] = await claimedRuns({ CASTRAFERRUM_TOOL_PROFILE: 'reviw' });
+      expect(await k.runService.get(started!.id)).toMatchObject({ status: 'failed', error: 'Unknown tool profile "reviw"' });
+      expect(k.scripted.calls).toHaveLength(1);
+    });
+  });
+
   it('cancel on a finished run → returned unchanged; cancel on a missing run → RUN_NOT_FOUND', async () => {
     const { run } = await startedLoop();
     k.scripted.call(1).succeed();
