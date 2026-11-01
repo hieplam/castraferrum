@@ -1,12 +1,11 @@
 # Spec: the console runs a goal to done with no owner stop
 
-- Date: 2026-11-01.
 - Epic: [castraferrum#217](https://github.com/hieplam/castraferrum/issues/217). Plan: [index](../plans/2026-11-01-goal-driven-loop.md). Phases: issues 212 (probe), 213 (gate), 214 (goal check), 215 (process review), 216 (goal writer).
 - **Run**: one Claude Code session. **Probe**: a loop's command, no model, prints one JSON line. **Claim**: label `loop:in-progress` plus a `loop-attempt:` comment. **Gate**: the console service, no model, that alone merges. **Hold**: a stop on a resource. **Lane**: one `max_concurrent` slot. **`E`**: `epic.mjs`. **cf**: castraferrum. **ap**: agent-plugins.
 
 ## 1. Goal table
 
-An oracle is a behaviour run, or a measurement if it starts with `M:`. Rows G23 to G28 are added (decision 1). D7 is decision 7 of the epic: the tool measures only the baseline, and the done claim prints "not measured yet". A metric is `node scripts/metrics/baseline.mjs --metric <name>`. A `.test.ts` with no folder is in `tests/api/`, and a `.spec.ts` is in `tests/e2e/`. An agent can run each oracle here, with these limits: G3 proves resume only, because no agent can force a limit. G5 restarts a process, not the machine. G8, G14, G25, G27 use haiku. G11, G28 wait for D2. G12, G22: the tool only.
+An oracle is a behaviour run, or a measurement if it starts with `M:`. Rows G23 to G29 are added (decision 1). D7 is decision 7 of the epic: the tool measures only the baseline, and the done claim prints "not measured yet". A metric is `node scripts/metrics/baseline.mjs --metric <name>`. A `.test.ts` with no folder is in `tests/api/`, and a `.spec.ts` is in `tests/e2e/`. An agent can run each oracle here, with these limits: G3 proves resume only, because no agent can force a limit. G5 restarts a process, not the machine. G8, G14, G25, G27 use haiku. G11, G28 wait for D2. G12, G22: the tool only.
 
 | Id | Outcome | Oracle | Stub check | Ratchet, metric |
 |---|---|---|---|---|
@@ -28,7 +27,7 @@ An oracle is a behaviour run, or a measurement if it starts with `M:`. Rows G23 
 | G16 | A new rule has a check | `tests/tools/rule-lint.test.ts`: a line with no link is refused, a linked one passes | No lint passes it | R1 counts, target 0 new |
 | G17 | A loop tool change cannot make the loop worse | ap eval-gate test: `tick.md` changed with no result is refused, equal or better passes | No gate passes it | Can only rise, eval-pass-rate |
 | G18 | When a goal ends, the next goal card appears with no owner message | `goal-card.spec.ts`: close a fake goal, the next probe shows a card | No writer, no card | 10 days to 0, D7, idle-days |
-| G19 | A refused goal does not start | `goal-cards.test.ts`: window on, refuse, wind past: no start. Control starts. Window off (default): no start with no yes | A plain timer starts it | Target 0, refused-started |
+| G19 | A refused goal does not start | `goal-cards.test.ts`: window on, refuse, wind past: no start. Control starts. Window off (default): no yes, no start | A plain timer starts it | Target 0, refused-started |
 | G20 | A one-way goal never starts alone | same file: it waits past the window, and starts after one yes | It starts | Target 0, one-way-started |
 | G21 | A lower rank cannot take the window from a higher rank | `server/services/rank.test.ts`: fake window, two goals, rule 2.14 | Older loop first | Not measured, rank-stops |
 | G22 | Owner messages per merged PR fall | M: `owner-messages`: reproduces 0.84 and 1.77, exact on a fixture | No tool fails the fixture | 0.84, 1.77 to under 0.2, D7 |
@@ -38,6 +37,7 @@ An oracle is a behaviour run, or a measurement if it starts with `M:`. Rows G23 
 | G26 | An epic closes on the check, not on an empty list | ap `epic.test.mjs`: tasks closed and rows failing give `plan`, all passing gives `done` | It gives `done` | Not measured |
 | G27 | A run cannot merge | `merge-guard.test.ts` per command form, one haiku run with a fake `gh` | The call reaches `gh` | Not measured |
 | G28 | The screen answers "is it still working?" | `probe-state.spec.ts`: each action shows its word and the last probe line | Old word stays | Not measured |
+| G29 | A task that ships a screen carries its own acceptance, not a last-day task | ap `epic.test.mjs`, manifest epic: a `web/` PR fails `E check` with no `Acceptance:` line in `## Verify`, and passes with a compare result. Control: a non-`web/` PR passes | `E check` passes it | Not measured |
 
 ## 2. Shared contracts
 
@@ -45,7 +45,7 @@ Schemas: `shared/contracts/goal-loop.ts`. Types: `shared/domain/goal-loop.ts`. A
 
 ### 2.1 Probe line
 
-The console reads the last non-empty stdout line. It needs exit 0, and the time limit is 30 s.
+The console reads the last non-empty stdout line. It needs exit 0 in 30 s.
 
 ```json
 {"v":1,"action":"take","tasks":[{"key":"141","attempt":1,"resources":["docker"]}],"reason":"","resource":null,"until":null,"plan":null,"issues":[],"goals":{"passed":3,"total":8}}
@@ -106,7 +106,7 @@ A `held` run has no process and keeps its session id. `cancel` and `finish` acce
 
 `Notifier.send(n): void` never throws, and keeps one unread notice per `dedupeKey`. `Notice`: `dedupeKey`, `kind` (`wait`, `hold`, `blocked`, `gate`, `goal_card`, `probe_failed`), `loopId`, `messageKey`, `params`, `at`.
 
-`StoreNotifier` writes `notices`. `WebhookNotifier` posts `{ kind, text, at }` when `LOOPS_NOTIFY_WEBHOOK` is set. Routes: `GET /api/notices`, `POST /api/notices/:id/read`.
+`StoreNotifier` writes `notices`. `WebhookNotifier` posts `{ kind, text, at }` to `LOOPS_NOTIFY_WEBHOOK` if set. Routes: `GET /api/notices`, `POST /api/notices/:id/read`.
 
 ### 2.7 Lanes
 
@@ -129,7 +129,7 @@ Steps in order: `scope`, `base`, `setup`, `green`, `stub`, `verify`, `ci`, `merg
 - Merge: `gh pr merge --squash --match-head-commit <sha>`, then `check_command`. If `main` moved after `base`, the job reruns once.
 - Audit: a merged PR with no `success` status is one incident.
 
-### 2.9 Data files on `main`
+### 2.9 Data files
 
 These live under `goals/`, the scope guard protects them, and the gate reads them only from `origin/main`. `goals/gate.json`:
 
@@ -155,15 +155,15 @@ Stub run: restore each changed file outside `testGlobs` to the base commit, and 
 
 ### 2.11 Fingerprint
 
-`fingerprint(repo, rowId, line)` in `shared/domain/fingerprint.ts`: the first 12 hex characters of the sha256 of `repo\nrowId\nnormalized`. `normalized` is the first failing line in lower case, with each path, timestamp, number and hex run of 7 or more replaced by `n`. The issue body holds `<!-- fingerprint:<hash> -->`, found with `"<hash>" in:body`. A match gets a new "Last failed" line.
+`fingerprint(repo, rowId, line)` in `shared/domain/fingerprint.ts`: the first 12 hex characters of the sha256 of `repo\nrowId\nnormalized`. `normalized` is the first failing line in lower case, with each path, timestamp, number and hex run of 7 or more replaced by `n`. The issue body holds `<!-- fingerprint:<hash> -->`, found with `"<hash>" in:body`.
 
 ### 2.12 Review
 
 `reports/process-review/<date>.json`: `{"v":1,"from":"<date>","to":"<date>","clusters":[{"id":"usage-limit","cause":"...","events":12,"runIds":[],"firstAt":"<ISO>","lastAt":"<ISO>","repo":"o/r","fingerprint":"<hash>","check":{"kind":"hook|lint|test|eval|probe","name":"<file>","replay":"<command>"}}]}`
 
-`scripts/process-file-issues.mjs <file>` has no model. It opens one issue per cluster with 2 or more events, by 2.11. Inputs: `GET /api/process/events?from&to` (`runs`, `gate_steps`), `loop-release:` and `loop-found:` comments.
+`scripts/process-file-issues.mjs <file>`, no model, opens one issue per cluster with 2 or more events, by 2.11. Inputs: `GET /api/process/events?from&to` (`runs`, `gate_steps`), `loop-release:` and `loop-found:` comments.
 
-### 2.13 Charter and goal card
+### 2.13 Charter, card
 
 `goals/charter.json`: `{"v":1,"purpose":"...","mayStartAlone":["..."],"neverAlone":["..."],"refusalWindow":{"enabled":false,"hours":8},"acceptedWithNoChange":0}`. `neverAlone`: the list of issue 216, plus "deleting a feature".
 
@@ -195,7 +195,7 @@ Shared files take small edits, and a conflict takes the union. `compose.ts`: one
 
 ## 4. Task graph
 
-Each task is one PR. A star on the id: it can start at once. Column ap: blank is cf. Needs: blank is none. Tier: `s` is sonnet, because the plan can spell it out exactly. `o` is opus, with its reason. An ap task keeps its issue in cf, and its PR says `Closes hieplam/castraferrum#<n>`. ap has no CI, so its proof is `node --test` plus the eval.
+Each task is one PR. A star: it can start at once. Column ap: blank is cf. Needs: blank is none. Tier: `s` is sonnet, because the plan can spell it out exactly. `o` is opus, with its reason. An ap task keeps its issue in cf, and its PR says `Closes hieplam/castraferrum#<n>`.
 
 | Id | Title | ap | Goals | Needs | Area | Tier |
 |---|---|---|---|---|---|---|
@@ -209,16 +209,16 @@ Each task is one PR. A star on the id: it can start at once. Column ap: blank is
 | S5* | grouping quality, fixture | | G14 | | tests/fixtures | o: model output |
 | S6* | cost of an eval pass | ap | G17 | | log | s |
 | D1* | Design gap issue, status rows, preview | | G11, G28 | | design | o: design |
-| D2 | Owner approval, the only gate | | G11, G28 | D1 | design/APPROVED.md | owner |
-| P1* | CommandRunner port, adapter | | G1 | | ports, adapters | s |
+| D2 | Owner approval, the only gate | | G11, G28 | D1 | design | owner |
+| P1* | CommandRunner port, adapter | | G1 | | adapters | s |
 | P2* | Probe and run-end parsers | | G1, G4 | | shared | s |
-| P3 | Probe settings: table, routes | | G1 | P2 | repository, http | s |
+| P3 | Probe settings: table, routes | | G1 | P2 | http | s |
 | P4 | ProbeService, background ticker, ADR 0004 | | G1, G2 | P1, P3 | services | o: processes |
 | P5 | Claim, start, release on the tick | | G2, G4 | P4 | services | o: claims |
 | P6 | Lanes: slot, env, lifecycle line | | G24 | P5 | run service | s |
 | P7 | Executor: usage_limit, resume | | G3 | S1, P2, P6 | executor | o: input queue |
 | P8 | Holds, held, resume, stop on held | | G3, G23 | P7, P9 | services | o: states |
-| P9* | Notifier, notices, webhook | | G23 | | ports, adapters | s |
+| P9* | Notifier, notices, webhook | | G23 | | adapters | s |
 | P10 | wait, blocked, plan, done, goal_met | | G1, G25, G28 | P5, P9 | services | s |
 | P11 | Restart policy, smoke step | | G5, G4 | P8 | recovery | o: start-up |
 | P12* | Log-on task script, no install | | G5 | | scripts | s |
@@ -239,7 +239,7 @@ Each task is one PR. A star on the id: it can start at once. Column ap: blank is
 | K12 | Gate pages, repository switch | | G6 | D2, K6 | web | s |
 | T1* | goal-check --json, score, cadence | | G11 | | scripts | s |
 | T2 | GoalService: rows after merge, loop-goals:, fall issue | | G11 | T1, K5 | services | o: gate order |
-| T3 | E next: refusal, plan, close on check, plan reference | ap | G10, G25, G26 | P13 | epic.mjs | o: loop decision |
+| T3 | E next: refusal, plan, close on check. E check, plan.md: Acceptance line | ap | G10, G25, G26, G29 | P13 | epic.mjs | o: loop decision |
 | T4 | Standing goals, fingerprint | | G13 | K3 | services | o: dedupe rules |
 | T5 | goals/health.json, audit row | | G13, G6 | T4, K9 | goals | s |
 | T6 | Goal number, rows on the loop page | | G11 | D2, T2 | web | s |
@@ -277,7 +277,7 @@ Tasks: foundation 13, issue 212: 15, 213: 12, 214: 6, 215: 9, 216: 7. Total 62.
 
 ## 5. UI inventory
 
-Pages open from a `.cell.is-link`. The tab bar keeps three tabs.
+Pages open from a `.cell.is-link`. The tab bar stays.
 
 - Loop state, run `held`: `.pill` (gap), `.now`, `.cmd`.
 - Probe settings, rank, budget: `.field`, `.input`, `.switch`, `.hint`.
@@ -287,26 +287,27 @@ Pages open from a `.cell.is-link`. The tab bar keeps three tabs.
 - Scoreboard: `.stats`, `.group`, one number per week, no chart.
 - Goal card: `.card`, `.pill` (gap), `.data`, `.btn.primary`, `.btn.danger`.
 
-**One real gap.** The status table in `SYSTEM.md` (Content) has no rows for the states of 2.2, the gate job and card states, and the door words. No class, token or colour is new. D1 opens one `design-system` issue, adds the rows, and draws these preview states: loop waiting, held, blocked, complete; run held; gate queue, failed; goal rows; scoreboard; card two-way, one-way. D2 is the only owner gate. Only P15, K12, T6, R9, W7 wait for it.
+**One real gap.** The status table in `SYSTEM.md` (Content) has no rows for the states of 2.2, the gate job and card states, and the door words. No class, token or colour is new. D1 opens one `design-system` issue, adds the rows, and draws these preview states: loop waiting, held, blocked, complete; run held; gate queue, failed; goal rows; scoreboard; card two-way, one-way. Only P15, K12, T6, R9, W7 wait for D2.
 
 ## 6. Decisions
 
-1. Rows G23 to G28: each stated behaviour gets a row. They add no outcome.
-2. Issue 212: the console reads only `action`, but `take` claims tasks. So it also reads the fields of 2.1, as opaque values.
+1. Rows G23 to G29: each stated behaviour gets a row. They add no outcome.
+2. Issue 212: the console reads only `action`, but `take` claims tasks. So it reads the fields of 2.1 as opaque values.
 3. Issue 212: one limit holds every loop. Epic decision 4 wins: a hold covers probe loops only.
-4. A claim has one owner, a run or the gate. So G4 and "the gate releases a failed PR" do not conflict.
+4. A claim has one owner, a run or the gate, so G4 holds.
 5. The run-end signal does not use `summary`: `cut()` keeps 500 characters, and 0 of 167 real summaries hold the JSON line. K10 corrects `tick.md`.
-6. A status `held`, not a flag: old code leaves it alone.
+6. A status `held`, not a flag: old code ignores it.
 7. A table `loop_probes`, not columns on `loops`: `version` stays. A probe loop has `next_run_at` null, so `findDue` skips it, and Start skips `startFirst`.
 8. Issue 214 writes tasks late, and issue 213 guards `goals/`. So a plan PR may add keys, never change one.
 9. Ratify is a console route: owner and worker share one `gh` login. The hook also refuses `gh api` calls that merge or set the status.
 10. Goal results live in `loop-goals:` comments, because `epic.mjs` has no database.
 11. The model groups, a script files, so G14 has a stable recorded test.
-12. The goal writer waits for K11 and T5, not for pages.
+12. The goal writer waits for K11 and T5, not pages.
 13. `resetsAt` is in epoch seconds (checked on session `464e9f06`). It sits in `rate_limit_info` and is optional.
 14. Real rows hold Vietnamese text. S5 writes English fixture lines, and F0 prints no loop name.
-15. A 60 s probe fits: `E next` took 4.3 s on 67 tasks and 1.9 s on 10.
-16. F0 counts G1 from transcripts with no `Edit`, `Write`, `git push`, `gh pr create`. `summary` cannot prove 108, so F0's number wins.
+15. A 60 s probe fits: `E next` took 4.3 s on 67 tasks.
+16. F0 counts G1 from transcripts with no `Edit`, `Write`, `git push`, `gh pr create`. F0's number wins.
+17. Task sections are written in waves: plans written far ahead go stale (issue 214), and spikes can change later designs.
 
 **`docs/ARCHITECTURE.md`.** P4: services, ports, tables. P8: line 448 (no pause or resume) becomes "a hold pauses runs for a resource". P11: lines 447 and 231 (stop every loop on restart) become a per-loop `restartPolicy`, default `stop`.
 
@@ -316,4 +317,4 @@ Pages open from a `.cell.is-link`. The tab bar keeps three tabs.
 
 - Cabal: `tools/preflight.js` as a probe, a `client-verify` gate step, sensors as standing goals, rule errors as review input, `docs/VISION.md` as writer input.
 - A GitHub Pro ruleset on the status.
-- Issues 209, 211, the stale `uc-coverage` number in the docs, a real phone push after epic 46.
+- Issues 209, 211, the stale `uc-coverage` number, a real phone push after epic 46.

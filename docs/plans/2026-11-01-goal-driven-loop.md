@@ -22,7 +22,14 @@ Epic: [castraferrum#217](https://github.com/hieplam/castraferrum/issues/217).
 
 ## Phase plans
 
-The next stage writes these files. They do not exist yet.
+These files do not exist yet. They grow in waves:
+
+- A task gets its section, with its full Verify block, in the wave in which all of its dependencies are merged or are about to be.
+- Wave 1 covers the 18 starred tasks of the task graph and every task whose only need is one of them.
+- Later waves are written after the spike answers (S1 to S6) are in the evidence log.
+- No task starts without its section.
+
+Why: plans written far ahead go stale (issue 214), and the spikes can change later designs.
 
 | Phase | Tasks | Plan file |
 |---|---|---|
