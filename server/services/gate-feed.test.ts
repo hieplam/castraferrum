@@ -18,10 +18,10 @@ const RED_TITLE = 'Gate: main is red';
 const RED_MARK = '<!-- gate:red-main -->';
 
 const BAD_FILES = { ...GOOD_FILES, 'impl.mjs': 'export const ok = false;\n' };
-/** A test file that prints `count` lines of `width` characters, then `LAST LINE 7741`, and exits 1. */
+/** A test file that prints `count` lines of `width` characters, then `LAST LINE 7741`, and exits 1. It sets `exitCode`, because `process.exit` on Linux drops output that a pipe has not taken yet. */
 const noisy = (count: number, width: number) => ({
   ...GOOD_FILES,
-  'tests/e.test.mjs': `for (let i = 0; i < ${count}; i++) console.log(String(i).padEnd(${width}, 'x'));\nconsole.log('LAST LINE 7741');\nprocess.exit(1);\n`,
+  'tests/e.test.mjs': `for (let i = 0; i < ${count}; i++) console.log(String(i).padEnd(${width}, 'x'));\nconsole.log('LAST LINE 7741');\nprocess.exitCode = 1;\n`,
 });
 
 const clock = (() => {
