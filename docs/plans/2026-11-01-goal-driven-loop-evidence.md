@@ -387,6 +387,85 @@ Ratchet, answer lines for S6: 0 before, 3 after. Spend 0.04 USD of the 4.00 USD 
 
 <!-- D1 -->
 
+## D1
+
+Design gap: issue 263. Goal rows: G11, G28. The owner has not approved these states. Task D2 is the only gate.
+
+Ratchet (`design:states`): states with shots 120/120 -> 142/142.
+
+Red, after the 22 rows and the test were added:
+
+```
+states with shots: 120/142
+exit 1
+Tests  3 failed (3)
+```
+
+Green, after the rebase:
+
+```
+states with shots: 142/142
+drawn 142 states x 2 themes, 0 problems
+Tests  3 passed (3)
+ratchets: ok
+```
+
+Stub checks, each run for real and restored:
+
+```
+draw function removed: no draw function for state: probe-waiting / drawn 1 states x 2 themes, 26 problems / exit 1
+state removed from states.js: the preview cannot draw it (not in states.js) / states with shots: 140/142 / exit 1
+goal rows removed from the Statuses table: Tests  2 failed | 1 passed (3)
+```
+
+Every shot below was opened and judged. Three rounds of defects were fixed and re-shot: a cut title on the phone, a
+doubled gap in a meta line, sample numbers that did not add up, and a sample week after the date of the sample world.
+
+D1 shot probe-waiting-light: pill Waiting for you; .s-warn yellow, reason and last probe line
+D1 shot probe-waiting-dark: pill Waiting for you; .s-warn yellow, reason and last probe line
+D1 shot probe-held-light: pill Held; .s-int purple, warning banner, open hold, run 28 Held
+D1 shot probe-held-dark: pill Held; .s-int purple, warning banner, open hold, run 28 Held
+D1 shot probe-blocked-light: pill Blocked; .s-fail red, two blocking issues
+D1 shot probe-blocked-dark: pill Blocked; .s-fail red, two blocking issues
+D1 shot probe-complete-light: pill Goal met; .s-ok green, period pill Goal met, Start
+D1 shot probe-complete-dark: pill Goal met; .s-ok green, period pill Goal met, Start
+D1 shot run-held-light: pill Held; .s-int purple, warning banner, no resume command
+D1 shot run-held-dark: pill Held; .s-int purple, warning banner, no resume command
+D1 shot gate-queue-light: pills Running, Queued, Needs ratification, Merged, Failed; Ratify, switch on
+D1 shot gate-queue-dark: pills Running, Queued, Needs ratification, Merged, Failed; Ratify, switch on
+D1 shot gate-failed-light: pill Failed; .s-fail red, failed step, steps, log, Queue again
+D1 shot gate-failed-dark: pill Failed; .s-fail red, failed step, steps, log, Queue again
+D1 shot goal-rows-light: pills Goal met, Failed, Budget used, Probe failed; figure 3/8
+D1 shot goal-rows-dark: pills Goal met, Failed, Budget used, Probe failed; figure 3/8
+D1 shot scoreboard-light: main element four figures; one number per week, three causes, no chart
+D1 shot scoreboard-dark: main element four figures; one number per week, three causes, no chart
+D1 shot card-two-way-light: pills Proposed, Two-way; Accept, Refuse, pills Started, Accepted, Refused
+D1 shot card-two-way-dark: pills Proposed, Two-way; Accept, Refuse, pills Started, Accepted, Refused
+D1 shot card-one-way-light: pills Proposed, One-way; Accept, Refuse, pills Started, Accepted, Refused
+D1 shot card-one-way-dark: pills Proposed, One-way; Accept, Refuse, pills Started, Accepted, Refused
+D1 shot phone-probe-waiting-light: pill Waiting for you; .s-warn yellow, reason and last probe line
+D1 shot phone-probe-waiting-dark: pill Waiting for you; .s-warn yellow, reason and last probe line
+D1 shot phone-probe-held-light: pill Held; .s-int purple, warning banner, open hold, run 28 Held
+D1 shot phone-probe-held-dark: pill Held; .s-int purple, warning banner, open hold, run 28 Held
+D1 shot phone-probe-blocked-light: pill Blocked; .s-fail red, two blocking issues
+D1 shot phone-probe-blocked-dark: pill Blocked; .s-fail red, two blocking issues
+D1 shot phone-probe-complete-light: pill Goal met; .s-ok green, period pill Goal met, Start
+D1 shot phone-probe-complete-dark: pill Goal met; .s-ok green, period pill Goal met, Start
+D1 shot phone-run-held-light: pill Held; .s-int purple, warning banner, no resume command
+D1 shot phone-run-held-dark: pill Held; .s-int purple, warning banner, no resume command
+D1 shot phone-gate-queue-light: pills Running, Queued, Needs ratification, Merged, Failed; Ratify, switch on
+D1 shot phone-gate-queue-dark: pills Running, Queued, Needs ratification, Merged, Failed; Ratify, switch on
+D1 shot phone-gate-failed-light: pill Failed; .s-fail red, failed step, steps, log, Queue again
+D1 shot phone-gate-failed-dark: pill Failed; .s-fail red, failed step, steps, log, Queue again
+D1 shot phone-goal-rows-light: pills Goal met, Failed, Budget used, Probe failed; figure 3/8
+D1 shot phone-goal-rows-dark: pills Goal met, Failed, Budget used, Probe failed; figure 3/8
+D1 shot phone-scoreboard-light: main element four figures; one number per week, three causes, no chart
+D1 shot phone-scoreboard-dark: main element four figures; one number per week, three causes, no chart
+D1 shot phone-card-two-way-light: pills Proposed, Two-way; Accept, Refuse, pills Started, Accepted, Refused
+D1 shot phone-card-two-way-dark: pills Proposed, Two-way; Accept, Refuse, pills Started, Accepted, Refused
+D1 shot phone-card-one-way-light: pills Proposed, One-way; Accept, Refuse, pills Started, Accepted, Refused
+D1 shot phone-card-one-way-dark: pills Proposed, One-way; Accept, Refuse, pills Started, Accepted, Refused
+
 <!-- D2 -->
 
 <!-- P1 -->
