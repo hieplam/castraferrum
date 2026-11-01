@@ -1006,7 +1006,7 @@ Goal: G6, G7, G9. A PR merges only if a gate with no model passed every step, on
 - Red: `npx vitest run --project unit server/services/gate-service.test.ts` printed the failed import of `./gate-service`, `Test Files  1 failed (1)`, `Tests  no tests`.
 - Green, after the last rebase: the same command printed `Tests  31 passed (31)`, `Duration  125.71s`. The plan names 29 tests. The two more are the quoted `green` line and the job whose gate was turned off. `npx vitest run --project api tests/api/gate-api.test.ts` printed `Tests  4 passed (4)`.
 - First runs of Green: 382.18 s, then 269.21 s, against the limit of 180 s. The tests then ran at the same time (187.99 s), each on a copy of one seeded bare repository (110.63 s).
-- `npm run verify` on the commit before the last rebase: `VERIFY_EXIT=0`, `Tests  1023 passed | 2 skipped (1025)`, `Tests  202 passed (202)`, `Tests  167 passed (167)`, `116 passed (17.0m)`, `UCs with a green e2e: 34/34`. The last rebase brought only P7 and a plan document.
+- `npm run verify` on the commit before the last rebase: `VERIFY_EXIT=0`, `Tests  1023 passed | 2 skipped (1025)`, `Tests  202 passed (202)`, `Tests  167 passed (167)`, `116 passed (17.0m)`, `UCs with a green e2e: 34/34`. The last rebase brought only P7 and two plan documents.
 - Stub checks, all five on the final tests:
 - Verify entry read from the rebased tree: the exam test printed `expected [ 'merged', null ] to deeply equal [ 'failed', 'green' ]`, `Tests  1 failed | 30 skipped (31)`.
 - No `stubRestore`: the always-true test printed `expected 'e passed with the implementation' to contain 'with no implementation'`, `Tests  1 failed | 30 skipped (31)`. The control test fails as well.
