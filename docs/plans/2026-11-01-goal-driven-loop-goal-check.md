@@ -76,3 +76,31 @@ Wave 2 adds T4. Spec: [../specs/2026-11-01-goal-driven-loop.md](../specs/2026-11
 **Stub check:** a constant hash fails the golden tests. A `normalize` that only lower-cases fails `b`. A service that always opens fails tests 1, 2 and 7. One that never closes fails test 3. No `maxNewIssues` fails test 5. Run each, restore.
 
 **Ratchet:** tests of the unit and api projects, B to B + 17, and of the contract project, C to C + 8. Up only. The api test asserts 1 issue in the fake world after 2 failing passes (duplicates target 0).
+
+Wave 3 adds T2. The contract is decision 42 of the spec. Its tests use small fake rows, the fake `gh` and a local bare repository, never the real manifest.
+
+## T2 - GoalService: rows after merge, loop-goals:, fall issue
+
+**Needs** K5 and T4 merged (T4 owns `GoalRepository` and `fingerprint`). Read `gate-service.ts` and `tests/support/gate-world.ts` first.
+
+**Files:** `server/services/goal-service.ts` and test, `contracts.ts`, `gate-service.ts`, `compose.ts`; `server/ports/goal-repository.ts`, `server/ports/git-host.ts`; memory and Postgres goal adapters, `postgres/schema.ts`, one migration, `truncateAll`; `server/adapters/github/gh-git-host.ts` and test; `tests/support/fake-gh.mjs`; `tests/contract/repositories.contract.ts`; `goals/2026-11-01-goal-driven-loop.json`.
+
+**Steps:**
+1. Add `"epic":217` to the manifest of this epic.
+2. Migration `goal_runs`: `repo`, `manifest`, `row_id` (primary key), `pass`, `value`, `of`, `line`, `cadence`, `sha`, `at`. `GoalRepository`: `saveRows(rows)`, `listRows(repo, manifest)`.
+3. `GitHost.issueState(repo, n)`: `gh issue view <n> -R <repo> --json state`. `addSubIssue(repo, parent, child)`: `gh api repos/<repo>/issues/<child>` for `id`, then `-X POST repos/<repo>/issues/<parent>/sub_issues -F sub_issue_id=<id>`. The fake keeps `subIssues[parent]`.
+4. `DefaultGoalService({ goals, host, workspace, clock, ids })`. `afterMerge({ repo, repoPath, jobId })`: `fetch`, `listAt(mainSha, 'goals')`, keep files with `goals` and `epic`, skip `CLOSED`. One worktree per pass, `jobId` plus `-goals`, removed in `finally`. Run `gate.setup`, then the command of decision 42, 30 min. Parse the last stdout line. Exit 2 or a bad line: `errors`, no comment.
+5. Compare each row with its stored row, save, then comment on the epic: `loop-goals: {"passed":p,"total":n,"failing":[...],"sha":"..."}`, in this key order, from the stored rows of all manifest ids.
+6. Fall: decision 42. Issue title `goal <id> fell: <outcome>`, body `<!-- fingerprint:<fp> -->`, `Epic: <n>`, `line`. `goals.open`, `addSubIssue`. A fall with `findOpen` adds no issue.
+7. `nightly(now)`: decision 42. `GateService`: after `merged`, `await goals.afterMerge`, caught into `errors`. When `takeNext` gives `null`, one `nightly`.
+8. Tests, `describe('goal_service')`, 14, on `createGateWorld`, seeded with the real text of `scripts/goal-check.mjs`, rows `node tests/row.mjs <id>`: a merge adding `impl.mjs` moves the comment `2/3` to `3/3`, exact text; the comment comes before the first command of the next job; a nightly row that never ran is in `failing`, `total` 3; a stored nightly pass counts; closed epic, 0 commands; manifest with no `epic`, none; bad line, no comment, job stays `merged`; row falls: 1 issue, 1 sub-issue; next merge, still 1 issue; red from the start, 0 issues; `value` falls 5 to 4; nightly due; not due; worktree removed after a failure. Contract 2 per side, `describe('goal_runs')`. Adapter 2.
+
+**Goal:** G11. The owner sees a number that moves at each merge, and a row that falls opens one issue.
+
+**Red:** `npx vitest run --project unit server/services/goal-service.test.ts` prints `Cannot find module` and `Test Files  1 failed (1)`.
+
+**Green:** the same command prints `Tests  14 passed (14)`. `npx vitest run --project contract -t goal_runs` prints `4 passed`. `npx vitest run --project unit server/adapters/github` shows 2 more tests and 0 failed. `npm run verify` exits 0.
+
+**Stub check:** comment only the merge rows: the `total` test fails. No `findOpen`: the second-merge test fails. Run goals after the next job: the order test fails. Let a failure throw: the job test fails. Run all four.
+
+**Ratchet:** unit count rises by 16, contract by 2 per side. Metric `status-questions`: decision 7.
