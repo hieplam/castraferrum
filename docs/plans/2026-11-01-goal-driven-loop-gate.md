@@ -238,3 +238,35 @@ Wave 4 adds K7. The rules are decision 47 of the spec. It needs K5, K6, K8, P8 a
 **Stub check:** never read `repo_gate`: on-cases fail. Set the env only in `#take`: resume fails. No repository test: other repository fails. Release before `queue`: 0 releases fails. Run all.
 
 **Ratchet:** unit +15, api +3. Metric `poll-share`: decision 7.
+
+Wave 5 adds K11. It needs K6 (merged code, not the open branch) and K7 (its section is above). It writes tests only: no file under `server/`, `shared/` or `web/` changes.
+
+## K11 - Gate oracle tests, control PRs
+
+**Files:** new `tests/api/gate-red.test.ts`, `tests/api/gate-stub.test.ts`, `tests/api/gate-scope.test.ts`, `tests/support/gate-api-world.ts`; append `## K11` to the evidence log.
+
+**Steps:**
+1. `gate-api-world.ts`: `startGateApi()` composes the server like `tests/api/gate-api.test.ts` (`ghBin: FAKE_GH_SCRIPT`, no ticker). `newCase()` makes a `createGateWorld()`, sets `process.env.FAKE_GH_WORLD`, registers `world.repoPath` with `POST /api/repos`, and sets `setRepoGate(repoId, { enabled: true, githubRepo: 'fake/repo', checkCommand: [] }, now)`. `runJob(c, pr, key = '141')` posts `/api/gate/jobs`, calls `server.inspect.backgroundTick()` once (one tick runs one job), and returns the job and its `gate_steps` rows from Postgres. `sampleGuardedPath(entry)`: `**` becomes `zz/zz`, `*` becomes `zz`, a literal entry stays.
+2. `expectMerged(c, pr)`: state `merged`; the 8 steps of 2.8 in order, none `fail`; exactly one `pr merge` call with `--match-head-commit <head sha>`; last status `success`; `main` moved. `expectRefused(c, pr, step)`: `failed_step` is `step`, that row is the last and `fail`, state `failed` (`needs_ratification` for `scope`), 0 merge calls, `main` sha unchanged, PR `OPEN`, last status `failure` with a description that starts `<step>:`.
+3. Every title starts `refused:` or `control:`, and a control differs from its refusal in one input. No check run may stay pending or missing, because the composed server waits 30 s for real.
+4. `gate-red` 18. Refused 5: ci conclusion `failure`, `cancelled`, `timed_out`, `action_required`; one red run among green ones. Control 3: `success`, `skipped`, `neutral`. Red `main` (`world.setChecks(mainSha, ...)`): refused 3: first PR fails `base` and 1 issue `Gate: main is red` opens; a second PR fails `base`, still 1 issue; a PR with `closing` of another issue fails `base`. Control 3: the PR with `closing: [that issue]` merges; then an ordinary PR merges; a pending run on `main` merges. Audit 2: a PR merged by calling the fake `gh pr merge` by hand plus one gated merge, `node scripts/merge-audit.mjs -R fake/repo --since 2000-01-01T00:00:00Z --json` exits 1 with one incident that names the planted PR; control: gated merges only, exit 0, no incident. Chain 2 (K7; set-up of `tests/api/gate-handover.test.ts`, reuse its helper if it exports one): a run that ends `PR_OPEN` on a red check: job fails at `ci`, the task issue holds `Gate failed at ci.`, 1 release with a reason that starts `gate: ci`; control, green check: merged, claim closed, 0 releases.
+5. `gate-stub` 7. Refused 5: no implementation file (fails `green`); tests print other text (`green`); task key `999` has no entry (`green`); always-true test next to an implementation file (`stub`); only test files changed (`stub`). Control 2: `GOOD_FILES` merges and the `verify` row holds `verify sees impl.mjs`; an entry with `stub.none` merges with the `stub` row `skip`.
+6. `gate-scope` 43, `world.setGate` with the real `guarded` and `testGlobs` of `goals/gate.json` (35 entries today). Refused 37: one test per entry, `GOOD_FILES` plus `sampleGuardedPath(entry)`, and the `scope` row output holds that path; a PR that raises `maxContrast` from 0 to 5 in `scripts/ratchets.json`; a `package.json` that lowers `--min` (first `world.commitMain` a `package.json` whose `scripts.verify` holds `--min 34`, with `scripts.test` kept). Control 4: `GOOD_FILES`; `GOOD_FILES` with `scripts/a.mjs` and `scripts/sub/zz-check.mjs`; `--min 36`; a new dependency. Ratify 2: queue, `needs_ratification`, `POST /api/gate/jobs/:id/ratify`, tick. Refused: the PR rewrites `goals/verify/e.json` so that its own entry passes, with no implementation: fails `green`, because the exam is main's. Control: the same PR with `impl.mjs` merges and the `scope` row is `skip`.
+
+**Limit (issue 339):** a run can call the ratify route from a script file, and the hook reads only the command text. `gate-scope` proves what the gate does after a ratification, not who may call the route. Do not write that G9 is closed on this point.
+
+**Goal:** G6, G7, G9. The gate refuses a red check, a red `main`, empty work and a lowered bar, and merges the matching control.
+
+**Red:** `node scripts/goal-check.mjs goals/2026-11-01-goal-driven-loop.json --only G6` prints a line that starts `G6 FAIL: run` and holds `exit 1, expected 0`, then `goals passed: 0/1`. The same for `--only G7` and `--only G9`.
+
+**Green:** `npx vitest run --project api tests/api/gate-red.test.ts` prints `Tests  18 passed (18)`, `gate-stub.test.ts` prints `Tests  7 passed (7)`, `gate-scope.test.ts` prints `Tests  43 passed (43)`. `--only G6`, `--only G7`, `--only G9` each print `pass` and `goals passed: 1/1`. `git diff --stat origin/main -- server shared web` prints nothing, so this is a light verify: run every `verify` step except `test:e2e` and `phone:check`, and paste `grep -rn gate-api-world server web shared` with its empty result.
+
+**Stub check:** edit `server/services/gate-service.ts` one line at a time, run the three files, then `git checkout -- server/services/gate-service.ts`. If the merged line differs from the text here, make the same edit by meaning.
+- `if (verdict.verdict === 'guarded') {` to `if (false) {`: 39 failed (the 37 refusals and the 2 ratify tests).
+- `const bad = checks.find(isBadCheck);` to `const bad = undefined;`: 6 failed.
+- `const bad = (await host.checks(repo, state.mainSha)).filter(isBadCheck);` to `const bad: never[] = [];`: 3 failed.
+- `if (isRealRed(result)) return` to `if (true) return`: 2 failed.
+- `const exam = await this.examOf(run, state.mainSha);` to `const exam: VerifyTask = { green: [], stub: { none: 'mutant' } };`: 6 failed.
+- `await host.merge(setting.githubRepo, job.prNumber, job.headSha);` with the last argument `'f'.repeat(40)`: 16 failed (every control that merges).
+
+**Ratchet:** api test count rises by 68 (`npx vitest list --project api 2>/dev/null | wc -l`, measure at Red). Files changed under `server/ shared/ web/`: 0. Metrics `merged-on-red`, `stub-share`: decision 7, "not measured yet".
