@@ -192,3 +192,40 @@ Wave 4 adds R4, R6 and R8. R9 waits for the owner's preview approval. Spec: [../
 **Stub check:** a route that answers empty lists fails 6 of 9 tests. A swallowed `GitHostError` fails the 502 test. An item that holds the job id or PR number fails the keys test. Run all, restore.
 
 **Ratchet:** api tests, B to B + 9. Contract tests, C to C + 4. Routes in `docs/API.md`, N to N + 1. Up only. F0 `causes-found`: D7.
+
+Wave 6 adds R9. It needs D2 (done on 2026-11-01) and R8 (`GateRepository.listRefusedBetween`, branch `feat/gdl-r8-signals`, pull request 338, not merged). It relies on names that can change: `listRefusedBetween`, `RunRepository.listBetween` (R2, merged), `CommandRunner` (P1, merged), and the review file of spec 2.12 as R5 writes it (`clusters[].runIds` hold the event ids, run ids and `gate:<job id>`). Read the merged code before you build.
+
+## R9 - Scoreboard API, page
+
+**Files:** server: `shared/contracts/scoreboard.ts`, `server/ports/review-reports.ts`, `server/adapters/fs/fs-review-reports.ts` and test, a memory adapter, `server/services/scoreboard-service.ts`, `contracts.ts`, `server/http/scoreboard-routes.ts`, `app.ts`, `compose.ts`, `docs/API.md`, `tests/api/scoreboard.test.ts`, `tests/api/api-surface.test.ts`. Web: `web/api/{loops-api,http-loops-api,fake-loops-api}.ts`, `web/data/scoreboard.ts`, `web/features/scoreboard/ScoreboardView.tsx`, `web/pages/ScoreboardRoute.tsx`, `web/app/AppRoutes.tsx`, `web/features/settings/SettingsView.tsx`, `shared/i18n/{en,vi}.ts`. Tests: `tests/visual/ds/scoreboard.visual.ts`, `tests/support/goal-loop-score-world.ts`, `tests/e2e/scoreboard-page.spec.ts`. Also the evidence log `## R9`.
+
+**Steps:**
+1. Read `design/ds/SYSTEM.md`, `tokens.css`, `components.css`, `STATES.md`, and the functions of `preview/preview.js` and the data of `preview/data.js` named here. Use existing classes only: `.stats`, `.stat`, `.group`, `.cell`, `.cell-value`, `.page-desc`, `.cell.is-link`; no chart. No new class, token, colour or native `title`. If more is needed, stop and open a `design-system` issue.
+2. Port `ReviewReports.read(repoPaths: string[]): Promise<ReviewCluster[]>`. The fs adapter reads each `<repoPath>/reports/process-review/*.json`. It ignores a file that is not JSON or not spec 2.12. A cluster with no `check`, or an empty `check.name`, has no check.
+3. `GET /api/process/scoreboard?tz=` (default `Asia/Ho_Chi_Minh`) answers `{ figures:{causes,checks,before,after}, weeks:[{from,repeats}], causes:[{fingerprint,cause,checkName,checkMergedAt,before,after,repeats}] }`. The rules, in order:
+   - Group the clusters of all files by `fingerprint`. A cause has the union of the ids of its `runIds`.
+   - Date of an id: a run id gives `runs.startedAt` (`listBetween`); `gate:<id>` gives `finishedAt` of the job (`listRefusedBetween`); a `comment:` id has no date and is skipped. `repeats` is the number of dated ids.
+   - `checkMergedAt` is the oldest line of `git log --diff-filter=A --format=%cI -- <check.name>`, run with `CommandRunner` in the repo folder. A name that starts with `-` or holds `..` gives no check, and no git call. No line gives `null`.
+   - With a date: `before` counts dated ids before it, `after` the ids at or after it (an id at the same instant counts as after). Without: both are 0.
+   - `figures.causes` is the number of causes with a dated id in the 30 days before now. `checks` is the number of causes with a date. `before` and `after` are the sums over causes with a date.
+   - `weeks` are the 5 weeks that end with the week of now. A week starts on Monday 00:00 in `tz`. `repeats` counts the dated ids of all causes in it. Oldest first.
+   - `causes` are sorted by `repeats`, largest first, then by `cause`.
+4. Page `/scoreboard` (tab Settings, narrow, back to Settings). A new key `goalLoop.score.link` names the entry: a `.cell.is-link` group at the end of the Settings page, shown only when `figures.causes` is above 0. A failed request, or no cause, hides it, so the approved Settings shots do not change (`frame.visual.ts` stays as it is).
+5. Seed `seedScoreboard(sp, db)` in `tests/support/goal-loop-score-world.ts` (Z2 imports it; it returns `{ path }`). It resets, sets the clock to `PREVIEW_NOW`, runs `seedPreviewWorld`, makes the folder of repo `api` a git repo with two commits dated 2026-10-02 09:00 (`scripts/preflight.mjs`) and 2026-10-08 09:00 (`tests/api/usage-hold.test.ts`) in `Asia/Ho_Chi_Minh`, writes `reports/process-review/2026-10-18.json` with 3 clusters, and inserts 16 `runs` of loop `pilot` (status `failed`, 10:00 local). The events:
+   - Usage limit ends a run (check `tests/api/usage-hold.test.ts`): 3 on 15/09, 2 on 22/09, 2 on 29/09.
+   - Smart App Control blocks tests (check `scripts/preflight.mjs`): 2 on 15/09, 1 on 22/09, 1 on 29/09, 1 on 06/10.
+   - A test port is already taken (no check): 1 on 16/09, 2 on 23/09, 1 on 07/10.
+   The result must equal `goalLoop.score` of `data.js`: figures 3, 2, 11, 1; weeks 6, 5, 3, 2, 0; causes 7 and 0, 4 and 1, 4 repeats.
+6. `scoreboard.visual.ts`: 2 tests (`scoreboard`, `phone-scoreboard`), 4 pairs. Regions: desktop `[regions.page()]`, phone `[regions.navbar(), regions.page()]`. `test.afterAll(() => writeReport('scoreboard'))`.
+7. `scoreboard-page.spec.ts`, 2 tests: with the seed, Settings shows the link and it opens `/scoreboard` with `score-cause` three times; with no report file the link is not in the page.
+8. Run `npm run design:compare` once. The PR body has `Acceptance: "pairs": <n>, "worstRatio": <r>`.
+
+**Goal:** G15. The owner sees, for each cause, its repeats before and after the date its check merged, and the page matches `scoreboard` (desktop, phone, light, dark).
+
+**Red:** after the tests exist, `npm run build`, then `npx playwright test --project visual tests/visual/ds/scoreboard.visual.ts --reporter list` prints `2 failed`. `npx playwright test tests/e2e/scoreboard-page.spec.ts --project chromium --reporter list` prints `2 failed`. `npx vitest run --project api tests/api/scoreboard.test.ts` prints `Tests  8 failed (8)`: the seeded world gives figures 3, 2, 11, 1; weeks 6, 5, 3, 2, 0; the split at the check date (an id at the instant counts as after); a cause with no check has repeats only and is out of the sums; the same fingerprint in two files merges and counts an id once; a `comment:` id is skipped; a bad file is ignored and no file gives zeros; a name with `..` or a leading `-` makes no git call.
+
+**Green:** the visual command prints `2 passed`. `node -e "const r=require('./reports/compare/ds/results/scoreboard.json');console.log(r.length,Math.max(...r.flatMap(s=>s.regions.map(x=>x.ratio)))<=0.001)"` prints `4 true`. scoreboard-page prints `2 passed`. scoreboard.test.ts prints `Tests  8 passed (8)`. `npx vitest run --project unit server/adapters/fs/fs-review-reports.test.ts` prints `Tests  3 passed (3)` (two files; a bad file; no folder). `npx playwright test --project visual tests/visual/ds/frame.visual.ts` exits 0. `npm run ratchets` prints `ratchets: ok`. `npm run verify` exits 0.
+
+**Stub check:** make the service answer zero figures: the first api test and the pixel pairs fail. Split at `before` only (drop `after`): the split test fails. Count a cause with no check in the sums: the no-check test fails. Make `ScoreboardView` return `null`: `2 failed`. Run each, restore.
+
+**Ratchet:** pairs in `results/scoreboard.json`, 0 to 4. Api tests +8, unit +3. `e2e expects:` line of `npm run ratchets` rises. Metric `cause-repeats`: decision 7, "not measured yet". All only rise.
