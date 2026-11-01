@@ -8,6 +8,7 @@ import type {
   HealthService,
   LiveService,
   LoopService,
+  NoticeService,
   ProbeService,
   RepoService,
   RunService,
@@ -18,6 +19,7 @@ import { folderRoutes } from './folder-routes';
 import { healthRoutes } from './health-routes';
 import { liveRoutes } from './live-routes';
 import { loopRoutes } from './loop-routes';
+import { noticeRoutes } from './notice-routes';
 import { probeRoutes } from './probe-routes';
 import { repoRoutes } from './repo-routes';
 import { scheduleRoutes } from './schedule-routes';
@@ -36,6 +38,8 @@ export type ApiServices = {
   live: LiveService;
   /** Transcript of a run. */
   transcripts: TranscriptService;
+  /** The unread notices (spec 2.6). */
+  notices: NoticeService;
   /** Current server time (test mode: a clock that can fast-forward) — for `GET /schedule/preview`. */
   now: () => Date;
   /** Probe settings of a loop (goal-driven loop). */
@@ -71,7 +75,7 @@ export async function buildHttpApp(deps: HttpDeps) {
 
   await app.register(healthRoutes, { health: deps.health });
   if (deps.api) {
-    const { loops, repos, folders, runs, live, transcripts, now, probes } = deps.api;
+    const { loops, repos, folders, runs, live, transcripts, now, probes, notices } = deps.api;
     const sse = { heartbeatMs: deps.sseHeartbeatMs ?? 15_000, shutdown: shutdown.signal };
     await app.register(loopRoutes, { loops, runs });
     await app.register(probeRoutes, { probes });
@@ -80,6 +84,7 @@ export async function buildHttpApp(deps: HttpDeps) {
     await app.register(scheduleRoutes, { loops, now });
     await app.register(liveRoutes, { live, runs, sse });
     await app.register(transcriptRoutes, { transcripts, runs, sse });
+    await app.register(noticeRoutes, { notices });
   }
   if (deps.testHooks) await app.register(testRoutes, { hooks: deps.testHooks });
 

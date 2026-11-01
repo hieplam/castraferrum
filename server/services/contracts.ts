@@ -9,6 +9,7 @@ import type { TranscriptEntry, TranscriptPage } from '../../shared/domain/transc
 import type { ExecutorDescriptor } from '../ports/executor';
 import type { FolderEntry, FolderListing, FolderPlaces } from '../ports/folders';
 import type { LoopFilter } from '../ports/loop-repository';
+import type { NoticeRecord } from '../ports/notice-repository';
 import type { Page, PageRequest } from '../ports/page';
 import type { RunRecord } from '../ports/run-repository';
 
@@ -242,6 +243,13 @@ export interface RepoService {
   register(input: RepoInput): Promise<RepoView>;
   /** UC-20. Throws REPO_NOT_FOUND, REPO_IN_USE (`details.loops`). */
   remove(id: string): Promise<void>;
+}
+
+export interface NoticeService {
+  /** Unread notices, newest first, at most 100. */
+  listUnread(): Promise<NoticeRecord[]>;
+  /** Throws NOTICE_NOT_FOUND. */
+  markRead(id: string): Promise<void>;
 }
 
 export interface FolderService {

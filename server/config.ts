@@ -23,6 +23,8 @@ export type Config = {
    * A normal run ignores this variable (default page 50 entries / 4 MB).
    */
   transcriptPage?: { minEntries: number; maxBytes: number };
+  /** `LOOPS_NOTIFY_WEBHOOK`: a URL that gets one JSON post for each new notice. Unset (the default) = nothing is pushed. */
+  notifyWebhook?: string;
 };
 
 /** Loads .env if present; environment variables that are already set are left untouched. */
@@ -71,8 +73,20 @@ export function loadConfig(env: Env = process.env): Config {
     testMode,
     mockExecutor: testMode || mockFlag,
     webRoot: join(ROOT, 'dist', 'web'),
+    ...(env.LOOPS_NOTIFY_WEBHOOK ? { notifyWebhook: webhookUrl(env.LOOPS_NOTIFY_WEBHOOK) } : {}),
     ...(testMode && env.LOOPS_TRANSCRIPT_PAGE ? { transcriptPage: transcriptPage(env.LOOPS_TRANSCRIPT_PAGE) } : {}),
   };
+}
+
+function webhookUrl(raw: string): string {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error('LOOPS_NOTIFY_WEBHOOK is not a valid URL');
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('LOOPS_NOTIFY_WEBHOOK must start with http:// or https://');
+  return raw;
 }
 
 function transcriptPage(raw: string): { minEntries: number; maxBytes: number } {
