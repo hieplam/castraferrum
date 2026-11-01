@@ -8,7 +8,7 @@
 //       search = substring of title or body (case-insensitive); `in:body` and quotes are stripped
 //   issue view <n> --json <fields>
 //   issue comment <n> --body
-//   issue edit <n> [--add-label]... [--remove-label]...
+//   issue edit <n> [--body] [--add-label]... [--remove-label]...
 //   issue close <n>
 //   issue reopen <n>
 // `-R <owner/name>` and `--repo` are accepted and ignored: the fake holds one repository.
@@ -145,6 +145,7 @@ function issueCmd(w, sub, rest) {
     console.log(`${i.url}#issuecomment-${i.comments.length}`);
   } else if (sub === 'edit') {
     const i = find(w.issues, positional[0], 'issue');
+    if (one(flags, 'body') !== undefined) i.body = String(one(flags, 'body'));
     for (const name of flags['add-label'] ?? []) if (!i.labels.some((l) => l.name === name)) i.labels.push({ name });
     const drop = new Set(flags['remove-label'] ?? []);
     i.labels = i.labels.filter((l) => !drop.has(l.name));

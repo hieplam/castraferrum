@@ -1,6 +1,7 @@
 import type { Repositories } from '../../ports/repositories';
 import { MemoryDb } from './memory-db';
 import { MemoryExecutionRepository } from './memory-execution-repository';
+import { MemoryGoalRepository } from './memory-goal-repository';
 import { MemoryHeartbeatRepository } from './memory-heartbeat-repository';
 import { MemoryLoopProbeRepository } from './memory-loop-probe-repository';
 import { MemoryLoopRepository } from './memory-loop-repository';
@@ -21,5 +22,6 @@ export function createMemoryRepositories(db: MemoryDb = new MemoryDb()): Reposit
     heartbeat: new MemoryHeartbeatRepository(db),
     notices: new MemoryNoticeRepository(db),
     probes: new MemoryLoopProbeRepository(db),
+    goals: new MemoryGoalRepository(db),
   };
 }

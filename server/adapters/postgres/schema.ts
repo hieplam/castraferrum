@@ -220,3 +220,40 @@ export const notices = pgTable(
     index('notices_unread_by_time').on(t.at.desc()).where(sql`${t.readAt} IS NULL`),
   ],
 );
+
+/** The last result of each standing goal (spec 2.10). `repo` is `owner/name`, and `row_id` is a row of `goals/health.json`. */
+export const standingGoals = pgTable(
+  'standing_goals',
+  {
+    repo: text('repo').notNull(),
+    rowId: text('row_id').notNull(),
+    state: text('state').notNull(),
+    lastLine: text('last_line'),
+    lastRunAt: ts('last_run_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.repo, t.rowId] }), check('standing_goals_state', sql`${t.state} IN ('passing','failing')`)],
+);
+
+/** The GitHub issues of standing goals (spec 2.11): at most one OPEN issue for each repository and fingerprint. */
+export const standingIssues = pgTable(
+  'standing_issues',
+  {
+    id: uuid('id').primaryKey(),
+    repo: text('repo').notNull(),
+    rowId: text('row_id').notNull(),
+    fingerprint: text('fingerprint').notNull(),
+    issueNumber: integer('issue_number').notNull(),
+    openedAt: ts('opened_at').notNull(),
+    lastFailedAt: ts('last_failed_at').notNull(),
+    failCount: integer('fail_count').notNull().default(1),
+    closedAt: ts('closed_at'),
+  },
+  (t) => [uniqueIndex('standing_issues_one_open_per_fingerprint').on(t.repo, t.fingerprint).where(sql`${t.closedAt} IS NULL`)],
+);
+
+/** When the standing goals of a repository ran last and run next. `next_at` is empty when the cron has no later time. */
+export const standingSchedule = pgTable('standing_schedule', {
+  repo: text('repo').primaryKey(),
+  lastAt: ts('last_at').notNull(),
+  nextAt: ts('next_at'),
+});

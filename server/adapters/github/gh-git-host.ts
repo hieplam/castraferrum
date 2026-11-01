@@ -144,4 +144,12 @@ export class GhGitHost implements GitHost {
       'number,title,state,url',
     ]);
   }
+
+  async closeIssue(repo: string, number: number): Promise<void> {
+    await this.gh(['issue', 'close', String(number), '-R', repo]);
+  }
+
+  async editIssueBody(repo: string, number: number, body: string): Promise<void> {
+    await this.gh(['issue', 'edit', String(number), '-R', repo, '--body', body]);
+  }
 }

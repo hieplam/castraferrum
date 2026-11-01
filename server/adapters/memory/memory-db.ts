@@ -1,5 +1,6 @@
 import { PROBE_STATES, RESTART_POLICIES, type ProbeRecord } from '../../../shared/domain/goal-loop';
 import { RUN_STATUSES } from '../../../shared/domain/run';
+import { STANDING_GOAL_STATES, type StandingGoalRecord, type StandingIssueRecord, type StandingScheduleRecord } from '../../../shared/domain/standing-goal';
 import type { ExecutionRecord } from '../../ports/execution-repository';
 import type { LoopRecord } from '../../ports/loop-repository';
 import type { NoticeRecord } from '../../ports/notice-repository';
@@ -48,6 +49,9 @@ export class MemoryDb {
   readonly probes = new Map<string, ProbeRecord>();
   heartbeat: Date | null = null;
   readonly notices = new Map<string, NoticeRecord>();
+  readonly standingGoals = new Map<string, StandingGoalRecord>();
+  readonly standingIssues = new Map<string, StandingIssueRecord>();
+  readonly standingSchedules = new Map<string, StandingScheduleRecord>();
 
   /** Wipe everything (like TRUNCATE in tests). */
   reset(): void {
@@ -59,6 +63,9 @@ export class MemoryDb {
     this.probes.clear();
     this.heartbeat = null;
     this.notices.clear();
+    this.standingGoals.clear();
+    this.standingIssues.clear();
+    this.standingSchedules.clear();
   }
 
   /** Run `fn` atomically: an error midway → every table returns to its previous state (ROLLBACK). `fn` must be synchronous. */
@@ -72,6 +79,9 @@ export class MemoryDb {
       probes: clone(this.probes),
       heartbeat: this.heartbeat,
       notices: clone(this.notices),
+      standingGoals: clone(this.standingGoals),
+      standingIssues: clone(this.standingIssues),
+      standingSchedules: clone(this.standingSchedules),
     };
     try {
       return fn();
@@ -84,6 +94,9 @@ export class MemoryDb {
       restore(this.probes, before.probes);
       this.heartbeat = before.heartbeat;
       restore(this.notices, before.notices);
+      restore(this.standingGoals, before.standingGoals);
+      restore(this.standingIssues, before.standingIssues);
+      restore(this.standingSchedules, before.standingSchedules);
       throw err;
     }
   }
@@ -189,6 +202,25 @@ export class MemoryDb {
       throw new ConstraintViolation('check', 'runs_max_concurrent_per_loop');
     }
     this.runs.set(row.id, clone(row));
+  }
+
+  // ------------------------------------------------------------------ standing goals
+
+  /** INSERT or UPDATE one standing_goals row. */
+  writeStandingGoal(row: StandingGoalRecord): void {
+    if (!(STANDING_GOAL_STATES as readonly string[]).includes(row.state)) throw new ConstraintViolation('check', 'standing_goals_state');
+    this.standingGoals.set(`${row.repo}\n${row.rowId}`, clone(row));
+  }
+
+  /** INSERT: the partial unique index standing_issues_one_open_per_fingerprint allows one open row for each repo and fingerprint. */
+  insertStandingIssue(row: StandingIssueRecord): void {
+    if (this.standingIssues.has(row.id)) throw new ConstraintViolation('unique', 'standing_issues_pkey');
+    for (const other of this.standingIssues.values()) {
+      if (other.closedAt === null && other.repo === row.repo && other.fingerprint === row.fingerprint) {
+        throw new ConstraintViolation('unique', 'standing_issues_one_open_per_fingerprint');
+      }
+    }
+    this.standingIssues.set(row.id, clone(row));
   }
 
   // ------------------------------------------------------------------ notices

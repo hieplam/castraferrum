@@ -52,4 +52,6 @@ export interface GitHost {
   comment(repo: string, issue: number, body: string): Promise<void>;
   openIssue(repo: string, issue: { title: string; body: string; labels: string[] }): Promise<IssueRef>;
   searchIssues(repo: string, query: string): Promise<IssueHit[]>;
+  closeIssue(repo: string, number: number): Promise<void>;
+  editIssueBody(repo: string, number: number, body: string): Promise<void>;
 }
