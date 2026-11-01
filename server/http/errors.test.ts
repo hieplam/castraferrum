@@ -23,6 +23,7 @@ describe('toErrorReply — error → HTTP status + { error: { code, message, det
       TRANSCRIPT_NOT_FOUND: 404,
       NOTICE_NOT_FOUND: 404,
       GATE_OFF: 409,
+      GIT_HOST_FAILED: 502,
     });
     for (const code of Object.keys(STATUS_OF) as ErrorCode[]) {
       expect(API_ERROR_CODES).toContain(code);

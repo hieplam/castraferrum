@@ -11,6 +11,7 @@ import { createFakeGh } from '../support/fake-gh-kit.ts';
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const script = join(root, 'scripts', 'process-review.mjs');
 const eventsFile = join(root, 'tests', 'fixtures', 'process-review', 'events.json');
+const signalsFile = join(root, 'tests', 'fixtures', 'process-review', 'signals.json');
 const fixture = (name: string) => join(root, 'tests', 'tools', 'fixtures', 'process-first-pass', `${name}.json`);
 const CHECK = { kind: 'test', name: 'x.test.ts', replay: 'npx vitest run x.test.ts' };
 const EVENT = { id: 'a1', at: '2026-10-20T00:00:00Z', loop: 'l', status: 'failed', text: 'x' };
@@ -149,6 +150,55 @@ describe('process-review first-pass', () => {
     const { value } = firstPass(events);
     expect(cluster(value, 'usage-limit').ids).toEqual(['t1', 't2']);
     expect(value.rest.map((e: { id: string }) => e.id)).toEqual(['t3']);
+  });
+});
+
+describe('process-review first-pass --signals (R8)', () => {
+  const signalIds = ['gate:g1', 'gate:g2', 'comment:301:IC_1', 'comment:302:IC_2'];
+  const withSignals = (file: string) => {
+    const out = join(temp(), 'first-pass.json');
+    const r = run(...firstPassArgs(out), '--signals', file);
+    return { r, out, value: existsSync(out) ? JSON.parse(readFileSync(out, 'utf8')) : null };
+  };
+
+  it('reads the gate and comment items like events: a rule takes one, the others stay in rest', () => {
+    const { r, value } = withSignals(signalsFile);
+    expect(r.err).toBe('');
+    expect(r.code).toBe(0);
+    expect(cluster(value, 'smart-app-control').ids).toHaveLength(15);
+    expect(cluster(value, 'smart-app-control').ids).toContain('gate:g2');
+    expect(value.rest.map((e: { id: string }) => e.id).filter((id: string) => signalIds.includes(id))).toEqual(['gate:g1', 'comment:301:IC_1', 'comment:302:IC_2']);
+    expect(value.rest).toHaveLength(17);
+  });
+
+  it('exits 2 and writes nothing on a wrong key set, a repeated id, an id of an event, or an item in the wrong list', () => {
+    const dir = temp();
+    const good = JSON.parse(readFileSync(signalsFile, 'utf8'));
+    const bad: Record<string, unknown> = {
+      extraKey: { ...good, gate: [{ ...good.gate[0], loop: 'l' }] },
+      missingKey: { ...good, comments: [{ id: 'c1', at: good.comments[0].at, text: 't' }] },
+      repeated: { ...good, comments: [good.comments[0], good.comments[0]] },
+      sameAsEvent: { ...good, gate: [{ ...good.gate[0], id: 'e01' }] },
+      wrongList: { ...good, gate: [good.comments[0]] },
+      notObject: [],
+    };
+    for (const [name, value] of Object.entries(bad)) {
+      const { r, out } = withSignals(json(dir, `${name}.json`, value));
+      expect([name, r.code]).toEqual([name, 2]);
+      expect(existsSync(out)).toBe(false);
+    }
+  });
+
+  it('gives the same output as no --signals when both lists are empty, and exits 2 on a missing file or a missing list', () => {
+    const dir = temp();
+    const { out, r } = withSignals(json(dir, 'empty.json', { gate: [], comments: [] }));
+    expect(r.code).toBe(0);
+    expect(readFileSync(out, 'utf8')).toBe(firstPass().text);
+    for (const file of [join(dir, 'no-such-file.json'), json(dir, 'one-list.json', { gate: [] })]) {
+      const refused = withSignals(file);
+      expect([file, refused.r.code]).toEqual([file, 2]);
+      expect(existsSync(refused.out)).toBe(false);
+    }
   });
 });
 

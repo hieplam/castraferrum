@@ -138,10 +138,11 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
   const commands = new NodeCommandRunner();
   const probeService = new DefaultProbeService({ ...repos, commands, claimGateway: new CommandClaimGateway(commands), runService, clock, ids });
   // The gate merges only for a repository with `repo_gate.enabled`, which is false until a person turns it on.
+  const gitHost = new GhGitHost({ runner: commands, ghBin: opts.ghBin ?? 'gh' });
   const gateService = new DefaultGateService({
     gate: repos.gate,
     repos: repos.repos,
-    host: new GhGitHost({ runner: commands, ghBin: opts.ghBin ?? 'gh' }),
+    host: gitHost,
     workspace: new GitGateWorkspace({ runner: commands, root: join(tmpdir(), 'castraferrum-gate') }),
     commands,
     clock,
@@ -156,7 +157,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
   const folderService = new DefaultFolderService({ repos: repos.repos, folders: testFolders ?? new NodeFolderBrowser() });
   const scheduling = new DefaultSchedulingService({ loops: repos.loops, heartbeat: repos.heartbeat, runService, clock });
   const notices = new DefaultNoticeService({ notices: repos.notices, clock });
-  const processService = new DefaultProcessService({ runs: repos.runs });
+  const processService = new DefaultProcessService({ runs: repos.runs, gate: repos.gate, host: gitHost });
   const live = new DefaultLiveService({ source: bus, runs: repos.runs, logs: repos.logs });
   const transcripts = new DefaultTranscriptService({
     runs: repos.runs,

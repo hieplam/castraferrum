@@ -23,6 +23,8 @@ export interface GateRepository {
   /** By `seq`. */
   listSteps(jobId: string): Promise<GateStep[]>;
   get(id: string): Promise<GateJob | null>;
+  /** Jobs in state `failed` or `needs_ratification` with `from <= finished_at < to`, ordered by `finished_at`, then `id`. */
+  listRefusedBetween(from: Date, to: Date): Promise<GateJob[]>;
   /** Newest first. */
   list(limit: number): Promise<GateJob[]>;
 }

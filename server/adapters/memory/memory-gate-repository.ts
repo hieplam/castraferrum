@@ -86,6 +86,13 @@ export class MemoryGateRepository implements GateRepository {
     return row ? clone(row) : null;
   }
 
+  async listRefusedBetween(from: Date, to: Date): Promise<GateJob[]> {
+    return [...this.#db.gateJobs.values()]
+      .filter((j) => (j.state === 'failed' || j.state === 'needs_ratification') && j.finishedAt !== null && j.finishedAt >= from && j.finishedAt < to)
+      .sort((a, b) => a.finishedAt!.getTime() - b.finishedAt!.getTime() || cmp(a.id, b.id))
+      .map(clone);
+  }
+
   async list(limit: number): Promise<GateJob[]> {
     return [...this.#db.gateJobs.values()]
       .sort((a, b) => oldestFirst(b, a))

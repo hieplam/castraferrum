@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Builds the process-review file in two steps (spec 2.12, decision 21, goal G14). The program counts, the model only groups.
-//   node --import tsx scripts/process-review.mjs first-pass --events <f> [--rules <f>] --repo <o/r> --from <ISO> --to <ISO> --out <f>
+//   node --import tsx scripts/process-review.mjs first-pass --events <f> [--signals <f>] [--rules <f>] --repo <o/r> --from <ISO> --to <ISO> --out <f>
 //   node --import tsx scripts/process-review.mjs first-pass --real [--rules <f>] [--until <ISO>]
 //   node --import tsx scripts/process-review.mjs assemble --first-pass <f> --groups <f> --out <f>
+// `--signals` reads the body of GET /api/process/signals ({ gate, comments }); its items join the events (decision 48).
 // `--real` reads the real database read-only, keeps the rows in memory and prints only counts. It writes no file.
 // Exit 0: done. Exit 2: usage, or a file that is not valid (nothing was written). Exit 1: the database cannot be read.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -12,7 +13,7 @@ import { fingerprint } from '../shared/domain/fingerprint.ts';
 import { TEXT_PART_LIMIT } from '../server/services/process-service.ts';
 import { DEFAULT_DB_URL, WINDOW_UNTIL } from './metrics/baseline.mjs';
 
-const USAGE = `usage: process-review.mjs first-pass --events <f> [--rules <f>] --repo <o/r> --from <ISO> --to <ISO> --out <f>
+const USAGE = `usage: process-review.mjs first-pass --events <f> [--signals <f>] [--rules <f>] --repo <o/r> --from <ISO> --to <ISO> --out <f>
        process-review.mjs first-pass --real [--rules <f>] [--until <ISO>]
        process-review.mjs assemble --first-pass <f> --groups <f> --out <f>`;
 const DEFAULT_RULES = join(dirname(fileURLToPath(import.meta.url)), 'process-review', 'rules.json');
@@ -98,6 +99,22 @@ function loadEvents(file) {
   return events;
 }
 
+/** The items of R8: `{ gate, comments }`. An item has exactly `id`, `at`, `kind` and `text`, and its kind follows its list. A bad file exits 2. */
+function loadSignals(file) {
+  const data = readJson(file);
+  if (!Array.isArray(data?.gate) || !Array.isArray(data?.comments)) fail('process-review: the signals file needs a "gate" list and a "comments" list');
+  const KEYS = ['at', 'id', 'kind', 'text'];
+  return [['gate', data.gate], ['comment', data.comments]].flatMap(([kind, list]) =>
+    list.map((e, i) => {
+      const name = `${kind} item ${i + 1}`;
+      if (JSON.stringify(Object.keys(e ?? {}).sort()) !== JSON.stringify(KEYS)) fail(`process-review: ${name} needs exactly the keys ${KEYS.join(', ')}`);
+      if (!text(e.id) || !isDate(e.at) || typeof e.text !== 'string') fail(`process-review: ${name} needs id, at and text`);
+      if (e.kind !== kind) fail(`process-review: ${name} must have the kind ${kind}`);
+      return e;
+    }),
+  );
+}
+
 /** The first rule that matches takes the event. `taken[i]` follows the event order. */
 function split(events, rules) {
   const taken = rules.map(() => []);
@@ -120,7 +137,16 @@ function firstPass(o) {
   if (!REPO.test(o.repo)) fail('process-review: --repo needs the form owner/name');
   if (!isDate(o.from) || !isDate(o.to)) fail('process-review: --from and --to need ISO dates');
   const rules = loadRules(o.rules ?? DEFAULT_RULES);
-  const { taken, rest } = split(loadEvents(o.events), rules);
+  const events = loadEvents(o.events);
+  if (o.signals) {
+    const seen = new Set(events.map((e) => e.id));
+    for (const item of loadSignals(o.signals)) {
+      if (seen.has(item.id)) fail(`process-review: id ${item.id} is repeated`);
+      seen.add(item.id);
+      events.push(item);
+    }
+  }
+  const { taken, rest } = split(events, rules);
   // The first-pass form of spec 2.12 gives no time for a rule cluster, and `rest` does not hold its rows. So the two
   // times go in this file: assemble reads no other file.
   const clusters = rules.flatMap((r, i) => {
@@ -140,7 +166,7 @@ function rowText(r) {
 }
 
 async function firstPassReal(o) {
-  for (const key of ['events', 'repo', 'from', 'to', 'out']) if (o[key]) fail('process-review: --real takes only --rules and --until, and it writes no file');
+  for (const key of ['events', 'signals', 'repo', 'from', 'to', 'out']) if (o[key]) fail('process-review: --real takes only --rules and --until, and it writes no file');
   const until = o.until ?? WINDOW_UNTIL;
   if (!isDate(until)) fail('process-review: --until needs an ISO date');
   const rules = loadRules(o.rules ?? DEFAULT_RULES);
