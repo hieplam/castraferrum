@@ -34,9 +34,10 @@ export function textToArgv(text: string): string[] {
     .filter((line) => line.trim() !== '');
 }
 
-/** `KEY=value` per line. */
+/** `KEY=value` per line, sorted by key (the database does not keep the order of the keys). */
 export const envToText = (env: Readonly<Record<string, string>>): string =>
   Object.entries(env)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([key, value]) => `${key}=${value}`)
     .join('\n');
 
