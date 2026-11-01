@@ -1488,7 +1488,7 @@ exit 0
 ```
 The 28 tests are 13 in `process-review-model-run.test.ts` and 15 in `process-review.test.ts`, so the R5 file keeps its count.
 
-Real spend, all three sessions on haiku: 0.0072 USD to record `groups-haiku.json`, 0.0128 USD for the real run, 0.0032 USD for the budget stub. The total is 0.0232 USD, under the limit of 1.00 USD. No sonnet run was needed. Each session used a fresh `lc-real-claude-r6-*` folder, and none of these folders is left. `docker ps -a` shows the same 24 container names before and after.
+Real spend, all three sessions on haiku: 0.0072 USD to record `groups-haiku.json`, 0.0128 USD for the real run, 0.0032 USD for the budget stub. The total is 0.0232 USD, under the limit of 1.00 USD. No sonnet run was needed. Each session used a fresh `lc-real-claude-r6-*` folder, and none of these folders is left. `docker ps -a` shows the same 23 container names before and after.
 
 Stub check, each one run and restored:
 - `modelRun` returns `pass` with no clusters: `Tests  10 failed | 3 passed (13)`. The empty-clusters test is in the 10.
