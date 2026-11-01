@@ -16,18 +16,23 @@ import { NodeFolderBrowser } from './adapters/fs/node-folder-browser';
 import { OverridableFolderBrowser } from './adapters/fs/overridable-folder-browser';
 import { OverridableDirectoryProbe } from './adapters/fs/overridable-directory-probe';
 import { RandomIdGenerator } from './adapters/ids/random-id-generator';
+import { FanoutNotifier } from './adapters/notify/fanout-notifier';
+import { StoreNotifier } from './adapters/notify/store-notifier';
+import { WebhookNotifier } from './adapters/notify/webhook-notifier';
 import { openDb, truncateAll, type Db } from './adapters/postgres/db';
 import { PgDbProbe } from './adapters/postgres/db-probe';
 import { acquireInstanceLock, type InstanceLock } from './adapters/postgres/instance-lock';
 import { createPgRepositories } from './adapters/postgres/repositories';
 import { ClaudeJsonlTranscriptSource } from './adapters/transcripts/claude-jsonl/claude-jsonl-transcript-source';
 import { buildHttpApp, type HttpApp, type TestHooks } from './http/app';
+import type { Notifier } from './ports/notifier';
 import { startTicker, type Ticker } from './scheduler/ticker';
 import type { RecoveryReport } from './services/contracts';
 import { DefaultFolderService } from './services/folder-service';
 import { DefaultHealthService } from './services/health-service';
 import { DefaultLiveService } from './services/live-service';
 import { DefaultLoopService } from './services/loop-service';
+import { DefaultNoticeService } from './services/notice-service';
 import { DefaultProbeService } from './services/probe-service';
 import { DefaultRecoveryService } from './services/recovery-service';
 import { DefaultRepoService } from './services/repo-service';
@@ -65,10 +70,14 @@ export type ComposeOptions = {
   transcriptRoots?: string[];
   /** Transcript page size (default 50 entries / 4 MB). Test mode: `LOOPS_TRANSCRIPT_PAGE=<n>` forces `minEntries` (e2e). */
   transcriptPage?: { minEntries: number; maxBytes: number };
+  /** `LOOPS_NOTIFY_WEBHOOK`: each new notice is also posted to this URL. Unset = no push (the default). */
+  notifyWebhook?: string;
 };
 
 export type ComposedServer = {
   app: HttpApp;
+  /** Writes a notice to the table and pushes it to the webhook (if set). `send` never rejects. */
+  notifier: Notifier;
   /** Result of the recovery at startup (runs BEFORE the ticker and HTTP open). */
   recovery: RecoveryReport;
   /** Starts the 1-second ticker (main.ts calls it right before `listen`). */
@@ -107,6 +116,12 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
     ...((opts.mockExecutor ?? opts.testMode) ? [new MockExecutor({ random: Math.random, tickMs: opts.mockTickMs })] : []),
   ]);
   const ids = new RandomIdGenerator();
+  // The store takes a notice first; only a notice that is new and unread goes on to the pushes, so one cause gives one push.
+  const notifier = new StoreNotifier({
+    notices: repos.notices,
+    ids,
+    onNew: new FanoutNotifier(opts.notifyWebhook ? [new WebhookNotifier(opts.notifyWebhook)] : []),
+  });
   const active = new InMemoryActiveRuns();
   const runService = new DefaultRunService({ ...repos, executors, active, clock, ids, events: bus });
   const loopService = new DefaultLoopService({ ...repos, runService, executors, clock, ids, events: bus });
@@ -116,6 +131,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
   const testFolders = opts.testMode ? new OverridableFolderBrowser(new NodeFolderBrowser()) : null;
   const folderService = new DefaultFolderService({ repos: repos.repos, folders: testFolders ?? new NodeFolderBrowser() });
   const scheduling = new DefaultSchedulingService({ loops: repos.loops, heartbeat: repos.heartbeat, runService, clock });
+  const notices = new DefaultNoticeService({ notices: repos.notices, clock });
   const live = new DefaultLiveService({ source: bus, runs: repos.runs, logs: repos.logs });
   const transcripts = new DefaultTranscriptService({
     runs: repos.runs,
@@ -181,6 +197,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
       live,
       transcripts,
       probes: probeService,
+      notices,
       now: () => clock.now(),
     },
     testHooks,
@@ -191,6 +208,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
   let closing: Promise<void> | null = null;
   return {
     app,
+    notifier,
     recovery,
     startTicker() {
       if (!ticker) tick();

@@ -2,6 +2,7 @@ import { PROBE_STATES, RESTART_POLICIES, type ProbeRecord } from '../../../share
 import { RUN_STATUSES } from '../../../shared/domain/run';
 import type { ExecutionRecord } from '../../ports/execution-repository';
 import type { LoopRecord } from '../../ports/loop-repository';
+import type { NoticeRecord } from '../../ports/notice-repository';
 import type { RepoRecord } from '../../ports/repo-repository';
 import type { LogLine } from '../../ports/run-log-repository';
 import type { RunRecord } from '../../ports/run-repository';
@@ -46,6 +47,7 @@ export class MemoryDb {
   readonly logs = new Map<string, LogLine[]>();
   readonly probes = new Map<string, ProbeRecord>();
   heartbeat: Date | null = null;
+  readonly notices = new Map<string, NoticeRecord>();
 
   /** Wipe everything (like TRUNCATE in tests). */
   reset(): void {
@@ -56,6 +58,7 @@ export class MemoryDb {
     this.logs.clear();
     this.probes.clear();
     this.heartbeat = null;
+    this.notices.clear();
   }
 
   /** Run `fn` atomically: an error midway → every table returns to its previous state (ROLLBACK). `fn` must be synchronous. */
@@ -68,6 +71,7 @@ export class MemoryDb {
       logs: clone(this.logs),
       probes: clone(this.probes),
       heartbeat: this.heartbeat,
+      notices: clone(this.notices),
     };
     try {
       return fn();
@@ -79,6 +83,7 @@ export class MemoryDb {
       restore(this.logs, before.logs);
       restore(this.probes, before.probes);
       this.heartbeat = before.heartbeat;
+      restore(this.notices, before.notices);
       throw err;
     }
   }
@@ -184,5 +189,18 @@ export class MemoryDb {
       throw new ConstraintViolation('check', 'runs_max_concurrent_per_loop');
     }
     this.runs.set(row.id, clone(row));
+  }
+
+  // ------------------------------------------------------------------ notices
+
+  /** INSERT: the partial unique index notices_one_unread_per_key allows one unread row for each `dedupeKey`. */
+  insertNotice(row: NoticeRecord): void {
+    if (this.notices.has(row.id)) throw new ConstraintViolation('unique', 'notices_pkey');
+    if (row.readAt === null) {
+      for (const other of this.notices.values()) {
+        if (other.readAt === null && other.dedupeKey === row.dedupeKey) throw new ConstraintViolation('unique', 'notices_one_unread_per_key');
+      }
+    }
+    this.notices.set(row.id, clone(row));
   }
 }

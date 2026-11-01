@@ -811,6 +811,12 @@ export const vi: Record<MessageKey, string> = {
   'settings.homeScreenHow': 'Mở toàn màn hình, như một ứng dụng. Trong Safari, chạm Chia sẻ, rồi Thêm vào Màn hình chính.',
   'settings.about': 'Giới thiệu',
   'settings.version': 'Phiên bản',
+  'notice.wait': 'Đang chờ: {reason}',
+  'notice.hold': 'Đang tạm giữ: {reason}',
+  'notice.blocked': 'Bị chặn: {reason}',
+  'notice.gate': 'Cổng kiểm tra: {reason}',
+  'notice.goalCard': 'Thẻ mục tiêu: {reason}',
+  'notice.probeFailed': 'Lệnh thăm dò thất bại: {reason}',
 };
 
 // ── Schedule sentences (Vietnamese) ──────────────────────────────────────────────────────────────

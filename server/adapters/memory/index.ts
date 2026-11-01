@@ -4,6 +4,7 @@ import { MemoryExecutionRepository } from './memory-execution-repository';
 import { MemoryHeartbeatRepository } from './memory-heartbeat-repository';
 import { MemoryLoopProbeRepository } from './memory-loop-probe-repository';
 import { MemoryLoopRepository } from './memory-loop-repository';
+import { MemoryNoticeRepository } from './memory-notice-repository';
 import { MemoryRepoRepository } from './memory-repo-repository';
 import { MemoryRunLogRepository } from './memory-run-log-repository';
 import { MemoryRunRepository } from './memory-run-repository';
@@ -18,6 +19,7 @@ export function createMemoryRepositories(db: MemoryDb = new MemoryDb()): Reposit
     runs: new MemoryRunRepository(db),
     logs: new MemoryRunLogRepository(db),
     heartbeat: new MemoryHeartbeatRepository(db),
+    notices: new MemoryNoticeRepository(db),
     probes: new MemoryLoopProbeRepository(db),
   };
 }

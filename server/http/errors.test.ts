@@ -21,6 +21,7 @@ describe('toErrorReply — error → HTTP status + { error: { code, message, det
       REPO_PATH_TAKEN: 409,
       REPO_IN_USE: 409,
       TRANSCRIPT_NOT_FOUND: 404,
+      NOTICE_NOT_FOUND: 404,
     });
     for (const code of Object.keys(STATUS_OF) as ErrorCode[]) {
       expect(API_ERROR_CODES).toContain(code);

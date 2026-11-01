@@ -791,6 +791,12 @@ export const en = {
   'settings.homeScreenHow': 'Opens full screen, like an app. In Safari, tap Share, then Add to Home Screen.',
   'settings.about': 'About',
   'settings.version': 'Version',
+  'notice.wait': 'Waiting: {reason}',
+  'notice.hold': 'On hold: {reason}',
+  'notice.blocked': 'Blocked: {reason}',
+  'notice.gate': 'Gate: {reason}',
+  'notice.goalCard': 'Goal card: {reason}',
+  'notice.probeFailed': 'The probe failed: {reason}',
 };
 
 export type MessageKey = keyof typeof en;

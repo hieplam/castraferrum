@@ -13,6 +13,7 @@ const server: ComposedServer = await composeServer({
   mockExecutor: cfg.mockExecutor,
   webRoot: cfg.webRoot,
   transcriptPage: cfg.transcriptPage,
+  notifyWebhook: cfg.notifyWebhook,
   log,
 }).catch((err: Error) => {
   console.error(`Could not start (DB ${redactUrl(cfg.databaseUrl)}): ${err.message}`);
