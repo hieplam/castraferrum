@@ -1,4 +1,5 @@
 import type { ExecutionRepository } from './execution-repository';
+import type { GoalRepository } from './goal-repository';
 import type { HeartbeatRepository } from './heartbeat-repository';
 import type { LoopProbeRepository } from './loop-probe-repository';
 import type { LoopRepository } from './loop-repository';
@@ -17,4 +18,5 @@ export type Repositories = {
   heartbeat: HeartbeatRepository;
   notices: NoticeRepository;
   probes: LoopProbeRepository;
+  goals: GoalRepository;
 };

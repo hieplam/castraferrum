@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { ErrorCode } from '../../shared/domain/errors';
 import type { ProbeSettings } from '../../shared/domain/goal-loop';
+import type { NewStandingIssueRecord } from '../../server/ports/goal-repository';
 import type { NewLoopRecord } from '../../server/ports/loop-repository';
 import type { NewNoticeRecord } from '../../server/ports/notice-repository';
 import type { NewRepoRecord } from '../../server/ports/repo-repository';
@@ -989,6 +990,70 @@ export function repositoryContract(env: () => ContractEnv): void {
       await r.notices.markRead(n.id, at(20));
       await expect(r.notices.markRead(n.id, at(40))).resolves.toBeUndefined();
       expect(await r.notices.listUnread(10)).toEqual([]);
+    });
+  });
+
+  describe('standing goals', () => {
+    const newIssue = (over: Partial<NewStandingIssueRecord> = {}): NewStandingIssueRecord => ({
+      id: randomUUID(),
+      repo: 'o/r',
+      rowId: 'H1',
+      fingerprint: 'cf30542f175d',
+      issueNumber: 7,
+      openedAt: at(1),
+      ...over,
+    });
+
+    it('saveGoal stores a goal and replaces it, and getGoal gives null for another row', async () => {
+      const goal = { repo: 'o/r', rowId: 'H1', state: 'failing', lastLine: 'FAIL a', lastRunAt: at(1) } as const;
+      await r.goals.saveGoal(goal);
+      expect(await r.goals.getGoal('o/r', 'H1')).toEqual(goal);
+      await r.goals.saveGoal({ ...goal, state: 'passing', lastLine: null, lastRunAt: at(2) });
+      expect(await r.goals.getGoal('o/r', 'H1')).toEqual({ ...goal, state: 'passing', lastLine: null, lastRunAt: at(2) });
+      expect(await r.goals.getGoal('o/r', 'H2')).toBeNull();
+      expect(await r.goals.getGoal('p/r', 'H1')).toBeNull();
+    });
+
+    it('open gives one failed pass, a second open issue with a fingerprint is refused, and another repository is free', async () => {
+      const first = newIssue();
+      expect(await r.goals.open(first)).toEqual({ ...first, lastFailedAt: at(1), failCount: 1, closedAt: null });
+      await expect(r.goals.open(newIssue({ issueNumber: 8 }))).rejects.toThrow();
+      const other = newIssue({ repo: 'p/r' });
+      await r.goals.open(other);
+      expect((await r.goals.findOpen('o/r', first.fingerprint))?.id).toBe(first.id);
+      expect((await r.goals.findOpen('p/r', first.fingerprint))?.id).toBe(other.id);
+      expect(await r.goals.findOpen('o/r', 'aaaaaaaaaaaa')).toBeNull();
+      const second = newIssue({ fingerprint: 'bbbbbbbbbbbb', openedAt: at(5) });
+      await r.goals.open(second);
+      await r.goals.open(newIssue({ rowId: 'H2', fingerprint: 'cccccccccccc' }));
+      expect((await r.goals.listOpen('o/r', 'H1')).map((i) => i.id)).toEqual([first.id, second.id]);
+    });
+
+    it('touch adds one failed pass, and close frees the fingerprint and keeps its first time', async () => {
+      const issue = newIssue();
+      await r.goals.open(issue);
+      expect(await r.goals.touch(issue.id, at(2))).toMatchObject({ failCount: 2, lastFailedAt: at(2) });
+      expect(await r.goals.touch(issue.id, at(3))).toMatchObject({ failCount: 3, lastFailedAt: at(3), openedAt: at(1) });
+      await expect(r.goals.touch(randomUUID(), at(4))).rejects.toThrow();
+
+      await r.goals.close(issue.id, at(4));
+      await r.goals.close(issue.id, at(5));
+      await r.goals.close(randomUUID(), at(5));
+      expect(await r.goals.findOpen('o/r', issue.fingerprint)).toBeNull();
+      expect(await r.goals.listOpen('o/r', 'H1')).toEqual([]);
+      const again = newIssue();
+      await r.goals.open(again);
+      expect((await r.goals.findOpen('o/r', issue.fingerprint))?.id).toBe(again.id);
+    });
+
+    it('saveSchedule stores one row for each repository and replaces it, also with no next time', async () => {
+      expect(await r.goals.getSchedule('o/r')).toBeNull();
+      await r.goals.saveSchedule({ repo: 'o/r', lastAt: at(1), nextAt: at(2) });
+      await r.goals.saveSchedule({ repo: 'p/r', lastAt: at(3), nextAt: at(4) });
+      expect(await r.goals.getSchedule('o/r')).toEqual({ repo: 'o/r', lastAt: at(1), nextAt: at(2) });
+      await r.goals.saveSchedule({ repo: 'o/r', lastAt: at(5), nextAt: null });
+      expect(await r.goals.getSchedule('o/r')).toEqual({ repo: 'o/r', lastAt: at(5), nextAt: null });
+      expect((await r.goals.getSchedule('p/r'))?.lastAt).toEqual(at(3));
     });
   });
 }
