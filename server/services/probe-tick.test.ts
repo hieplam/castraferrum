@@ -89,7 +89,7 @@ describe('ProbeService.tick', () => {
     expect(k.commands.calls).toEqual([]);
   });
 
-  it.each([
+  for (const [action, fields, state] of [
     ['take', { tasks: [{ key: '141' }] }, 'active'],
     ['plan', { plan: { key: 'plan-217' } }, 'active'],
     ['skip', {}, 'active'],
@@ -97,14 +97,16 @@ describe('ProbeService.tick', () => {
     ['blocked', { reason: 'red CI', issues: ['212'] }, 'blocked'],
     ['hold', { resource: 'docker', reason: 'docker is down' }, 'held'],
     ['done', {}, 'complete'],
-  ])('action %s gives its state, and starts no run', async (action, fields, state) => {
-    const id = await probeLoop();
-    const line = JSON.stringify({ v: 1, action, ...fields });
-    k.commands.reply = () => commandOk(`checking\n${line}\n`);
-    expect((await tickAt(0)).failed).toEqual([]);
-    expect(await k.repos.probes.get(id)).toMatchObject({ state, lastLine: line, lastProbeAt: at(0) });
-    expect(k.db.runs.size).toBe(0);
-  });
+  ] as const) {
+    it(`action ${action} gives the state ${state}, and starts no run`, async () => {
+      const id = await probeLoop();
+      const line = JSON.stringify({ v: 1, action, ...fields });
+      k.commands.reply = () => commandOk(`checking\n${line}\n`);
+      expect((await tickAt(0)).failed).toEqual([]);
+      expect(await k.repos.probes.get(id)).toMatchObject({ state, lastLine: line, lastProbeAt: at(0) });
+      expect(k.db.runs.size).toBe(0);
+    });
+  }
 
   it('exit 1 gives probe_failed, also with a valid line, and the next probe can recover', async () => {
     const id = await probeLoop();
