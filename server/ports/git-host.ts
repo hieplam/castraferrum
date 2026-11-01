@@ -50,6 +50,8 @@ export interface GitHost {
   /** Squash-merges the PR only if its head is still `headSha`. Throws a `GitHostError` otherwise. */
   merge(repo: string, number: number, headSha: string): Promise<void>;
   comment(repo: string, issue: number, body: string): Promise<void>;
+  /** Makes sure that the label exists (`gh label create --force`), so that `openIssue` can use it. Safe to call again. */
+  ensureLabel(repo: string, name: string): Promise<void>;
   openIssue(repo: string, issue: { title: string; body: string; labels: string[] }): Promise<IssueRef>;
   searchIssues(repo: string, query: string): Promise<IssueHit[]>;
   closeIssue(repo: string, number: number): Promise<void>;

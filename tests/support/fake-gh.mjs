@@ -4,6 +4,8 @@
 //
 // Supported commands (anything else prints `fake-gh: unsupported: <args>` and exits 64):
 //   issue create --title --body|--body-file [--label]...      prints https://github.com/fake/repo/issues/<n>
+//       as the real gh does, a label that is not in `world.labels` is refused: `could not add label: '<name>' not found`, exit 1
+//   label create <name> [--force]      adds <name> to `world.labels`; with no --force, an existing label is refused (exit 1)
 //   issue list [--state open|closed|all] [--search] [--label]... --json <fields>
 //       search = substring of title or body (case-insensitive); `in:body` and quotes are stripped
 //   issue view <n> --json <fields>
@@ -41,7 +43,7 @@ class Exit extends Error {
 function loadWorld() {
   if (!worldPath) throw new Exit(2, 'fake-gh: FAKE_GH_WORLD is not set');
   const w = JSON.parse(readFileSync(worldPath, 'utf8'));
-  for (const k of ['issues', 'prs', 'calls']) w[k] ??= [];
+  for (const k of ['issues', 'prs', 'calls', 'labels']) w[k] ??= [];
   for (const k of ['statuses', 'checkRuns']) w[k] ??= {};
   w.bare ??= null;
   return w;
@@ -106,6 +108,7 @@ function issueCmd(w, sub, rest) {
   const { flags, positional } = parse(rest);
   const json = one(flags, 'json');
   if (sub === 'create') {
+    for (const name of flags.label ?? []) if (!w.labels.includes(name)) throw new Exit(1, `could not add label: '${name}' not found`);
     const n = nextNumber(w);
     const t = now();
     w.issues.push({
@@ -163,6 +166,18 @@ function issueCmd(w, sub, rest) {
     i.updatedAt = now();
     console.log(`Reopened issue #${i.number}`);
   } else return false;
+  return true;
+}
+
+function labelCmd(w, sub, rest) {
+  const { flags, positional } = parse(rest);
+  if (sub !== 'create') return false;
+  const name = String(positional[0] ?? '');
+  if (!name) throw new Exit(1, 'fake-gh: label name is required');
+  if (w.labels.includes(name)) {
+    if (!flags.force) throw new Exit(1, `fake-gh: label "${name}" already exists; use --force to update it`);
+  } else w.labels.push(name);
+  console.log(`Label "${name}" created`);
   return true;
 }
 
@@ -270,7 +285,7 @@ try {
   world = loadWorld();
   const [group, sub, ...rest] = args;
   const handled =
-    group === 'issue' ? issueCmd(world, sub, rest) : group === 'pr' ? prCmd(world, sub, rest) : group === 'api' ? apiCmd(world, args.slice(1)) : false;
+    group === 'issue' ? issueCmd(world, sub, rest) : group === 'pr' ? prCmd(world, sub, rest) : group === 'label' ? labelCmd(world, sub, rest) : group === 'api' ? apiCmd(world, args.slice(1)) : false;
   if (!handled) throw new Exit(64, `fake-gh: unsupported: ${args.join(' ')}`);
 } catch (e) {
   exit = e instanceof Exit ? e.code : 1;

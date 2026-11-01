@@ -113,6 +113,15 @@ describe('standing goals (G13)', { timeout: 60_000 }, () => {
     expect(body).not.toContain('line-10.');
   });
 
+  it('a repository with no standing-goal label still gets its issue, and the label is created', async () => {
+    expect(gh.read().labels).toEqual([]);
+    runner.results.set('H1', failed('FAIL a'));
+    expect(await pass(['H1'], T1)).toEqual({ opened: 1, updated: 0, closed: 0, deferred: 0 });
+    expect(gh.read().labels).toEqual(['standing-goal']);
+    expect(issues()).toHaveLength(1);
+    expect(issues()[0]!.labels).toEqual([{ name: 'standing-goal' }]);
+  });
+
   it('a pass closes the issue, with a comment', async () => {
     runner.results.set('H1', failed('FAIL a'));
     await pass(['H1'], T1);

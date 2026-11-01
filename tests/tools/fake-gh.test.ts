@@ -30,12 +30,26 @@ function setup(withBare = false): { gh: FakeGh; bare: BareRepo | undefined; run:
 // Real git on a Windows disk is slow: each merge runs about ten git processes.
 describe('fake gh', { timeout: 60_000 }, () => {
   it('issue create then list', () => {
-    const { run } = setup();
+    const { gh, run } = setup();
+    gh.seedLabels('a', 'b');
     const c = run('issue', 'create', '--title', 'First', '--body', 'Body one', '--label', 'a', '--label', 'b');
     expect(c.status).toBe(0);
     expect(c.out.trim()).toBe('https://github.com/fake/repo/issues/1');
     const l = run('issue', 'list', '--json', 'number,title,labels,state');
     expect(JSON.parse(l.out)).toEqual([{ number: 1, title: 'First', labels: [{ name: 'a' }, { name: 'b' }], state: 'OPEN' }]);
+  });
+
+  it('issue create refuses a label that does not exist, and label create adds it', () => {
+    const { gh, run } = setup();
+    const refused = run('issue', 'create', '--title', 'T', '--body', 'B', '--label', 'missing');
+    expect(refused.status).toBe(1);
+    expect(String(refused.stderr)).toContain("'missing' not found");
+    expect(gh.read().issues).toEqual([]);
+    expect(run('label', 'create', 'missing').status).toBe(0);
+    expect(run('label', 'create', 'missing').status).toBe(1);
+    expect(run('label', 'create', 'missing', '--force').status).toBe(0);
+    expect(gh.read().labels).toEqual(['missing']);
+    expect(run('issue', 'create', '--title', 'T', '--body', 'B', '--label', 'missing').status).toBe(0);
   });
 
   it('search by body hash finds one issue', () => {
@@ -47,7 +61,8 @@ describe('fake gh', { timeout: 60_000 }, () => {
   });
 
   it('comment and label edits kept', () => {
-    const { run } = setup();
+    const { gh, run } = setup();
+    gh.seedLabels('old');
     run('issue', 'create', '--title', 'T', '--body', 'B', '--label', 'old');
     expect(run('issue', 'comment', '1', '--body', 'hello').status).toBe(0);
     expect(run('issue', 'edit', '1', '--add-label', 'new', '--remove-label', 'old').status).toBe(0);
