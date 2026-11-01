@@ -11,7 +11,7 @@ const RELEASE = ['node', 'epic.mjs', 'release', '{key}', '{reason}'];
 
 test('the probe fields save with the loop and are there again after a reload', async ({ page, request }) => {
   await reset(request);
-  const loop = await createLoop(request, { name: 'Probe editor loop' });
+  const loop = await createLoop(request, { name: 'Probe editor loop', prompt: 'Do the claimed task', cron: '0 0 1 1 *' });
   await page.goto(`/loops/${loop.id}/edit`);
   await expect(page.getByTestId('probe-enabled')).toHaveAttribute('aria-checked', 'false');
   await page.getByTestId('probe-enabled').click();
@@ -53,7 +53,7 @@ test('the probe fields save with the loop and are there again after a reload', a
 
 test('an active loop shows the Probe group disabled with the hint to stop it first', async ({ page, request }) => {
   await reset(request);
-  const loop = await createLoop(request, { name: 'Probe active loop' });
+  const loop = await createLoop(request, { name: 'Probe active loop', prompt: 'Do the claimed task', cron: '0 0 1 1 *' });
   expect((await api(request, 'PUT', `/api/loops/${loop.id}/probe`, { command: COMMAND })).status).toBe(200);
   expect((await api(request, 'POST', `/api/loops/${loop.id}/start`)).status).toBe(200);
   await page.goto(`/loops/${loop.id}/edit`);
@@ -66,7 +66,7 @@ test('an active loop shows the Probe group disabled with the hint to stop it fir
 
 test('a claim command with no {key} shows the server message under its field, and nothing is saved', async ({ page, request }) => {
   await reset(request);
-  const loop = await createLoop(request, { name: 'Probe error loop' });
+  const loop = await createLoop(request, { name: 'Probe error loop', prompt: 'Do the claimed task', cron: '0 0 1 1 *' });
   await page.goto(`/loops/${loop.id}/edit`);
   await page.getByTestId('probe-enabled').click();
   await page.getByTestId('probe-command').fill(COMMAND.join('\n'));

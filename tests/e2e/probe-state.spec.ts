@@ -18,7 +18,7 @@ async function startedProbeLoop(request: APIRequestContext, line: string | null)
   const dir = mkdtempSync(join(tmpdir(), 'lc-probe-state-'));
   const file = join(dir, 'line.txt');
   if (line !== null) writeFileSync(file, `${line}\n`);
-  const loop = await createLoop(request, { name: `probe ${dir.slice(-6)}`, description: 'A probe picks the next task' });
+  const loop = await createLoop(request, { name: `probe ${dir.slice(-6)}`, description: 'A probe picks the next task', prompt: 'Do the claimed task', cron: '0 0 1 1 *' });
   const saved = await api(request, 'PUT', `/api/loops/${loop.id}/probe`, { command: [process.execPath, FAKE_PROBE, file] });
   expect(saved.status).toBe(200);
   expect((await api(request, 'POST', `/api/loops/${loop.id}/start`)).status).toBe(200);

@@ -94,6 +94,18 @@ export async function seedProbeState(
   const exec4 = loopExecId(l, 4);
   const exec3 = loopExecId(l, 3);
 
+  // The hold first: the hold service resumes a held run while no `plan-window` hold is open.
+  if (held) {
+    await db.query('INSERT INTO resource_holds (id, resource, reason, opened_at, "until", opened_by_run_id) VALUES ($1,$2,$3,$4,$5,$6)', [
+      uuid(`${key}hold`),
+      p.resource,
+      'The usage limit is reached.',
+      pvTime(`18/10 ${p.openedAt}:00`),
+      new Date('2026-10-18T19:00:00+07:00'),
+      uuid(`${key}run${(p.run as Sample).n}`),
+    ]);
+  }
+
   const insertRun = async (r: Sample, executionId: string, status = r.st) => {
     const start = pvTime(r.start);
     const dur = r.n === 23 ? RUN_23_DURATION : r.dur;
@@ -133,14 +145,6 @@ export async function seedProbeState(
   if (held && heldRun) {
     const runId = uuid(`${key}run${heldRun.n}`);
     runPath = `/runs/${runId}`;
-    await db.query('INSERT INTO resource_holds (id, resource, reason, opened_at, "until", opened_by_run_id) VALUES ($1,$2,$3,$4,$5,$6)', [
-      uuid(`${key}hold`),
-      p.resource,
-      'The usage limit is reached.',
-      pvTime(`18/10 ${p.openedAt}:00`),
-      new Date('2026-10-18T19:00:00+07:00'),
-      runId,
-    ]);
     // The console log of the held run: the Start line, then the Held line.
     const at = (s: number) => new Date(pvTime(heldRun.start).getTime() + s * 1000);
     const logs: [number, Date, string, string][] = [
