@@ -204,6 +204,27 @@ Consequence for the design of K8: a `PreToolUse` hook is a working block for `gh
 
 <!-- P1 -->
 
+## P1
+
+Red, before building (`npx vitest run --project unit server/adapters/process/node-command-runner.test.ts`):
+
+    Error: Cannot find module './node-command-runner' imported from .../node-command-runner.test.ts
+     Test Files  1 failed (1)
+          Tests  no tests
+
+Green, after the rebase (same command):
+
+    Tests  9 passed (9)
+
+`npm run arch`: `dependency-cruiser: 0 violations`, `arch-fixtures: 25/25 violations caught`, exit 0.
+
+Stub check, run for real and restored:
+
+    run returns exitCode 0 with empty text:      Tests  9 failed (9)
+    taskkill without /T (child only, no tree):   Tests  1 failed | 8 passed (9)   (the tree-kill case)
+
+Ratchet, unit count (`npx vitest list --project unit | wc -l`): 428 before, 437 after on the P1 base (+9). After the rebase on a newer main: 447, of which 9 are mine.
+
 <!-- P2 -->
 
 <!-- P3 -->
