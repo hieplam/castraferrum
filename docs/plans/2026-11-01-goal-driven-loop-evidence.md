@@ -701,11 +701,28 @@ An earlier run after the T4 rebase ended with exit 1, from a stale lane database
           Tests  170 passed (170)
           Tests  162 passed (162)
 
-`npm run test:e2e` did not give a result. The browser workers of Playwright exited with code 3221225794 ("worker process exited unexpectedly") while the machine was out of memory, and Claude Code stopped the background run. The log has 24 such crashes, 86 tests did not run and 5 passed. This is not a test result. The coordinator runs the full e2e step.
+Full `npm run verify` after the rebase on 83ff7ea, in slot-1, one run:
+
+    ratchets: ok
+          Tests  989 passed | 2 skipped (991)
+          Tests  170 passed (170)
+          Tests  162 passed (162)
+      1 failed
+        [webkit-phone] tests/e2e/phone.spec.ts:89 UC-34 (live-log line not visible within 1000 ms after Start)
+      114 passed (13.7m)
+
+The one failure is a 1 s timeout on a loaded machine, in a non-probe run that P6 does not change (issues 265 and 272 track this kind). One run of that spec alone passed, then `phone:check` and `uc-coverage` ran apart:
+
+    $ npx playwright test tests/e2e/phone.spec.ts --project webkit-phone --workers 1
+      4 passed (16.1s)
+    $ npm run phone:check -- --max 0
+    phone overflow: 0/12
+
+The verify log did not reach `UCs with a green e2e`, because `test:e2e` failed before it. The coordinator re-runs it.
 
 **Stub check:** `lowestFreeSlot` changed to return 0: the API test of three env sets failed (1 failed, 2 passed), and `probe-lanes.test.ts` failed 3 of 5. Restored.
 
-**Ratchet:** unit count 959 passed after the change. The ratchets tool printed `base main: every limit held`.
+**Ratchet:** unit count 989 passed after the change. The ratchets tool printed `base main: every limit held`.
 
 <!-- P7 -->
 
