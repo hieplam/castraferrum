@@ -183,6 +183,38 @@ Table `goal_cards`: `state` is `proposed`, `accepted`, `refused` or `started`. `
 
 Rule: a loop starts a run when no higher-rank loop last printed `take` or `plan`. Otherwise it starts one only when `resetsAt` is under 45 min away and `utilization` is under 90. With `null` it does not start. At `token_budget` the state is `budget_limited`, and no run starts.
 
+### 2.15 Merge guard
+
+`checkMergeCommand(toolName, command)` in `shared/domain/merge-guard.ts`. It refuses on the text and does not parse a shell. So a nested form (`bash -c`, `xargs`, `node -e`) gives the same result as the plain form. The cost is a false refusal when a command only names these words, for example in `git commit -m`. The reason text says: put the words in a file.
+
+Normal form of a command: delete `"`, `'`, a backtick, `\` and `^`, change to lower case, and join runs of white space. A tool that is not `Bash`, `PowerShell` or `mcp__*` is allowed. A `Bash` or `PowerShell` command that is not a string gives the rule `bad-input`.
+
+| Rule | Refuses when |
+|---|---|
+| `pr-merge` | the text has `pr merge` |
+| `rest-merge` | the text has `pulls/<x>/merge` or `/merges` as a path end |
+| `status` | the text has `/statuses/` |
+| `check-run` | the text has `check-runs` and a write sign: `-x post`, `-x patch`, `--method post`, `--method patch`, ` -f `, `--field`, `--raw-field`, `--input` |
+| `graphql` | the text has `mergepullrequest`, `enablepullrequestautomerge`, `mergebranch`, `enqueuepullrequest`, `createcheckrun` or `updatecheckrun` |
+| `push-main` | the text has `git`, then `push`, then `main` or `master` as a whole ref after white space, `:` or `refs/heads/` |
+| `gh-dynamic` | `gh` or `gh.exe` is followed by `$` |
+| `mcp` | `toolName` is `mcp__*` and has `merge_pull`, `merge_branch`, `auto_merge` or `commit_status` |
+
+Refused, 35 lines, each a test:
+
+- `pr-merge`: `gh pr merge 1`; `gh pr merge 1 --squash --auto`; `gh -R o/r pr merge 1`; `gh --repo o/r pr merge 1`; `GH_TOKEN=x gh pr merge 1`; `/usr/bin/gh pr merge 1`; `"C:\Program Files\GitHub CLI\gh.exe" pr merge 1`; `cd x && gh pr merge 1`; `bash -c "gh pr merge 1"`; `powershell -c "gh pr merge 1"`; `gh pr "mer""ge" 1`; `gh pr mer\ge 1`; `gh alias set m "pr merge"`; `echo 1 | xargs gh pr merge`; `x=gh; $x pr merge 1`.
+- `rest-merge`: `gh api -X PUT repos/o/r/pulls/1/merge`; `gh api --method PUT repos/o/r/pulls/1/merge`; `gh api repos/o/r/merges -f base=main -f head=x`; `curl -X PUT https://api.github.com/repos/o/r/pulls/1/merge`.
+- `status`: `gh api repos/o/r/statuses/abc -f state=success -f context=castraferrum/gate`; `gh api -X POST repos/o/r/statuses/abc --input b.json`; `curl -d @s.json https://api.github.com/repos/o/r/statuses/abc`.
+- `check-run`: `gh api -X POST repos/o/r/check-runs -f name=x`; `gh api repos/o/r/check-runs --input b.json`.
+- `graphql`: `gh api graphql -f query='mutation { <name>(input: {}) { clientMutationId } }'`, with `<name>` each of `mergePullRequest`, `enablePullRequestAutoMerge`, `mergeBranch`, `enqueuePullRequest`.
+- `push-main`: `git push origin main`; `git push origin HEAD:main`; `git push origin HEAD:refs/heads/master`; `git -C x push -f origin main`.
+- `gh-dynamic`: `gh $(cat cmd.txt)`.
+- `mcp`: tool `mcp__github__merge_pull_request`; tool `mcp__github__create_commit_status`.
+
+Allowed, 16 lines, each a test: `gh pr create --title x --body-file b.md`; `gh pr view 1`; `gh pr checks 1`; `gh pr list`; `gh api repos/o/r/pulls/1`; `gh api repos/o/r/commits/abc/status`; `gh api repos/o/r/commits/abc/check-runs`; `gh api graphql -f query='query { viewer { login } }'`; `git merge origin/main`; `git push origin feat/main`; `git push origin main-fix`; `git push -u origin HEAD`; `git log --grep merge`; `grep -n merge server/x.ts`; `npm run verify`; tool `mcp__github__get_pull_request`.
+
+**Limit.** The hook reads only the command text. A script file that holds the merge (`bash m.sh`) or an encoded command passes the hook. The audit of K9 finds that merge, and decision 1 of the epic accepts two layers.
+
 ## 3. Module map
 
 Each repository port has a `postgres/` and a `memory/` adapter. Each service has its `http/<name>-routes.ts`. New services call `RunService` and `LoopService`, and neither calls back.
@@ -318,6 +350,15 @@ Pages open from a `.cell.is-link`. The tab bar stays.
 19. `CASTRAFERRUM_GATE=1` tells a run that the gate is on. The prompt line of 2.7 is fixed, and a file on `main` cannot say it, because `repo_gate` is a console setting.
 20. Amendment of issue 251, under the standing rule "extend inside the rules and record it": the list of 2.9 missed files that `verify` and `npm ci` reach. `guarded` gains `scripts/install-webkit.mjs`, `vite.config.ts`, `.npmrc` and the three `tests/support` files that `phone:check` imports (`server-process.ts`, `test-repo.ts`, `tcp-proxy.ts`). The directory `tests/support/` stays unguarded, because task PRs add files there. `gate-data.test.ts` no longer exempts reached test files, and it checks `postinstall` and `prepare`. `server/config.ts`, which `server-process.ts` imports, stays unguarded: it is product code that `verify` exercises.
 21. Issue 267: the first pass of the review is a program, not a model. S5 showed that no model meets the grade: each try split the 12 usage-limit rows into `weekly` (3) and `session` (9), and on the real rows the Smart App Control cluster held 8 of 14. The fallback of section 4 does not fix this, because `normalized` of 2.11 keeps both words. So a list of rules in the data file `scripts/process-review/rules.json` runs first. Rule `usage-limit` takes both limit forms into one cluster. Rule `smart-app-control` takes every row that names Smart App Control. The model groups the rest. A later review adds a rule in a normal pull request, because the folder is outside `guarded`. R5 builds this and closes issue 267. This replaces the fallback of section 4 for S5, and it extends decision 11. The rules were written after the answer was known, so they prove that known causes are filed, not that the review finds a new cause. So R6 must prove the new-cause path: on the real rows that no rule took, a real model run names at least one repeated cause that no rule holds.
+22. A probe runs every 60 s, and on the first tick after a run of the loop ends: `latestFinishedAt` is later than `last_probe_at`. A tick awaits its due loops with `Promise.all`, so a hung probe delays other loops by at most 30 s. Each loop is caught alone. With no free lane the console does not call the probe. A call is `commands.run({ argv, cwd: repo.path, timeoutMs: 30000 })`, then `parseProbeLine`. A bad exit, a time-out or a bad line gives `probe_failed`, with `lastLine` set to `raw` or `error`. `record` uses the tick's `now`, so a run that ends during a call gives a new probe.
+23. `run_claims.run_id` has no foreign key, because `open` comes before the run row, and a row with no run counts as orphaned. A partial unique index allows one open row per `loop_id` and `task_key`, and a second `open` gives `taken`. `release` throws on a failed command. The row stays open, and the tick tries it again 60 s later, so a `gh` failure cannot lose a release. `findOrphaned` rows add `runStatus` and `endResult`. The gateway has a 30 s time-out, fills `{key}` and `{reason}`, and does nothing for an empty argv. A tick first releases orphans: `release`, `close`, reason `run <status>[ <endResult>]`, excused for `interrupted` and `RESOURCE_DOWN`. Then for `take`, until the lanes end: `open`, `claim`, `startClaimed`. `taken` goes to the next task. A refused claim closes its row. A `skipped` run gives an excused release and a close.
+24. `{port}` in `lane_env` with a null `lane_base_port` is refused at save. The env is not stored, and a resume computes it from `runs.slot`. P8 counts `held` runs as used slots.
+25. S1: no stored run holds a `rate_limit_event` or a `result`, and all 12 failed runs hold only an assistant `error: rate_limit`. So each of the three triggers of 2.5 works alone, in any order. After the first trigger the executor reads on until a `result`, the end of the stream, or `limitSettleMs` (5 s). It merges the values that it saw, aborts the process, and emits `usage_limit`. A limit is applied last over the over-ceiling error and over a later `result`. A subagent message counts as a trigger.
+26. S1: `rate_limit_event` can come before `system/init`, and it carries `session_id`. The executor emits `session` from the first message with an id, so the protocol holds. With no id at all, a resume cannot work: P8 writes `failed` and releases the claim as excused.
+27. S1: `resetsAt` is proven in epoch seconds on an `allowed` event only, so decision 13 is not proven for a `rejected` event. A value that is missing, not a positive number, or 1e11 or more gives `resetsAt: null`. Then P8 opens the `plan-window` hold with `until` null, and the notice says that the end is not known. No timer closes this hold. Every 30 minutes P8 resumes the oldest `held` run as a trial and writes `checked_at`. A new `usage_limit` keeps the hold. Any other end closes the hold and resumes the other runs. So no person is needed, and a closed window costs one short turn in each 30 minutes.
+28. S1: `resume` keeps the session id (4 of 4), and `total_cost_usd` does not restart at 0. So the cost of a resumed run replaces the stored cost and is never added to it. A `usage_limit` with no `costUsd` keeps the stored cost, which P8 proves with a test. With `resumeSessionId` the executor sets the option `resume`, sends `input.prompt` as the head message, and logs `Resume round #N · session <id>`.
+29. S2: a `PreToolUse` hook refuses under `bypassPermissions`, in the main thread and in a subagent, but it refuses only what its pattern matches. So 2.15 lists each form and its test. `git push` to `main` and the MCP tools are added, because each one merges with no `gh pr merge`. K8 adds `gateGuard` and K7 sets it with `CASTRAFERRUM_GATE`, because `repo_gate` is a K2 table and K8 needs only P7.
+30. `repo_gate` holds `repo_id` (primary key), `enabled` (default false), `github_repo` (`o/r`), `check_command` (jsonb argv, default `[]`, the command of 2.8) and `updated_at`. K2 adds no route, and K12 adds the switch.
 
 **`docs/ARCHITECTURE.md`.** P4: services, ports, tables. P8: line 448 (no pause or resume) becomes "a hold pauses runs for a resource". P11: lines 447 and 231 (stop every loop on restart) become a per-loop `restartPolicy`, default `stop`.
 

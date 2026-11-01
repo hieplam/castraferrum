@@ -1,6 +1,6 @@
 # Plan of issue 212: probe, claim, hold, resume
 
-Phase: issue 212 of epic 217. Spec: [goal-driven loop](../specs/2026-11-01-goal-driven-loop.md). Plan index: [index](2026-11-01-goal-driven-loop.md). Later waves add the other tasks of this phase. Unit count below means `npx vitest list --project unit 2>/dev/null | wc -l`: 428 on 2026-11-01, measure yours at Red. In the `agent-plugins` tasks, `SK` is `plugins/epic-loop/skills/epic-loop`.
+Phase: issue 212 of epic 217. Spec: [goal-driven loop](../specs/2026-11-01-goal-driven-loop.md). Plan index: [index](2026-11-01-goal-driven-loop.md). Later waves add the other tasks of this phase. Unit count below means `npx vitest list --project unit 2>/dev/null | wc -l`: 428 on 2026-11-01, measure yours at Red. In the `agent-plugins` tasks, `SK` is `plugins/epic-loop/skills/epic-loop`. Wave 2: each code task changes existing server code, so its Green ends with one full `npm run verify`, in a slot, about 20 minutes. A `verify` failure that your change cannot reach follows the lane rules (issues 265, 272, 274). Concurrency tests use `k.clock`, `flush()`, `until()` and deferred promises, as `scheduling-service.test.ts` does. They never sleep and never assert on elapsed real time.
 
 ## P1 - CommandRunner port, adapter
 
@@ -129,3 +129,93 @@ Phase: issue 212 of epic 217. Spec: [goal-driven loop](../specs/2026-11-01-goal-
 **Stub check:** a `--probe` that is ignored fails the shape test. A log with `query EpicNode` fails `check-tick`.
 
 **Ratchet:** `node --test` count 40 to 49.
+
+## P4 - ProbeService, background ticker, ADR 0004
+
+**Files:** `probe-service.ts`, `loop-service.ts`, `contracts.ts`, `compose.ts`, `goal-loop.ts`; `server/scheduler/background-ticker.ts`; run and execution ports, adapters; `tests/support/`: `fake-command-runner.ts`, `fake-probe.mjs` (prints its file argument), `service-kit.ts`; `docs/adr/0004-console-owns-the-goal-life-cycle.md`, `docs/ARCHITECTURE.md`; the tests of Green.
+
+**Steps:**
+1. `PROBE_ACTION_STATE: Record<ProbeAction, ProbeState>` (2.1). `RunRepository.latestFinishedAt(loopId): Promise<Date | null>`, no `skipped` rows. `OpenExecutionInput.nextRunAt: Date | null`.
+2. `LoopService.start` with a probe row: `nextRunAt: null`, no `startFirst` (decision 7).
+3. `ProbeService.tick()` gives `{ at, ran, probed, failed, errors }`: decision 22, busy guard as in `SchedulingService`. No run, no notice (P5, P10).
+4. `startBackgroundTicker(services, opts)`: one in-flight promise per service. `compose.ts`: array `background`, stopped in `shutdown`, `reset`. `inspect.backgroundTick()` awaits one tick of each.
+5. ADR 0004 (spec 6). `ARCHITECTURE.md`: services, ports, tables.
+6. Tests. Tick 19: no probe keeps cron; Start gives 0 runs; argv, cwd, 30 s; +59 s none, +60 s one; stopped loop; state of 7 actions; exit 1; time-out; bad line; finished run probes at once; busy tick; one loop's error; two loops in one tick. Ticker 5. API 2. Contract 3.
+
+**Goal:** G1, G2. A probe loop starts no session alone. A hung probe does not stop the console.
+
+**Red:** `npx vitest run --project unit server/services/probe-tick.test.ts` prints `k.probeService.tick is not a function`.
+
+**Green:** that command plus `server/scheduler/background-ticker.test.ts` prints `Tests  24 passed (24)`. `npx vitest run --project api tests/api/probe-tick-api.test.ts` prints `Tests  2 passed (2)`. `npm run verify` exits 0.
+
+**Stub check:** an empty `tick` fails the argv case. Ignoring `latestFinishedAt` fails the finished-run case. Run both.
+
+**Ratchet:** unit count +24. `npm run test:contract`: each side +3.
+
+## P5 - Claim, start, release on the tick
+
+**Files:** `schema.ts`, migration, `db.ts`; `server/ports/claims.ts`; `server/adapters/claims/command-claim-gateway.ts`; claim adapters, `memory-db.ts`, 3 repositories files; run port, adapters; `run-service.ts`, `probe-service.ts`, `contracts.ts`, `compose.ts`; executor port, adapter; `shared/domain/run.ts`, `shared/contracts/loops.ts`, `shared/i18n/*.ts`, `RunView.tsx` (existing `Cell`); `tests/support/fake-claim-gateway.ts`, `service-kit.ts`; the tests of Green.
+
+**Steps:**
+1. Migration of spec 3. `run_claims`: 2.4, decision 23. `Repositories.claims`. `RunRecord` gains `taskKey`, `slot`, `endResult`, `endPr`. Trigger `probe`, text `trigger.probe`, `run.byProbe`.
+2. Ports of 2.4, decision 23.
+3. Executor success: `end: parseRunEnd(m.result)` before `cut()`. `RunOutcome` gains `endResult`, `endPr`.
+4. `RunService.startClaimed(loopId, executionId, { runId, taskKey })`.
+5. Tick: order of decision 23.
+6. Tests. Unit 18: order; lanes cap; `taken`; refused; next task after refused; lanes full; succeeded; failed; cancelled; interrupted; `RESOURCE_DOWN`; `PR_OPEN`; running stays; failed release retries at +60 s; `skipped`; no probe row; next task one tick after a run ends; busy tick. API 4 on `inspect.backgroundTick()`, fake labels: stop; succeeded; refused; two loops. Gateway 5. Contract 8. Executor 1: end line after 600 characters.
+
+**Goal:** G2, G4. The next task starts one tick after a run ends. A claim ends with its run.
+
+**Red:** `npx vitest run --project api tests/api/claims.test.ts` prints `Tests  4 failed (4)`.
+
+**Green:** that command prints `Tests  4 passed (4)`. `npx vitest run --project unit server/services/probe-claims.test.ts` prints `Tests  18 passed (18)`. `npx vitest run --project contract -t run_claims` prints `16 passed`. `npm run verify` exits 0.
+
+**Stub check:** no orphan step fails `stop`. `claim` after `startClaimed` fails `order`. Run both.
+
+**Ratchet:** unit count +24. Metric `dead-claims`: decision 7.
+
+## P6 - Lanes: slot, env, lifecycle line
+
+**Files:** `goal-loop.ts`; `run-service.ts`, `probe-service.ts`, executor port, adapter, `test-mode-query.ts`; `docs/ARCHITECTURE.md`, `docs/API.md`; the tests of Green.
+
+**Steps:**
+1. `goal-loop.ts`: `lowestFreeSlot(used)`, `laneEnvOf(settings, slot)`, `claimedLine(key, action)`, `RESUME_LINE`. Text: 2.7. `laneEnvOf` fills each `{slot}`, `{port}`, adds `CASTRAFERRUM_SLOT`.
+2. `ProbeService.save`: issue `laneEnv:missingBasePort` (decision 24).
+3. `ExecutionInput.env?: Record<string, string>`. The executor spreads it over its base env, then drops `ANTHROPIC_API_KEY`.
+4. `startClaimed` gains `{ slot, env, action }`: stores `runs.slot`. `promptSnapshot` is `claimedLine`, a blank line, the loop prompt. `env` is not stored.
+5. The tick reads used slots from `listActive`.
+6. `ARCHITECTURE.md`, One run: the two lines of 2.7, word for word.
+7. `fakeSoak`: prompt `[echo-env]` appends the `CASTRAFERRUM_*` and `LANE_*` keys of `options.env`, one JSON line, to `<cwd>/lane-env.jsonl`.
+8. Tests. Domain 8, `describe('lanes')`: slots 2; env 3; line; two re-reads of `ARCHITECTURE.md`. Service 5: slots 0, 1, 2; `input.env`; prompt first line; no-probe loop unchanged; slot 0 reused. Save 1. Executor 2: env merged; `ANTHROPIC_API_KEY` dropped. API 3: 3 env sets, ports 7100 to 7102; no-probe run; `prompt_snapshot`.
+
+**Goal:** G24. Parallel runs never share a number, database or port.
+
+**Red:** `npx vitest run --project api tests/api/lanes.test.ts` prints `Tests  3 failed (3)`.
+
+**Green:** that command prints `Tests  3 passed (3)`. `npx vitest run --project unit server/services/probe-lanes.test.ts` prints `Tests  5 passed (5)`. `npx vitest run --project unit shared/domain/goal-loop.test.ts -t lanes` prints `8 passed`. `npm run verify` exits 0.
+
+**Stub check:** a `lowestFreeSlot` that returns 0 fails the 3 env sets. Run it, restore.
+
+**Ratchet:** unit count +16.
+
+## P7 - Executor: usage_limit, resume
+
+**Files:** executor port; `claude-agent-executor.ts`, `.real.test.ts`; `mock-executor.ts`, `test-mode-query.ts`; `run-service.ts`, new `run-usage-limit.test.ts`; `tests/contract/executor*`; `fake-claude-query.ts`, `service-kit.ts`; `ARCHITECTURE.md`; the test of Red.
+
+**Steps:**
+1. Event of 2.5. `ExecutionInput.resumeSessionId?: string`. Option `limitSettleMs`, default 5000.
+2. Executor: decisions 25 to 28. Emit one `Error · <message>` log, then `usage_limit`.
+3. `RunService.#drive`: `usage_limit` writes `failed`, `error: message`, `costUsd`, for every loop. P8 adds `held`.
+4. Mock: prompt `[usage-limit]` emits it. Fake query, `fakeSoak`: prompt `[limit]` emits rejected, then assistant `error`. `options.resume` keeps the id.
+5. Tests, 21: each trigger alone 4; 3 orders; `allowed`, `allowed_warning`; `resetsAt` seconds, missing, 13 digits; `rejected` before `init`; hung stream; cost from `result`; last cost; subagent `error`; cleanup turn; cancel in the wait; resume keeps the id; resume adds no cost (0.0065729 stays); no `resume` on a new run.
+6. Contract 2, `usage_limit`: final event; same session. Not on real Claude. Service 2. Real 1 `resume`: haiku, same id, cost not lower.
+
+**Goal:** G3. Any trigger gives one event. A resume keeps the session and the true cost.
+
+**Red:** `npx vitest run --project unit server/adapters/executors/claude/claude-agent-executor.limit.test.ts` prints `Tests  21 failed (21)`.
+
+**Green:** that command prints `Tests  21 passed (21)`. `npx vitest run --project contract tests/contract/executor-mock.test.ts --reporter verbose` prints `usage_limit` twice. `LC_REAL_CLAUDE=1 npx vitest run --project unit server/adapters/executors/claude/claude-agent-executor.real.test.ts -t resume` prints `1 passed`. `npm run verify` exits 0.
+
+**Stub check:** no handler fails each trigger. Only `rate_limit_event` fails `assistant`. Adding costs fails the resume cost. Run all.
+
+**Ratchet:** unit count +24. Metric `limit-failures`: decision 7.
