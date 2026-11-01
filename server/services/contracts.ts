@@ -252,6 +252,14 @@ export interface NoticeService {
   markRead(id: string): Promise<void>;
 }
 
+/** One run as the process review reads it (spec 2.12): no loop name, prompt or path. */
+export type ProcessEvent = { id: string; at: Date; loop: string; status: RunStatus; text: string };
+
+export interface ProcessService {
+  /** Runs that started in [from, to), oldest first. Throws VALIDATION_FAILED when from >= to or the range is over 31 days. */
+  events(from: Date, to: Date): Promise<ProcessEvent[]>;
+}
+
 export interface FolderService {
   /**
    * UC-29: one folder + its subfolders; a folder registered as a repo carries the repo name. Empty = home folder; accepts `~`. Throws

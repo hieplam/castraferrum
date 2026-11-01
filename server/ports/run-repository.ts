@@ -84,6 +84,8 @@ export interface RunRepository {
   findOverdue(now: Date): Promise<RunRecord[]>;
   /** Newest first (started_at descending). */
   listByLoop(loopId: string, page: PageRequest): Promise<Page<RunRecord>>;
+  /** Every run (any status) with `started_at >= from` and `< to`, ordered by started_at, then id. */
+  listBetween(from: Date, to: Date): Promise<RunRecord[]>;
   /** Per-execution figures; an id that does not exist is absent from the Map. */
   statsByExecution(executionIds: string[], now: Date): Promise<Map<string, ExecutionStats>>;
   /**

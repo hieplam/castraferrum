@@ -120,6 +120,11 @@ export class PgRunRepository implements RunRepository {
     return rows.map(toRun);
   }
 
+  async listBetween(from: Date, to: Date): Promise<RunRecord[]> {
+    const { rows } = await this.#pool.query('SELECT * FROM runs WHERE started_at >= $1 AND started_at < $2 ORDER BY started_at, id', [from, to]);
+    return rows.map(toRun);
+  }
+
   async findById(id: string): Promise<RunRecord | null> {
     const { rows } = await this.#pool.query('SELECT * FROM runs WHERE id = $1', [id]);
     return rows[0] ? toRun(rows[0]) : null;

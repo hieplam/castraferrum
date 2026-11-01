@@ -92,6 +92,13 @@ export class MemoryRunRepository implements RunRepository {
       .map(clone);
   }
 
+  async listBetween(from: Date, to: Date): Promise<RunRecord[]> {
+    return [...this.#db.runs.values()]
+      .filter((r) => r.startedAt.getTime() >= from.getTime() && r.startedAt.getTime() < to.getTime())
+      .sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime() || cmp(a.id, b.id))
+      .map(clone);
+  }
+
   async findById(id: string): Promise<RunRecord | null> {
     const run = this.#db.runs.get(id);
     return run ? clone(run) : null;

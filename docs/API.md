@@ -42,6 +42,7 @@ prefix of the first path.
 | DELETE | `/loops/:id/probe` | delete the probe, answers 204 (a loop with no probe is not an error). The loop must be stopped and not archived | `LOOP_NOT_FOUND`, `LOOP_IS_ACTIVE`, `LOOP_ARCHIVED` |
 | GET | `/notices` | unread notices, newest first, at most 100: `{ items: [{ id, dedupeKey, kind, loopId, messageKey, params, at }] }`; `kind` is `wait`, `hold`, `blocked`, `gate`, `goal_card` or `probe_failed`; `messageKey` is an i18n key such as `notice.hold` that takes `params.reason` | - |
 | POST | `/notices/:id/read` | marks one notice read, answers 204; a later notice with the same `dedupeKey` is a new unread notice | `NOTICE_NOT_FOUND` |
+| GET | `/process/events?from=&to=` | the run events of a period for the process review: `{ events: [{ id, at, loop, status, text }] }`, oldest first. `from` and `to` are ISO dates; a run is in the range when `from <= started_at < to`; every status counts. `id` is the run id, `loop` the loop id. `text` joins the non-empty `error`, `summary` and `skip_reason` with a newline, each cut at 2000 characters, or is `''`. The body holds no loop name, prompt or path | `VALIDATION_FAILED` (a date is missing or not ISO, `from` is not before `to`, or the range is over 31 days) |
 
 The console keeps at most one unread notice for each `dedupeKey`. If the variable `LOOPS_NOTIFY_WEBHOOK` holds an
 `http://` or `https://` URL, each new unread notice is also posted there once as JSON `{ kind, text, at }` (`text` is
