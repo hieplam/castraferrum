@@ -213,7 +213,7 @@ function blankRun(input: StartRunInput | SkippedRunInput): RunRecord {
     costUsd: null,
     sessionId: null,
     taskKey: input.taskKey ?? null,
-    slot: null,
+    slot: 'slot' in input ? (input.slot ?? null) : null,
     endResult: null,
     endPr: null,
   };

@@ -680,6 +680,50 @@ An earlier run after the T4 rebase ended with exit 1, from a stale lane database
 
 <!-- P6 -->
 
+## P6
+
+**Red**, before the build:
+
+    $ npx vitest run --project api tests/api/lanes.test.ts
+          Tests  3 failed (3)
+
+**Green**, after the rebase on main (main was 044ea54, no rebase needed):
+
+    $ npx vitest run --project api tests/api/lanes.test.ts
+          Tests  3 passed (3)
+    $ npx vitest run --project unit server/services/probe-lanes.test.ts
+          Tests  5 passed (5)
+    $ npx vitest run --project unit shared/domain/goal-loop.test.ts -t lanes
+          Tests  8 passed | 21 skipped (29)
+    $ npm run verify   (steps before test:e2e)
+    ratchets: ok
+          Tests  959 passed | 2 skipped (961)
+          Tests  170 passed (170)
+          Tests  162 passed (162)
+
+Full `npm run verify` after the rebase on 83ff7ea, in slot-1, one run:
+
+    ratchets: ok
+          Tests  989 passed | 2 skipped (991)
+          Tests  170 passed (170)
+          Tests  162 passed (162)
+      1 failed
+        [webkit-phone] tests/e2e/phone.spec.ts:89 UC-34 (live-log line not visible within 1000 ms after Start)
+      114 passed (13.7m)
+
+The one failure is a 1 s timeout on a loaded machine, in a non-probe run that P6 does not change (issues 265 and 272 track this kind). One run of that spec alone passed, then `phone:check` and `uc-coverage` ran apart:
+
+    $ npx playwright test tests/e2e/phone.spec.ts --project webkit-phone --workers 1
+      4 passed (16.1s)
+    $ npm run phone:check -- --max 0
+    phone overflow: 0/12
+
+The verify log did not reach `UCs with a green e2e`, because `test:e2e` failed before it. The coordinator re-runs it.
+
+**Stub check:** `lowestFreeSlot` changed to return 0: the API test of three env sets failed (1 failed, 2 passed), and `probe-lanes.test.ts` failed 3 of 5. Restored.
+
+**Ratchet:** unit count 989 passed after the change. The ratchets tool printed `base main: every limit held`.
+
 <!-- P7 -->
 
 <!-- P8 -->

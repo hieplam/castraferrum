@@ -216,3 +216,36 @@ export function parseProbeLine(stdout: string): ProbeParse {
     },
   };
 }
+
+// ---------------------------------------------------------------- lanes (spec 2.7)
+
+/** The lowest slot, from 0, that no active run holds. A run with no slot (a manual or scheduled run) holds none. */
+export function lowestFreeSlot(used: readonly (number | null)[]): number {
+  const held = new Set(used);
+  let slot = 0;
+  while (held.has(slot)) slot++;
+  return slot;
+}
+
+/**
+ * The env of a claimed run: `lane_env` with every `{slot}` and `{port}` filled in (`port` = `lane_base_port + slot`), plus `CASTRAFERRUM_SLOT`.
+ * The slot comes last, so a lane env cannot change it. Without a base port, `{port}` stays as written (a save refuses that, decision 24).
+ */
+export function laneEnvOf(settings: Pick<ProbeSettings, 'laneEnv' | 'laneBasePort'>, slot: number): Record<string, string> {
+  const port = settings.laneBasePort === null ? null : String(settings.laneBasePort + slot);
+  const env: Record<string, string> = {};
+  for (const [name, value] of Object.entries(settings.laneEnv)) {
+    const filled = value.split('{slot}').join(String(slot));
+    env[name] = port === null ? filled : filled.split('{port}').join(port);
+  }
+  env.CASTRAFERRUM_SLOT = String(slot);
+  return env;
+}
+
+/** The first line of the prompt of a claimed run. `docs/ARCHITECTURE.md` holds the same text, and `tick.md` relies on it (spec 2.7). */
+export function claimedLine(key: string, action: 'take' | 'plan'): string {
+  return `[Castraferrum] The console claimed task ${key} for this run (action ${action}). Do not run next or claim. Do this task only.`;
+}
+
+/** The message that resumes a run after a usage limit (spec 2.7). */
+export const RESUME_LINE = '[Castraferrum] The usage limit has reset. Continue the same task from where you stopped.';

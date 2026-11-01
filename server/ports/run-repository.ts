@@ -44,6 +44,8 @@ export type StartRunInput = {
   executorKind: string;
   executorConfig: unknown;
   taskKey?: string | null;
+  /** The lane slot of a claimed run (spec 2.7). */
+  slot?: number | null;
 };
 
 export type SkippedRunInput = {
