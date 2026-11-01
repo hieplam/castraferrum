@@ -1323,6 +1323,33 @@ Ratchet: tests in `process-file-issues.test.ts`, 0 before, 15 after (the plan sa
 
 <!-- R4 -->
 
+## R4
+
+Red (before building): `npx vitest run --project api tests/api/review-profile.test.ts`
+```
+Error: Cannot find module '../../shared/domain/review-guard' imported from tests/api/review-profile.test.ts
+ Test Files  1 failed (1)
+      Tests  no tests
+```
+Green (after the rebase): same command
+```
+ Test Files  1 passed (1)
+      Tests  36 passed | 1 skipped (37)
+```
+`npx vitest run --project unit server/services/run-service.test.ts`: 16 passed (13 before, 3 new), 0 failed.
+Real (`LC_REAL_CLAUDE=1`, haiku, low effort, folder `lc-real-claude-r4-*`, `GH_TOKEN=invalid`), 3 runs, all `1 passed`. The last run printed:
+```
+onGuard 3 call(s): [{"tool":"Bash","deny":true,"rule":"bash-not-listed"},{"tool":"Write","deny":true,"rule":"write-path"},{"tool":"Write","deny":false}] · marker false · bash.txt false · ok.txt true
+```
+Stub check, all run and restored:
+- `checkReviewTool` always allows: `Tests  23 failed | 13 passed | 1 skipped (37)`.
+- `checkReviewTool` always denies: `Tests  33 failed | 3 passed | 1 skipped (37)`.
+- Wiring without `tools`: wiring case 1 fails (`1 failed | 35 passed`). The plan says the real run then writes the marker. It does not: the hook still denies, so the real run printed the same 3 calls and no marker. The real run writes the marker only when the hook entry is removed: `onGuard 0 call(s) · marker true · bash.txt true · ok.txt true`, and the real test fails on `marker.txt outside the folder`.
+
+Ratchet: `npx vitest list --project api | wc -l` 142 to 150 (each `it.each` is one line, so it counts +8; `vitest run` counts 37 tests in the file). Unit tests 855 to 858 (up 3). Up only.
+
+Full verify (after the last rebase, on the code of this PR, `slot-1`, own mkdir): `npm run verify` exits 0. Unit `1074 passed | 3 skipped`, contract `210 passed`, api `286 passed | 2 skipped`, Playwright `120 passed`, `UCs with a green e2e: 34/34`. An earlier run, before the rebase on the iPhone fix, failed one iPhone journey step (URL stayed on `/settings`); that run is not counted.
+
 <!-- R5 -->
 
 ## R5

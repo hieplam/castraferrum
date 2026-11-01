@@ -32,6 +32,12 @@ export type ExecutionInput = {
    * `false` or absent it adds no hook, so a run works as before. Mock ignores it. The run service sets it for a gated repository (K7).
    */
   gateGuard?: boolean;
+  /**
+   * The tool profile (decision 49). With `review` the Claude executor lets the run use only `REVIEW_TOOLS`, and adds a `PreToolUse` hook that refuses every call
+   * outside `reports/process-review/` and every command that is not one of the three review scripts. With `full` or absent it adds no `tools` key and no
+   * review hook, so a run works as before. Mock ignores it. The run service sets it from `CASTRAFERRUM_TOOL_PROFILE` in the lane env.
+   */
+  toolProfile?: 'full' | 'review';
 };
 
 export type ExecutionEvent =
