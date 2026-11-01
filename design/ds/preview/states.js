@@ -14,6 +14,9 @@ window.PV_SCREENS = [
   ['form', 'Editor', '/loops/new, /loops/:id/edit', ['m-form-light.png']],
   ['repos', 'Repos page', '/repos', ['m-repos-light.png', 'm-folder-light.png']],
   ['settings', 'Settings page', '/settings', ['m-settings-light.png']],
+  ['gate', 'Gate page', '/repos/:id/gate', []],
+  ['goals', 'Goals page', '/loops/:id/goals', []],
+  ['goal-cards', 'Scoreboard and goal cards', '/scoreboard, /repos/:id/goal-cards', []],
 ];
 (function () {
   const PUSHED = ['loop', 'period', 'run', 'form'];
@@ -29,6 +32,9 @@ window.PV_SCREENS = [
   const MAC = PICKER.map((x) => (x === 'folder-row*7' ? 'folder-row*5' : x));
   const SETTINGS = ['settings-theme-auto', 'settings-lang-en', 'settings-lang-vi', 'settings-server', 'settings-db', 'settings-address', 'settings-version'];
   const OVERVIEW = ['summary', 'stat-active-loops', 'stat-running-runs', 'stat-runs-today', 'stat-errors-24h', 'loop-row*7', 'list-search'];
+  const PROBE = ['loop-header', 'now-card', 'loop-figures', 'fig-active', 'fig-runs', 'fig-goals', 'fig-typical', 'probe-line', 'recent-runs', 'run-row*4'];
+  const GATE = ['gate-switch', 'gate-queue', 'gate-record'];
+  const CARD = ['goal-card', 'card-status', 'card-door', 'card-accept', 'card-refuse', 'card-rows', 'card-history'];
   const desktop = [
     { id: 'frame-loading', screen: 'frame', title: 'First load: skeleton cells on the Loops page, figures -', requires: ['list-loading', 'summary'] },
     { id: 'frame-disconnected', screen: 'frame', title: 'Lost connection: red banner with the attempt and the retry time, figures frozen', requires: ['banner-disconnected', 'summary', 'loop-row*7'] },
@@ -62,6 +68,10 @@ window.PV_SCREENS = [
     { id: 'loop-menu', screen: 'loop', title: 'The ⋯ of the loop page open: Duplicate, Archive locked while running', fixed: true, requires: ['loop-menu', 'menu-duplicate', 'menu-archive'] },
     { id: 'loop-runs', screen: 'loop', title: 'All runs: the longest active period, every run grouped by active period, paged (10 per page)', requires: ['runs-table', 'run-row*10', 'runs-pager', 'period-longest', 'exec-row*1', 'runs-prev', 'runs-next'] },
     { id: 'loop-settings', screen: 'loop', title: 'Settings and prompt: repo with path, schedule, agent, runs at the same time, time limit, the full prompt, Edit settings', requires: ['config-repo', 'config-executor', 'config-timeout', 'loop-prompt', 'loop-edit'] },
+    { id: 'probe-waiting', screen: 'loop', title: 'A probe loop waits for a person (action wait): Waiting for you, the reason, the last probe line', requires: PROBE.concat('loop-stop') },
+    { id: 'probe-held', screen: 'loop', title: 'A probe loop on a hold (action hold, usage limit): Held, the hold, the last probe line, a held run in Recent runs', requires: PROBE.concat('loop-stop', 'banner-hold', 'hold-list') },
+    { id: 'probe-blocked', screen: 'loop', title: 'A probe loop with blockers (action blocked): Blocked, the blocking issues, the last probe line', requires: PROBE.concat('loop-stop', 'blocker-list', 'blocker-row*2') },
+    { id: 'probe-complete', screen: 'loop', title: 'The goal passed (action done): Goal met, the active period closed with Goal met, Start', requires: PROBE.concat('loop-start', 'period-status') },
     { id: 'period-running', screen: 'period', title: 'Still active', requires: PERIOD.concat('run-row*10') },
     { id: 'period-stopped', screen: 'period', title: 'Ended because the user pressed Stop', requires: PERIOD.concat('run-row*4') },
     { id: 'period-server-down', screen: 'period', title: 'Ended because the server shut down, an interrupted run', requires: PERIOD.concat('run-row*4') },
@@ -76,6 +86,7 @@ window.PV_SCREENS = [
     { id: 'run-skipped', screen: 'run', title: 'Skipped: the reason, no session, no log', requires: ['run-header', 'skip-reason', 'run-transcript-note'] },
     { id: 'run-repo-missing', screen: 'run', title: 'The repo folder is gone: the hint and Open Repos', requires: ['run-header', 'run-repo-missing', 'open-repos', 'run-log', 'run-transcript-note'] },
     { id: 'run-resume-copied', screen: 'run', title: 'Toast after Copy command', fixed: true, requires: RUN.concat('run-resume') },
+    { id: 'run-held', screen: 'run', title: 'A run held by the usage limit: Held, the same session resumes after the reset, no resume command', requires: ['run-header', 'run-facts', 'run-session', 'run-banner', 'run-transcript', 'run-log'] },
     { id: 'run-not-found', screen: 'run', title: 'RUN_NOT_FOUND' },
     { id: 'run-loading', screen: 'run', title: 'Skeleton' },
     { id: 'run-transcript-running', screen: 'run', title: 'The transcript following a live session', requires: TX },
@@ -120,11 +131,18 @@ window.PV_SCREENS = [
     { id: 'vi-repos-add', screen: 'repos', title: 'repos-add in Vietnamese', lang: 'vi', fixed: true, requires: PICKER },
     { id: 'settings', screen: 'settings', title: 'Everything connected', requires: SETTINGS },
     { id: 'settings-db-down', screen: 'settings', title: 'The database not answering', requires: SETTINGS.concat('banner-db-down') },
+    { id: 'gate-queue', screen: 'gate', title: 'The merge gate of a repo, on: the switch, every job state (Running, Queued, Needs ratification with Ratify, Merged, Failed)', requires: GATE.concat('gate-job*5', 'gate-ratify') },
+    { id: 'gate-failed', screen: 'gate', title: 'The record of a failed job: Failed, the failed step, each step, the output of the failed step, Queue again', requires: ['gate-job-status', 'gate-failed-step', 'gate-steps', 'gate-step*8', 'gate-output', 'gate-requeue'] },
+    { id: 'goal-rows', screen: 'goals', title: 'The goal figure, the goal rows that pass and fail, the standing goals, the loops that stopped on a budget or a bad probe', requires: ['goal-figures', 'goal-rows', 'goal-row*8', 'standing-goals', 'standing-row*2', 'goal-loops', 'goal-loop-row*2'] },
+    { id: 'scoreboard', screen: 'goal-cards', title: 'The process scoreboard: four figures, one number per week, each cause around the date its check merged, no chart', requires: ['score-figures', 'score-weeks', 'score-week*5', 'score-causes', 'score-cause*3'] },
+    { id: 'card-two-way', screen: 'goal-cards', title: 'A proposed goal card with a two-way door: starts by itself after the refusal window, Accept, Refuse, the earlier cards', requires: CARD },
+    { id: 'card-one-way', screen: 'goal-cards', title: 'A proposed goal card with a one-way door: never starts alone, Accept, Refuse', requires: CARD },
   ];
   const PHONE = ['frame-loading', 'frame-disconnected', 'not-found', 'loops-empty', 'loops-overview', 'loops-repo-filter', 'loops-stop-confirm', 'vi-loops-overview',
     'loop-running', 'loop-last-failed', 'loop-never-run', 'loop-stop-confirm', 'loop-help', 'loop-menu', 'loop-runs', 'loop-settings', 'period-running',
     'run-running', 'run-succeeded', 'run-transcript-running', 'form-new', 'form-sched-daily', 'form-sched-weekly', 'form-errors', 'form-repo-pick',
-    'repos-list', 'repos-add', 'repos-delete-confirm', 'settings'];
+    'repos-list', 'repos-add', 'repos-delete-confirm', 'settings',
+    'probe-waiting', 'probe-held', 'probe-blocked', 'probe-complete', 'run-held', 'gate-queue', 'gate-failed', 'goal-rows', 'scoreboard', 'card-two-way', 'card-one-way'];
   const byId = Object.fromEntries(desktop.map((s) => [s.id, s]));
   const phone = PHONE.map((id) => {
     const b = byId[id];

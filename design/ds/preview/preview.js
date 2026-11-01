@@ -89,23 +89,27 @@
     lost: () => `<div class="banner is-err" data-testid="banner-disconnected" role="status">${icon('alert')}<span class="banner-text"><b>${t('banner.lost')}</b> ${t('banner.lostRetry', { n: 3, s: 4 })}</span></div>`,
     back: () => `<div class="banner is-info" data-testid="banner-reconnected" role="status">${icon('info')}<span class="banner-text">${t('banner.back')}</span></div>`,
     db: () => `<div class="banner is-warn" data-testid="banner-db-down" role="status">${icon('alert')}<span class="banner-text">${t('banner.db')}</span></div>`,
+    hold: () => `<div class="banner is-warn" data-testid="banner-hold" role="status">${icon('alert')}<span class="banner-text">${t('goalLoop.banner.hold', { t: D.goalLoop.heldBanner.until })}</span></div>`,
   };
   // The whole app: frame + one page (+ an overlay drawn over it). o.navbar = a pushed page: its navigation bar on the
   // phone and no tab bar; o.narrow = the narrow page width.
   function app(o) {
-    const bottom = o.navbar === undefined ? tabbar(o.tab) : '';
+    const bottom = o.navbar === undefined || o.keepTabs ? tabbar(o.tab) : '';
     return SPRITE + `<div class="app">${topbar(o)}${PHONE && o.navbar ? o.navbar : ''}<main class="page${o.narrow ? ' is-narrow' : ''}">${o.banner ? BANNERS[o.banner]() : ''}${o.page}</main>${bottom}</div>${o.overlay || ''}`;
   }
 
   // ── Loops page ──────────────────────────────────────────────
   // Loop kind (the data-status of spec 7.1) and its pill (spec 4.7).
   function kindOf(l) {
+    if (l.probe) return l.probe.kind;
     if (l.archived) return 'archived';
     if (l.run) return 'running';
     if (l.status === 'active') return 'active';
     return l.endReason === 'server_down' ? 'server_down' : 'stopped';
   }
-  const PILL = { running: ['s-run', 'status.running'], active: ['s-wait', 'status.waiting'], stopped: ['s-stop', 'status.stopped'], server_down: ['s-int', 'status.serverDown'], archived: ['s-stop', 'status.archived'] };
+  const PILL = { running: ['s-run', 'status.running'], active: ['s-wait', 'status.waiting'], stopped: ['s-stop', 'status.stopped'], server_down: ['s-int', 'status.serverDown'], archived: ['s-stop', 'status.archived'],
+    waiting: ['s-warn', 'goalLoop.loop.waiting'], blocked: ['s-fail', 'goalLoop.loop.blocked'], held: ['s-int', 'goalLoop.loop.held'],
+    budget_limited: ['s-warn', 'goalLoop.loop.budgetLimited'], complete: ['s-ok', 'goalLoop.loop.complete'], probe_failed: ['s-fail', 'goalLoop.loop.probeFailed'] };
   // The last run of a row: its text key and the colour class of its result (the status colours of the pills).
   const LAST = {
     failed: ['row.lastFailed', 's-fail'], timed_out: ['row.lastTimedOut', 's-fail'], succeeded: ['row.lastOk', 's-ok'],
@@ -277,6 +281,7 @@
     if (r.st === 'failed') { L.push([at, 'log-err', `Error · ${r.err}`]); if (r.cost != null) L.push([at, '', `End · Error · ${usd(r.cost)}`]); }
     if (r.st === 'timed_out') L.push([at, 'log-err', `End · Timed out (timeout ${l.timeout == null ? 'no limit' : serverDur(l.timeout)}) · stop signal sent`]);
     if (r.st === 'cancelled') L.push([at, '', 'End · Cancelled (Stop) · stop signal sent']);
+    if (r.st === 'held') L.push([at, '', D.goalLoop.heldLog]);
     return L; // running: only the Start line; interrupted: the server died, no End line
   }
   // o.live = the live output (a cursor at now, data-paused); o.left and o.right = the bar.
@@ -292,7 +297,7 @@
   const RUN_PILL = {
     running: ['s-run', 'status.running'], succeeded: ['s-ok', 'status.succeeded'], failed: ['s-fail', 'status.failed'],
     timed_out: ['s-fail', 'status.timedOut'], cancelled: ['s-skip', 'status.cancelled'], interrupted: ['s-int', 'status.interrupted'],
-    skipped: ['s-skip', 'status.skipped'],
+    skipped: ['s-skip', 'status.skipped'], held: ['s-int', 'goalLoop.run.held'],
   };
   // The counts of an active period as words (spec 5.3): [succeeded, failed, cancelled, skipped, interrupted] + the runs working,
   // in the order of the app (web/features/loop-detail/period-text.ts);
@@ -304,9 +309,9 @@
     return words.length ? words.join(' · ') : '-';
   }
   const periodSpan = (e) => (e.end ? t('period.span', { from: when(e.start), to: when(e.end, e.start) }) : t('period.since', { t: when(e.start) }));
-  const periodEnd = (e) => t(e.st === 'active' ? 'period.stillActive' : e.st === 'server_down' ? 'period.byServer' : 'period.byYou');
+  const periodEnd = (e) => t(e.st === 'active' ? 'period.stillActive' : e.st === 'server_down' ? 'period.byServer' : e.st === 'goal_met' ? 'goalLoop.period.phrase' : 'period.byYou');
   // The state of an active period as a pill (page head of the active period page): still active, stopped by you, ended by the server.
-  const periodPill = (e) => { const [cls, key] = e.st === 'active' ? ['s-run', 'period.pill.active'] : e.st === 'server_down' ? ['s-int', 'period.pill.byServer'] : ['s-stop', 'period.pill.byYou']; return `<span class="pill ${cls}" data-testid="period-status">${t(key)}</span>`; };
+  const periodPill = (e) => { const [cls, key] = e.st === 'active' ? ['s-run', 'period.pill.active'] : e.st === 'server_down' ? ['s-int', 'period.pill.byServer'] : e.st === 'goal_met' ? ['s-ok', 'goalLoop.period.goalMet'] : ['s-stop', 'period.pill.byYou']; return `<span class="pill ${cls}" data-testid="period-status">${t(key)}</span>`; };
   const periodCounts = (e) => tn('period.runs', e.rounds) + (e.counts[1] ? ', ' + tn('period.failed', e.counts[1]) : '');
   const periodRuns = (key, e) => (key === 'pilot' && e.k === 2 ? D.runs.pilotExec2 : D.runs[key].slice(0, e.rounds));
 
@@ -315,7 +320,7 @@
   function runCell(key, r, o = {}) {
     const p = RUN_PILL[r.st], rid = runId(key, r);
     const meta = [stamp(r.start)].concat(r.dur != null ? clock(r.dur) : [], r.cost != null ? usd(r.cost) : []).join(' · ');
-    const sum = r.st === 'running' ? t('runs.stillWorking') : r.st === 'skipped' ? t('skip.reason', { n: r.reason }) : r.sum ? esc(r.sum) : r.st === 'failed' ? t('runs.noSummaryFailed') : '-';
+    const sum = r.st === 'running' ? t('runs.stillWorking') : r.st === 'held' ? t('goalLoop.run.heldSum') : r.st === 'skipped' ? t('skip.reason', { n: r.reason }) : r.sum ? esc(r.sum) : r.st === 'failed' ? t('runs.noSummaryFailed') : '-';
     return `<a class="cell" href="#" data-testid="run-row" data-run-id="${rid}" data-status="${r.st}"><span class="cell-main">` +
       `<span class="run-top"><span class="run-id">${r.n == null ? '-' : '#' + r.n}</span><span class="pill ${p[0]}">${t(p[1])}</span><span class="run-meta">${meta}</span></span>` +
       `<span class="cell-sum" data-testid="run-sum" data-run-id="${rid}">${sum}</span>${o.session && r.n != null ? `<span class="cell-meta">${sid(key, r.n)}</span>` : ''}</span>${chev}</a>`;
@@ -323,8 +328,55 @@
   const periodCell = (key, e) => `<a class="cell" href="#" data-testid="period-row" data-execution-id="${execId(key, e.k)}"><span class="cell-main">` +
     `<span class="cell-title">${t('period.title', { k: e.k })}</span><span class="cell-meta">${periodSpan(e)} · ${periodEnd(e)} · ${periodCounts(e)}</span></span>${chev}</a>`;
 
+
+  // ── Probe loops (goal-driven loop, spec 2.1 and 2.2) ────────
+  // A probe state is one sample loop of data.js (PV.goalLoop) under the key probe-<state>, added here so that the seeded
+  // world of the visual tests does not change. A probe loop has no next run, so its Goals figure takes that place.
+  function probeKey(state) {
+    const g = D.goalLoop, p = g.states[state], key = 'probe-' + state;
+    const end = p.period;
+    const cur = Object.assign({}, g.executions[0], end ? { st: end.st, end: end.end, up: end.up } : {}, p.rounds ? { rounds: p.rounds, counts: [...g.executions[0].counts], sessions: p.rounds } : {});
+    const exec = Object.assign({}, g.loop.exec, p.endedAt ? { endedAt: p.endedAt, up: end.up } : {}, p.rounds ? { rounds: p.rounds } : {});
+    D.loops[key] = Object.assign({}, g.loop, { exec, probe: p }, p.status ? { status: p.status } : {}, p.goals ? { goals: p.goals } : {}, p.runsTotal ? { runsTotal: p.runsTotal } : {}, p.last ? { last: p.last } : {});
+    D.executions[key] = [cur].concat(g.executions.slice(1));
+    D.runs[key] = (p.run ? [p.run] : []).concat(g.runs);
+    return key;
+  }
+  const schedOf = (l) => (l.probe ? t('goalLoop.probe.every', { s: l.probeEverySec }) : schedDesc(l.cron));
+  function probeNow(key) {
+    const l = D.loops[key], p = l.probe, g = l.goals;
+    const K = {
+      waiting: () => [t('goalLoop.now.waiting'), t('goalLoop.now.waitingSub', { reason: esc(p.reason) })],
+      held: () => [t('goalLoop.now.held', { resource: `<span class="data">${esc(p.resource)}</span>` }), t('goalLoop.now.heldSub', { t: p.until, n: p.n })],
+      blocked: () => [t('goalLoop.now.blocked'), t('goalLoop.now.blockedSub', { reason: esc(p.reason) })],
+      complete: () => [t('goalLoop.now.complete'), t('goalLoop.now.completeSub', { t: when(p.endedAt), k: l.exec.k, n: g.total })],
+    }[p.kind]();
+    const open = l.last.st === 'held' ? t('now.openRun', { n: l.last.n }) : t('now.openLastRun');
+    const link = PHONE ? `<a class="cell is-link" href="#"><span class="cell-main">${open}</span>${chev}</a>` : `<span class="now-actions"><a class="btn" href="#">${open}${icon('arrow')}</a></span>`;
+    return `<div class="card" data-testid="now-card" data-state="${p.kind}"><div class="now">${p.mark ? `<span class="dot ${p.mark}"></span>` : ''}<div class="now-text"><b>${K[0]}</b>${K[1]}</div>${PHONE ? '' : link}</div>${PHONE ? link : ''}</div>`;
+  }
+  // What a probe state adds under the now card: its own list, then the last probe line (spec, goal G28).
+  function probeExtra(key) {
+    const l = D.loops[key], p = l.probe;
+    let list = '';
+    if (p.kind === 'held') {
+      list = `<p class="group-cap">${t('goalLoop.hold.title')}</p><div class="group" data-testid="hold-list"><div class="cell"><span class="cell-main"><span class="cell-title is-plain"><span class="data">${esc(p.resource)}</span></span>` +
+        `<span class="cell-meta">${t('goalLoop.hold.opened', { t: p.openedAt, n: p.n })}</span></span><span class="cell-value">${t('goalLoop.hold.until', { t: `<span class="data">${esc(p.until)}</span>` })}</span></div></div>`;
+    } else if (p.kind === 'blocked') {
+      list = `<p class="group-cap">${t('goalLoop.blocked.title')}</p><div class="group" data-testid="blocker-list">${p.blockers.map(([n, title, tasks]) => `<a class="cell" href="#" data-testid="blocker-row"><span class="cell-main"><span class="cell-title">${t('goalLoop.blocked.issue', { n, title: esc(title) })}</span>` +
+        `<span class="cell-meta">${t('goalLoop.blocked.tasks', { n: tasks })}</span></span>${chev}</a>`).join('')}</div>`;
+    } else if (p.kind === 'complete') {
+      const e = D.executions[key][0];
+      list = `<p class="group-cap">${t('goalLoop.period.closed')}</p><div class="group"><a class="cell" href="#" data-execution-id="${execId(key, e.k)}"><span class="cell-main"><span class="cell-title">${t('period.title', { k: e.k })}</span>` +
+        `<span class="cell-row">${periodPill(e)}<span class="cell-meta">${periodSpan(e)} · ${periodCounts(e)}</span></span></span>${chev}</a></div>`;
+    }
+    return list + `<p class="group-cap">${t('goalLoop.probe.last')} <span class="keep">· <span class="data">${esc(p.at)}</span></span></p>` +
+      `<div class="cmd is-wrap" data-testid="probe-line"><code>${esc(p.line)}</code><button class="btn plain" type="button">${t('goalLoop.probe.copy')}</button></div>`;
+  }
+
   // The now card of spec 5.3: what the loop does now, the live or the last output, the link to that run.
   function nowCard(key, o = {}) {
+    if (D.loops[key].probe) return probeNow(key);
     const l = D.loops[key], kind = pageKind(l, o), rs = D.runs[key];
     const inT = l.next ? t('dur.m', { m: Math.floor(l.next.inSec / 60) }) : '';
     let state = kind, head, sub, mark = '', log = '', open = '', gone = '';
@@ -371,14 +423,16 @@
       const n = t('stat.neverStarted');
       html = stat('fig-active', t('stat.activeFor'), '-', n) + stat('fig-runs', t('stat.runsSinceStart'), '-', n) + stat('fig-next', t('stat.nextRun'), '-', n) + stat('fig-typical', t('stat.typical'), '-', n);
     } else {
-      const live = kind === 'running' || kind === 'active';
+      const live = kind === 'running' || kind === 'active' || (l.probe && kind !== 'complete');
+      const goals = l.goals && stat('fig-goals', t('goalLoop.goals.figure'), `${l.goals.passed}/${l.goals.total}`, t('goalLoop.goals.figureSub'));
+      const held = kind === 'held' ? ' · ' + t('goalLoop.count.held', { n: 1 }) : '';
       html = (live
         ? stat('fig-active', t('stat.activeFor'), dur(e.up), t('stat.since', { t: when(e.startedAt) }))
         : stat('fig-active', t('stat.lastPeriod'), dur(e.up), t('stat.span', { from: when(e.startedAt), to: when(e.endedAt, e.startedAt) }))) +
-        stat('fig-runs', t(live ? 'stat.runsSinceStart' : 'stat.runsInIt'), e.rounds, countWords(e.counts, l.run ? 1 : 0)) +
-        (live
+        stat('fig-runs', t(live ? 'stat.runsSinceStart' : 'stat.runsInIt'), e.rounds, countWords(e.counts, l.run ? 1 : 0) + held) +
+        (goals || (live
           ? stat('fig-next', t('stat.nextRun'), l.next.at, t('stat.in', { d: t('dur.m', { m: Math.floor(l.next.inSec / 60) }) }))
-          : stat('fig-next', t('stat.nextRun'), '-', t('stat.stoppedNote'))) +
+          : stat('fig-next', t('stat.nextRun'), '-', t('stat.stoppedNote')))) +
         stat('fig-typical', t('stat.typical'), l.avg == null ? '-' : clock(l.avg), l.avg == null ? t('stat.none') : t('stat.average', { n: l.finished }));
     }
     return `<div class="stats" data-testid="loop-figures">${html}</div>`;
@@ -408,7 +462,7 @@
   // inset-list cells on the settings page, one cell on the phone's loop page.
   function settings(key, card) {
     const l = D.loops[key], repo = D.repos[l.repo];
-    const rows = [['config-repo', 'loopSettings.repo', esc(repo.name), repo.path], ['', 'loopSettings.schedule', esc(schedDesc(l.cron)), l.tz],
+    const rows = [['config-repo', 'loopSettings.repo', esc(repo.name), repo.path], ['', 'loopSettings.schedule', esc(schedOf(l)), l.probe ? '' : l.tz],
       ['config-executor', 'loopSettings.agent', t('loop.meta.claude', l.claude)], ['', 'loopSettings.parallel', t('loopSettings.atMost', { n: 1 })],
       ['config-timeout', 'loopSettings.limit', l.timeout == null ? t('loopSettings.noLimit') : dur(l.timeout)]];
     const tid = (id) => (id ? ` data-testid="${id}"` : '');
@@ -429,7 +483,7 @@
   function mainAction(l, kind) {
     const size = PHONE ? ' lg block' : '';
     if (kind === 'archived') return `<button class="btn primary${size}" type="button" data-testid="loop-restore">${icon('restore')}${t('act.restore')}</button>`;
-    if (kind === 'stopped' || kind === 'server_down') return `<button class="btn primary${size}" type="button" data-testid="loop-start">${icon('play')}${t('act.start')}</button>`;
+    if (kind === 'stopped' || kind === 'server_down' || kind === 'complete') return `<button class="btn primary${size}" type="button" data-testid="loop-start">${icon('play')}${t('act.start')}</button>`;
     return `<button class="btn danger${size}" type="button" data-testid="loop-stop"${kind === 'stopping' ? ' disabled' : ''}>${icon('stop')}${t('act.stopLoop')}</button>`;
   }
   // The ⋯ of the loop page: a menu under the button from 640px, a sheet on the phone.
@@ -452,18 +506,19 @@
     const edit = `<button class="btn${PHONE ? ' plain' : ''}" type="button" data-testid="loop-edit">${t('act.edit')}</button>`;
     const status = kind === 'stopping' ? 'cancelled' : kind;
     const desc = l.desc ? `<p class="page-desc">${esc(l.desc)}</p>` : '';
+    const extra = l.probe ? probeExtra(key) : '';
     let page;
     if (PHONE) {
       const links = `<div class="group">${l.runsTotal ? `<a class="cell" href="#" data-testid="all-runs-link"><span class="cell-title">${tn('runs.all', l.runsTotal)}</span>${chev}</a>` : ''}` +
         `<a class="cell" href="#" data-testid="loop-settings-link"><span class="cell-main"><span class="cell-title">${t('loopSettings.title')}</span><span class="cell-meta">${t('loop.meta.claude', l.claude)} · ${l.timeout == null ? t('loopSettings.noLimitShort') : t('loopSettings.limitShort', { d: dur(l.timeout) })}</span></span>${chev}</a></div>`;
       page = `<div class="page-head" data-testid="loop-header" data-status="${status}"><h1 class="page-title">${esc(l.name)}</h1></div>` +
-        `<div class="page-meta">${pill}<span><span data-testid="loop-repo">${esc(repo.name)}</span> ·&nbsp;${esc(schedDesc(l.cron))}</span></div>${desc}` +
-        nowCard(key, o) + figures(key) + recentRuns(key, o) + links + `<div class="actionbar">${mainAction(l, kind)}</div>`;
+        `<div class="page-meta">${pill}<span><span data-testid="loop-repo">${esc(repo.name)}</span> ·&nbsp;${esc(schedOf(l))}</span></div>${desc}` +
+        nowCard(key, o) + extra + figures(key) + recentRuns(key, o) + links + `<div class="actionbar">${mainAction(l, kind)}</div>`;
     } else {
       const menu = o.menu ? `<span style="position:relative;display:inline-flex">${menuBtn}${loopMenu(l)}</span>` : menuBtn;
       page = backlink(t('nav.loops')) +
         `<div class="page-head" data-testid="loop-header" data-status="${status}"><h1 class="page-title">${esc(l.name)}${pill}</h1>${edit}${menu}${mainAction(l, kind)}</div>${desc}` +
-        `<div class="cols"><div class="cols-main">${nowCard(key, o)}${recentRuns(key, o)}</div><div class="cols-side">${figures(key)}${settingsCard(key)}</div></div>`;
+        `<div class="cols"><div class="cols-main">${nowCard(key, o)}${extra}${recentRuns(key, o)}</div><div class="cols-side">${figures(key)}${settingsCard(key)}</div></div>`;
     }
     return app({ tab: 'loops', loopCount: D.counts.all, conn: o.conn, banner: o.banner, navbar: navbar(t('nav.loops'), '', edit + menuBtn), page, overlay: o.overlay });
   }
@@ -557,11 +612,11 @@
     if (note) return head + `<p class="note" data-testid="run-transcript-note" data-mode="${tx.mode}">${esc(note())}</p>`;
     const all = D.transcripts[tx.data], list = tx.page ? all.slice(-tx.page) : all;
     const live = tx.mode === 'following' || tx.mode === 'paused';
-    const right = live ? t(tx.mode === 'paused' ? 'now.paused' : 'now.following') : t('tx.ended');
+    const right = tx.mode === 'held' ? t('goalLoop.tx.held') : live ? t(tx.mode === 'paused' ? 'now.paused' : 'now.following') : t('tx.ended');
     const top = list.length < all.length ? `<div class="tx-end" data-testid="run-transcript-edge">${t('tx.loadingOlderEntries')}</div>` : '';
     const end = live
       ? `<div class="tx-entry" data-cursor="live"><div class="tx-head"><span>${D.now}</span></div><div class="tx-body"><span class="cursor"></span></div></div>`
-      : `<div class="tx-end" data-testid="run-transcript-edge">${t('tx.end', { t: addSec(r.start, r.dur) })}</div>`;
+      : `<div class="tx-end" data-testid="run-transcript-edge">${tx.mode === 'held' ? t('goalLoop.tx.heldEnd', { t: addSec(r.start, r.dur) }) : t('tx.end', { t: addSec(r.start, r.dur) })}</div>`;
     return head + `<div class="tx" data-testid="run-transcript" data-paused="${tx.mode === 'paused'}"><div class="tx-bar"><span>${tn('tx.entries', list.length)}</span><span>${right}</span></div>` +
       `<div class="tx-scroll" data-testid="run-transcript-scroll">${top}${list.map(txEntry).join('')}${end}</div></div>`;
   }
@@ -570,14 +625,14 @@
   // on the left; facts, session, resume command and prompt used on the right. o: skip, tx, paused, conn, banner, overlay.
   function runApp(key, n, o = {}) {
     const l = D.loops[key], repo = D.repos[l.repo], { r, k } = runOf(key, n, o.skip);
-    const running = r.st === 'running', skipped = r.st === 'skipped';
+    const running = r.st === 'running', skipped = r.st === 'skipped', held = r.st === 'held';
     const s = r.n != null && !r.repoGone ? sid(key, r.n) : null;
     const pill = `<span class="pill ${RUN_PILL[r.st][0]}">${t(RUN_PILL[r.st][1])}</span>`;
     const title = r.n != null ? t('run.title', { n: r.n }) : t('run.skipTitle', { t: hm(r.start) });
     const took = `<span data-testid="run-duration">${r.dur != null ? clock(r.dur) : '-'}</span>`;
     const end = addSec(r.start, r.dur || 0);
     const whenLine = skipped ? `${day(r.start)} · ${hm(r.start)}`
-      : running ? `${day(r.start)} · ${t('period.since', { t: hm(r.start) })} · ${took}`
+      : running || held ? `${day(r.start)} · ${t('period.since', { t: hm(r.start) })} · ${took}`
         : t('run.when', { day: day(r.start), from: hm(r.start), to: end.slice(0, 5), d: took });
     const header = `<div class="page-head" data-testid="run-header" data-status="${r.st}"><h1 class="page-title">${title}${PHONE ? '' : pill}</h1></div>` +
       (PHONE ? `<div class="page-meta">${pill}</div>` : '') + `<div class="page-meta">${whenLine}</div>` +
@@ -588,11 +643,12 @@
       timed_out: () => t('run.banner.timedOut', { d: dur(l.timeout) }),
       cancelled: () => t('run.banner.cancelled', { t: `${split(r.start)[0]} ${end}`, k }),
       interrupted: () => t('run.banner.interrupted', { t: D.crashAt, r: D.restartedAt }),
+      held: () => t('goalLoop.run.banner', D.goalLoop.heldBanner),
     }[r.st];
-    let alert = why ? `<div class="banner ${r.st === 'cancelled' ? 'is-warn' : 'is-err'}" data-testid="run-banner" role="status">${icon('alert')}<span class="banner-text">${why()}</span></div>` : '';
+    let alert = why ? `<div class="banner ${r.st === 'cancelled' || held ? 'is-warn' : 'is-err'}" data-testid="run-banner" role="status">${icon('alert')}<span class="banner-text">${why()}</span></div>` : '';
     if (r.repoGone) alert += `<div class="card is-pad" data-testid="run-repo-missing"><p class="page-desc">${t('run.repoMissingHint')}</p><a class="btn" href="#" data-testid="open-repos">${t('act.openRepos')}</a></div>`;
     if (skipped) alert += `<p class="page-desc" data-testid="skip-reason">${t('run.skipNote', { reason: t('skip.reason', { n: r.reason }) })}</p>`;
-    const summary = running || skipped ? '' : `<p class="group-cap">${t('run.summary')}</p>` +
+    const summary = running || skipped || held ? '' : `<p class="group-cap">${t('run.summary')}</p>` +
       `<div class="card is-pad" data-testid="run-summary"><p class="page-desc">${r.sum ? esc(r.sum) : t(r.st === 'failed' ? 'runs.noSummaryFailed' : 'run.noSummary')}</p></div>`;
     const fact = (label, value, meta, id) => `<div class="cell"${id ? ` data-testid="${id}"` : ''}><span class="cell-main"><span class="cell-title is-plain">${label}</span>` +
       `${meta ? `<span class="cell-meta">${meta}</span>` : ''}</span><span class="cell-value">${value}</span></div>`;
@@ -601,7 +657,7 @@
       (s ? `<div class="cell" data-testid="run-session" data-session-id="${s}"><span class="cell-main"><span class="cell-title is-plain">${t('run.sessionLabel')}</span>` +
         `<span class="cell-meta is-one-line">${s}</span></span><button class="iconbtn bordered" type="button" aria-label="${t('run.copySession')}">${icon('copy')}</button></div>` : '') + '</div>';
     // Resume only once the run has ended: resuming a session that is still working would tangle it (D-UI12).
-    const resume = s && !running ? `<p class="group-cap">${t('run.reopen')}</p><div class="cmd is-wrap" data-testid="run-resume"><code data-testid="run-resume-cmd">claude --resume ${s}</code>` +
+    const resume = s && !running && !held ? `<p class="group-cap">${t('run.reopen')}</p><div class="cmd is-wrap" data-testid="run-resume"><code data-testid="run-resume-cmd">claude --resume ${s}</code>` +
       `<button class="btn plain" type="button" data-testid="run-resume-copy">${t('run.copyCommand')}</button></div>` : '';
     const tx = transcript(r, s, o.tx || (s ? { mode: running ? 'following' : 'ended', data: key + r.n } : { mode: 'noSession' }));
     const lines = skipped ? [] : serverLines(key, r);
@@ -621,6 +677,107 @@
         `<div class="cols"><div class="cols-main">${summary}${tx}${log}</div><div class="cols-side">${facts}${resume}${prompt}</div></div>`;
     const more = `<button class="iconbtn" type="button" aria-label="${t('act.more')}" aria-haspopup="menu">${icon('more')}</button>`;
     return app({ tab: 'loops', loopCount: D.counts.all, conn: o.conn, banner: o.banner, navbar: navbar(l.name, 'back-to-loop', more), page, overlay: o.overlay });
+  }
+
+  // ── Goal-driven loop: gate, goals, scoreboard, goal cards ───
+  // These pages open from a cell and keep the tab bar (goal-loop spec, section 5): the phone shows the navigation bar for
+  // the way back and the tab bar under it, and the main action stays in the page, because an action bar would cover the
+  // tab bar.
+  const GL = D.goalLoop;
+  const JOB_PILL = { queued: ['s-wait', 'goalLoop.gate.queued'], running: ['s-run', 'goalLoop.gate.running'], merged: ['s-ok', 'goalLoop.gate.merged'], failed: ['s-fail', 'goalLoop.gate.failed'], needs_ratification: ['s-warn', 'goalLoop.gate.needsRatification'] };
+  const CARD_PILL = { proposed: ['s-wait', 'goalLoop.card.proposed'], accepted: ['s-ok', 'goalLoop.card.accepted'], refused: ['s-stop', 'goalLoop.card.refused'], started: ['s-run', 'goalLoop.card.started'] };
+  const DOOR_PILL = { 'two-way': ['s-skip', 'goalLoop.door.twoWay'], 'one-way': ['s-warn', 'goalLoop.door.oneWay'] };
+  const statusPill = ([cls, key], attrs = '') => `<span class="pill ${cls}"${attrs}>${t(key)}</span>`;
+  const figure = (label, value, sub) => `<div class="stat"><div class="stat-label">${label}</div><div class="stat-value">${value}</div><div class="stat-sub">${sub}</div></div>`;
+  const pagedApp = (tab, back, page, count = {}) => app(Object.assign({ tab, loopCount: D.counts.all, narrow: true, keepTabs: true, navbar: navbar(back, ''), page }, count));
+  const go = (label, testid) => `<button class="btn primary${PHONE ? ' lg block' : ''}" type="button" data-testid="${testid}">${label}</button>`;
+
+  function gateJob(j) {
+    const step = j.step ? t('goalLoop.gate.step', { step: `<span class="data">${esc(j.step)}</span>` }) + ' · ' : '';
+    const meta = `${step}${t('goalLoop.gate.task', { key: `<span class="data">${esc(j.task)}</span>` })} · <span class="data">${esc(j.at)}</span>`;
+    return `<div class="cell" data-testid="gate-job" data-status="${j.state}"><a class="cell-main" href="#"><span class="cell-title">${t('goalLoop.gate.pr', { n: j.pr, title: esc(j.title) })}</span>` +
+      `<span class="cell-row">${statusPill(JOB_PILL[j.state])}<span class="cell-meta">${meta}</span></span></a>` +
+      `${j.ratify ? `<button class="btn primary" type="button" data-testid="gate-ratify">${t('goalLoop.gate.ratify')}</button>` : chev}</div>`;
+  }
+  function gateQueueApp() {
+    const G = GL.gate;
+    const page = (PHONE ? '' : backlink(D.repos.api.name)) +
+      `<div class="page-head"><h1 class="page-title">${t('goalLoop.gate.title')}</h1></div><p class="page-desc">${t('goalLoop.gate.desc')}</p>` +
+      `<div class="group"><div class="cell"><button class="switch" type="button" role="switch" aria-checked="true" data-testid="gate-switch"><span class="switch-track"></span>${t('goalLoop.gate.switch')}</button></div></div>` +
+      `<p class="group-cap">${t('goalLoop.gate.queue')}</p><div class="group" data-testid="gate-queue">${G.jobs.map(gateJob).join('')}</div>` +
+      `<p class="group-cap">${t('goalLoop.gate.record')}</p><div class="group" data-testid="gate-record">${G.record.map(gateJob).join('')}</div>`;
+    return pagedApp('repos', D.repos.api.name, page);
+  }
+  function gateFailedApp() {
+    const j = GL.gate.failed;
+    const pill = statusPill(JOB_PILL.failed, ' data-testid="gate-job-status" data-status="failed"');
+    const STEP = { pass: ['s-ok', 'goalLoop.step.pass'], fail: ['s-fail', 'goalLoop.step.fail'], skip: ['s-skip', 'goalLoop.step.skip'] };
+    const steps = j.steps.map(([name, st, ms]) => `<div class="cell" data-testid="gate-step" data-status="${st}"><span class="cell-main"><span class="cell-title is-plain"><span class="data">${esc(name)}</span></span>` +
+      `${ms == null ? '' : `<span class="cell-meta is-data">${ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`}</span>`}</span><span class="cell-value"><span class="result ${STEP[st][0]}">${t(STEP[st][1])}</span></span></div>`).join('');
+    const head = `<div class="page-head"><h1 class="page-title">${t('goalLoop.gate.prShort', { n: j.pr })}${PHONE ? '' : pill}</h1>${PHONE ? '' : go(t('goalLoop.gate.requeue'), 'gate-requeue')}</div>` +
+      `<div class="page-meta">${PHONE ? pill : ''}<span>${esc(j.title)} <span class="keep">· ${t('goalLoop.gate.task', { key: `<span class="data">${esc(j.task)}</span>` })}</span> <span class="keep">· <span class="data">${esc(j.sha)}</span></span></span></div>`;
+    const banner = `<div class="banner is-err" data-testid="gate-failed-step" role="status">${icon('alert')}<span class="banner-text">${t('goalLoop.gate.failedAt', { step: `<span class="data">${esc(j.step)}</span>`, t: `<span class="data">${esc(j.at)}</span>`, n: j.exit })}</span></div>`;
+    const output = `<div class="section-head"><h2>${t('goalLoop.gate.output', { step: esc(j.step) })}</h2></div>` +
+      logBlock('gate-output', j.output, { left: t('goalLoop.gate.outputTail'), right: t('goalLoop.gate.outputExit', { n: j.exit }) });
+    const stepList = `<p class="group-cap">${t('goalLoop.gate.steps')}</p><div class="group" data-testid="gate-steps">${steps}</div>`;
+    const page = (PHONE ? '' : backlink(t('goalLoop.gate.title'))) + head + banner +
+      (PHONE ? stepList + output + go(t('goalLoop.gate.requeue'), 'gate-requeue')
+        : `<div class="cols"><div class="cols-main">${output}</div><div class="cols-side">${stepList}</div></div>`);
+    return app({ tab: 'repos', loopCount: D.counts.all, keepTabs: true, navbar: navbar(t('goalLoop.gate.title'), ''), page });
+  }
+  const goalPill = (pass) => (pass ? statusPill([PILL.complete[0], PILL.complete[1]]) : statusPill(JOB_PILL.failed));
+  function goalsApp() {
+    const G = GL.goals;
+    const stats = figure(t('goalLoop.goals.figure'), `${G.passed}/${G.total}`, t('goalLoop.goals.figureSub')) +
+      figure(t('goalLoop.goals.failing'), G.total - G.passed, t('goalLoop.goals.failingSub')) +
+      figure(t('goalLoop.goals.opened'), `${G.opened.passed}/${G.opened.total}`, t('goalLoop.goals.openedSub', { t: G.opened.at })) +
+      figure(t('goalLoop.goals.checked'), G.checkedAt, t('goalLoop.goals.checkedSub', { sha: `<span class="data">${esc(G.sha)}</span>` }));
+    const row = ([id, text, pass, line, issue], testid) => `<div class="cell" data-testid="${testid}" data-status="${pass ? 'pass' : 'fail'}"><span class="cell-main">` +
+      `<span class="run-top"><span class="run-id">${esc(id)}</span>${goalPill(pass)}<span class="run-meta">${esc(line)}</span></span><span class="cell-sum">${esc(text)}</span>` +
+      `${issue ? `<span class="cell-meta">${t('goalLoop.goals.issue', { n: issue })}</span>` : ''}</span></div>`;
+    const standing = ([id, cmd, pass, line, issue]) => row([id, cmd, pass, line, issue], 'standing-row');
+    const loop = ([kind, name, why]) => `<a class="cell" href="#" data-testid="goal-loop-row" data-status="${kind}"><span class="cell-main"><span class="cell-title">${esc(name)}</span>` +
+      `<span class="cell-row">${statusPill(PILL[kind])}<span class="cell-meta">${esc(why)}</span></span></span>${chev}</a>`;
+    const page = (PHONE ? '' : backlink(GL.loop.name)) +
+      `<div class="page-head"><h1 class="page-title">${t('goalLoop.goals.title')}</h1></div><p class="page-desc"><span class="data">${esc(GL.gate.manifest)}</span></p>` +
+      `<div class="stats" data-testid="goal-figures">${stats}</div>` +
+      `<p class="group-cap">${t('goalLoop.goals.rows')}</p><div class="group" data-testid="goal-rows">${G.rows.map((r) => row(r, 'goal-row')).join('')}</div>` +
+      `<p class="group-cap">${t('goalLoop.goals.standing')}</p><div class="group" data-testid="standing-goals">${G.standing.map(standing).join('')}</div>` +
+      `<p class="group-cap">${t('goalLoop.goals.loops')}</p><div class="group" data-testid="goal-loops">${G.loops.map(loop).join('')}</div>`;
+    return pagedApp('loops', GL.loop.name, page);
+  }
+  function scoreboardApp() {
+    const S = GL.score, F = S.figures;
+    const stats = figure(t('goalLoop.score.causes'), F.causes, t('goalLoop.score.causesSub')) + figure(t('goalLoop.score.checks'), F.checks, t('goalLoop.score.checksSub')) +
+      figure(t('goalLoop.score.before'), F.before, t('goalLoop.score.beforeSub')) + figure(t('goalLoop.score.after'), F.after, t('goalLoop.score.afterSub'));
+    const week = ([from, n]) => `<div class="cell" data-testid="score-week"><span class="cell-main"><span class="cell-title is-plain">${t('goalLoop.score.week', { t: `<span class="data">${esc(from)}</span>` })}</span></span><span class="cell-value is-data">${n}</span></div>`;
+    const cause = ([name, date, check, a, b]) => `<div class="cell" data-testid="score-cause"><span class="cell-main"><span class="cell-title">${esc(name)}</span>` +
+      `<span class="cell-meta"><span>${date ? t('goalLoop.score.checkMerged', { t: `<span class="data">${esc(date)}</span>` }) : t('goalLoop.score.noCheck')}</span> ` +
+      `<span class="keep">· ${date ? t('goalLoop.score.beforeAfter', { a: `<span class="data">${a}</span>`, b: `<span class="data">${b}</span>` }) : t('goalLoop.score.repeats', { a: `<span class="data">${a}</span>` })}</span></span>` +
+      `${check ? `<span class="cell-meta is-data">${esc(check)}</span>` : ''}</span></div>`;
+    const page = (PHONE ? '' : backlink(t('nav.settings'))) +
+      `<div class="page-head"><h1 class="page-title">${t('goalLoop.score.title')}</h1></div><p class="page-desc">${t('goalLoop.score.desc')}</p>` +
+      `<div class="stats" data-testid="score-figures">${stats}</div>` +
+      `<p class="group-cap">${t('goalLoop.score.weeks')}</p><div class="group" data-testid="score-weeks">${S.weeks.map(week).join('')}</div>` +
+      `<p class="group-cap">${t('goalLoop.score.causeList')}</p><div class="group" data-testid="score-causes">${S.causes.map(cause).join('')}</div>`;
+    return pagedApp('settings', t('nav.settings'), page);
+  }
+  function cardApp(c) {
+    const two = c.door === 'two-way';
+    const sentence = two ? t('goalLoop.cards.twoWayText', { t: `<span class="data">${esc(c.startAt)}</span>` }) : t('goalLoop.cards.oneWayText');
+    const size = t('goalLoop.cards.size', { n: `<span class="data">${c.size}</span>` });
+    const actions = `<span class="now-actions"><button class="btn primary${PHONE ? ' block' : ''}" type="button" data-testid="card-accept">${t('goalLoop.cards.accept')}</button>` +
+      `<button class="btn danger${PHONE ? ' block' : ''}" type="button" data-testid="card-refuse">${t('goalLoop.cards.refuse')}</button></span>`;
+    const row = ([id, outcome, oracle, limit]) => `<div class="cell"><span class="cell-main"><span class="run-top"><span class="run-id">${esc(id)}</span><span class="run-meta">${esc(oracle)}</span></span>` +
+      `<span class="cell-sum">${esc(outcome)}</span><span class="cell-meta">${esc(limit)}</span></span></div>`;
+    const past = ([st, title, at]) => `<a class="cell" href="#" data-status="${st}"><span class="cell-main"><span class="cell-title">${esc(title)}</span><span class="cell-row">${statusPill(CARD_PILL[st])}<span class="cell-meta is-data">${esc(at)}</span></span></span>${chev}</a>`;
+    const page = (PHONE ? '' : backlink(D.repos.api.name)) +
+      `<div class="page-head"><h1 class="page-title">${t('goalLoop.cards.title')}</h1></div>` +
+      `<div class="page-meta">${statusPill(CARD_PILL.proposed, ' data-testid="card-status" data-status="proposed"')}${statusPill(DOOR_PILL[c.door], ` data-testid="card-door" data-status="${c.door}"`)}<span>${size}</span></div>` +
+      `<div class="card" data-testid="goal-card"><div class="now"><div class="now-text"><b>${esc(c.title)}</b>${sentence}</div>${actions}</div></div>` +
+      `<p class="group-cap">${t('goalLoop.cards.rows')}</p><div class="group" data-testid="card-rows">${c.rows.map(row).join('')}</div><p class="note">${esc(c.next)}</p>` +
+      `<p class="group-cap">${t('goalLoop.cards.history')}</p><div class="group" data-testid="card-history">${GL.cards.history.map(past).join('')}</div>`;
+    return pagedApp('repos', D.repos.api.name, page);
   }
 
   // ── Editor ──────────────────────────────────────────────────
@@ -1016,6 +1173,17 @@
     'repos-delete-blocked': () => reposApp({ banner: repoInUse('old') }),
     'settings': () => settingsTabApp(),
     'settings-db-down': () => settingsTabApp({ dbDown: true }),
+    'probe-waiting': () => loopApp(probeKey('waiting')),
+    'probe-held': () => loopApp(probeKey('held'), { banner: 'hold' }),
+    'probe-blocked': () => loopApp(probeKey('blocked')),
+    'probe-complete': () => loopApp(probeKey('complete')),
+    'run-held': () => { D.transcripts.goalHeld = GL.transcript; return runApp(probeKey('held'), 28, { tx: { mode: 'held', data: 'goalHeld' } }); },
+    'gate-queue': () => gateQueueApp(),
+    'gate-failed': () => gateFailedApp(),
+    'goal-rows': () => goalsApp(),
+    'scoreboard': () => scoreboardApp(),
+    'card-two-way': () => cardApp(GL.cards.twoWay),
+    'card-one-way': () => cardApp(GL.cards.oneWay),
   };
   R['vi-repos-list'] = R['repos-list'];
   R['vi-repos-add'] = R['repos-add'];

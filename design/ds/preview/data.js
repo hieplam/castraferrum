@@ -406,12 +406,152 @@
     ],
   };
 
+  // The goal-driven loop (epic 217): the sample of the probe, gate, goal, scoreboard and goal card states. It is a world of
+  // its own, read only by these states, so the seeded world of the visual tests does not change. A probe line, a reason,
+  // a log line and a goal text are data of the loop's own tools, so they are not in the i18n files.
+  const GOAL_RUNS = [
+    { n: 27, st: 'succeeded', trig: 'schedule', start: '13:02:18', dur: 2312, cost: 3.18, sum: 'Task 17 is done: refund webhooks retried with a backoff, tests in PR #43, the task is closed.' },
+    { n: 26, st: 'succeeded', trig: 'schedule', start: '12:21:40', dur: 2288, cost: 2.94, sum: 'Task 16 is done: the refund table and its migration, PR #42, the task is closed.' },
+    { n: 25, st: 'failed', trig: 'schedule', start: '11:44:05', dur: 402, cost: 0.52, err: 'API Error: 529 Overloaded' },
+    { n: 24, st: 'succeeded', trig: 'schedule', start: '10:58:31', dur: 2570, cost: 3.31, sum: 'Task 15 is done: invoice totals use the shared money type, PR #40, the task is closed.' },
+    { n: 23, st: 'succeeded', trig: 'start', start: '10:12:02', dur: 2601, cost: 3.46, sum: 'Task 14 is done: the billing routes have one error shape, PR #39, the task is closed.' },
+  ];
+  const GOAL_PROMPT = 'The console claimed one task of the billing epic for this run.\nDo that task only, then open a pull request and stop.\nThe gate merges it.';
+  const goalLoop = {
+    loop: {
+      id: 'c2f81e04-6d37-4b19-a5e2-0f9d3c7b6a18', name: 'Billing epic worker', repo: 'api',
+      desc: 'A probe picks the next task of the billing epic, then one fresh session works on it',
+      status: 'active', tz: 'Asia/Ho_Chi_Minh', probeEverySec: 60,
+      timeout: 3600, claude: { model: 'opus', effort: 'high' }, created: '16/10 09:40:12', updated: '18/10 10:11:50', prompt: GOAL_PROMPT,
+      exec: { k: 4, id: '7e15b0c9-3a42-4d68-9c07-d6e2a1f4b530', startedAt: '18/10 10:12:02', since: '10:12:02', up: 3 * 3600 + 48 * 60 + 40,
+        counts: { ok: 4, err: 1, cancel: 0, skip: 0 }, rounds: 5 },
+      run: null, last: { st: 'succeeded', at: '13:40', n: 27, dur: 2312, cost: 3.18 }, next: null,
+      avg: 40 * 60 + 18, finished: 5, longest: { k: 2, sec: 9 * 3600 + 12 * 60 }, execCount: 4, lifetime: 27, runsTotal: 27,
+      goals: { passed: 3, total: 8 },
+    },
+    executions: [
+      { k: 4, st: 'active', start: '18/10 10:12:02', end: null, up: 3 * 3600 + 48 * 60 + 40, rounds: 5, counts: [4, 1, 0, 0], sessions: 5 },
+      { k: 3, st: 'stopped', start: '17/10 16:30:11', end: '17/10 21:02:47', up: 4 * 3600 + 32 * 60 + 36, rounds: 6, counts: [6, 0, 0, 0], sessions: 6 },
+    ],
+    runs: GOAL_RUNS,
+    states: {
+      waiting: {
+        kind: 'waiting', mark: 'd-warn', at: '13:59:44', reason: 'Task 18 needs the staging login.',
+        line: '{"v":1,"action":"wait","tasks":[],"reason":"Task 18 needs the staging login.","resource":null,"until":null,"plan":null,"issues":[],"goals":{"passed":3,"total":8}}',
+      },
+      held: {
+        kind: 'held', mark: '', at: '13:59:44', resource: 'plan-window', until: '19:00', openedAt: '13:58', n: 28,
+        line: '{"v":1,"action":"hold","tasks":[],"reason":"The usage limit is reached.","resource":"plan-window","until":"2026-10-18T19:00:00+07:00","plan":null,"issues":[],"goals":{"passed":3,"total":8}}',
+        run: { n: 28, st: 'held', trig: 'schedule', start: '13:41:12', dur: 1008 }, last: { st: 'held', at: '13:58', n: 28, dur: 1008 },
+        rounds: 6, runsTotal: 28,
+      },
+      blocked: {
+        kind: 'blocked', mark: 'd-fail', at: '13:59:44', reason: 'Every open task waits for a failed task.',
+        blockers: [['31', 'Migration 14 fails', '3'], ['33', 'The check on main is red', '5']],
+        line: '{"v":1,"action":"blocked","tasks":[],"reason":"Every open task waits for a failed task.","resource":null,"until":null,"plan":null,"issues":["31","33"],"goals":{"passed":3,"total":8}}',
+      },
+      complete: {
+        kind: 'complete', mark: 'd-ok', at: '13:41:02',
+        line: '{"v":1,"action":"done","tasks":[],"reason":"","resource":null,"until":null,"plan":null,"issues":[],"goals":{"passed":8,"total":8}}',
+        status: 'stopped', goals: { passed: 8, total: 8 }, endedAt: '18/10 13:41:02', period: { st: 'goal_met', end: '18/10 13:41:02', up: 3 * 3600 + 29 * 60 },
+      },
+    },
+    heldLog: 'Held · usage limit · session kept · resumes after 19:00',
+    heldBanner: { at: '13:58', until: '19:00' },
+    transcript: [
+      { at: '13:41:12', kind: 'user', text: GOAL_PROMPT },
+      { at: '13:41:20', kind: 'thinking', text: '' },
+      { at: '13:41:26', kind: 'tool_use', tool: 'Bash', text: '{\n  "command": "git worktree add ../acme-api-task-18 -b feat/task-18"\n}' },
+      { at: '13:41:29', kind: 'tool_result', text: 'HEAD is now at 4be21c7 fix: refund webhooks retry with a backoff' },
+      { at: '13:57:58', kind: 'assistant', text: 'The refund report query is written. The next step is its test.' },
+      { at: '13:58:00', kind: 'system', text: "You've hit your limit · resets 7pm (Asia/Ho_Chi_Minh)" },
+    ],
+    gate: {
+      manifest: 'goals/2026-10-16-billing.json',
+      jobs: [
+        { state: 'running', pr: 44, title: 'Refund report query', task: '18', step: 'green', at: '13:57' },
+        { state: 'queued', pr: 45, title: 'Invoice export as CSV', task: '19', at: '13:59' },
+        { state: 'needs_ratification', pr: 46, title: 'Raise a limit', task: '20', step: 'scope', at: '13:52', ratify: true },
+      ],
+      record: [
+        { state: 'merged', pr: 43, title: 'Refund webhook retries', task: '17', at: '13:44' },
+        { state: 'failed', pr: 41, title: 'Refund table migration', task: '16', step: 'green', at: '12:18' },
+      ],
+      failed: {
+        pr: 41, title: 'Refund table migration', task: '16', sha: '9c1d4e2', step: 'green', exit: 1, at: '12:18',
+        steps: [['scope', 'pass', 4], ['base', 'pass', 812], ['setup', 'pass', 41200], ['green', 'fail', 18650], ['stub', 'skip', null], ['verify', 'skip', null], ['ci', 'skip', null], ['merge', 'skip', null]],
+        output: [
+          ['12:17:40', 'log-head', 'npx vitest run tests/api/refunds.test.ts'],
+          ['12:17:52', '', ' ✓ creates a refund for a paid invoice'],
+          ['12:17:53', '', ' ✓ refuses a second refund'],
+          ['12:17:55', 'log-err', ' ✗ migrates an empty table'],
+          ['12:17:55', 'log-err', "   error: column \"refund_id\" of relation \"invoices\" does not exist"],
+          ['12:17:58', '', ' Tests  1 failed | 2 passed (3)'],
+          ['12:17:58', 'log-err', 'exit code 1'],
+        ],
+      },
+    },
+    goals: {
+      checkedAt: '13:59', sha: '4be21c7', opened: { at: '16/10', passed: 0, total: 8 }, passed: 3, total: 8,
+      rows: [
+        ['G1', 'A customer can refund a paid invoice', true, '12/12 refund tests'],
+        ['G2', 'A refund appears on the invoice page', true, '4/4 screens'],
+        ['G3', 'A webhook that fails is sent again', true, '6/6 retries'],
+        ['G4', 'Every billing screen matches its preview', false, '72/240 screens'],
+        ['G5', 'The refund report opens in under 2 s', false, '3.8 s'],
+        ['G6', 'Invoices export as CSV', false, '0/5 tests'],
+        ['G7', 'Every route has one error shape', false, '11/18 routes'],
+        ['G8', 'No refund changes a closed month', false, '0/3 tests'],
+      ],
+      standing: [
+        ['H1', 'npm run verify', true, 'Last failed 14/10 02:00', ''],
+        ['H2', 'node scripts/merge-audit.mjs', false, 'Failing since 18/10 02:00', '35'],
+      ],
+      loops: [
+        ['budget_limited', 'Billing screens worker', '1 200 000 of 1 200 000 tokens'],
+        ['probe_failed', 'Nightly health check', 'The probe ended with exit code 1 at 13:30'],
+      ],
+    },
+    score: {
+      figures: { causes: 3, checks: 2, before: 11, after: 1 },
+      weeks: [['14/09', 6], ['21/09', 5], ['28/09', 3], ['05/10', 2], ['12/10', 0]],
+      causes: [
+        ['Usage limit ends a run', '08/10', 'tests/api/usage-hold.test.ts', 7, 0],
+        ['Smart App Control blocks tests', '02/10', 'scripts/preflight.mjs', 4, 1],
+        ['A test port is already taken', '', '', 4, 0],
+      ],
+    },
+    cards: {
+      twoWay: {
+        door: 'two-way', title: 'Billing reports for the finance team', size: 0.5, startAt: '22:14',
+        rows: [
+          ['G1', 'A month report opens from the invoice page', 'report.spec.ts', '1 journey passes'],
+          ['G2', 'The report total equals the sum of its invoices', 'report-total.test.ts', '0 differences'],
+        ],
+        next: 'Then: the same report for each customer',
+      },
+      oneWay: {
+        door: 'one-way', title: 'Move the invoices table to the new schema', size: 1.5,
+        rows: [
+          ['G1', 'Every invoice reads the same after the move', 'schema-move.test.ts', '0 differences'],
+          ['G2', 'The old table is gone', 'schema-gone.test.ts', '1 check passes'],
+        ],
+        next: 'Then: remove the old invoice routes',
+      },
+      history: [
+        ['started', 'Refunds for paid invoices', '16/10'],
+        ['accepted', 'One error shape for billing', '15/10'],
+        ['refused', 'Rewrite the invoice page', '12/10'],
+      ],
+    },
+  };
+
   window.PV = {
     now: '14:00:42', today: '18/10/2026', restartedAt: '17/10 09:58:20', crashAt: '17/10 09:31:05',
     stats: { activeLoops: 4, runningRuns: 2, runsToday: 31, errors24h: 7 },
     order: ['pilot', 'crash', 'wiki', 'debt', 'prs', 'evidence', 'recap'],
     counts: { all: 7, active: 4, stopped: 3, archived: 1 },
-    repos, repoOrder, loops, executions, runs, many, transcripts, folders,
+    repos, repoOrder, loops, executions, runs, many, transcripts, folders, goalLoop,
     // What Settings shows of the console: the address it is reached at and its version (package.json).
     console: { address: 'http://192.168.1.20:7070', version: '0.1.0' },
     // The new loop the editor states fill in (the board m-form-light).
