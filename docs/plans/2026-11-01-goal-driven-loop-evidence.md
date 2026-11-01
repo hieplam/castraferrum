@@ -1836,6 +1836,19 @@ Full `npm run verify` after the last rebase (lane database `loops_r9_test`, port
 <!-- Z2 -->
 
 
+<!-- 373 -->
+
+## 373
+
+Goal: G4. A run that ends with `PR_OPEN` and a pull request that does not exist releases its claim, not excused. A `gh` failure keeps the retry of 60 s.
+
+- Real text, from `gh pr view 999999` on the real repository: `GraphQL: Could not resolve to a PullRequest with the number of 999999. (repository.pullRequest)`, exit 1. `tests/support/fake-gh.mjs` prints the same text.
+- Red: the new test `queue says the pull request does not exist` fails with `report.errors` holding `Pull request 9 does not exist`, and the row open after three ticks. `pullRequest tells a pull request that does not exist from a gh failure` fails with `expected GitHostError ... to be an instance of PullRequestNotFoundError`.
+- Green: `npx vitest run server/services/gate-handover.test.ts server/adapters/github/gh-git-host.test.ts` prints `Tests  36 passed (36)`. The test `queue throws` is in that run.
+- Stub check: every throw of `queue` treated as "not found" fails `queue throws: the row stays open ...` and `queue fails with a gh failure ...` (`Tests  2 failed | 15 passed (17)`). Restored, all pass.
+- Full `npm run verify` after the last rebase, in slot-1: exit 0 (`VERIFY EXIT 0`).
+- Ratchet, `e2e expects` of `npm run ratchets`: 885 before, 885 after. This change adds no e2e expect.
+
 <!-- 362 -->
 
 ## 362
