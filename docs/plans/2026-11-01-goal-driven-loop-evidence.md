@@ -877,6 +877,44 @@ Webhook safety: the only post in any test goes to a server that the test starts 
 
 <!-- P10 -->
 
+## P10
+
+**Red**, before the services were built (tests, kit and fake helpers in place):
+
+    $ npx vitest run --project unit server/services/probe-actions.test.ts
+          Tests  15 failed | 3 passed (18)
+    $ npx vitest run --project api tests/api/plan-action.test.ts
+          Tests  3 failed (3)
+
+The 3 passes are full lanes, `skip` and the no-probe loop.
+
+**Green**, after the build and the last rebase (origin/main had not moved):
+
+    $ npx vitest run --project unit server/services/probe-actions.test.ts
+          Tests  18 passed (18)
+    $ npx vitest run --project api tests/api/plan-action.test.ts
+          Tests  3 passed (3)
+    $ npx vitest run --project contract -t goal_met
+          Tests  6 passed | 238 skipped (244)
+
+Full `npm run verify` in slot-1 on 10c6970, one run that ended by itself (an earlier run failed at one old test that said a plan line starts no run; the test now says it starts one):
+
+    base main: every limit held
+    ratchets: ok
+          Tests  1135 passed | 3 skipped (1138)
+          Tests  244 passed (244)
+          Tests  305 passed | 2 skipped (307)
+    UCs with a green e2e: 35/35
+
+**Stub check**, each break made the named tests fail, then was restored:
+
+- send on each tick (no check of the stored line): `a notice that the owner read does not come back for the same reason` fails.
+- call the gateway for `plan`: `starts one run with both prompt lines...` and `a new run starts after the run ends...` fail.
+- no plan row (a fresh key per claim): the three plan repeat and held cases fail.
+- `done` closes as `stopped`: both `done` cases that check `goal_met` fail.
+
+**Ratchet**, same tool (`npx vitest list --project <name> | wc -l`), main before, branch after: unit 926 to 944, api 184 to 187. Contract: 3 tests under `goal_met`, 3 on each side.
+
 <!-- P11 -->
 
 <!-- P12 -->
