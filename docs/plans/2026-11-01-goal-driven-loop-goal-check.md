@@ -38,15 +38,15 @@ Wave 1 holds T1 and T3. T2, T4, T5 and T6 come in later waves.
 3. G10: file missing, or no `opened`, or `opened.passed >= total`: take only a ready task with the body line `Goal task: yes`. None: `blocked`.
 4. G25, G26: else decide as today. On `done`: no `last` gives `blocked`; all pass gives `done`; else `{action:'plan',plan:{key:'plan-<epic>',failing,sha}}`, or `blocked` if a comment `loop-plan: <sha>` exists. Without `--dry-run`, `plan` first comments `loop-plan: <sha> <ids>`. Sweep closes the epic only on `done`.
 5. P13's `--probe` gets a `plan` case.
-6. G29: epic has the line and the PR has a `web/` path (`files(first:100){totalCount nodes{path}}`; over 100 counts): `check` needs, in `## Verify`, `Acceptance: <20+ characters with "compar">`, else FAIL naming `Acceptance`.
+6. G29: epic has the line and the PR has a `web/` path (`files(first:100){totalCount nodes{path}}`; over 100 counts): `check` needs, in `## Verify`, a line `Acceptance: ...` with the printed form of the compare result. `scripts/design-compare.mjs` prints only a path. The numbers are in `report.json` (`tests/visual/ds/kit.ts`): `"pairs": 164`, `"worstRatio": 0.00024`. The line must match both `/"?pairs"?[: ]+[1-9]\d*/` and `/"?worstRatio"?[: ]+\d+(\.\d+)?/`, else FAIL naming `Acceptance`. The word "compared" alone fails.
 7. Document it in `tick.md` (row `plan`: run `npm run goal:check`, write 1 to 3 tasks with `E create`), `plan.md`, `SKILL.md`.
 
 **Goal:** G10, G25, G26, G29. A new epic shows a red check before any build task. Failing rows give `plan`, not `done`. A `web/` task shows its compare result.
 
-**Red:** 19 tests. `G10:` x4 (no file; green at opening; red takes; goal task takes). `G25:` x6 (plan; same sha blocks; new sha plans; dry run; `--probe`; ready wins). `G26:` x3 (done; red keeps epic open; no result blocks). `G29:` x5 (no line; no compare; compare; non-`web/`; no-manifest epic). `no Goal manifest line: behaves as before`. N is `# tests` before editing. `node --test scripts/tests/epic.test.mjs`: `# tests N+19`, `# pass N+7`, `# fail 12`.
+**Red:** 20 tests. `G10:` x4 (no file; green at opening; red takes; goal task takes). `G25:` x6 (plan; same sha blocks; new sha plans; dry run; `--probe`; ready wins). `G26:` x3 (done; red keeps epic open; no result blocks). `G29:` x6 (no line; no compare; "compared" with no number; both numbers; non-`web/`; no-manifest epic). `no Goal manifest line: behaves as before`. N is `# tests` before editing. `node --test scripts/tests/epic.test.mjs`: `# tests N+20`, `# pass N+7`, `# fail 13`.
 
-**Green:** `# tests N+19`, `# pass N+19`, `# fail 0`.
+**Green:** `# tests N+20`, `# pass N+20`, `# fail 0`.
 
-**Stub check:** old `epic.mjs` (`git show HEAD:<path>`): `# fail 12`. A stub that blocks every manifest epic fails the take, done and control tests.
+**Stub check:** old `epic.mjs` (`git show HEAD:<path>`): `# fail 13`. A stub that blocks every manifest epic fails the take, done and control tests.
 
-**Ratchet:** tests in `epic.test.mjs`, N to N+19, up only. F0 `first-goal-day`: D7.
+**Ratchet:** tests in `epic.test.mjs`, N to N+20, up only. F0 `first-goal-day`: D7.
