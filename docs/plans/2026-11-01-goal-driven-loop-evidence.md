@@ -594,6 +594,41 @@ Verify: `npm run verify` exit 0 (unit 595 passed, contract 126, 115 e2e passed, 
 
 <!-- P4 -->
 
+## P4
+
+Red (`tests/support/service-kit.ts` has `probeService`, no `tick` yet):
+
+    $ npx vitest run --project unit server/services/probe-tick.test.ts
+    TypeError: k.probeService.tick is not a function
+          Tests  19 failed (19)
+
+Green, after the rebase on main, head e6e5366:
+
+    $ npx vitest run --project unit server/services/probe-tick.test.ts server/scheduler/background-ticker.test.ts
+          Tests  24 passed (24)
+    $ npx vitest run --project api tests/api/probe-tick-api.test.ts
+          Tests  2 passed (2)
+    $ npm run verify
+    ratchets: ok
+          Tests  871 passed | 2 skipped (873)
+          Tests  146 passed (146)
+          Tests  144 passed (144)
+      115 passed (13.8m)
+    phone overflow: 0/12
+    UCs with a green e2e: 33/33
+    verify exit 0
+
+Stub check, each run, each restored from git:
+
+    empty tick (no probe call):
+          Tests  16 failed | 3 passed (19)
+     FAIL  calls the stored argv in the repo folder with a limit of 30 s, and stores the line
+    latestFinishedAt ignored:
+          Tests  2 failed | 17 passed (19)
+     FAIL  a finished run probes at once, and with no free lane the console does not call the probe
+
+Ratchet: unit run count 847 -> 871 (+24). `vitest list` is static and shows the 7 action cases as one line, so the list count is 656 -> 674 (+18). Contract 140 -> 146, each side +3.
+
 <!-- P5 -->
 
 <!-- P6 -->

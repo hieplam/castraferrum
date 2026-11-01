@@ -133,7 +133,7 @@ export type LoopView = {
   maxConcurrent: number;
   executor: { kind: string; config: unknown };
   status: LoopStatus;
-  /** `null` when stopped. */
+  /** `null` when stopped, and always for a loop with a probe. */
   nextRunAt: Date | null;
   /** Optimistic lock — send it back when editing (UC-09). */
   version: number;
@@ -216,7 +216,7 @@ export interface LoopService {
   create(input: LoopInput): Promise<LoopView>;
   /** Changing the schedule while running → recompute the next run; changing prompt / executor → applies from the next run. Throws VERSION_CONFLICT. */
   update(id: string, input: LoopInput, version: number): Promise<LoopView>;
-  /** Opens a new execution + its first run starts immediately. Throws LOOP_ALREADY_ACTIVE, LOOP_ARCHIVED. */
+  /** Opens a new execution + its first run starts immediately (a loop with a probe: no run, no next run). Throws LOOP_ALREADY_ACTIVE, LOOP_ARCHIVED. */
   start(id: string): Promise<LoopView>;
   /** Closes the execution as `stopped` + cancels the running run. Throws LOOP_NOT_ACTIVE. */
   stop(id: string): Promise<LoopView>;
@@ -341,7 +341,27 @@ export type ProbeInput = {
 /** The stored probe of a loop. */
 export type ProbeView = ProbeRecord;
 
-export interface ProbeService {
+/** Result of one probe tick. */
+export type ProbeTickReport = {
+  at: Date;
+  /** `false` = the previous tick has not finished, so this tick is dropped (does nothing). */
+  ran: boolean;
+  /** Loops whose probe was called on this tick. */
+  probed: string[];
+  /** The loops of `probed` that gave `probe_failed`. */
+  failed: string[];
+  /** Loops that hit an unexpected error. Other loops keep running. */
+  errors: { loopId: string; message: string }[];
+};
+
+/** What the background ticker needs from a service. */
+export interface BackgroundService {
+  tick(): Promise<{ errors: { loopId: string; message: string }[] }>;
+}
+
+export interface ProbeService extends BackgroundService {
+  /** Calls each due probe (decision 22) and stores its line. Starts no run. */
+  tick(): Promise<ProbeTickReport>;
   /** A loop with no probe gives `null`. Throws LOOP_NOT_FOUND. */
   get(loopId: string): Promise<ProbeView | null>;
   /**
