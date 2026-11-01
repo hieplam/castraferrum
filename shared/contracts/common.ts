@@ -32,6 +32,7 @@ export const API_ERROR_CODES = [
   'TRANSCRIPT_NOT_FOUND',
   'NOTICE_NOT_FOUND',
   'GATE_OFF',
+  'GIT_HOST_FAILED',
   /** `GET /schedule/preview`: cron sai. */
   'INVALID_CRON',
   /** No such path / method (includes `/api/__test/*` when not in test mode). */

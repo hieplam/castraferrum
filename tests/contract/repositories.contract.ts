@@ -1237,6 +1237,33 @@ export function repositoryContract(env: () => ContractEnv): void {
       expect((await r.gate.list(1)).map((j) => j.id)).toEqual([b.id]);
     });
 
+    /** Runs a job to its end: enqueue, take (one job runs at a time), finish. */
+    const endJob = async (prNumber: number, state: 'merged' | 'failed' | 'needs_ratification', finishSec: number) => {
+      const { id } = await enqueue({ prNumber, sec: finishSec - 2 });
+      await r.gate.takeNext(at(finishSec - 1));
+      await r.gate.finish(id, { state, failedStep: state === 'merged' ? null : 'green', at: at(finishSec) });
+      return id;
+    };
+
+    it('listRefusedBetween gives only failed and needs_ratification jobs, ordered by finished_at then id', async () => {
+      const failed = await endJob(1, 'failed', 20);
+      await endJob(2, 'merged', 30);
+      const ratify = await endJob(3, 'needs_ratification', 40);
+      await enqueue({ prNumber: 4, sec: 41 }); // stays queued
+      await enqueue({ prNumber: 5, sec: 42 });
+      await r.gate.takeNext(at(43)); // runs
+      expect((await r.gate.listRefusedBetween(at(0), at(100))).map((j) => j.id)).toEqual([failed, ratify]);
+      expect(await r.gate.listRefusedBetween(at(0), at(100))).toEqual([await r.gate.get(failed), await r.gate.get(ratify)]);
+    });
+
+    it('listRefusedBetween includes finished_at = from, excludes finished_at = to, and gives [] for an empty range', async () => {
+      const edge = await endJob(1, 'failed', 20);
+      const inside = await endJob(2, 'needs_ratification', 30);
+      await endJob(3, 'failed', 40);
+      expect((await r.gate.listRefusedBetween(at(20), at(40))).map((j) => j.id)).toEqual([edge, inside]);
+      expect(await r.gate.listRefusedBetween(at(21), at(30))).toEqual([]);
+    });
+
     it('handOver gives a claim to the gate, and the claim is then not an orphan', async () => {
       const loop = await r.loops.insert(newLoop());
       const claimId = randomUUID();

@@ -39,7 +39,7 @@ export interface FakeIssue {
   body: string;
   state: 'OPEN' | 'CLOSED';
   labels: { name: string }[];
-  comments: { body: string }[];
+  comments: { id: string; createdAt: string; body: string }[];
   url: string;
   createdAt: string;
   updatedAt: string;

@@ -275,9 +275,17 @@ export interface NoticeService {
 /** One run as the process review reads it (spec 2.12): no loop name, prompt or path. */
 export type ProcessEvent = { id: string; at: Date; loop: string; status: RunStatus; text: string };
 
+/** A refused gate job (`kind` `gate`) or a `loop-release:` comment (`kind` `comment`), as the process review reads it (decision 48). */
+export type ProcessSignal = { id: string; at: Date; kind: 'gate' | 'comment'; text: string };
+
 export interface ProcessService {
   /** Runs that started in [from, to), oldest first. Throws VALIDATION_FAILED when from >= to or the range is over 31 days. */
   events(from: Date, to: Date): Promise<ProcessEvent[]>;
+  /**
+   * Gate jobs that ended `failed` or `needs_ratification` in [from, to), and the `loop-release:` comments of `repo` made in [from, to).
+   * Throws VALIDATION_FAILED as `events` does, and GIT_HOST_FAILED when the Git host call fails: never two empty lists.
+   */
+  signals(from: Date, to: Date, repo: string): Promise<{ gate: ProcessSignal[]; comments: ProcessSignal[] }>;
 }
 
 export interface FolderService {

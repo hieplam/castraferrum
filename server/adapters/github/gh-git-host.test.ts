@@ -158,6 +158,43 @@ describe('GhGitHost on the fake gh and a bare repository', () => {
     expect(stored?.labels.map((l) => l.name)).toEqual(['bug']);
   });
 
+  it('loopComments gives the loop-release comments updated since the date, and no other comment', async () => {
+    const world = gh.read();
+    const issue = (number: number, updatedAt: string, comments: { id: string; createdAt: string; body: string }[]) =>
+      ({ number, title: 't', body: 'b', state: 'OPEN', labels: [], comments, url: '', createdAt: updatedAt, updatedAt, closedAt: null }) as never;
+    world.issues.push(
+      issue(5, '2026-10-20T10:00:00.000Z', [
+        { id: 'IC_a', createdAt: '2026-10-20T09:00:00.000Z', body: 'loop-attempt: 1' },
+        { id: 'IC_b', createdAt: '2026-10-20T10:00:00.000Z', body: 'loop-release: reason\n\nBack in the queue' },
+      ]),
+      issue(6, '2026-10-01T10:00:00.000Z', [{ id: 'IC_c', createdAt: '2026-10-01T10:00:00.000Z', body: 'loop-release: too old' }]),
+    );
+    writeFileSync(gh.world, JSON.stringify(world));
+    expect(await host.loopComments(REPO, new Date('2026-10-19T15:00:00Z'))).toEqual([
+      { issue: 5, id: 'IC_b', at: new Date('2026-10-20T10:00:00.000Z'), body: 'loop-release: reason\n\nBack in the queue' },
+    ]);
+  });
+
+  it('loopComments throws a GitHostError when the list holds 1000 issues, because it can be cut off', async () => {
+    const world = gh.read();
+    world.issues = Array.from({ length: 1000 }, (_, i) => ({
+      number: i + 1,
+      title: 't',
+      body: 'b',
+      state: 'OPEN' as const,
+      labels: [],
+      comments: [],
+      url: '',
+      createdAt: '2026-10-20T00:00:00.000Z',
+      updatedAt: '2026-10-20T00:00:00.000Z',
+      closedAt: null,
+    }));
+    writeFileSync(gh.world, JSON.stringify(world));
+    const err = await host.loopComments(REPO, new Date('2026-10-19T00:00:00Z')).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(GitHostError);
+    expect((err as GitHostError).message).toContain('cut off');
+  });
+
   it('a gh call that exits 1 throws a GitHostError with the exit code and the stderr', async () => {
     const err = await host.pullRequest(REPO, 99).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(GitHostError);
