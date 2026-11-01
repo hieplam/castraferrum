@@ -5,7 +5,7 @@ export type Tab = 'loops' | 'repos' | 'settings';
 export function activeTab(pathname: string): Tab | null {
   if (pathname === '/' || /^\/(loops|executions|runs)(\/|$)/.test(pathname)) return 'loops';
   if (pathname === '/repos' || pathname.startsWith('/repos/')) return 'repos';
-  if (pathname === '/settings' || pathname.startsWith('/settings/')) return 'settings';
+  if (pathname === '/settings' || pathname.startsWith('/settings/') || pathname === '/scoreboard') return 'settings';
   return null;
 }
 

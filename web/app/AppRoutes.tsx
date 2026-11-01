@@ -10,6 +10,7 @@ import { MissingRoute } from '../pages/MissingRoute';
 import { PeriodRoute } from '../pages/PeriodRoute';
 import { ReposRoute } from '../pages/ReposRoute';
 import { RunRoute } from '../pages/RunRoute';
+import { ScoreboardRoute } from '../pages/ScoreboardRoute';
 import { SettingsRoute } from '../pages/SettingsRoute';
 import { Frame } from './Frame';
 
@@ -27,6 +28,7 @@ export function AppRoutes() {
         <Route path="runs/:id" element={<RunRoute />} />
         <Route path="repos" element={<ReposRoute />} />
         <Route path="settings" element={<SettingsRoute />} />
+        <Route path="scoreboard" element={<ScoreboardRoute />} />
         <Route path="*" element={<MissingRoute />} />
       </Route>
     </Routes>

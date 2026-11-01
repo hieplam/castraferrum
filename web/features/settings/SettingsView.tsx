@@ -1,10 +1,13 @@
 // The Settings page (spec 5.8, `m-settings-light`): Appearance (theme, language), Connection (server, database, console address),
 // This device (Add to Home Screen, phone only) and About (version). Every row is a cell of an inset list.
+import { Link } from 'react-router';
 import { useSharedServerStatus } from '../../data/connection';
+import { useScoreboard } from '../../data/scoreboard';
 import { MESSAGES, type Lang } from '../../prefs/messages';
 import { usePrefs, useT } from '../../prefs/prefs';
 import { FieldCell, Segmented } from '../../ui/kit/Field';
 import { Cell, Group } from '../../ui/kit/Group';
+import { Icon } from '../../ui/kit/Icon';
 import { Page, PageHead, useLayout } from '../../ui/kit/Layout';
 
 const THEMES = ['auto', 'light', 'dark'] as const;
@@ -15,6 +18,9 @@ export function SettingsView() {
   const { lang, themeChoice, setLang, setThemeChoice } = usePrefs();
   const status = useSharedServerStatus();
   const layout = useLayout();
+  // The entry to the scoreboard shows only when a cause repeated in the last 30 days: a failed request or no cause hides it.
+  const scoreboard = useScoreboard();
+  const hasCauses = (scoreboard.data?.figures.causes ?? 0) > 0;
 
   const serverOk = status.server === 'ok';
   const dbText = status.db === 'ok' ? t('settings.answering') : status.db === 'down' ? t('settings.notAnswering') : t('conn.lost');
@@ -64,6 +70,14 @@ export function SettingsView() {
       <Group caption={t('settings.about')}>
         <Cell testId="settings-version" plain title={t('settings.version')} value={__APP_VERSION__} valueData />
       </Group>
+      {hasCauses ? (
+        <Group testId="settings-score">
+          <Link className="cell is-link" to="/scoreboard" data-testid="settings-score-link">
+            <span className="cell-main">{t('goalLoop.score.link')}</span>
+            <Icon name="chev" className="chev" />
+          </Link>
+        </Group>
+      ) : null}
     </Page>
   );
 }

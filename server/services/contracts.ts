@@ -288,6 +288,28 @@ export interface ProcessService {
   signals(from: Date, to: Date, repo: string): Promise<{ gate: ProcessSignal[]; comments: ProcessSignal[] }>;
 }
 
+/** One cause of the scoreboard: the repeats of a fingerprint around the date its check was merged. */
+export type ScoreboardCause = {
+  fingerprint: string;
+  cause: string;
+  checkName: string | null;
+  checkMergedAt: Date | null;
+  before: number;
+  after: number;
+  repeats: number;
+};
+
+export type Scoreboard = {
+  figures: { causes: number; checks: number; before: number; after: number };
+  weeks: { from: Date; repeats: number }[];
+  causes: ScoreboardCause[];
+};
+
+export interface ScoreboardService {
+  /** Reads the process review reports of every registered repository (spec 2.12). Throws VALIDATION_FAILED on field `tz` for a bad time zone. */
+  scoreboard(tz: string): Promise<Scoreboard>;
+}
+
 export interface FolderService {
   /**
    * UC-29: one folder + its subfolders; a folder registered as a repo carries the repo name. Empty = home folder; accepts `~`. Throws
