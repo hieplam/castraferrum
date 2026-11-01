@@ -102,8 +102,39 @@ export type GateWorld = {
   dispose(): void;
 };
 
+const gateText = (config: GateConfigText) => `${JSON.stringify({ v: 1, ...config }, null, 2)}\n`;
+const verifyText = (tasks: Record<string, VerifyTask>) => `${JSON.stringify({ v: 1, tasks }, null, 2)}\n`;
+const FIRST_TASKS = { 141: EXAM };
+
+/** Main with the files of the gate. It is seeded once, and each world copies it, because a test file makes many worlds. */
+let seed: BareRepo | null = null;
+function seeded(): BareRepo {
+  if (seed) return seed;
+  seed = createBareRepo();
+  const dir = seed.clone();
+  seed.commit(
+    dir,
+    {
+      'goals/gate.json': gateText(GATE),
+      'goals/verify/e.json': verifyText(FIRST_TASKS),
+      'tests/verify.mjs': VERIFY_FILE,
+      'package.json': `${JSON.stringify({ scripts: { test: 'node tests/verify.mjs' } }, null, 2)}\n`,
+      '.gitignore': 'node_modules\n',
+    },
+    'seed of the gate',
+  );
+  seed.push(dir, 'main');
+  return seed;
+}
+
+/** Deletes the seed. A test file calls it in `afterAll`. */
+export function disposeGateSeed(): void {
+  seed?.dispose();
+  seed = null;
+}
+
 export function createGateWorld(): GateWorld {
-  const bare = createBareRepo();
+  const bare = seeded().copy();
   const gh = createFakeGh(bare);
   const dev = bare.clone();
   const repoPath = bare.clone();
@@ -120,18 +151,9 @@ export function createGateWorld(): GateWorld {
     bare.push(dev, 'main');
     return sha;
   };
-  const gateText = (config: GateConfigText) => `${JSON.stringify({ v: 1, ...config }, null, 2)}\n`;
-  const verifyText = (tasks: Record<string, VerifyTask>) => `${JSON.stringify({ v: 1, tasks }, null, 2)}\n`;
 
   let gate = GATE;
-  const tasks: Record<string, Record<string, VerifyTask>> = { 'e.json': { 141: EXAM } };
-  commitMain({
-    'goals/gate.json': gateText(gate),
-    'goals/verify/e.json': verifyText(tasks['e.json']!),
-    'tests/verify.mjs': VERIFY_FILE,
-    'package.json': `${JSON.stringify({ scripts: { test: 'node tests/verify.mjs' } }, null, 2)}\n`,
-    '.gitignore': 'node_modules\n',
-  });
+  const tasks: Record<string, Record<string, VerifyTask>> = { 'e.json': FIRST_TASKS };
 
   let branches = 0;
   const world: GateWorld = {
