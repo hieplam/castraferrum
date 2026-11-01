@@ -18,6 +18,7 @@ import type { ClaimConfig, ClaimGateway, OrphanedClaim, TaskRef } from '../ports
 import type { Clock } from '../ports/clock';
 import type { CommandResult, CommandRunner } from '../ports/command-runner';
 import type { GateRepository } from '../ports/gate-repository';
+import { PullRequestNotFoundError } from '../ports/git-host';
 import type { HoldRecord } from '../ports/hold-repository';
 import type { IdGenerator } from '../ports/ids';
 import type { LoopRecord } from '../ports/loop-repository';
@@ -224,10 +225,12 @@ export class DefaultProbeService implements ProbeService {
     const d = this.#d;
     const why = releaseWhy(claim);
     try {
-      if (!(await this.#handOver(claim))) {
+      const handed = await this.#handOver(claim);
+      if (handed.kind === 'release') {
+        const ended = handed.reason ? { reason: `${why.reason}: ${handed.reason}`, excused: why.excused } : why;
         const cfg = await this.#claimConfig(claim.loopId);
-        if (cfg && claim.kind === 'task') await d.claimGateway.release(cfg, { key: claim.taskKey }, why); // a plan row has no label: it only closes
-        await d.claims.close(claim.id, why.reason, now);
+        if (cfg && claim.kind === 'task') await d.claimGateway.release(cfg, { key: claim.taskKey }, ended); // a plan row has no label: it only closes
+        await d.claims.close(claim.id, ended.reason, now);
       }
       this.#retryAt.delete(claim.id);
     } catch (err) {
@@ -237,21 +240,29 @@ export class DefaultProbeService implements ProbeService {
   }
 
   /**
-   * Decision 47. Gives `false` when the gate does not take this claim, so it ends as today. The order is `queue`, then `handOver`: a throw leaves the row with its
+   * Decision 47. Gives `release` when the gate does not take this claim, so it ends as today. The order is `queue`, then `handOver`: a throw leaves the row with its
    * run, and a restart between the two finds the same PR. `queue` then gives the live job, or a new job if the first one ended.
+   * A pull request that does not exist ends the claim at once, with a reason that names it, because a retry cannot change that. Any other throw is retried (decision 23).
    */
-  async #handOver(claim: EndingClaim): Promise<boolean> {
+  async #handOver(claim: EndingClaim): Promise<{ kind: 'handed' } | { kind: 'release'; reason?: string }> {
     const d = this.#d;
-    if (claim.runStatus !== 'succeeded' || claim.endResult !== 'PR_OPEN') return false;
+    const release = { kind: 'release' } as const;
+    if (claim.runStatus !== 'succeeded' || claim.endResult !== 'PR_OPEN') return release;
     const loop = await d.loops.findById(claim.loopId);
     const setting = loop && (await d.gate.getRepoGate(loop.repoId));
-    if (!loop || !setting?.enabled) return false;
+    if (!loop || !setting?.enabled) return release;
     const prNumber = prNumberOf(claim.endPr, setting.githubRepo);
-    if (prNumber === null) return false;
-    const { jobId } = await d.gateQueue.queue({ repoId: loop.repoId, prNumber, taskKey: claim.taskKey });
+    if (prNumber === null) return release;
+    let jobId: string | null;
+    try {
+      ({ jobId } = await d.gateQueue.queue({ repoId: loop.repoId, prNumber, taskKey: claim.taskKey }));
+    } catch (err) {
+      if (err instanceof PullRequestNotFoundError) return { kind: 'release', reason: `pull request ${prNumber} does not exist` };
+      throw err;
+    }
     if (jobId === null) throw new Error(`The gate job of PR ${prNumber} ended before the read`);
     await d.claims.handOver(claim.id, jobId);
-    return true;
+    return { kind: 'handed' };
   }
 
   /** `null`: the owner removed the probe of a stopped loop. No release command is left, so the row can only close. */

@@ -42,6 +42,14 @@ export class GitHostError extends Error {
   }
 }
 
+/** `gh pr view` printed that the pull request does not exist. Other `gh` failures (network, rights, timeout) stay a plain `GitHostError`. */
+export class PullRequestNotFoundError extends GitHostError {
+  constructor(readonly number: number, exitCode: number | null, stderr: string) {
+    super(`Pull request ${number} does not exist`, exitCode, stderr);
+    this.name = 'PullRequestNotFoundError';
+  }
+}
+
 /** One issue comment that starts with `loop-release:`. `id` is the id of the comment on the host. */
 export type LoopComment = { issue: number; id: string; at: Date; body: string };
 
