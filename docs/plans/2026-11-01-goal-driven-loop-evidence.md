@@ -1210,7 +1210,7 @@ npx vitest run --project api tests/api/gate-handover.test.ts
 
 The 7 passes are the 7 that the plan names: gate off, off env, no-probe, null `end_pr`, other repository, `DONE`, `failed`.
 
-Green, after the rebase on T2:
+Green, after the last rebase:
 
 ```
 npx vitest run --project unit server/services/gate-handover.test.ts
@@ -1223,7 +1223,7 @@ npx vitest run --project unit server/services/gate-handover.test.ts server/servi
 
 `server/services/probe-claims.test.ts` exits 0 with 18 tests, and its case `PR_OPEN with no gate` did not change.
 
-Full `npm run verify`, on the base before T2: exit 0. Unit 1196 passed, contract 244 passed, api 312 passed, e2e and visual 123 passed, `UCs with a green e2e: 35/35`.
+Full `npm run verify`, on the final code at the base with issue 336: exit 0. Unit 1212 passed, contract 248 passed, api 312 passed, e2e and visual 123 passed, `UCs with a green e2e: 35/35`.
 
 Stub results over the 29 tests of the two unit files, each run for real, then restored:
 
