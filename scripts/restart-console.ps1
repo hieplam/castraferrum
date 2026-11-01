@@ -30,8 +30,6 @@
     powershell -NoProfile -Command "Start-Process powershell -WindowStyle Hidden -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','<console folder>\scripts\restart-console.ps1','-WaitForIdle'"
   then end the turn right away: the script waits for the turn to finish before restarting.
 
-  Docs: README.md, section "Scripts".
-
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File scripts\restart-console.ps1
 .EXAMPLE
