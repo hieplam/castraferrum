@@ -68,6 +68,95 @@ Ratchet, metrics with a committed baseline: 0 before, 16 after (`baseline: 16 me
 
 <!-- S1 -->
 
+## S1
+
+Commands: read-only SQL (`set default_transaction_read_only=on`) listed the 12 failed runs. A Node script scanned each `~/.claude/projects/*/<id>.jsonl` and printed only event types and line numbers, never message text. The SDK is 0.3.303, model `haiku`, effort `low`, `tools: []`, `GH_TOKEN=invalid`, folder `lc-real-claude-s1`.
+
+Answer lines:
+
+S1 order: rate_limit_event > assistant_error > result
+S1 resume-keeps-session-id: yes
+S1 cost-restarts-at-zero: no
+S1 spend-usd: 0.04
+S1 rate-limit-info-keys: status, resetsAt, rateLimitType, overageStatus, overageDisabledReason, isUsingOverage, unifiedWindows
+S1 resets-at-unit: seconds
+
+Raw order in the 12 failed transcripts (line number of the event):
+
+S1 raw 1a55bc9b: assistant_error (line 24) > rate_limit_event not stored > result not stored
+S1 raw 0fd59ce7: assistant_error (line 24) > rate_limit_event not stored > result not stored
+S1 raw da58c9d4: assistant_error (line 431) > rate_limit_event not stored > result not stored
+S1 raw 79163beb: assistant_error (line 24) > rate_limit_event not stored > result not stored
+S1 raw 849bb9cb: assistant_error (line 24) > rate_limit_event not stored > result not stored
+S1 raw 72133511: assistant_error (line 24) > rate_limit_event not stored > result not stored
+S1 raw 52c2e40d: assistant_error (line 24) > rate_limit_event not stored > result not stored
+S1 raw bd29533e: assistant_error (line 91) > rate_limit_event not stored > result not stored
+S1 raw dd3169d6: assistant_error (line 24) > rate_limit_event not stored > result not stored
+S1 raw a7a5e655: assistant_error (line 1451) > rate_limit_event not stored > result not stored
+S1 raw 8a2b6c0c: assistant_error (line 819) > rate_limit_event not stored > result not stored
+S1 raw 464e9f06: assistant_error (line 24) > rate_limit_event not stored > result not stored
+
+Evidence and limits:
+
+- Every one of the 12 transcripts stores one event of this kind: an `assistant` line with `error: rate_limit` (and `isApiErrorMessage`), the last line or the last model line. None stores a `rate_limit_event` or a `result`. The same holds for `run_logs` of the 12 runs: one `error` row each, no `rate_limit_event`.
+- So the line `S1 order` is NOT observed in a limit event. It is inferred from live haiku runs: the stream was `rate_limit_event > system:init > assistant > rate_limit_event > result:success` (and once without the first `rate_limit_event`), so `rate_limit_event` comes before the `assistant` message and `result` is last. It is not verified that a rejected limit puts the assistant `error` between them. P7 must not depend on the order of the first two kinds, and must accept any of the three alone.
+- Resume with streaming input kept `session_id` in 4 of 4 resumed passes (each run printed `same session id: true`). The resumed stream was `system:init > assistant > rate_limit_event > result:success`.
+- `total_cost_usd` does not restart at 0. In the last pass the resumed `modelUsage` held `inputTokens 1191, outputTokens 908, cacheReadInputTokens 7376`, which is the sum of both turns (first pass: 1189, 905, 4599). The resumed `total_cost_usd` equals the `costUSD` of that `modelUsage`. Comparing the cost of the two passes alone were not decisive (the resumed turn re-creates the cache), so the claim rests on the token sums. P8 must treat the cost of a resumed run as cumulative for the session, as the executor already does for turns inside one process.
+- A limit can only be seen as `assistant_error` in the transcript store. The `usage_limit` trigger on `rate_limit_info.status === 'rejected'` has no stored sample. Not verified: `resetsAt` (the spec records it checked on session 464e9f06; that transcript has no `rate_limit_event`).
+- `resetsAt` unit: one more live haiku stream (script `rl.mjs`, same options, `maxBudgetUsd 0.05`) printed this `rate_limit_info`: `status` "allowed", `resetsAt` 1793527200, `rateLimitType` "five_hour", `isUsingOverage` false, `unifiedWindows.five_hour` `{utilization 0.25, resetsAt 1793527200}`, `unifiedWindows.seven_day` `{utilization 0.46, resetsAt 1793923200}`. The number has 10 digits and reads as 2026-11-01 as seconds since 1970 (as milliseconds it would be January 1970). So the unit is seconds, and the spec line is proven for an `allowed` event. Not verified: `resetsAt` of a `rejected` event. `utilization` is not at top level here, only in `unifiedWindows`. Cost of this run 0.0005 USD.
+- Spend: 5 script runs, summed `total_cost_usd` 0.0323, rounded up to 0.04 USD (limit 0.50).
+
+Script (`run.mjs`, 24 lines):
+
+```js
+import { query } from 'file:///<main-checkout>/node_modules/@anthropic-ai/claude-agent-sdk/sdk.mjs';
+const base = { cwd: process.cwd(), model: 'haiku', effort: 'low', tools: [], settingSources: [],
+  env: { ...process.env, GH_TOKEN: 'invalid' }, maxBudgetUsd: 0.2 };
+async function* oneUser(text) {
+  yield { type: 'user', message: { role: 'user', content: text }, parent_tool_use_id: null };
+}
+async function pass(label, options, prompt) {
+  const q = query({ prompt, options: { ...base, ...options } });
+  const seen = [];
+  let res = null;
+  for await (const m of q) {
+    seen.push(m.type + (m.subtype ? ':' + m.subtype : ''));
+    if (m.type === 'result') { res = m; break; } // stop after the first result
+  }
+  q.close();
+  console.log(label, 'types:', seen.join(' > '));
+  console.log(label, 'num_turns', res?.num_turns, 'usage', JSON.stringify(res?.usage && {i:res.usage.input_tokens,o:res.usage.output_tokens,cr:res.usage.cache_read_input_tokens,cc:res.usage.cache_creation_input_tokens}), 'modelUsageCost', JSON.stringify(Object.values(res?.modelUsage??{}).map(u=>[u.costUSD,u.inputTokens,u.outputTokens,u.cacheReadInputTokens,u.cacheCreationInputTokens])));
+  console.log(label, 'session_id:', res?.session_id, 'total_cost_usd:', res?.total_cost_usd, 'subtype:', res?.subtype);
+  return res;
+}
+const r1 = await pass('first ', {}, 'Write the integers 1 to 400 separated by spaces, nothing else');
+const r2 = await pass('resume', { resume: r1.session_id }, oneUser('Reply with the single word: two'));
+console.log('same session id:', r1.session_id === r2.session_id);
+console.log('cost restarts at zero:', r2.total_cost_usd < r1.total_cost_usd, 'sum', (r1.total_cost_usd + r2.total_cost_usd).toFixed(5));
+```
+
+Output of the last run:
+
+```
+first  types: rate_limit_event > system:init > assistant > result:success
+first  num_turns 1 usage {"i":2,"o":887,"cr":4599,"cc":0} modelUsageCost [[0.00061739,1189,905,4599,0]]
+first  session_id: 578c5e61-5f0d-4c0d-aa7c-5ef8a41d0f75 total_cost_usd: 0.00061739 subtype: success
+resume types: system:init > assistant > rate_limit_event > result:success
+resume num_turns 1 usage {"i":2,"o":3,"cr":2777,"cc":29630} modelUsageCost [[0.006572860000000001,1191,908,7376,29630]]
+resume session_id: 578c5e61-5f0d-4c0d-aa7c-5ef8a41d0f75 total_cost_usd: 0.006572860000000001 subtype: success
+same session id: true
+cost restarts at zero: false sum 0.00719
+```
+
+Green:
+
+```
+$ grep -cP <answer-line pattern> docs/plans/2026-11-01-goal-driven-loop-evidence.md
+4
+$ grep -c '^S1 raw [0-9a-f]{8}: ' docs/plans/2026-11-01-goal-driven-loop-evidence.md
+12
+```
+
 <!-- S2 -->
 
 ## S2
