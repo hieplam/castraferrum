@@ -110,7 +110,7 @@ A `held` run has no process and keeps its session id. `cancel` and `finish` acce
 
 ### 2.7 Lanes
 
-Slot `k` is the lowest free one, from 0. The env holds `CASTRAFERRUM_SLOT=k` plus `loop_probes.lane_env`, with `{slot}` and `{port}` (`lane_base_port + k`) filled in. A unit test re-reads these two lines from `docs/ARCHITECTURE.md`:
+Slot `k` is the lowest free one, from 0. The env holds `CASTRAFERRUM_SLOT=k` plus `loop_probes.lane_env`, with `{slot}` and `{port}` (`lane_base_port + k`) filled in. It also holds `CASTRAFERRUM_GATE=1` when the repository gate is on, and K7 sets it. A run with this variable ends at `PR_OPEN` (`tick.md`, K10). With no variable it works as today. A unit test re-reads these two lines from `docs/ARCHITECTURE.md`:
 
 - Prompt line: `[Castraferrum] The console claimed task <key> for this run (action <take or plan>). Do not run next or claim. Do this task only.`
 - Resume message: `[Castraferrum] The usage limit has reset. Continue the same task from where you stopped.`
@@ -134,7 +134,7 @@ Steps in order: `scope`, `base`, `setup`, `green`, `stub`, `verify`, `ci`, `merg
 These live under `goals/`, the scope guard protects them, and the gate reads them only from `origin/main`. `goals/gate.json`:
 
 ```json
-{"v":1,"setup":["npm ci"],"verify":["npm run verify"],"env":{"LOOPS_TEST_DATABASE_URL":"<gate_test url>","LOOPS_E2E_PORT":"7171"},"guarded":["goals/**","scripts/ratchets.json","scripts/ratchets.mjs","scripts/*-check.mjs",".github/**",".githooks/**"],"testGlobs":["**/*.test.ts","tests/**"]}
+{"v":1,"setup":["npm ci"],"verify":["npm run verify"],"env":{"LOOPS_TEST_DATABASE_URL":"<gate_test url>","LOOPS_E2E_PORT":"7171"},"guarded":["goals/**","scripts/ratchets.json","scripts/ratchets.mjs","scripts/*-check.mjs","scripts/phone-check.mts","scripts/lang-scan.mjs","scripts/lang-baseline.json","scripts/lang-history-allowlist.json","scripts/uc-coverage.mjs","scripts/api-smoke.mjs","scripts/test-contract.mjs","scripts/design-lint.mjs","scripts/design-states.mjs","scripts/design-tokens.mjs","scripts/arch-lib.mjs","scripts/rule-lint.mjs","scripts/rule-lint-baseline.json","scripts/merge-audit.mjs","scripts/metrics/**","design/ds/required-tokens.json","design/ds/contrast-pairs.json",".dependency-cruiser.cjs","playwright.config.ts","vitest.config.ts","tsconfig.json","tsconfig.base.json","web/tsconfig.json",".github/**",".githooks/**"],"testGlobs":["**/*.test.ts","tests/**"]}
 ```
 
 `goals/verify/<epic-slug>.json`, one entry per task key:
@@ -144,6 +144,10 @@ These live under `goals/`, the scope guard protects them, and the gate reads the
 ```
 
 Stub run: restore each changed file outside `testGlobs` to the base commit, and `stub.run` must exit non-zero. `{"none":"<reason>"}` replaces `stub.run` for a task with nothing to stub. A task with no entry fails at `green`. A plan PR changes only `goals/verify/**` and `docs/plans/**` and only adds keys. It passes `scope` and skips `green` and `stub`.
+
+`guarded` holds each script that `npm run verify` reaches, with its data files. `tests/tools/gate-data.test.ts` parses `scripts.verify`, and it fails on a file that `guarded` does not match, and on a command that it does not know.
+
+`package.json` is not in `guarded`, because a dependency bump or a raised `--min` must not stop for a person. `checkScope` takes an optional `packageChange: { base; head }`. A change to `package.json` passes `scope` if the `scripts` objects are deep-equal, or if the only difference is a higher number after `--min` in `scripts.verify`. Any other change to `scripts`, a lower `--min`, bad JSON, no `packageChange`, or a delete or rename of `package.json` gives the verdict `guarded`, so the job state is `needs_ratification`.
 
 ### 2.10 Goals
 
@@ -308,6 +312,8 @@ Pages open from a `.cell.is-link`. The tab bar stays.
 15. A 60 s probe fits: `E next` took 4.3 s.
 16. F0 counts G1 from transcripts with no `Edit`, `Write`, `git push`, `gh pr create`. F0's number wins.
 17. Task sections are written in waves: plans written far ahead go stale (issue 214), and spikes can change later designs.
+18. `package.json` is outside `guarded`, with its own rule in 2.9. The gate runs `verify` from the PR, so `scripts` is part of the bar, but a dependency bump is not.
+19. `CASTRAFERRUM_GATE=1` tells a run that the gate is on. The prompt line of 2.7 is fixed, and a file on `main` cannot say it, because `repo_gate` is a console setting.
 
 **`docs/ARCHITECTURE.md`.** P4: services, ports, tables. P8: line 448 (no pause or resume) becomes "a hold pauses runs for a resource". P11: lines 447 and 231 (stop every loop on restart) become a per-loop `restartPolicy`, default `stop`.
 
