@@ -82,6 +82,14 @@ separate id `phone-<id>` that draws its base state at 390 by 844. Open a state l
 | `phone-loop-runs` | `loop-runs` on the phone | - |
 | `loop-settings` | Settings and prompt: repo with path, schedule, agent, runs at the same time, time limit, the full prompt, Edit settings | - |
 | `phone-loop-settings` | `loop-settings` on the phone | - |
+| `probe-waiting` | A probe loop waits for a person (action `wait`): Waiting for you, the reason, the last probe line | - |
+| `phone-probe-waiting` | `probe-waiting` on the phone | - |
+| `probe-held` | A probe loop on a hold (action `hold`, usage limit): Held, the hold, the last probe line, a held run in Recent runs | - |
+| `phone-probe-held` | `probe-held` on the phone | - |
+| `probe-blocked` | A probe loop with blockers (action `blocked`): Blocked, the blocking issues, the last probe line | - |
+| `phone-probe-blocked` | `probe-blocked` on the phone | - |
+| `probe-complete` | The goal passed (action `done`): Goal met, the active period closed with Goal met, Start | - |
+| `phone-probe-complete` | `probe-complete` on the phone | - |
 
 ## Active period page (`period`, route `/executions/:id`)
 
@@ -118,6 +126,8 @@ separate id `phone-<id>` that draws its base state at 390 by 844. Open a state l
 | `run-transcript-missing` | The session file is gone | - |
 | `run-transcript-no-session` | A run without a session (no transcript) | - |
 | `vi-run-transcript` | The transcript in Vietnamese | - |
+| `run-held` | A run held by the usage limit: Held, the same session resumes after the reset, no resume command | - |
+| `phone-run-held` | `run-held` on the phone | - |
 
 ## Editor (`form`, routes `/loops/new`, `/loops/:id/edit`)
 
@@ -179,3 +189,30 @@ separate id `phone-<id>` that draws its base state at 390 by 844. Open a state l
 | `phone-settings` | `settings` on the phone | `m-settings-light` |
 | `settings-db-down` | The database not answering | - |
 | `phone-vi-settings` | Settings in Vietnamese (phone only) | - |
+
+## Gate page (`gate`, route `/repos/:id/gate`)
+
+| id | State | Board |
+|---|---|---|
+| `gate-queue` | The merge gate of a repo, on: the switch, every job state (Running, Queued, Needs ratification with Ratify, Merged, Failed) | - |
+| `phone-gate-queue` | `gate-queue` on the phone | - |
+| `gate-failed` | The record of a failed job: Failed, the failed step, each step, the output of the failed step, Queue again | - |
+| `phone-gate-failed` | `gate-failed` on the phone | - |
+
+## Goals page (`goals`, route `/loops/:id/goals`)
+
+| id | State | Board |
+|---|---|---|
+| `goal-rows` | The goal figure, the goal rows that pass and fail, the standing goals, the loops that stopped on a budget or a bad probe | - |
+| `phone-goal-rows` | `goal-rows` on the phone | - |
+
+## Scoreboard and goal cards (`goal-cards`, routes `/scoreboard`, `/repos/:id/goal-cards`)
+
+| id | State | Board |
+|---|---|---|
+| `scoreboard` | The process scoreboard: four figures, one number per week, each cause around the date its check merged, no chart | - |
+| `phone-scoreboard` | `scoreboard` on the phone | - |
+| `card-two-way` | A proposed goal card with a two-way door: starts by itself after the refusal window, Accept, Refuse, the earlier cards | - |
+| `phone-card-two-way` | `card-two-way` on the phone | - |
+| `card-one-way` | A proposed goal card with a one-way door: never starts alone, Accept, Refuse | - |
+| `phone-card-one-way` | `card-one-way` on the phone | - |
