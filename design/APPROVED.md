@@ -443,3 +443,11 @@ Task R9 built the scoreboard page and compared it with the approved shots. The a
 
 - **What changed:** only these 4 images: `scoreboard-light`, `scoreboard-dark`, `phone-scoreboard-light` and `phone-scoreboard-dark` in [`ds/preview/shots/`](ds/preview/shots/), re-shot with `npm run design:shots -- --only scoreboard,phone-scoreboard --compress`. No class, token, text or sample number changed.
 - **Decision:** by the standing rule of the epic (the app and the preview differ in the sample only: the preview is re-shot, and the owner is not asked), the preview shots follow the code that draws them.
+
+## the gate-failed shots re-shot without the time column and the tones of the output (task K12), 2026-11-02
+
+Task K12 built the gate pages and compared them with the approved `gate-queue` and `gate-failed` shots. The output block of `gate-failed` drew a time column and the tones `log-head` and `log-err` on its lines. The gate keeps neither: a gate step stores the last 60 lines of its output as plain text (spec 2.8, `gate_steps.output_tail`), so the app cannot give a time or a tone for a line. By the standing rule of the epic (the app's honest behaviour wins, the preview is corrected and re-shot, and the owner is not asked), the preview now draws the stored tail as it is.
+
+- **What changed:** the output lines of `goalLoop.gate.failed` in `design/ds/preview/data.js` are plain strings, and `logBlock` of `design/ds/preview/preview.js` leaves out the time span when a line has none. Only these 4 images changed: `gate-failed-light`, `gate-failed-dark`, `phone-gate-failed-light` and `phone-gate-failed-dark` in [`ds/preview/shots/`](ds/preview/shots/), re-shot with `npm run design:shots -- --design design/ds --only gate-failed,phone-gate-failed --compress`.
+- **What did not change:** every other element of the two approved states (the head, the banner, the 8 steps with their times and results, the two columns, the phone layout, `gate-queue` and its phone twin). No class, token, colour or text of the system changed.
+- **Also decided:** a job queued before this task has no title, and its cell shows `PR #n` alone (key `goalLoop.gate.prShort`). The Log component draws a line with no time as its text alone.

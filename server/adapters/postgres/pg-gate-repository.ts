@@ -23,6 +23,7 @@ function toJob(r: Row): GateJob {
     prNumber: r.pr_number as number,
     headSha: r.head_sha as string,
     taskKey: r.task_key as string,
+    title: (r.title as string | null) ?? null,
     state: r.state as GateJobState,
     failedStep: (r.failed_step as GateStepName | null) ?? null,
     queuedAt: r.queued_at as Date,
@@ -74,9 +75,9 @@ export class PgGateRepository implements GateRepository {
   async enqueue(input: EnqueueGateJobInput): Promise<'queued' | 'duplicate'> {
     // The partial unique index gate_jobs_one_live_per_head decides: a second live row for the PR head writes nothing.
     const res = await this.#pool.query(
-      `INSERT INTO gate_jobs (id, repo_id, pr_number, head_sha, task_key, state, queued_at) VALUES ($1, $2, $3, $4, $5, 'queued', $6)
+      `INSERT INTO gate_jobs (id, repo_id, pr_number, head_sha, task_key, title, state, queued_at) VALUES ($1, $2, $3, $4, $5, $6, 'queued', $7)
        ON CONFLICT (repo_id, pr_number, head_sha) WHERE state IN ('queued', 'running') DO NOTHING`,
-      [input.id, input.repoId, input.prNumber, input.headSha, input.taskKey, input.at],
+      [input.id, input.repoId, input.prNumber, input.headSha, input.taskKey, input.title ?? null, input.at],
     );
     return res.rowCount === 1 ? 'queued' : 'duplicate';
   }
@@ -147,6 +148,15 @@ export class PgGateRepository implements GateRepository {
       `SELECT * FROM gate_jobs WHERE state IN ('failed', 'needs_ratification') AND finished_at >= $1 AND finished_at < $2
         ORDER BY finished_at, id`,
       [from, to],
+    );
+    return rows.map(toJob);
+  }
+
+  async listByRepo(repoId: string, states: readonly GateJobState[], limit: number): Promise<GateJob[]> {
+    const { rows } = await this.#pool.query(
+      `SELECT * FROM gate_jobs WHERE repo_id = $1 AND state = ANY($2::text[])
+        ORDER BY finished_at DESC NULLS LAST, queued_at DESC, id DESC LIMIT $3`,
+      [repoId, [...states], limit],
     );
     return rows.map(toJob);
   }
