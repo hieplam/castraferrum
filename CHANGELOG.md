@@ -1,5 +1,57 @@
 # Changelog
 
+## [0.4.0](https://github.com/hieplam/castraferrum/compare/v0.3.0...v0.4.0) (2026-11-01)
+
+
+### Features
+
+* **design:** status rows and preview states of the goal-driven loop ([#286](https://github.com/hieplam/castraferrum/issues/286)) ([d219690](https://github.com/hieplam/castraferrum/commit/d21969052cdc04cdebedc9136ba00be05e13091b))
+* **executor:** merge guard hook for a gated run (K8) ([#334](https://github.com/hieplam/castraferrum/issues/334)) ([dfdc1de](https://github.com/hieplam/castraferrum/commit/dfdc1de372e5e7188d6e308b6e6a2e609edf8701))
+* **executor:** usage_limit event and resume of a session (P7) ([#322](https://github.com/hieplam/castraferrum/issues/322)) ([9d55780](https://github.com/hieplam/castraferrum/commit/9d55780684c2f24c357c1be1b614a9a4c021096d))
+* gate data files and the scope guard (K1) ([#252](https://github.com/hieplam/castraferrum/issues/252)) ([bdcc279](https://github.com/hieplam/castraferrum/commit/bdcc2791091a18193aebfae5ed4f3017684c2b4e))
+* **gate:** gate tables, repo_gate and claim owner (K2) ([#318](https://github.com/hieplam/castraferrum/issues/318)) ([b492d93](https://github.com/hieplam/castraferrum/commit/b492d9391d0a604814b7ce94a3387a6aa2f7f52e))
+* **gate:** GateService, queue and steps (K5) ([#321](https://github.com/hieplam/castraferrum/issues/321)) ([85ed546](https://github.com/hieplam/castraferrum/commit/85ed546e94cee46a1175091d5def40b53422f14c))
+* **gate:** GateWorkspace, worktree and stub restore (K4) ([#312](https://github.com/hieplam/castraferrum/issues/312)) ([40c1451](https://github.com/hieplam/castraferrum/commit/40c1451d3936599603580ff24fd690b90e9b16b4))
+* **gate:** GitHost port and gh adapter (K3) ([#301](https://github.com/hieplam/castraferrum/issues/301)) ([8d54ca3](https://github.com/hieplam/castraferrum/commit/8d54ca3541d43c4310bf079602cf43c8078c9d6e))
+* **goal-check:** --json, score, cadence and d7 for goal manifests ([#281](https://github.com/hieplam/castraferrum/issues/281)) ([41826db](https://github.com/hieplam/castraferrum/commit/41826db8bb6c8d5fe991c59ad8d47a9ba23fd280))
+* **goals:** goal manifest of the goal-driven loop epic, red at 2 of 29 ([#261](https://github.com/hieplam/castraferrum/issues/261)) ([db10732](https://github.com/hieplam/castraferrum/commit/db10732986dfd44ab0e2a64d33b66d2ceb3a6d82))
+* **goals:** goals/health.json with the audit row (T5) ([#335](https://github.com/hieplam/castraferrum/issues/335)) ([61f4eb5](https://github.com/hieplam/castraferrum/commit/61f4eb57546cc425b62bf5306bcaac581faee83f))
+* **goals:** guard the files that verify and npm ci reach (issue 251) ([#277](https://github.com/hieplam/castraferrum/issues/277)) ([40470e0](https://github.com/hieplam/castraferrum/commit/40470e0c8ef4a57fdefd41d2df0a82b72f132154))
+* **goals:** standing goals and the failure fingerprint (T4) ([#309](https://github.com/hieplam/castraferrum/issues/309)) ([f851d05](https://github.com/hieplam/castraferrum/commit/f851d05a6f232b64d79e12a7de4978c4ae39c0fb))
+* **logon-task:** print Task Scheduler XML for a log-on start, never install ([#296](https://github.com/hieplam/castraferrum/issues/296)) ([4f7bb01](https://github.com/hieplam/castraferrum/commit/4f7bb01fc41ac9b68ce1f24c3ced3da39a3efb79))
+* **merge-audit:** find a merge that went around the gate ([#302](https://github.com/hieplam/castraferrum/issues/302)) ([1b90ddf](https://github.com/hieplam/castraferrum/commit/1b90ddfbdd082b164ff10b3b5bc9427e513de355))
+* **metrics:** baseline of each ratchet, read-only on runs (issue 225) ([#253](https://github.com/hieplam/castraferrum/issues/253)) ([25d527c](https://github.com/hieplam/castraferrum/commit/25d527c79e618bc89028a48b5925ba9372b05375))
+* probe line and run-end parsers ([#250](https://github.com/hieplam/castraferrum/issues/250)) ([6417577](https://github.com/hieplam/castraferrum/commit/6417577c24dc29c4295944c0b2e8e1fc9707c19e))
+* **probe:** claim, start and release on the tick (P5) ([#313](https://github.com/hieplam/castraferrum/issues/313)) ([044ea54](https://github.com/hieplam/castraferrum/commit/044ea54db0240a8cfc3988666f0596e0f911843d))
+* **probe:** ProbeService tick, background ticker, ADR 0004 ([#300](https://github.com/hieplam/castraferrum/issues/300)) ([cdaea11](https://github.com/hieplam/castraferrum/commit/cdaea116ca2edc73e90b5e3efabf01e7a2834fc4))
+* **probe:** slot, lane env and the lifecycle line of a claimed run (P6) ([#316](https://github.com/hieplam/castraferrum/issues/316)) ([076c6a3](https://github.com/hieplam/castraferrum/commit/076c6a34022227acc40574ca6a7ede7aab419629))
+* **process-review:** file one issue per repeated cause, and say when a review is due ([#278](https://github.com/hieplam/castraferrum/issues/278)) ([f698f91](https://github.com/hieplam/castraferrum/commit/f698f9174e8aa9d5ed4d04283dd832e6d9bc9fae))
+* **process-review:** first-pass rules, fingerprints and prompt (R5) ([#314](https://github.com/hieplam/castraferrum/issues/314)) ([c2652bd](https://github.com/hieplam/castraferrum/commit/c2652bd9a993f9cb8a3091cbe6ef92d77a831647))
+* **rule-lint:** count rule lines and refuse a new one with no check ([#276](https://github.com/hieplam/castraferrum/issues/276)) ([5888100](https://github.com/hieplam/castraferrum/commit/588810027fb919f5849ff6b39cb53aa2cf0467c7))
+* **server:** add CommandRunner port and NodeCommandRunner adapter ([#260](https://github.com/hieplam/castraferrum/issues/260)) ([b021e71](https://github.com/hieplam/castraferrum/commit/b021e714267e1a0e042609e4b2ef8af552b4c998))
+* **server:** GET /api/process/events for the process review (R2) ([#298](https://github.com/hieplam/castraferrum/issues/298)) ([1a434ab](https://github.com/hieplam/castraferrum/commit/1a434abaac7b28ec3878ce8951706e309bbf4879))
+* **server:** notifier, notices and webhook push (P9) ([#293](https://github.com/hieplam/castraferrum/issues/293)) ([d7a7647](https://github.com/hieplam/castraferrum/commit/d7a7647d68e95e71ba962aa2399a0b67ed63a5b8))
+* **server:** probe settings table and routes ([#275](https://github.com/hieplam/castraferrum/issues/275)) ([e9c88e0](https://github.com/hieplam/castraferrum/commit/e9c88e0d19e59f33d2a4247983f20ac17fe31e7c))
+
+
+### Bug Fixes
+
+* a phone note or card that a captioned group carries sits 8 px under it, as the editor board draws (U27 defect, epic 63) ([#208](https://github.com/hieplam/castraferrum/issues/208)) ([fe70aff](https://github.com/hieplam/castraferrum/commit/fe70aff1de03462c12c1488729759ef57b3d0346))
+* a phone section head sits 8 px above what it heads, as the run board draws (U27 defect, epic 63) ([#210](https://github.com/hieplam/castraferrum/issues/210)) ([efee09e](https://github.com/hieplam/castraferrum/commit/efee09e6e4a19d0599dad81a6ec886e66e28c113))
+* database-down list, repos-loading top bar and tall phone shots (U27 defects, epic 63) ([#203](https://github.com/hieplam/castraferrum/issues/203)) ([606dcb3](https://github.com/hieplam/castraferrum/commit/606dcb310182dc8b90c86906b9e427d402628a80))
+* every phone section caption sits 8 px above what it captions, as the boards draw (U27 defect, epic 63) ([#206](https://github.com/hieplam/castraferrum/issues/206)) ([98e5dd5](https://github.com/hieplam/castraferrum/commit/98e5dd53a2368deeb9d611ebf40cebef1a4faeb8))
+* **gate:** a restart after the merge no longer marks a merged PR as failed ([#337](https://github.com/hieplam/castraferrum/issues/337)) ([7b2a137](https://github.com/hieplam/castraferrum/commit/7b2a1379ad86bd35a527c3590e5237b5e0ad1980))
+* **gate:** run a gate line with double quotes as written on Windows ([#319](https://github.com/hieplam/castraferrum/issues/319)) ([1fb4b3a](https://github.com/hieplam/castraferrum/commit/1fb4b3a9e9da1efe290da53bc5e8614ccd6f3495))
+* **goals:** create the standing-goal label before the first issue ([#315](https://github.com/hieplam/castraferrum/issues/315)) ([bbb5a4d](https://github.com/hieplam/castraferrum/commit/bbb5a4d1f581de7c277dc3cfc99d31af6ce01912))
+* overlays keep the UI font, phone frame gutter and title row, Repo menu covers its row (U27 defects, epic 63) ([#201](https://github.com/hieplam/castraferrum/issues/201)) ([5a82ddc](https://github.com/hieplam/castraferrum/commit/5a82ddc9d7ba8496632bbb24270819d4aa53b10f))
+* page layout defects of the U27 acceptance (log radius, Now dot, phone caption and meta line) ([#200](https://github.com/hieplam/castraferrum/issues/200)) ([01bf652](https://github.com/hieplam/castraferrum/commit/01bf65258fa530022dce4eb97f9115c3ed2a4874))
+* raise the unit test limit to 30 s for tests that start a real process (issue 271) ([#273](https://github.com/hieplam/castraferrum/issues/273)) ([165ee8b](https://github.com/hieplam/castraferrum/commit/165ee8be8bdf0ec8dba2e722729857981739bbba))
+* singular counts, counts and commands that never split, interrupted is not failed (U27 defects, epic 63) ([#204](https://github.com/hieplam/castraferrum/issues/204)) ([27e1398](https://github.com/hieplam/castraferrum/commit/27e13983ed436bdffbf5c07c510d6b86f5c73782))
+* **tests:** give the arch-fixtures dependency checks a 60 s limit ([#258](https://github.com/hieplam/castraferrum/issues/258)) ([bc582e1](https://github.com/hieplam/castraferrum/commit/bc582e144fea6c0518f25ce81a16faf7982eef82))
+* **tests:** give the database test projects a 30 s limit (issue 271) ([#317](https://github.com/hieplam/castraferrum/issues/317)) ([83ff7ea](https://github.com/hieplam/castraferrum/commit/83ff7ea7d21a3f7f103d6b6d3716beb4d5202dcd))
+* the folder picker keeps a path typed before its opening folder loads ([#178](https://github.com/hieplam/castraferrum/issues/178)) ([6114d8f](https://github.com/hieplam/castraferrum/commit/6114d8fee6467d8aca988ae6d3f0c0b993861962))
+* UC-05 and the list rows expect the time the row shows on any day ([#181](https://github.com/hieplam/castraferrum/issues/181)) ([9e96b54](https://github.com/hieplam/castraferrum/commit/9e96b54871c66cc52a6bec2d923e03062e921df3))
+
 ## [0.3.0](https://github.com/hieplam/castraferrum/compare/v0.2.0...v0.3.0) (2026-10-23)
 
 
