@@ -8,6 +8,7 @@ import type {
   HealthService,
   LiveService,
   LoopService,
+  ProbeService,
   RepoService,
   RunService,
   TranscriptService,
@@ -17,6 +18,7 @@ import { folderRoutes } from './folder-routes';
 import { healthRoutes } from './health-routes';
 import { liveRoutes } from './live-routes';
 import { loopRoutes } from './loop-routes';
+import { probeRoutes } from './probe-routes';
 import { repoRoutes } from './repo-routes';
 import { scheduleRoutes } from './schedule-routes';
 import { testRoutes, type TestHooks } from './test-routes';
@@ -36,6 +38,8 @@ export type ApiServices = {
   transcripts: TranscriptService;
   /** Current server time (test mode: a clock that can fast-forward) — for `GET /schedule/preview`. */
   now: () => Date;
+  /** Probe settings of a loop (goal-driven loop). */
+  probes: ProbeService;
 };
 
 export type HttpDeps = {
@@ -67,9 +71,10 @@ export async function buildHttpApp(deps: HttpDeps) {
 
   await app.register(healthRoutes, { health: deps.health });
   if (deps.api) {
-    const { loops, repos, folders, runs, live, transcripts, now } = deps.api;
+    const { loops, repos, folders, runs, live, transcripts, now, probes } = deps.api;
     const sse = { heartbeatMs: deps.sseHeartbeatMs ?? 15_000, shutdown: shutdown.signal };
     await app.register(loopRoutes, { loops, runs });
+    await app.register(probeRoutes, { probes });
     await app.register(repoRoutes, { repos });
     await app.register(folderRoutes, { folders });
     await app.register(scheduleRoutes, { loops, now });

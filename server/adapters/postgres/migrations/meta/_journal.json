@@ -29,6 +29,13 @@
       "when": 1792495439475,
       "tag": "0003_parallel",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793518034283,
+      "tag": "0004_loop_probes",
+      "breakpoints": true
     }
   ]
 }

@@ -169,3 +169,33 @@ export const runLogs = pgTable(
   },
   (t) => [primaryKey({ columns: [t.runId, t.seq] }), check('run_logs_level', sql`${t.level} IN ('info','warn','error')`)],
 );
+
+/**
+ * The probe of a loop (goal-driven loop, spec 2.1 and 2.2): one row for each loop that has one. Every command is an argv array
+ * with no shell. `state` and `last_line` are written by the probe tick, not by the settings API.
+ */
+export const loopProbes = pgTable(
+  'loop_probes',
+  {
+    loopId: uuid('loop_id')
+      .primaryKey()
+      .references(() => loops.id),
+    command: jsonb('command').notNull(),
+    claim: jsonb('claim').notNull().default(sql`'[]'::jsonb`),
+    release: jsonb('release').notNull().default(sql`'[]'::jsonb`),
+    resources: jsonb('resources').notNull().default(sql`'[]'::jsonb`),
+    laneEnv: jsonb('lane_env').notNull().default(sql`'{}'::jsonb`),
+    laneBasePort: integer('lane_base_port'),
+    restartPolicy: text('restart_policy').notNull().default('stop'),
+    state: text('state').notNull().default('active'),
+    lastLine: text('last_line'),
+    lastProbeAt: ts('last_probe_at'),
+  },
+  (t) => [
+    check('loop_probes_restart_policy', sql`${t.restartPolicy} IN ('stop','resume')`),
+    check(
+      'loop_probes_state',
+      sql`${t.state} IN ('active','waiting','blocked','held','budget_limited','complete','probe_failed')`,
+    ),
+  ],
+);

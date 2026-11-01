@@ -4,6 +4,7 @@
 import { randomUUID } from 'node:crypto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { ErrorCode } from '../../shared/domain/errors';
+import type { ProbeSettings } from '../../shared/domain/goal-loop';
 import type { NewLoopRecord } from '../../server/ports/loop-repository';
 import type { NewRepoRecord } from '../../server/ports/repo-repository';
 import type { Repositories } from '../../server/ports/repositories';
@@ -799,6 +800,75 @@ export function repositoryContract(env: () => ContractEnv): void {
       await r.heartbeat.beat(at(10));
       await r.heartbeat.beat(at(20));
       expect(await r.heartbeat.last()).toEqual(at(20));
+    });
+  });
+
+  describe('loop_probes', () => {
+    const settings = (over: Partial<ProbeSettings> = {}): ProbeSettings => ({
+      command: ['node', 'probe.mjs'],
+      claim: ['node', 'claim.mjs', '{key}'],
+      release: ['node', 'release.mjs', '{key}', '{reason}'],
+      resources: [{ name: 'docker', check: ['docker', 'info'], everySec: 30 }],
+      laneEnv: { PORT: '{port}' },
+      laneBasePort: 7200,
+      restartPolicy: 'resume',
+      ...over,
+    });
+
+    it('a loop with no probe -> get null; upsert inserts the row with state active and no last line', async () => {
+      const loop = await r.loops.insert(newLoop());
+      expect(await r.probes.get(loop.id)).toBeNull();
+      const row = await r.probes.upsert(loop.id, settings());
+      expect(row).toEqual({ loopId: loop.id, ...settings(), state: 'active', lastLine: null, lastProbeAt: null });
+      expect(await r.probes.get(loop.id)).toEqual(row);
+    });
+
+    it('upsert on an existing row replaces the settings and keeps the state, the last line and the last probe time', async () => {
+      const loop = await r.loops.insert(newLoop());
+      await r.probes.upsert(loop.id, settings());
+      await r.probes.record(loop.id, { state: 'waiting', lastLine: '{"v":1,"action":"wait"}', at: at(50) });
+      const row = await r.probes.upsert(loop.id, settings({ command: ['node', 'other.mjs'], resources: [], laneBasePort: null, restartPolicy: 'stop' }));
+      expect(row).toEqual({
+        loopId: loop.id,
+        ...settings({ command: ['node', 'other.mjs'], resources: [], laneBasePort: null, restartPolicy: 'stop' }),
+        state: 'waiting',
+        lastLine: '{"v":1,"action":"wait"}',
+        lastProbeAt: at(50),
+      });
+    });
+
+    it('upsert for an unknown loop -> LOOP_NOT_FOUND and no row', async () => {
+      const missing = randomUUID();
+      await expectCode(r.probes.upsert(missing, settings()), 'LOOP_NOT_FOUND');
+      expect(await r.probes.get(missing)).toBeNull();
+    });
+
+    it('list returns every probe ordered by loop id', async () => {
+      const loops = await Promise.all([r.loops.insert(newLoop()), r.loops.insert(newLoop()), r.loops.insert(newLoop())]);
+      expect(await r.probes.list()).toEqual([]);
+      for (const l of loops) await r.probes.upsert(l.id, settings({ command: ['probe', l.id] }));
+      const rows = await r.probes.list();
+      expect(rows.map((x) => x.loopId)).toEqual(loops.map((l) => l.id).sort());
+      expect(rows.every((x) => x.command[1] === x.loopId)).toBe(true);
+    });
+
+    it('remove deletes the row, leaves other rows, and a loop with no row is not an error', async () => {
+      const [a, b] = await Promise.all([r.loops.insert(newLoop()), r.loops.insert(newLoop())]);
+      await r.probes.upsert(a.id, settings());
+      await r.probes.upsert(b.id, settings());
+      await r.probes.remove(a.id);
+      await r.probes.remove(a.id);
+      expect(await r.probes.get(a.id)).toBeNull();
+      expect(await r.probes.get(b.id)).not.toBeNull();
+    });
+
+    it('record stores the state, the last line and the time; a loop with no row is not an error', async () => {
+      const loop = await r.loops.insert(newLoop());
+      await r.probes.record(loop.id, { state: 'blocked', lastLine: 'x', at: at(1) });
+      expect(await r.probes.get(loop.id)).toBeNull();
+      await r.probes.upsert(loop.id, settings());
+      await r.probes.record(loop.id, { state: 'probe_failed', lastLine: null, at: at(60) });
+      expect(await r.probes.get(loop.id)).toMatchObject({ state: 'probe_failed', lastLine: null, lastProbeAt: at(60) });
     });
   });
 }

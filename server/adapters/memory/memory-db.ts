@@ -1,3 +1,4 @@
+import { PROBE_STATES, RESTART_POLICIES, type ProbeRecord } from '../../../shared/domain/goal-loop';
 import { RUN_STATUSES } from '../../../shared/domain/run';
 import type { ExecutionRecord } from '../../ports/execution-repository';
 import type { LoopRecord } from '../../ports/loop-repository';
@@ -43,6 +44,7 @@ export class MemoryDb {
   readonly executions = new Map<string, ExecutionRecord>();
   readonly runs = new Map<string, RunRecord>();
   readonly logs = new Map<string, LogLine[]>();
+  readonly probes = new Map<string, ProbeRecord>();
   heartbeat: Date | null = null;
 
   /** Wipe everything (like TRUNCATE in tests). */
@@ -52,6 +54,7 @@ export class MemoryDb {
     this.executions.clear();
     this.runs.clear();
     this.logs.clear();
+    this.probes.clear();
     this.heartbeat = null;
   }
 
@@ -63,6 +66,7 @@ export class MemoryDb {
       executions: clone(this.executions),
       runs: clone(this.runs),
       logs: clone(this.logs),
+      probes: clone(this.probes),
       heartbeat: this.heartbeat,
     };
     try {
@@ -73,6 +77,7 @@ export class MemoryDb {
       restore(this.executions, before.executions);
       restore(this.runs, before.runs);
       restore(this.logs, before.logs);
+      restore(this.probes, before.probes);
       this.heartbeat = before.heartbeat;
       throw err;
     }
@@ -126,6 +131,16 @@ export class MemoryDb {
   insertLoop(row: LoopRecord): void {
     if (this.loops.has(row.id)) throw new ConstraintViolation('unique', 'loops_pkey');
     this.writeLoop(row);
+  }
+
+  // ------------------------------------------------------------------ loop_probes
+
+  /** INSERT or UPDATE one loop_probes row, checking every table constraint before writing. */
+  writeProbe(row: ProbeRecord): void {
+    if (!this.loops.has(row.loopId)) throw new ConstraintViolation('foreign_key', 'loop_probes_loop_id_loops_id_fk');
+    if (!(RESTART_POLICIES as readonly string[]).includes(row.restartPolicy)) throw new ConstraintViolation('check', 'loop_probes_restart_policy');
+    if (!(PROBE_STATES as readonly string[]).includes(row.state)) throw new ConstraintViolation('check', 'loop_probes_state');
+    this.probes.set(row.loopId, clone(row));
   }
 
   // ------------------------------------------------------------------ loop_executions

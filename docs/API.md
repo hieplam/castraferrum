@@ -37,6 +37,9 @@ prefix of the first path.
 | GET | `/folders/places` | quick-access column of the Browse dialog: `{ platform, home, places, roots, nearRepos }` | - |
 | GET | `/runs/:id/transcript?before=` | one transcript page of a run `{ entries, start, end, hasMore }`; without `before` it is the last page, scrolling up sends the `start` of the page on screen | `RUN_NOT_FOUND`, `TRANSCRIPT_NOT_FOUND`, `VALIDATION_FAILED` |
 | GET | `/runs/:id/transcript/stream` | SSE `snapshot`, `entries`, `missing`, `ended` (`id` = byte offset after the last entry; reconnect with `Last-Event-ID`) | `RUN_NOT_FOUND` |
+| GET | `/loops/:id/probe` | the probe of the loop `{ probe: { loopId, command, claim, release, resources, laneEnv, laneBasePort, restartPolicy, state, lastLine, lastProbeAt } }`; a loop with no probe gives `{ probe: null }` | `LOOP_NOT_FOUND` |
+| PUT | `/loops/:id/probe` | save the probe `{ command, claim?, release?, resources?, laneEnv?, laneBasePort?, restartPolicy? }` (each command is an argv array, no shell); answers 200 with `{ probe }`. The loop must be stopped and not archived. `details.issues` can hold `claim:missingKey`, `release:missingKey`, `release:missingReason`, `resources:reserved` | `LOOP_NOT_FOUND`, `LOOP_IS_ACTIVE`, `LOOP_ARCHIVED`, `VALIDATION_FAILED` |
+| DELETE | `/loops/:id/probe` | delete the probe, answers 204 (a loop with no probe is not an error). The loop must be stopped and not archived | `LOOP_NOT_FOUND`, `LOOP_IS_ACTIVE`, `LOOP_ARCHIVED` |
 
 ## Test-mode routes
 

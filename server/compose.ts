@@ -28,6 +28,7 @@ import { DefaultFolderService } from './services/folder-service';
 import { DefaultHealthService } from './services/health-service';
 import { DefaultLiveService } from './services/live-service';
 import { DefaultLoopService } from './services/loop-service';
+import { DefaultProbeService } from './services/probe-service';
 import { DefaultRecoveryService } from './services/recovery-service';
 import { DefaultRepoService } from './services/repo-service';
 import { DefaultRunService } from './services/run-service';
@@ -109,6 +110,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
   const active = new InMemoryActiveRuns();
   const runService = new DefaultRunService({ ...repos, executors, active, clock, ids, events: bus });
   const loopService = new DefaultLoopService({ ...repos, runService, executors, clock, ids, events: bus });
+  const probeService = new DefaultProbeService({ loops: repos.loops, probes: repos.probes });
   const testDirs = opts.testMode ? new OverridableDirectoryProbe(new NodeDirectoryProbe()) : null;
   const repoService = new DefaultRepoService({ repos: repos.repos, directories: testDirs ?? new NodeDirectoryProbe(), clock, ids });
   const testFolders = opts.testMode ? new OverridableFolderBrowser(new NodeFolderBrowser()) : null;
@@ -178,6 +180,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
       runs: runService,
       live,
       transcripts,
+      probes: probeService,
       now: () => clock.now(),
     },
     testHooks,

@@ -52,7 +52,18 @@ void _everyDomainCodeListed;
  */
 export const validationIssue = z.object({
   field: z.string(),
-  code: z.enum(['required', 'tooLong', 'outOfRange', 'invalid', 'unknownExecutor', 'unknownRepo', 'notDirectory']),
+  code: z.enum([
+    'required',
+    'tooLong',
+    'outOfRange',
+    'invalid',
+    'unknownExecutor',
+    'unknownRepo',
+    'notDirectory',
+    'missingKey',
+    'missingReason',
+    'reserved',
+  ]),
   message: z.string(),
 });
 export type ValidationIssueDto = z.infer<typeof validationIssue>;

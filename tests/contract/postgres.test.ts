@@ -14,7 +14,7 @@ describe('postgres', () => {
     env = {
       ...createPgRepositories(db.pool),
       reset: async () => {
-        await db.pool.query('TRUNCATE run_logs, runs, loop_executions, loops, repos, server_heartbeat');
+        await db.pool.query('TRUNCATE run_logs, runs, loop_executions, loop_probes, loops, repos, server_heartbeat');
       },
       // Raw SQL, bypassing PgRunRepository: only the runs_max_concurrent_per_loop trigger can block it.
       rawInsertRunning: async (row) => {
