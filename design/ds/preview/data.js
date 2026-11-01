@@ -447,7 +447,7 @@
       },
       blocked: {
         kind: 'blocked', mark: 'd-fail', at: '13:59:44', reason: 'Every open task waits for a failed task.',
-        blockers: [['31', 'Migration 14 fails', '3'], ['33', 'The check on main is red', '5']],
+        blockers: [['31', 'Migration 14 fails', 3], ['33', 'The check on main is red', 5]],
         line: '{"v":1,"action":"blocked","tasks":[],"reason":"Every open task waits for a failed task.","resource":null,"until":null,"plan":null,"issues":["31","33"],"goals":{"passed":3,"total":8}}',
       },
       complete: {

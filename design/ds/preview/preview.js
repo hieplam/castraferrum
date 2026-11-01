@@ -344,12 +344,12 @@
   }
   const schedOf = (l) => (l.probe ? t('goalLoop.probe.every', { s: l.probeEverySec }) : schedDesc(l.cron));
   function probeNow(key) {
-    const l = D.loops[key], p = l.probe, g = l.goals;
+    const l = D.loops[key], p = l.probe;
     const K = {
       waiting: () => [t('goalLoop.now.waiting'), t('goalLoop.now.waitingSub', { reason: esc(p.reason) })],
       held: () => [t('goalLoop.now.held', { resource: `<span class="data">${esc(p.resource)}</span>` }), t('goalLoop.now.heldSub', { t: p.until, n: p.n })],
       blocked: () => [t('goalLoop.now.blocked'), t('goalLoop.now.blockedSub', { reason: esc(p.reason) })],
-      complete: () => [t('goalLoop.now.complete'), t('goalLoop.now.completeSub', { t: when(p.endedAt), k: l.exec.k, n: g.total })],
+      complete: () => [t('goalLoop.now.complete'), t('goalLoop.now.completeSub', { t: when(p.endedAt), k: l.exec.k })],
     }[p.kind]();
     const open = l.last.st === 'held' ? t('now.openRun', { n: l.last.n }) : t('now.openLastRun');
     const link = PHONE ? `<a class="cell is-link" href="#"><span class="cell-main">${open}</span>${chev}</a>` : `<span class="now-actions"><a class="btn" href="#">${open}${icon('arrow')}</a></span>`;
@@ -364,7 +364,7 @@
         `<span class="cell-meta">${t('goalLoop.hold.opened', { t: p.openedAt, n: p.n })}</span></span><span class="cell-value">${t('goalLoop.hold.until', { t: `<span class="data">${esc(p.until)}</span>` })}</span></div></div>`;
     } else if (p.kind === 'blocked') {
       list = `<p class="group-cap">${t('goalLoop.blocked.title')}</p><div class="group" data-testid="blocker-list">${p.blockers.map(([n, title, tasks]) => `<a class="cell" href="#" data-testid="blocker-row"><span class="cell-main"><span class="cell-title">${t('goalLoop.blocked.issue', { n, title: esc(title) })}</span>` +
-        `<span class="cell-meta">${t('goalLoop.blocked.tasks', { n: tasks })}</span></span>${chev}</a>`).join('')}</div>`;
+        `<span class="cell-meta">${tn('goalLoop.blocked.tasks', tasks)}</span></span>${chev}</a>`).join('')}</div>`;
     } else if (p.kind === 'complete') {
       const e = D.executions[key][0];
       list = `<p class="group-cap">${t('goalLoop.period.closed')}</p><div class="group"><a class="cell" href="#" data-execution-id="${execId(key, e.k)}"><span class="cell-main"><span class="cell-title">${t('period.title', { k: e.k })}</span>` +
@@ -753,7 +753,7 @@
     const week = ([from, n]) => `<div class="cell" data-testid="score-week"><span class="cell-main"><span class="cell-title is-plain">${t('goalLoop.score.week', { t: `<span class="data">${esc(from)}</span>` })}</span></span><span class="cell-value is-data">${n}</span></div>`;
     const cause = ([name, date, check, a, b]) => `<div class="cell" data-testid="score-cause"><span class="cell-main"><span class="cell-title">${esc(name)}</span>` +
       `<span class="cell-meta"><span>${date ? t('goalLoop.score.checkMerged', { t: `<span class="data">${esc(date)}</span>` }) : t('goalLoop.score.noCheck')}</span> ` +
-      `<span class="keep">· ${date ? t('goalLoop.score.beforeAfter', { a: `<span class="data">${a}</span>`, b: `<span class="data">${b}</span>` }) : t('goalLoop.score.repeats', { a: `<span class="data">${a}</span>` })}</span></span>` +
+      `<span class="keep">· ${date ? t('goalLoop.score.beforeAfter', { a: `<span class="data">${a}</span>`, b: `<span class="data">${b}</span>` }) : tn('goalLoop.score.repeats', a)}</span></span>` +
       `${check ? `<span class="cell-meta is-data">${esc(check)}</span>` : ''}</span></div>`;
     const page = (PHONE ? '' : backlink(t('nav.settings'))) +
       `<div class="page-head"><h1 class="page-title">${t('goalLoop.score.title')}</h1></div><p class="page-desc">${t('goalLoop.score.desc')}</p>` +
