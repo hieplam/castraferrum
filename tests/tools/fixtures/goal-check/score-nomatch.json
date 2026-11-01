@@ -1,0 +1,5 @@
+{
+  "goals": [
+    { "id": "G1", "outcome": "the score pattern does not match the output", "checks": [{ "run": "node -e \"console.log('no numbers here')\"", "score": "(\\d+)/(\\d+) screens" }] }
+  ]
+}

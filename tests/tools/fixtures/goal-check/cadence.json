@@ -1,0 +1,6 @@
+{
+  "goals": [
+    { "id": "G1", "outcome": "runs at merge (the default)", "checks": [{ "run": "node -e \"console.log('ok')\"" }] },
+    { "id": "G2", "outcome": "runs at night", "cadence": "nightly", "checks": [{ "run": "node -e \"console.log('ok')\"" }] }
+  ]
+}

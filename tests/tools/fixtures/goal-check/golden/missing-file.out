@@ -1,0 +1,2 @@
+G1 FAIL: file tests/tools/fixtures/goal-check/no-such-file.txt: the file does not exist
+goals passed: 0/1

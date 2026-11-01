@@ -1,0 +1,4 @@
+G1 pass
+G2 FAIL: run `node -e "console.log('something else')"`: missing "needle"
+    something else
+goals passed: 1/2

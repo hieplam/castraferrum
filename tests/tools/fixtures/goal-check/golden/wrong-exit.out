@@ -1,0 +1,2 @@
+G1 FAIL: run `node -e "process.exit(3)"`: exit 3, expected 0
+goals passed: 0/1

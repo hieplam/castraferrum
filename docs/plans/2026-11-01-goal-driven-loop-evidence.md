@@ -531,6 +531,33 @@ Goal: G9, a PR cannot lower its bar. Issue 251, amends spec 2.9 (Decisions, item
 
 <!-- T1 -->
 
+## T1
+
+Golden output of the 10 old fixtures, saved from the old script before any change (`golden/<name>.out`, exits 0,1,1,1,1,1,1,1,1,1).
+
+Red (tests written, old script):
+
+    $ npx vitest run --project unit tests/tools/goal-check.test.ts
+     Test Files  1 failed (1)
+          Tests  10 failed | 15 passed (25)
+
+Green (after the rebase):
+
+    $ npx vitest run --project unit tests/tools/goal-check.test.ts
+     Test Files  1 passed (1)
+          Tests  25 passed (25)
+    $ node scripts/goal-check.mjs; echo $?
+    usage: node scripts/goal-check.mjs <manifest> [--only G<k>] [--cadence merge|nightly] [--json]
+    2
+
+Stub check (each change restored after the run):
+
+    usage branch returns 0:      Tests  2 failed | 23 passed (25)
+    --json prints {}:            Tests  6 failed | 19 passed (25)
+    --cadence ignored:           Tests  3 failed | 22 passed (25)   (the unknown-cadence test still passes: the name is checked apart from the filter)
+
+Ratchet, tests in `goal-check.test.ts`: 11 before, 25 after.
+
 <!-- T2 -->
 
 <!-- T3 -->

@@ -1,0 +1,7 @@
+{
+  "goals": [
+    { "id": "G4", "outcome": "a passing check with a score", "checks": [{ "run": "node -e \"console.log('72/240 screens match')\"", "score": "(\\d+)/(\\d+) screens" }] },
+    { "id": "G5", "outcome": "a failing check keeps its score", "checks": [{ "run": "node -e \"console.log('5/10 screens match'); process.exit(1)\"", "score": "(\\d+)/(\\d+) screens" }] },
+    { "id": "G6", "outcome": "a check with no score", "checks": [{ "run": "node -e \"console.log('ok')\"" }] }
+  ]
+}
