@@ -298,6 +298,23 @@ Red (before the fixture and this section):
     $ node -e "console.log(JSON.parse(require('fs').readFileSync('tests/fixtures/process-review/events.json','utf8')).length)"
     Error: ENOENT: no such file or directory, open '<worktree>/tests/fixtures/process-review/events.json'
 
+Green (after the rebase):
+
+    $ grep -cP '^S5 (try-...)\r?$' $LOG
+    8
+    $ test "$(grep -c '^S5 try-.-haiku: both' $LOG)" = "$(sed -n 's/^S5 tries-naming-both: //p' $LOG | tr -d '\r')" && echo consistent
+    consistent
+    $ node scripts/lang-scan.mjs --check-baseline
+    baseline check: ok
+    $ node -e "console.log(JSON.parse(require('fs').readFileSync('tests/fixtures/process-review/events.json','utf8')).length)"
+    40
+
+Stub check, all run:
+
+- Fixture moved away: the last Green line prints `Error: ENOENT`.
+- A copy of this log with `S5 tries-naming-both: 2`: the second Green line fails (no `consistent`).
+- A copy of this log with no `S5 ` line: the first Green line prints `0`.
+
 Ratchet, answer lines for S5: 0 before, 8 after. Spend: 0.0056 (haiku) + 0.1557 (sonnet) + 0.0166 (real rows) = 0.1779 USD, written as `0.18` (rounded up). The limit was 3.00 USD.
 
 <!-- S6 -->
