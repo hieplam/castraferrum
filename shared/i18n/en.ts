@@ -879,6 +879,7 @@ export const en = {
   'goalLoop.goals.standing': 'Standing goals',
   'goalLoop.goals.loops': 'Loops that stopped on these goals',
   'goalLoop.goals.issue': 'Issue {n}',
+  'goalLoop.score.link': 'Process scoreboard',
   'goalLoop.score.title': 'Process scoreboard',
   'goalLoop.score.desc': 'How often a known cause repeats, before and after its check merged.',
   'goalLoop.score.causes': 'Causes found',

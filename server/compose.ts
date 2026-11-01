@@ -23,6 +23,7 @@ import { RandomIdGenerator } from './adapters/ids/random-id-generator';
 import { FanoutNotifier } from './adapters/notify/fanout-notifier';
 import { StoreNotifier } from './adapters/notify/store-notifier';
 import { WebhookNotifier } from './adapters/notify/webhook-notifier';
+import { FsReviewReports } from './adapters/fs/fs-review-reports';
 import { NodeCommandRunner } from './adapters/process/node-command-runner';
 import { openDb, truncateAll, type Db } from './adapters/postgres/db';
 import { PgDbProbe } from './adapters/postgres/db-probe';
@@ -41,6 +42,7 @@ import { DefaultLiveService } from './services/live-service';
 import { DefaultLoopService } from './services/loop-service';
 import { DefaultNoticeService } from './services/notice-service';
 import { DefaultProcessService } from './services/process-service';
+import { DefaultScoreboardService } from './services/scoreboard-service';
 import { DefaultProbeService } from './services/probe-service';
 import { DefaultRecoveryService } from './services/recovery-service';
 import { DefaultRepoService } from './services/repo-service';
@@ -158,6 +160,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
   const scheduling = new DefaultSchedulingService({ loops: repos.loops, heartbeat: repos.heartbeat, runService, clock });
   const notices = new DefaultNoticeService({ notices: repos.notices, clock });
   const processService = new DefaultProcessService({ runs: repos.runs, gate: repos.gate, host: gitHost });
+  const scoreboardService = new DefaultScoreboardService({ repos: repos.repos, runs: repos.runs, gate: repos.gate, reports: new FsReviewReports(), commands, clock });
   const live = new DefaultLiveService({ source: bus, runs: repos.runs, logs: repos.logs });
   const transcripts = new DefaultTranscriptService({
     runs: repos.runs,
@@ -241,6 +244,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
       gate: gateService,
       notices,
       processEvents: processService,
+      scoreboard: scoreboardService,
       now: () => clock.now(),
     },
     testHooks,

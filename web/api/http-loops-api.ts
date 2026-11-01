@@ -20,6 +20,7 @@ import {
 } from '../../shared/contracts/loops';
 import { folderDto, folderPlacesDto } from '../../shared/contracts/folders';
 import { repoDto, repoListDto, type RepoInputBody } from '../../shared/contracts/repos';
+import { scoreboardDto } from '../../shared/contracts/scoreboard';
 import { transcriptPageDto } from '../../shared/contracts/transcript';
 import { ApiError, type LoopListFilter, type LoopsApi, type PageRequest } from './loops-api';
 
@@ -100,6 +101,9 @@ export class HttpLoopsApi implements LoopsApi {
   }
   overview(tz?: string, repoId?: string) {
     return this.#call('GET', '/stats', { query: { tz, repoId } }, overviewDto);
+  }
+  scoreboard(tz?: string) {
+    return this.#call('GET', '/process/scoreboard', { query: { tz } }, scoreboardDto);
   }
   listExecutors() {
     return this.#call('GET', '/executors', {}, executorListDto).then((r) => r.items);

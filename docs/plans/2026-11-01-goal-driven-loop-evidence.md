@@ -1438,6 +1438,43 @@ Full `npm run verify` after the last rebase (lane database `loops_r8_test`, port
 
 <!-- R9 -->
 
+## R9
+
+Red (before building the page; the API test ran with the route not registered, the web files were taken from `origin/main`):
+```
+npx vitest run --project api tests/api/scoreboard.test.ts                                  Tests  8 failed (8)
+npx vitest run --project unit server/adapters/fs/fs-review-reports.test.ts                 Tests  2 failed | 1 passed (3)   (the no-folder case passes with a stub, by design)
+npx playwright test --project=visual tests/visual/ds/scoreboard.visual.ts                  2 failed
+npx playwright test tests/e2e/scoreboard-page.spec.ts --project=chromium                   2 failed   (the no-report test first proves the entry shows, then deletes the report, so a stub cannot pass it)
+```
+
+Green (after the rebase onto `origin/main`):
+```
+scoreboard.test.ts                      Tests  8 passed (8)
+fs-review-reports.test.ts               Tests  3 passed (3)
+scoreboard.visual.ts                    2 passed
+results/scoreboard.json                 node -e ... prints  4 true   (worst ratio 0, pairs 4)
+scoreboard-page.spec.ts                 2 passed
+frame.visual.ts                         7 passed, exit 0
+npm run ratchets                        ratchets: ok
+npm run design:compare                  63 passed (7.1m)
+```
+
+Stub check (each implementation changed, run, restored):
+```
+zero figures, no weeks, no causes       Tests  8 failed (8)
+split at `before` only (no `after`)     Tests  4 failed | 4 passed (8)
+a cause with no check in the sums       Tests  3 failed | 5 passed (8)
+ScoreboardView returns null             visual 2 failed, e2e 1 failed (the link test)
+```
+
+Ratchet (up only): pairs in `results/scoreboard.json` 0 to 4 (worst ratio 0). Api tests 241 to 250 (this file +8, the surface test +1 route). Unit tests +3. `e2e expects:` 869 to 878. Routes in the table of `docs/API.md` 35 to 36. Metric `cause-repeats`: not measured yet (decision 7).
+
+Decision: the approved scoreboard shots were stale against the preview that draws them (the last cause row was 1 px taller in the stored image). The app matched the preview exactly, so the 4 shots were re-shot and the change is recorded in `design/APPROVED.md`.
+
+Full `npm run verify` after the last rebase (lane database `loops_r9_test`, port 7241, slot-1): `ratchets: ok`, `rule-lint: ok`, unit `1071 passed | 3 skipped`, contract `210 passed`, api `250 passed | 1 skipped`, `120 passed (13.3m)` (test:e2e), `phone overflow: 0/12`, `UCs with a green e2e: 34/34`, exit code 0.
+
+
 <!-- W1 -->
 
 <!-- W2 -->
