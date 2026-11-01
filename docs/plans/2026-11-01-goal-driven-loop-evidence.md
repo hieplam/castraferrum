@@ -813,6 +813,25 @@ The e2e failures are timing failures of tests that this task does not touch (it 
 
 <!-- R2 -->
 
+## R2
+
+Red (before building): `npx vitest run --project api tests/api/process-events-api.test.ts`
+```
+ Test Files  1 failed (1)
+      Tests  9 failed (9)
+```
+Green (after the rebase on main): same command plus `tests/api/api-surface.test.ts`
+```
+ Test Files  2 passed (2)
+      Tests  45 passed (45)
+```
+`npm run test:contract`: 140 passed (memory 63, postgres 63; 2 new `listBetween` cases on each side).
+Full `npm run verify` after the rebase: exit 0. Unit 844 passed, 2 skipped. Contract 140 passed. Api 142 passed. e2e and visual 115 passed. phone overflow 0/12. UC coverage 33/33.
+
+Stub check: a route that answers `{events:[]}` fails 8 of 9 tests. Removing the range check fails the two range tests (from after to, 32 days).
+
+Ratchet: api tests 132 to 142 (up 10: 9 new, 1 route row in api-surface). Routes in `docs/API.md` 32 to 33.
+
 <!-- R3 -->
 
 ## R3
