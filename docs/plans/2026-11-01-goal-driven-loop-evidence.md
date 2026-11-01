@@ -1357,6 +1357,52 @@ Ratchet: tests in `test_eval_gate.py`, 0 before, 13 after. `gate-result.json` po
 
 <!-- R8 -->
 
+## R8
+
+Red (before building): `npx vitest run --project api tests/api/process-signals-api.test.ts`
+```
+ Test Files  1 failed (1)
+      Tests  9 failed (9)
+```
+Also red before building: `npm run test:contract` printed `memory: 94 passed, 2 failed · postgres: 94 passed, 2 failed`, and the unit run of `server/adapters/github`, `tests/tools/fake-gh.test.ts` and `tests/tools/process-review.test.ts` printed `Tests  6 failed | 38 passed (44)` (2 of the 3 `--signals` cases were red; the third, the empty-list case, passed with no implementation, so it was strengthened at once with a missing-file and a missing-list check: `Tests  3 failed | 12 passed (15)` for `process-review.test.ts`).
+
+Green (after the last rebase onto `origin/main`):
+```
+npx vitest run --project api tests/api/process-signals-api.test.ts          Tests  9 passed (9)
+npx vitest run --project api tests/api/api-surface.test.ts                  Tests  38 passed (38)   (includes: GET /api/process/signals has a registered route)
+npm run test:contract                                                       memory: 96 passed · postgres: 96 passed
+npx vitest run --project unit server/adapters/github tests/tools/fake-gh.test.ts tests/tools/process-review.test.ts    Tests  44 passed (44)   (process-review.test.ts: 15 passed)
+```
+
+Stub check (each implementation was changed, the test was run, the code was restored):
+```
+a route that answers empty lists               Tests  6 failed | 3 passed (9)
+a swallowed GitHostError (found = [])          Tests  1 failed | 8 passed (9)   answers 502 GIT_HOST_FAILED ... never empty lists
+the PR number in the gate text                 Tests  3 failed | 6 passed (9)
+```
+A stray `prNumber` key on an item does not reach the body: the response schema drops it. So the keys test guards the text, and the PR number test guards the key.
+
+Ratchet (up only), same tool each time:
+
+| What | Before | After |
+|---|---|---|
+| api tests (`vitest --project api`, without and with the new file) | 232 passed | 241 passed |
+| contract tests (`npm run test:contract`, per side) | 94 | 96 |
+| routes in the table of `docs/API.md` (`api-surface.test.ts`) | 34 | 35 |
+| unit tests (`npm run test:unit`) | 1057 | 1064 |
+
+Full `npm run verify` after the last rebase (lane database `loops_r8_test`, port 7238, slot-1):
+
+    ratchets: ok
+    rule-lint: ok (rule lines 13, without a check 7, new 0)
+    Tests  1064 passed | 3 skipped (1067)      (unit)
+    Tests  210 passed (210)                    (contract)
+    Tests  241 passed | 1 skipped (242)        (api)
+    116 passed (16.3m)                         (test:e2e)
+    phone overflow: 0/12
+    UCs with a green e2e: 34/34
+    exit code 0
+
 <!-- R9 -->
 
 <!-- W1 -->
