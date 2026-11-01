@@ -1494,6 +1494,20 @@ Full `npm run verify` after the last rebase (lane database `loops_r9_test`, port
 <!-- Z2 -->
 
 
+<!-- 362 -->
+
+## 362
+
+Goal: a tap on a tab opens that tab on the iPhone stand-in, every time, also when a modifier key is held on the test machine.
+
+- Cause, from the trace of lane P8: the tap hit the link, then `BrowserContext.page` opened a second page at `/`, and the first page kept its URL. The click was not handled by react-router: `shouldProcessLinkClick` refuses a click with Shift or Control, so WebKit opened the link itself. The failure was in step `loops-list`, on the back link, with `lang="en"`, so a language change is not the cause.
+- Not verified: the source of the modifier. `WebCore.dll` imports `GetKeyState` and `GetAsyncKeyState`, and a game ran on the machine during the failures. No real key was injected, because it would reach that game. The trace of lane R4 no longer exists, so its failure is matched by symptom only.
+- Red, natural: not reproduced. 400 tab taps with the resize of a journey step: `RATE rounds=400 failures=0`. The unchanged spec: `20 passed (7.2m)`.
+- Red, forced: a real Shift click and a real Control click on `tab-repos` left the URL and gave `pages 2`, with `"prevented":false`. With the fix removed the spec prints `Expected pattern: /\/repos$/`, `Received string:  "http://192.168.100.25:56962/"`, `1 failed`.
+- Green (after the rebase): `npx playwright test --project=iphone-lan tests/e2e/acceptance.iphone.spec.ts --repeat-each 10` prints `20 passed (7.2m)`.
+- Stub check: `ignoreHostKeys` removed is the forced Red above. Restored, `1 passed (27.0s)`.
+- Ratchet, `e2e expects` of `npm run ratchets`: 878 before, 881 after. `e2eExpectsMin` stays 745.
+
 <!-- 271 -->
 
 ## 271

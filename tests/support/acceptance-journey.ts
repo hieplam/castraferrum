@@ -92,6 +92,7 @@ export async function journey(page: Page, request: APIRequestContext, o: Journey
     await test.step(`${o.label} ${theme}: ${name}`, async () => {
       await body();
       await expect(page.locator('html'), `${name}: theme`).toHaveAttribute('data-theme', theme);
+      expect(page.context().pages(), `${name}: a link opened a second page`).toHaveLength(1);
       if (o.origin) expect(new URL(page.url()).origin, `${name}: served from the LAN address`).toBe(o.origin);
       // Native tooltips are banned (design/ds/SYSTEM.md); the page must never scroll sideways (390 px included).
       expect(await page.locator('[title]').count(), `${name}: elements with a native title tooltip`).toBe(0);
