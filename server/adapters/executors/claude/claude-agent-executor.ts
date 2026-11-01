@@ -1,7 +1,8 @@
 import { stat } from 'node:fs/promises';
-import { query as sdkQuery, type Options, type SDKMessage, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
+import { query as sdkQuery, type HookCallback, type Options, type SDKMessage, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
 import { formatUsd, REPO_MISSING_PREFIX } from '../../../../shared/domain/cost';
+import { checkMergeCommand } from '../../../../shared/domain/merge-guard';
 import { parseRunEnd, type RunEnd } from '../../../../shared/domain/run-end';
 import type { ExecutionEvent, ExecutionInput, ExecutorDescriptor, LoopExecutor } from '../../../ports/executor';
 
@@ -151,6 +152,18 @@ function firstText(m: Extract<SDKMessage, { type: 'assistant' }>): string | null
   return null;
 }
 
+/**
+ * The `PreToolUse` hook of a run with `gateGuard` (spec 2.15): it reads `tool_name` and `tool_input.command`, and refuses a merge command with a deny reason.
+ * The hook also fires in a subagent (evidence S2), and `bypassPermissions` does not skip it.
+ */
+const mergeGuardHook: HookCallback = async (hookInput) => {
+  const { tool_name: toolName, tool_input: toolInput } = hookInput as { tool_name?: unknown; tool_input?: unknown };
+  const command = typeof toolInput === 'object' && toolInput !== null ? (toolInput as { command?: unknown }).command : undefined;
+  const check = checkMergeCommand(typeof toolName === 'string' ? toolName : '', command);
+  if (!check.deny) return {};
+  return { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: check.reason } };
+};
+
 export class ClaudeAgentExecutor implements LoopExecutor {
   readonly kind = 'claude';
   readonly #query: QueryFn;
@@ -240,6 +253,7 @@ export class ClaudeAgentExecutor implements LoopExecutor {
         env,
         abortController: abort,
         ...(input.resumeSessionId ? { resume: input.resumeSessionId } : {}),
+        ...(input.gateGuard ? { hooks: { PreToolUse: [{ matcher: 'Bash|PowerShell|mcp__.*', hooks: [mergeGuardHook] }] } } : {}),
       },
     });
     const messages = handle[Symbol.asyncIterator]();

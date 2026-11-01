@@ -392,6 +392,25 @@ With `resumeSessionId` the executor sets the SDK option `resume`, sends the prom
 `Resume round #N · session <id>`. The session id stays, and `total_cost_usd` does not restart at 0. So the cost
 of a resumed run replaces the stored cost and is never added to it.
 
+### The merge guard
+
+`ExecutionInput.gateGuard` turns on a `PreToolUse` hook for the run (spec 2.15, decision 29). The hook has the
+matcher `Bash|PowerShell|mcp__.*`. It reads `tool_name` and `tool_input.command` and calls `checkMergeCommand` in
+`shared/domain/merge-guard.ts`. A refusal returns `permissionDecision: 'deny'` with a reason. Any other call
+returns `{}`. With `gateGuard` off or absent, the executor passes no `hooks` key to the SDK, so a run works as it
+did before. The run service sets `gateGuard` for a gated repository (K7).
+
+The hook refuses on the text of the command and does not parse a shell. A nested form (`bash -c`, `xargs`,
+`node -e`) gives the same result as the plain form. The check refuses `gh pr merge`, the REST merge and status
+paths, a write to `check-runs`, the GraphQL merge mutations, `git push` to `main` or `master`, a `gh` call
+that starts with `$`, and a few merge tools of an MCP server. The cost is a false refusal when a command only
+names these words, for example in `git commit -m`. The reason text says: put the words in a file.
+
+Limit: the hook reads only the text of the command. A script file that holds the merge (`bash m.sh`) passes the
+hook, and so does an encoded command. Only the merge audit (K9) finds that merge. The epic accepts these two
+layers (decision 1). `bypassPermissions` does not skip the hook, and the hook also fires in a subagent, whose
+input carries `agent_id` and `agent_type` (evidence S2).
+
 Facts measured on Claude Code 2.1.x with Agent SDK 0.3.x that this design depends on:
 
 - `total_cost_usd` is cumulative across the turns of one `query()`; take the last value, do not add them.

@@ -27,6 +27,11 @@ export type ExecutionInput = {
   env?: Record<string, string>;
   /** Continue this session instead of opening a new one (spec 2.5). `prompt` is the head message. The session id stays the same. */
   resumeSessionId?: string;
+  /**
+   * Refuse a merge command in this run (spec 2.15, decision 29). The Claude executor then adds a `PreToolUse` hook that calls `checkMergeCommand`, and with
+   * `false` or absent it adds no hook, so a run works as before. Mock ignores it. The run service sets it for a gated repository (K7).
+   */
+  gateGuard?: boolean;
 };
 
 export type ExecutionEvent =
