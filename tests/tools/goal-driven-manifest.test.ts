@@ -15,7 +15,7 @@ function specOutcomes(): Map<string, string> {
   const rows = new Map<string, string>();
   for (const line of read('docs/specs/2026-11-01-goal-driven-loop.md').split(/\r?\n/)) {
     const m = /^\| (G\d+) \| ([^|]+) \|/.exec(line);
-    if (m) rows.set(m[1], m[2].trim());
+    if (m?.[1] && m[2]) rows.set(m[1], m[2].trim());
   }
   return rows;
 }
