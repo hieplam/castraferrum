@@ -155,7 +155,7 @@ network. Component tests plug `FakeLoopsApi` and `FakeLiveEvents` into the same 
 
 - `LoopService`: `list`, `get`, `create` (always Stopped), `update` (with `version`), `start`, `stop`,
   `duplicate`, `archive`, `restore`, `listExecutions`, `getExecution`, `executors`.
-- `RunService`: `startFirst`, `startScheduled` (busy gives a skipped run), `cancel`, `expireOverdue`, `get`,
+- `RunService`: `startFirst`, `startScheduled` (busy gives a skipped run), `startClaimed`, `resumeHeld`, `cancel`, `expireOverdue`, `get`,
   `listByLoop`, `logs`.
 - `HoldService`: `tick()`, which the background ticker calls each second. It closes the holds that ended and resumes the
   held runs. It calls `RunService` and no other service.

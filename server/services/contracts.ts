@@ -1,6 +1,6 @@
 // Service interfaces that the entry layer (server/http, server/scheduler) calls. The entry layer imports only this file,
 // never the Default… classes — the rule lives in .dependency-cruiser.cjs.
-// Dependencies inside the service layer are one-way too: LoopService → RunService, SchedulingService → RunService; RunService calls
+// Dependencies inside the service layer are one-way too: LoopService → RunService, SchedulingService → RunService, HoldService → RunService; RunService calls
 // no other service (ARCHITECTURE.md § Layers). The Default… classes only know each other through the interfaces here.
 import type { DomainEvent, EventFilter } from '../../shared/domain/events';
 import type { ProbeRecord, ProbeResource, RestartPolicy } from '../../shared/domain/goal-loop';
