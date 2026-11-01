@@ -488,3 +488,14 @@ Task: probe line parser and run-end parser (issue 237, PR 250).
 
 <!-- Z2 -->
 
+
+<!-- 271 -->
+
+## 271
+
+Goal: a test that starts a real process does not fail on the 5 s limit under load.
+
+- Red (setting absent, machine at about 99 % CPU, no extra load needed): `npx vitest run --project unit tests/tools/lang-scan.test.ts` printed `Test timed out in 5000ms.` twice and `Tests  2 failed | 44 passed (46)`.
+- Green (`testTimeout: 30_000` on the unit project, same command, same load): `Test Files  1 passed (1)`, `Tests  46 passed (46)`.
+- Stub check: the setting removed is the Red run above; the time-out returns.
+- Ratchet, false time-out failures in the file under load: 2 before, 0 after.  `npm run test:unit`: `Test Files  53 passed | 1 skipped (54)`, `Tests  587 passed | 2 skipped (589)`. No assertion changed, no retry added.
