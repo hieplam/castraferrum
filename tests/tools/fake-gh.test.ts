@@ -1,5 +1,7 @@
 // Oracle of the fake GitHub kit (F2): every test runs the fake as a child process, as the callers do.
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createBareRepo, type BareRepo } from '../support/bare-repo.ts';
@@ -143,4 +145,19 @@ describe('fake gh', { timeout: 60_000 }, () => {
     expect((missing.error as NodeJS.ErrnoException).code).toBe('ENOENT');
     expect(gh.read().calls).toHaveLength(1);
   });
+
+  it('reopen, -R and --body-file are supported (R3)', () => {
+    const { run } = setup();
+    const dir = mkdtempSync(join(tmpdir(), 'lc-fake-gh-body-'));
+    cleanups.push(() => rmSync(dir, { recursive: true, force: true }));
+    const bodyFile = join(dir, 'body.md');
+    writeFileSync(bodyFile, 'from a file');
+    expect(run('issue', 'create', '-R', 'o/r', '--title', 'T', '--body-file', bodyFile).status).toBe(0);
+    expect(run('issue', 'close', '1').status).toBe(0);
+    expect(run('issue', 'reopen', '1', '-R', 'o/r').status).toBe(0);
+    expect(run('issue', 'comment', '1', '-R', 'o/r', '--body', 'again').status).toBe(0);
+    const v = JSON.parse(run('issue', 'view', '1', '--json', 'body,state,comments,closedAt').out);
+    expect(v).toEqual({ body: 'from a file', state: 'OPEN', comments: [{ body: 'again' }], closedAt: null });
+  });
 });
+
