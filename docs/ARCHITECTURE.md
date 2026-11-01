@@ -322,7 +322,8 @@ no plan-window hold is open: resume every held run, oldest first over all loops
 A resume sets `running` and a new `deadline_at`, adds 1 to `resume_count`, and calls the executor with `resumeSessionId`
 and the resume message of spec 2.7. The env comes again from `runs.slot`. The cost of a resumed run replaces the stored
 cost, because the session reports a cumulative cost. A limit with no cost keeps the stored cost. Stop cancels held runs
-as well, and recovery makes them `interrupted`, because every loop stops at a restart.
+as well. Recovery makes them `interrupted` when their loop stops at a restart, and a loop with `restartPolicy`
+`resume` keeps them held.
 
 ### One run (`RunService`)
 
@@ -380,10 +381,15 @@ sequenceDiagram
 
 ### Startup recovery (`RecoveryService`, before the ticker and HTTP)
 
-`t = heartbeat.last() ?? now`. Every `running` run becomes `interrupted` (its executor lived in the dead
-process), and so does every `held` run, because its loop stops; the duration is measured up to `t`. Every open execution closes as `server_down` at `max(t,
-startedAt)`, which is within 10 seconds of the real stop. Then all loops are set to Stopped and a heartbeat is
-written. No loop restarts by itself: running again is always a person pressing Start.
+`t = heartbeat.last() ?? now`. The restart policy is per loop: `restartPolicy` in `loop_probes`, default `stop`.
+A loop stays active only when it was active with an open execution and has a probe with `restartPolicy` `resume`.
+Every `running` run of any loop becomes `interrupted` (its executor lived in the dead process), and so does every
+`held` run of a loop that stops; the duration is measured up to `t`. Each loop that stops closes its open execution
+as `server_down` at `max(t, startedAt)`, which is within 10 seconds of the real stop, and is set to Stopped. Then a
+heartbeat is written. A kept loop keeps its open execution and its `held` runs with their hold rows, so the same
+session resumes after the reset. A stopped loop stays stopped for every policy. For each loop that stops, and each
+loop with no probe, running again is always a person pressing Start. The first probe tick of a process treats each
+probe as due, because `last_probe_at` survives the restart, so a kept loop starts its next task with no HTTP call.
 
 ### Parallel runs
 
@@ -658,7 +664,7 @@ The decision records that matter most have their own files in [adr/](adr/). The 
 | SSE, not WebSocket | one direction is enough |
 | Smallest schedule unit is a minute | enough for agent loops and avoids burning money |
 | An execution entity (Start to Stop) groups runs, and every run stores its session id | measures how long a loop has run and groups session ids for analysis, cancelled runs included |
-| Restart closes executions as `server_down` at the last heartbeat and stops every loop | running again must be a person's choice; the heartbeat bounds the error to 10 seconds |
+| Restart closes executions as `server_down` at the last heartbeat and stops the loop, by a per-loop `restartPolicy`, default `stop`; a probe with `resume` keeps the loop active | running again is a person's choice, and `resume` is that choice made once; the heartbeat bounds the error to 10 seconds |
 | Only Start and Stop; Stop cancels running and held runs | simplicity: a hold pauses runs for a resource, and a person has no pause or resume and no one-off runs |
 | Cancellation writes the database first, signals second | Stop is `cancelled` within 5 seconds regardless of the executor |
 | Composition root split in two (`compose.ts`, `main.ts`) | API tests must run the real wiring without importing `main.ts` |
