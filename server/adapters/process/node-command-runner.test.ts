@@ -79,6 +79,16 @@ describe('NodeCommandRunner', () => {
     expect(Date.now() - t0).toBeLessThan(500 + 2000);
   });
 
+  it('an abort kills a hung command and gives a null exit code', async () => {
+    const control = new AbortController();
+    const t0 = Date.now();
+    const pending = runner.run({ argv: [node, '-e', 'setInterval(() => {}, 1000)'], cwd, timeoutMs: 60_000, signal: control.signal });
+    setTimeout(() => control.abort(), 200);
+    const r = await pending;
+    expect(r).toMatchObject({ exitCode: null, timedOut: false, error: 'aborted' });
+    expect(Date.now() - t0).toBeLessThan(10_000);
+  });
+
   it('kills the whole tree: a grandchild that holds stdout does not delay the result and does not survive', async () => {
     // On Windows the grandchild is detached on purpose: the harness job object kills attached children, which would hide a missing tree kill.
     const grandchild = 'setInterval(() => {}, 1000)';

@@ -38,6 +38,7 @@ export const STATUS_OF: Record<ErrorCode, number> = {
   REPO_IN_USE: 409,
   TRANSCRIPT_NOT_FOUND: 404,
   NOTICE_NOT_FOUND: 404,
+  GATE_OFF: 409,
 };
 
 export type ErrorReply = { status: number; body: ErrorBody };
