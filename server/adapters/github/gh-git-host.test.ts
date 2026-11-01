@@ -109,11 +109,23 @@ describe('GhGitHost on the fake gh and a bare repository', () => {
   });
 
   it('openIssue creates an issue with its labels and returns its number and url', async () => {
+    gh.seedLabels('loop:gate', 'bug');
     const issue = await host.openIssue(REPO, { title: 'Red main', body: 'details', labels: ['loop:gate', 'bug'] });
     expect(issue).toEqual({ number: 1, url: 'https://github.com/fake/repo/issues/1' });
     const stored = gh.read().issues[0];
     expect(stored?.title).toBe('Red main');
     expect(stored?.labels.map((l) => l.name)).toEqual(['loop:gate', 'bug']);
+  });
+
+  it('ensureLabel creates a missing label, and calling it again keeps one label', async () => {
+    await host.ensureLabel(REPO, 'standing-goal');
+    await host.ensureLabel(REPO, 'standing-goal');
+    expect(gh.read().labels).toEqual(['standing-goal']);
+  });
+
+  it('openIssue with a label that the repository lacks throws a GitHostError and opens nothing', async () => {
+    await expect(host.openIssue(REPO, { title: 'T', body: 'B', labels: ['missing'] })).rejects.toMatchObject({ name: 'GitHostError', exitCode: 1 });
+    expect(gh.read().issues).toEqual([]);
   });
 
   it('searchIssues finds issues by text, open or closed', async () => {
@@ -130,6 +142,7 @@ describe('GhGitHost on the fake gh and a bare repository', () => {
   });
 
   it('editIssueBody replaces the body and keeps the labels', async () => {
+    gh.seedLabels('bug');
     await host.openIssue(REPO, { title: 'T', body: 'old', labels: ['bug'] });
     await host.editIssueBody(REPO, 1, 'new');
     const stored = gh.read().issues[0];
