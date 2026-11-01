@@ -1,0 +1,25 @@
+{
+  "v": 1,
+  "from": "2026-10-19",
+  "to": "2026-10-22",
+  "clusters": [
+    {
+      "id": "usage-limit",
+      "cause": "cause of usage-limit",
+      "events": 2,
+      "runIds": [
+        1,
+        2
+      ],
+      "firstAt": "2026-10-19T08:00:00.000Z",
+      "lastAt": "2026-10-22T09:30:00.000Z",
+      "repo": "fake/repo",
+      "fingerprint": "aaaaaaaaaaaa",
+      "check": {
+        "kind": "hook",
+        "name": "hooks/usage-limit.mjs",
+        "replay": "node hooks/usage-limit.mjs --replay"
+      }
+    }
+  ]
+}
