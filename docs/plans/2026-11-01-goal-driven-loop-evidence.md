@@ -523,6 +523,19 @@ D1 shot phone-card-one-way-dark: pills Proposed, One-way; Accept, Refuse, pills 
 
 <!-- D2 -->
 
+## D2
+
+Red: not applicable, because approval is a human decision.
+
+Green (after the owner said "I approve the design" in the session chat on 2026-11-01):
+
+```
+$ grep -c '^## the goal-loop screens' design/APPROVED.md
+1
+```
+
+Stub check: with no owner action the count is 0, and issue 235 stays open.
+
 <!-- P1 -->
 
 ## P1

@@ -427,3 +427,12 @@ in the real app: the loop page, and the run page succeeded, running and skipped 
 
 Re-shot with `npm run design:shots -- --design design/ds`, light and dark (6 shots): `phone-run-running`,
 `phone-run-succeeded`, `phone-run-transcript-running`. No other shot changed.
+
+## the goal-loop screens - the 44 shots of the 11 goal-loop states, 2026-11-01
+
+The owner approved the screens of the goal-driven loop (epic 217, task D2).
+
+- **Owner's words:** "I approve the design".
+- **Where:** the session chat of the coordinator of epic 217, on 2026-11-01. The same message carried the link of the private page "Goal Loop Screens", which shows the shots.
+- **What the approval covers:** the 11 states `probe-waiting`, `probe-held`, `probe-blocked`, `probe-complete`, `run-held`, `gate-queue`, `gate-failed`, `goal-rows`, `scoreboard`, `card-two-way` and `card-one-way`, with their phone twins, light and dark. That is 44 shots in [`ds/preview/shots/`](ds/preview/shots/). It also covers the new rows of the Statuses table and the Vietnamese words of the 19 states. Task D1 made them in merge commit d219690 (`feat(design): status rows and preview states of the goal-driven loop (PR 286)`).
+- **What it unblocks:** tasks P15, K12, T6, R9 and W7 build against these shots.
