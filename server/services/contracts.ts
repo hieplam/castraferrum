@@ -3,6 +3,7 @@
 // Dependencies inside the service layer are one-way too: LoopService → RunService, SchedulingService → RunService; RunService calls
 // no other service (ARCHITECTURE.md § Layers). The Default… classes only know each other through the interfaces here.
 import type { DomainEvent, EventFilter } from '../../shared/domain/events';
+import type { ProbeRecord, ProbeResource, RestartPolicy } from '../../shared/domain/goal-loop';
 import type { ExecutionEndReason, ExecutionStats, LogLine, LoopStatus, RunStatus } from '../../shared/domain/run';
 import type { TranscriptEntry, TranscriptPage } from '../../shared/domain/transcript';
 import type { ExecutorDescriptor } from '../ports/executor';
@@ -57,9 +58,25 @@ export type ValidationIssue = {
     | 'timezone'
     | 'timeoutSec'
     | 'maxConcurrent'
+    | 'command'
+    | 'claim'
+    | 'release'
+    | 'resources'
+    | 'laneEnv'
+    | 'laneBasePort'
     | 'executor.kind'
     | `executor.config${string}`;
-  code: 'required' | 'tooLong' | 'outOfRange' | 'invalid' | 'unknownExecutor' | 'unknownRepo' | 'notDirectory';
+  code:
+    | 'required'
+    | 'tooLong'
+    | 'outOfRange'
+    | 'invalid'
+    | 'unknownExecutor'
+    | 'unknownRepo'
+    | 'notDirectory'
+    | 'missingKey'
+    | 'missingReason'
+    | 'reserved';
   message: string;
 };
 
@@ -290,4 +307,33 @@ export interface TranscriptService {
    * non-null (resume) → only entries from `after`. Each call is its own stream, no locking. Throws RUN_NOT_FOUND.
    */
   follow(runId: string, after: number | null, signal: AbortSignal): AsyncIterable<TranscriptEvent>;
+}
+
+// ---------------------------------------------------------------- probe settings
+
+/** Data the user submits for a loop's probe. An omitted field takes its default. */
+export type ProbeInput = {
+  command: string[];
+  claim?: string[];
+  release?: string[];
+  resources?: ProbeResource[];
+  laneEnv?: Record<string, string>;
+  laneBasePort?: number | null;
+  restartPolicy?: RestartPolicy;
+};
+
+/** The stored probe of a loop. */
+export type ProbeView = ProbeRecord;
+
+export interface ProbeService {
+  /** A loop with no probe gives `null`. Throws LOOP_NOT_FOUND. */
+  get(loopId: string): Promise<ProbeView | null>;
+  /**
+   * Stores the settings (insert or replace). Throws LOOP_NOT_FOUND, LOOP_ARCHIVED, LOOP_IS_ACTIVE (stop the loop first),
+   * VALIDATION_FAILED (`details.issues`: `command:required`, `claim:missingKey`, `release:missingKey`, `release:missingReason`,
+   * `resources:reserved`, and range errors).
+   */
+  save(loopId: string, input: ProbeInput): Promise<ProbeView>;
+  /** Deletes the probe; a loop with no probe is not an error. Throws LOOP_NOT_FOUND, LOOP_ARCHIVED, LOOP_IS_ACTIVE. */
+  remove(loopId: string): Promise<void>;
 }

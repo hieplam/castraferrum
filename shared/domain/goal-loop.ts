@@ -20,6 +20,40 @@ export const PROBE_KEY = /^[\w.-]{1,100}$/;
 
 export const PROBE_RAW_MAX_BYTES = 2000;
 
+// ---------------------------------------------------------------- probe settings (table loop_probes)
+
+export const RESTART_POLICIES = ['stop', 'resume'] as const;
+export type RestartPolicy = (typeof RESTART_POLICIES)[number];
+
+/** The resource name that the console reserves for the plan window (spec 2.5). A loop setting cannot use it. */
+export const RESERVED_RESOURCE = 'plan-window';
+
+/** A resource check of a loop: the argv exits 0 when the resource is up, and runs every `everySec` seconds. */
+export interface ProbeResource {
+  name: string;
+  check: string[];
+  everySec: number;
+}
+
+/** What the owner sets for a loop's probe. Every command is an argv array with no shell. */
+export interface ProbeSettings {
+  command: string[];
+  claim: string[];
+  release: string[];
+  resources: ProbeResource[];
+  laneEnv: Record<string, string>;
+  laneBasePort: number | null;
+  restartPolicy: RestartPolicy;
+}
+
+/** A stored probe: the settings plus what the last probe call left. */
+export interface ProbeRecord extends ProbeSettings {
+  loopId: string;
+  state: ProbeState;
+  lastLine: string | null;
+  lastProbeAt: Date | null;
+}
+
 export interface ProbeTask {
   key: string;
   attempt: number;

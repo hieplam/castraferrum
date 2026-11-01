@@ -11,7 +11,7 @@ let pool: pg.Pool;
 beforeAll(async () => {
   server = await composeServer({ databaseUrl: TEST_DB_URL, testMode: false, mockExecutor: false, dbWaitMs: 5000 });
   pool = new pg.Pool({ connectionString: TEST_DB_URL, max: 1 });
-  await pool.query('TRUNCATE run_logs, runs, loop_executions, loops, repos');
+  await pool.query('TRUNCATE run_logs, runs, loop_executions, loop_probes, loops, repos');
 });
 afterAll(async () => {
   await server?.shutdown();
