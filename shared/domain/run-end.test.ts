@@ -78,6 +78,18 @@ describe('parseRunEnd', () => {
     });
   });
 
+  test('reads the JSON line inside a fenced block at the end of the text', () => {
+    const want = { result: 'PR_OPEN', pr, resource: null };
+    const json = `{"result":"PR_OPEN","pr":"${pr}"}`;
+    expect(parseRunEnd(`Done.\n\n\`\`\`json\n${json}\n\`\`\`\n`)).toEqual(want);
+    expect(parseRunEnd(`${json}\n\n\`\`\`\`\n`)).toEqual(want);
+  });
+
+  test('returns null for a final fence with prose before it', () => {
+    expect(parseRunEnd('Some prose.\n```')).toBeNull();
+    expect(parseRunEnd('{"result":"DONE"}\nprose\n```ts')).toBeNull();
+  });
+
   test('keeps an unknown result word', () => {
     expect(parseRunEnd('{"result":"FOO"}')?.result).toBe('FOO');
   });

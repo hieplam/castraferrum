@@ -9,14 +9,21 @@ export interface RunEnd {
   resource: string | null;
 }
 
-/** Returns the last line of `text` that has a visible character, or null. */
-function lastNonEmptyLine(text: string): string | null {
+/** A line that is only a code fence: three or more backticks, with or without a language word. */
+const FENCE_ONLY = /^`{3,}[\w-]*$/;
+
+/** Moves `i` up to the nearest line at or above it that has a visible character, or -1. */
+function skipBlank(lines: string[], i: number): number {
+  while (i >= 0 && (lines[i] ?? '').trim() === '') i--;
+  return i;
+}
+
+/** Returns the line to read: the last non-empty line, or the one before it when the last is only a code fence. */
+function signalLine(text: string): string | null {
   const lines = text.split(/\r\n|\r|\n/);
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const line = (lines[i] ?? '').trim();
-    if (line !== '') return line;
-  }
-  return null;
+  let i = skipBlank(lines, lines.length - 1);
+  if (i >= 0 && FENCE_ONLY.test((lines[i] ?? '').trim())) i = skipBlank(lines, i - 1);
+  return i < 0 ? null : (lines[i] ?? '').trim();
 }
 
 /** Removes the backticks that wrap the whole line, for example a line written as an inline code span. */
@@ -26,7 +33,7 @@ function stripOuterBackticks(line: string): string {
 
 /** Parses the run-end signal. Returns null unless the last non-empty line is a JSON object with a string `result`. */
 export function parseRunEnd(text: string): RunEnd | null {
-  const line = lastNonEmptyLine(text);
+  const line = signalLine(text);
   if (line === null) return null;
   let value: unknown;
   try {
