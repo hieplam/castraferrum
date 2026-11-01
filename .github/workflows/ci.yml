@@ -61,6 +61,8 @@ jobs:
       - run: npm run arch
       - name: Ratchets
         run: npm run ratchets ${{ github.event_name == 'pull_request' && '-- --base origin/main' || '' }}
+      - name: Rule lint
+        run: npm run rule-lint ${{ github.event_name == 'pull_request' && '-- --base origin/main' || '' }}
       - run: npm run test:unit
       - run: npm run build
       - run: npm run test:contract
