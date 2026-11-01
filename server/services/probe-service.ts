@@ -4,6 +4,7 @@ import {
   laneEnvOf,
   lowestFreeSlot,
   parseProbeLine,
+  prNumberOf,
   PROBE_ACTION_STATE,
   PROBE_RAW_MAX_BYTES,
   RESERVED_RESOURCE,
@@ -16,18 +17,21 @@ import {
 import type { ClaimConfig, ClaimGateway, OrphanedClaim, TaskRef } from '../ports/claims';
 import type { Clock } from '../ports/clock';
 import type { CommandResult, CommandRunner } from '../ports/command-runner';
+import type { GateRepository } from '../ports/gate-repository';
 import type { HoldRecord } from '../ports/hold-repository';
 import type { IdGenerator } from '../ports/ids';
 import type { LoopRecord } from '../ports/loop-repository';
 import type { Notifier } from '../ports/notifier';
 import type { Repositories } from '../ports/repositories';
 import type { RunRecord } from '../ports/run-repository';
-import type { LoopService, ProbeInput, ProbeService, ProbeTickReport, ProbeView, RunService, ValidationIssue } from './contracts';
+import type { GateService, LoopService, ProbeInput, ProbeService, ProbeTickReport, ProbeView, RunService, ValidationIssue } from './contracts';
 import { openHold } from './hold-open';
 
 export type ProbeServiceDeps = Pick<Repositories, 'claims' | 'executions' | 'holds' | 'loops' | 'probes' | 'repos' | 'runs'> & {
   commands: CommandRunner;
   claimGateway: ClaimGateway;
+  gate: Pick<GateRepository, 'getRepoGate'>;
+  gateQueue: Pick<GateService, 'queue'>;
   runService: Pick<RunService, 'startClaimed'>;
   loopService: Pick<LoopService, 'finishGoal'>;
   clock: Clock;
@@ -171,6 +175,7 @@ export class DefaultProbeService implements ProbeService {
     const d = this.#d;
     const execution = await d.executions.findOpen(loop.id); // a Stop during the probe call leaves none
     if (!execution) return;
+    const gateOn = (await d.gate.getRepoGate(loop.repoId))?.enabled === true; // before any claim: a failed read claims nothing
     const active = await this.#lanesInUse(loop.id); // read again: the probe call took time
     let lanes = loop.maxConcurrent - active.length;
     const used = active.map((r) => r.slot); // a slot taken in this tick joins the list, so two tasks of one tick never share it
@@ -189,8 +194,8 @@ export class DefaultProbeService implements ProbeService {
         continue;
       }
       const slot = lowestFreeSlot(used);
-      const run = await d.runService.startClaimed(loop.id, execution.id, { runId, taskKey: task.key, slot, env: laneEnvOf(probe, slot), action, ...(failing ? { failing } : {}) });
-      if (run.status === 'skipped') await this.#endClaim({ id: claimId, loopId: loop.id, taskKey: task.key, kind, runStatus: 'skipped', endResult: null }, now, report);
+      const run = await d.runService.startClaimed(loop.id, execution.id, { runId, taskKey: task.key, slot, env: laneEnvOf(probe, slot, gateOn), action, ...(failing ? { failing } : {}), ...(gateOn ? { gateGuard: true } : {}) });
+      if (run.status === 'skipped') await this.#endClaim({ id: claimId, loopId: loop.id, taskKey: task.key, kind, runStatus: 'skipped', endResult: null, endPr: null }, now, report);
       if (run.status !== 'running') return; // no lane after all, or a Stop came first: the orphan step ends what is left
       used.push(slot);
       lanes--;
@@ -210,19 +215,39 @@ export class DefaultProbeService implements ProbeService {
     await Promise.all(due.map((c) => this.#endClaim(c, now, report)));
   }
 
-  /** A failed release keeps the row open for a try 60 s later, so a `gh` failure cannot lose a release. */
-  async #endClaim(claim: Pick<OrphanedClaim, 'id' | 'loopId' | 'taskKey' | 'kind' | 'runStatus' | 'endResult'>, now: Date, report: ProbeTickReport): Promise<void> {
+  /** A failed release or hand-over keeps the row open for a try 60 s later, so a `gh` failure cannot lose either of them. */
+  async #endClaim(claim: EndingClaim, now: Date, report: ProbeTickReport): Promise<void> {
     const d = this.#d;
     const why = releaseWhy(claim);
     try {
-      const cfg = await this.#claimConfig(claim.loopId);
-      if (cfg && claim.kind === 'task') await d.claimGateway.release(cfg, { key: claim.taskKey }, why); // a plan row has no label: it only closes
-      await d.claims.close(claim.id, why.reason, now);
+      if (!(await this.#handOver(claim))) {
+        const cfg = await this.#claimConfig(claim.loopId);
+        if (cfg && claim.kind === 'task') await d.claimGateway.release(cfg, { key: claim.taskKey }, why); // a plan row has no label: it only closes
+        await d.claims.close(claim.id, why.reason, now);
+      }
       this.#retryAt.delete(claim.id);
     } catch (err) {
       this.#retryAt.set(claim.id, now.getTime() + RELEASE_RETRY_MS);
       report.errors.push({ loopId: claim.loopId, message: err instanceof Error ? err.message : String(err) });
     }
+  }
+
+  /**
+   * Decision 47. Gives `false` when the gate does not take this claim, so it ends as today. The order is `queue`, then `handOver`: a throw leaves the row with its
+   * run, and a restart between the two finds the same PR. `queue` then gives the live job, or a new job if the first one ended.
+   */
+  async #handOver(claim: EndingClaim): Promise<boolean> {
+    const d = this.#d;
+    if (claim.runStatus !== 'succeeded' || claim.endResult !== 'PR_OPEN') return false;
+    const loop = await d.loops.findById(claim.loopId);
+    const setting = loop && (await d.gate.getRepoGate(loop.repoId));
+    if (!loop || !setting?.enabled) return false;
+    const prNumber = prNumberOf(claim.endPr, setting.githubRepo);
+    if (prNumber === null) return false;
+    const { jobId } = await d.gateQueue.queue({ repoId: loop.repoId, prNumber, taskKey: claim.taskKey });
+    if (jobId === null) throw new Error(`The gate job of PR ${prNumber} ended before the read`);
+    await d.claims.handOver(claim.id, jobId);
+    return true;
   }
 
   /** `null`: the owner removed the probe of a stopped loop. No release command is left, so the row can only close. */
@@ -252,6 +277,8 @@ export class DefaultProbeService implements ProbeService {
     if (loop.status === 'active') throw new DomainError('LOOP_IS_ACTIVE', 'The loop is running. Stop it before you change its probe');
   }
 }
+
+type EndingClaim = Pick<OrphanedClaim, 'id' | 'loopId' | 'taskKey' | 'kind' | 'runStatus' | 'endResult' | 'endPr'>;
 
 /** Spec 2.1: only exit 0 with a valid last line counts. Each other result gives `probe_failed`, with the raw line or the error. */
 function readResult(result: CommandResult): { state: ProbeState; lastLine: string; line: ProbeLine | null } {

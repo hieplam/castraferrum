@@ -16,8 +16,9 @@ import { RandomIdGenerator } from '../../server/adapters/ids/random-id-generator
 import { createMemoryRepositories } from '../../server/adapters/memory';
 import type { MemoryDb } from '../../server/adapters/memory/memory-db';
 import type { EventPublisher } from '../../server/ports/events';
+import type { GateRepository } from '../../server/ports/gate-repository';
 import type { ExecutionEvent, ExecutionInput, ExecutorDescriptor, LoopExecutor } from '../../server/ports/executor';
-import type { DomainEvent, LoopInput } from '../../server/services/contracts';
+import type { DomainEvent, GateQueueInput, GateQueueResult, GateService, LoopInput } from '../../server/services/contracts';
 import { DefaultHoldService } from '../../server/services/hold-service';
 import { DefaultLiveService } from '../../server/services/live-service';
 import { DefaultLoopService } from '../../server/services/loop-service';
@@ -141,6 +142,26 @@ export class ScriptedExecutor implements LoopExecutor {
   }
 }
 
+// ---------------------------------------------------------------- gate queue
+
+/** A fake `Pick<GateService, 'queue'>` that records calls. By default each call writes a new job row, because a claim row points at its job. `answer` replaces that, and a throw stands for a failed `gh`. */
+export class FakeGateQueue implements Pick<GateService, 'queue'> {
+  readonly calls: GateQueueInput[] = [];
+  answer: ((input: GateQueueInput) => GateQueueResult) | null = null;
+
+  constructor(private readonly gate: Pick<GateRepository, 'enqueue'>) {}
+
+  async queue(input: GateQueueInput): Promise<GateQueueResult> {
+    this.calls.push(input);
+    if (this.answer) return this.answer(input);
+    const id = `job-${this.calls.length}`;
+    const headSha = String(this.calls.length).padStart(40, 'a');
+    const taskKey = input.taskKey ?? '';
+    await this.gate.enqueue({ id, repoId: input.repoId, prNumber: input.prNumber, headSha, taskKey, at: T0 });
+    return { outcome: 'queued', jobId: id, headSha, taskKey };
+  }
+}
+
 // ---------------------------------------------------------------- kit
 
 /** Let background promises / `for await` loops run everything that is ready (no real IO, so a few turns are enough). */
@@ -188,7 +209,8 @@ export function makeKit(opts: { db?: MemoryDb; clock?: OffsetClock; mock?: MockE
   const scheduling = new DefaultSchedulingService({ loops: repos.loops, heartbeat: repos.heartbeat, runService, clock });
   const commands = new FakeCommandRunner();
   const claimGateway = new FakeClaimGateway();
-  const probeService = new DefaultProbeService({ ...repos, commands, claimGateway, runService, loopService, clock, ids, notifier });
+  const gateQueue = new FakeGateQueue(repos.gate);
+  const probeService = new DefaultProbeService({ ...repos, commands, claimGateway, gateQueue, runService, loopService, clock, ids, notifier });
   const holdService = new DefaultHoldService({ ...repos, commands, runService, clock });
   const recovery = new DefaultRecoveryService({ ...repos, clock });
   const live = new DefaultLiveService({ runs: repos.runs, logs: repos.logs, source: bus });
@@ -230,6 +252,7 @@ export function makeKit(opts: { db?: MemoryDb; clock?: OffsetClock; mock?: MockE
     scheduling,
     commands,
     claimGateway,
+    gateQueue,
     notifier,
     probeService,
     holdService,
