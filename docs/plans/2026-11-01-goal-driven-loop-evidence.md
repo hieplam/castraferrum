@@ -1891,3 +1891,12 @@ Goal: G9, a ratification that a run makes through a script file cannot stay unse
 - Stub check: the gate change stashed fails the ratified-status test (Red above). An audit that always gives `[]` fails the test that expects `{ pr: 2, at }`.
 - Ratchet, tests in `tests/tools/merge-audit.test.ts`: 7 before, 10 after.
 - Full `npm run verify` in slot-1: exit 0, `UCs with a green e2e: 35/35`.
+
+<!-- 377 -->
+## 377
+
+- Goal: the UC-23 test gives the same result for each timing of the minute mark.
+- Red: the clock pinned to the 56th second of a minute, a 4.5 s read delay before the poll, the test otherwise unchanged. Output: `Expected: 2` and `Received: 3`, `1 failed`.
+- Green: `npx playwright test tests/e2e/repo.spec.ts -g "UC-23" --workers 1 --repeat-each 5` passed twice in a row, `5 passed` each time.
+- Stub check: the fix pinned to the 56th second, with the same read delay, fails again with `Expected: 2` and `Received: 3`.
+- Ratchet: UC-23 failures under the late-read condition, 1 before, 0 after. UC-11 is not changed: a measurement of 386 TCP connections showed no leak.
