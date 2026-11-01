@@ -189,6 +189,10 @@ test.describe('repo + Claude executor (phase 2)', () => {
     expect(api1).toMatchObject({ exists: false, loopCount: 1 });
 
     // The next tick still runs (a new run, same execution).
+    // The test clock keeps running in real time, so a real minute mark can pass during the poll and start a third run. Pin the clock
+    // to the 5th second of a minute first: the advance below ends in the 6th second, and the next mark is 54 s away.
+    const t0 = new Date((await api<{ now: string }>(request, 'POST', '/api/__test/clock', { advanceMs: 0 })).body.now).getTime();
+    expect((await api(request, 'POST', '/api/__test/clock', { at: new Date(Math.floor(t0 / 60_000) * 60_000 + 5_000).toISOString() })).status).toBe(200);
     expect((await api(request, 'POST', '/api/__test/clock', { advanceMs: 61_000 })).status).toBe(200);
     await expect.poll(async () => count('SELECT count(*) AS n FROM runs WHERE loop_id = $1', [loop.id]), { timeout: 10_000 }).toBe(2);
     expect(await count(`SELECT count(DISTINCT execution_id) AS n FROM runs WHERE loop_id = $1`, [loop.id])).toBe(1);
