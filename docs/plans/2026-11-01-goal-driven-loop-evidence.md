@@ -863,6 +863,35 @@ Ratchet: unit tests 828 passed before, 836 passed after (plus 8). Metric idle-da
 
 <!-- P16 -->
 
+## P16
+
+Pull request: https://github.com/hieplam/agent-plugins/pull/22 (repository `hieplam/agent-plugins`, branch `epic-loop/probe-blockers`). Command, in the skill folder: `node --test scripts/tests/epic.test.mjs`.
+
+Red (6 new tests and `PROBE_KEYS` changed, before the build):
+
+```
+ℹ tests 79
+ℹ pass 71
+ℹ fail 8
+```
+
+Green (after the build):
+
+```
+ℹ tests 79
+ℹ pass 79
+ℹ fail 0
+```
+
+Stub check (each stub in `blockersOf`, then restored; Green rerun after the last restore gave `ℹ pass 79`, `ℹ fail 0`):
+
+- `blockers` always `[]`: `ℹ pass 74`, `ℹ fail 5`.
+- `blocks` fixed at 1: `ℹ pass 74`, `ℹ fail 5`.
+- sort by number only: `ℹ pass 75`, `ℹ fail 4`.
+- url built from the title: `ℹ pass 77`, `ℹ fail 2`.
+
+Ratchet: `# tests` 73 to 79, up only.
+
 <!-- K1 -->
 
 ## K1
