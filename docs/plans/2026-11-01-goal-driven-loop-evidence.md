@@ -828,6 +828,49 @@ Verify: full `npm run verify` on the lane database, two runs on a saturated mach
 
 <!-- K4 -->
 
+## K4
+
+Red (before building):
+
+    $ npx vitest run --project unit server/adapters/git/git-gate-workspace.test.ts
+    Error: Cannot find module '../../../shared/domain/gate-commands' imported from .../git-gate-workspace.test.ts
+     Test Files  1 failed (1)
+
+Green (after the rebase on `f851d05`):
+
+    $ npx vitest run --project unit server/adapters/git/git-gate-workspace.test.ts
+     Test Files  1 passed (1)
+          Tests  20 passed (20)
+       Duration  149.98s (tests 100%)
+    $ npx vitest run --project unit shared/domain/gate-commands.test.ts
+          Tests  10 passed (10)
+    $ npm run arch
+    dependency-cruiser: 0 violations
+
+The time of the first file is the time of a loaded machine: every test makes real git calls.
+
+Stub checks, each run for real and restored:
+
+    stubRestore returns []:
+      FAIL real stub run ... AssertionError: expected [] to deeply equal [ 'impl.mjs' ]
+    stubRestore returns the paths and restores nothing (a stronger form of the plan's stub):
+      FAIL real stub run ... AssertionError: expected +0 to be 1
+    readAt reads the worktree folder:
+      FAIL readAt gives the text of main ... expected 'the exam of the pull request' to be 'the exam of main'
+    no core.hooksPath:
+      FAIL runs no hook of core.hooksPath ... AssertionError: expected true to be false
+
+Ratchet (unit test count, `npx vitest list --project unit | wc -l`): before 704 (same tree without the two new test files), after 734. Rise of 30. Spike number S3: 5 s.
+
+Light verify: `design:states`, `typecheck`, `lang-scan --check-baseline`, `arch`, `ratchets -- --base main`, `rule-lint -- --base main`, `test:unit` (928 passed, 2 skipped), `test:contract` (154 passed), `test:api` (154 passed), `api-smoke`, `build`: exit 0. e2e and `phone:check` skipped, because `grep -rlE "gate-workspace|gate-commands" server web`, with the new files excluded, prints nothing and exits 1.
+
+Decisions:
+
+- `cmd.exe /c` exits 1 for a command that it cannot find, not 9009 of decision 34. So `isRealRed` also refuses the English text "is not recognized as an internal or external command". Limit: a Windows with another display language is not covered. The real stub run test proves this with a missing program.
+- A gate line with double quotes changes meaning on Windows, because the runner has no verbatim arguments. This needs an existing server file, so issue 310 holds it and blocks K5.
+- `readAt` uses `ls-tree` and then `cat-file blob`. So a git failure throws `GateWorkspaceError` and is not read as a missing file.
+- `stubRestore` deletes before it restores, so a PR that replaces a file with a folder of the same name works.
+
 <!-- K5 -->
 
 <!-- K6 -->
