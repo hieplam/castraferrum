@@ -14,7 +14,7 @@ import type { CheckRun, GitHost } from '../ports/git-host';
 import type { IdGenerator } from '../ports/ids';
 import type { LoopProbeRepository } from '../ports/loop-probe-repository';
 import type { RepoRecord, RepoRepository } from '../ports/repo-repository';
-import type { GateQueueInput, GateQueueResult, GateRatified, GateService, GateTickReport } from './contracts';
+import type { GateQueueInput, GateQueueResult, GateRatified, GateService, GateTickReport, GoalPassReport, GoalService } from './contracts';
 
 const MINUTE = 60_000;
 const SETUP_MS = 20 * MINUTE;
@@ -24,6 +24,8 @@ const VERIFY_MS = 60 * MINUTE;
 const CHECK_COMMAND_MS = 5 * MINUTE;
 const CI_WAIT_MS = 30_000;
 const CI_READS = 60;
+/** The `loopId` of an error of a goal pass that belongs to no job. */
+const IDLE_ERROR_ID = 'goals';
 /** Decision 38. Any other conclusion fails `ci`. */
 const PASSING_CONCLUSIONS = new Set(['success', 'skipped', 'neutral']);
 const OUTPUT_LINES = 60;
@@ -56,6 +58,8 @@ export type GateServiceDeps = {
   ids: IdGenerator;
   /** Rejects when `signal` aborts. Tests inject one that never waits. */
   sleep(ms: number, signal: AbortSignal): Promise<void>;
+  /** Decision 42. Without it the gate only merges. */
+  goals?: GoalService;
 };
 
 /** `stop()` ended the job. The job stays `running`, and the next start queues it again (decision 37). */
@@ -175,11 +179,16 @@ export class DefaultGateService implements GateService {
     const errors: GateTickReport['errors'] = [];
     await this.settle(errors);
     const job = await this.deps.gate.takeNext(this.deps.clock.now());
-    if (!job) return { jobId: null, errors };
+    await this.stoppable((signal) => (job ? this.runJob(job, signal, errors) : this.idle(signal, errors)));
+    return { jobId: job?.id ?? null, errors };
+  }
+
+  /** `stop()` aborts `body` and waits for it. */
+  private async stoppable(body: (signal: AbortSignal) => Promise<void>): Promise<void> {
     const control = new AbortController();
     this.control = control;
     if (this.stopped) control.abort();
-    const running = this.runJob(job, control.signal, errors);
+    const running = body(control.signal);
     this.current = running;
     try {
       await running;
@@ -187,7 +196,21 @@ export class DefaultGateService implements GateService {
       this.current = null;
       this.control = null;
     }
-    return { jobId: job.id, errors };
+  }
+
+  /** Decision 42: the gate has no job, so the nightly rows can use the slot. */
+  private async idle(signal: AbortSignal, errors: GateTickReport['errors']): Promise<void> {
+    await this.goalPass(IDLE_ERROR_ID, errors, async () => this.deps.goals?.nightly(this.deps.clock.now(), signal));
+  }
+
+  /** Decision 42: nothing in a goal pass can change a job, so every failure goes to `errors`. */
+  private async goalPass(loopId: string, errors: GateTickReport['errors'], pass: () => Promise<GoalPassReport | undefined>): Promise<void> {
+    try {
+      const report = await pass();
+      errors.push(...(report?.errors ?? []).map((text) => ({ loopId, message: text })));
+    } catch (e) {
+      errors.push({ loopId, message: message(e) });
+    }
   }
 
   async stop(): Promise<void> {
@@ -283,6 +306,9 @@ export class DefaultGateService implements GateService {
     await this.deps.host.setStatus(run.setting.githubRepo, run.job.headSha, { state: 'pending', description: 'gate: running' });
     if (await this.attempt(run, repo, 1)) await this.attempt(run, repo, 2);
     await this.deps.gate.finish(run.job.id, { state: 'merged', failedStep: null, at: this.deps.clock.now() });
+    await this.goalPass(run.job.id, run.errors, async () =>
+      this.deps.goals?.afterMerge({ repo: run.setting.githubRepo, repoPath: run.repoPath, jobId: run.job.id, signal: run.signal }),
+    );
   }
 
   private async endFailed(run: JobRun, e: unknown): Promise<void> {

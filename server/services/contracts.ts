@@ -427,6 +427,26 @@ export interface BackgroundService {
   tick(): Promise<{ errors: { loopId: string; message: string }[] }>;
 }
 
+export type GoalMergeInput = {
+  /** `owner/name`. */
+  repo: string;
+  repoPath: string;
+  /** The gate job. The worktree of the pass takes its name from this id. */
+  jobId: string;
+  signal?: AbortSignal;
+};
+
+/** A goal pass does not throw for a failed manifest: each failure is one line here. */
+export type GoalPassReport = { errors: string[] };
+
+/** The goal number of an epic (spec 2.10, decision 42). */
+export interface GoalService {
+  /** Runs the `merge` rows of each open epic on the new `main`, then comments `loop-goals:`. */
+  afterMerge(input: GoalMergeInput): Promise<GoalPassReport>;
+  /** Runs the `nightly` rows that last ran more than 24 h ago. */
+  nightly(now: Date, signal?: AbortSignal): Promise<GoalPassReport>;
+}
+
 export type GateQueueInput = { repoId: string; prNumber: number; taskKey?: string };
 /** `jobId` is `null` only when a duplicate job ended before the read. */
 export type GateQueueResult = { outcome: 'queued' | 'duplicate'; jobId: string | null; headSha: string; taskKey: string };
