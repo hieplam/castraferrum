@@ -4,8 +4,8 @@ import { isRealRed, shellArgv, stubCommandProblem } from './gate-commands';
 const result = (over: Partial<Parameters<typeof isRealRed>[0]>) => ({ exitCode: 0, stderr: '', timedOut: false, error: null, ...over });
 
 describe('gate_commands', () => {
-  it('shellArgv gives cmd.exe on win32', () => {
-    expect(shellArgv('npm test && echo ok', 'win32')).toEqual(['cmd.exe', '/d', '/s', '/c', 'npm test && echo ok']);
+  it('shellArgv gives cmd.exe on win32, with the line in one outer pair of quotes', () => {
+    expect(shellArgv('npm test && echo ok', 'win32')).toEqual(['cmd.exe', '/d', '/s', '/c', '"npm test && echo ok"']);
   });
 
   it('shellArgv gives sh on every other platform', () => {

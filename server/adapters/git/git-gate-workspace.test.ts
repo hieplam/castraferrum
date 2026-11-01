@@ -355,6 +355,19 @@ describe('gate_workspace', { timeout: 60_000 }, () => {
     expect(cwd?.toLowerCase()).toBe(tree.dir.toLowerCase());
   });
 
+  it('run gives a line with double quotes to the shell exactly as written', async () => {
+    const tree = await preparedTree(openPr({ 'pr.txt': 'x' }));
+    const result = await ws.run(tree, { line: 'node -e "console.log(1+1)"', env: {}, timeoutMs: RUN_MS });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.trim()).toBe('2');
+  });
+
+  it('run keeps the failing exit of a line with double quotes', async () => {
+    const tree = await preparedTree(openPr({ 'pr.txt': 'x' }));
+    const result = await ws.run(tree, { line: 'node -e "process.exit(3)"', env: {}, timeoutMs: RUN_MS });
+    expect(result.exitCode).toBe(3);
+  });
+
   it('remove takes the folder and the worktree away, and a second remove does no harm', async () => {
     const tree = await preparedTree(openPr({ 'pr.txt': 'x' }));
     expect(worktreeCount()).toBe(2);
