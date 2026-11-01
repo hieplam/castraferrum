@@ -1298,7 +1298,7 @@ Stub checks, each run and restored:
 - Goals after the next job: `Tests  1 failed | 13 skipped (14)`, the order test, `expected +0 to be 1`.
 - Let a failure throw: the first run passed, because `finish` keeps the first state. The mutant wrote a `failure` status on the merged commit. The test now reads that status: `Tests  1 failed | 13 skipped (14)`, `expected 'failure' to be 'success'`.
 
-Ratchet: unit tests + 16 (goal service 0 to 14, adapter 16 to 18). Contract 98 to 100 per side. Duplicate fall issues in the test: 0.
+Ratchet: unit tests + 16 (goal service 0 to 14, adapter 16 to 18). Contract 110 to 112 per side. Duplicate fall issues in the test: 0.
 
 <!-- T3 -->
 
