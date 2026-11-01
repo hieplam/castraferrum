@@ -350,6 +350,14 @@ sequenceDiagram
   end
 ```
 
+- **Hand-over to the gate (decision 47).** A run does not wait for the gate. It writes `end_result` and `end_pr`, and the
+  next probe tick reads them in the orphan step. A `succeeded` run with `PR_OPEN`, `repo_gate.enabled` and a link to a
+  pull request of `repo_gate.github_repo` goes to `GateService.queue`, then `ClaimRepository.handOver`. From then on the
+  gate owns the claim, and only its settle step ends the row. A throw or a null job id keeps the row with its run for a
+  try 60 s later, and a restart between the two calls finds the live job again. Each other end, also `PR_OPEN` with the
+  gate off or with a link to another repository, releases the claim as before. A `plan` row has no label, so it only
+  closes. A take, a plan and a resume each read `getRepoGate`, and with the gate on the run gets `CASTRAFERRUM_GATE=1`
+  and `gateGuard`. With the gate off, and in a loop with no probe, its input has neither key.
 - **Cancellation writes the database first.** `cancel`, `stop` and `expireOverdue` signal the executor through
   `ActiveRunRegistry.abort`, but `RunService` immediately writes the log line and `finish(cancelled | timed_out)`
   without waiting for the executor. A late "done" from an executor that ignored the signal cannot overwrite it

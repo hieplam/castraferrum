@@ -233,7 +233,7 @@ export class DefaultGateService implements GateService {
       try {
         const why = await this.releaseWhy(job);
         const cfg = await this.claimConfig(row, job);
-        if (cfg) await gateway.release(cfg, { key: row.taskKey }, why);
+        if (cfg && row.kind === 'task') await gateway.release(cfg, { key: row.taskKey }, why); // a plan row has no label: it only closes (decision 47)
         await claims.close(row.id, why.reason, clock.now());
       } catch (e) {
         errors.push({ loopId: job.id, message: message(e) });

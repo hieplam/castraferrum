@@ -1195,6 +1195,60 @@ CI found one thing that Windows did not show: on Linux, `process.exit` lost the 
 
 <!-- K7 -->
 
+## K7
+
+Baseline: `npx vitest list --project unit 2>/dev/null | wc -l` printed 949, and the same command for `api` printed 187, both on the base of this task.
+
+Red, before the build:
+
+```
+npx vitest run --project unit server/services/gate-handover.test.ts
+      Tests  8 failed | 7 passed (15)
+npx vitest run --project api tests/api/gate-handover.test.ts
+      Tests  2 failed | 1 passed (3)
+```
+
+The 7 passes are the 7 that the plan names: gate off, off env, no-probe, null `end_pr`, other repository, `DONE`, `failed`.
+
+Green, after the last rebase:
+
+```
+npx vitest run --project unit server/services/gate-handover.test.ts
+      Tests  15 passed (15)
+npx vitest run --project api tests/api/gate-handover.test.ts
+      Tests  3 passed (3)
+npx vitest run --project unit server/services/gate-handover.test.ts server/services/gate-handover-orders.test.ts server/services/probe-claims.test.ts server/services/gate-service.test.ts
+      Tests  83 passed (83)
+```
+
+`server/services/probe-claims.test.ts` exits 0 with 18 tests, and its case `PR_OPEN with no gate` did not change.
+
+Full `npm run verify`, on the final code at the base with issue 336: exit 0. Unit 1212 passed, contract 248 passed, api 312 passed, e2e and visual 123 passed, `UCs with a green e2e: 35/35`.
+
+Stub results over the 29 tests of the two unit files, each run for real, then restored:
+
+| Stub | Result |
+|---|---|
+| Never read `repo_gate` | 15 failed |
+| Env only in `#take`, the resume loses the variable | 1 failed |
+| Guard only in `#take`, the resume loses the guard | 2 failed |
+| No repository test | 2 failed |
+| Release before `queue` | 19 failed |
+| A `plan` row releases in the settle step | 1 failed |
+| A null job id counts as done | 1 failed |
+| A failed hand-over counts as no hand-over | 3 failed |
+
+Ratchet: unit list 949 to 994, api list 187 to 194, on the same command. These numbers hold other tasks that merged in the same period. This task adds 15 plus 14 unit tests in the two hand-over files, 14 unit tests in `goal-loop.test.ts`, and 3 api tests. Metric `poll-share`: decision 7, not measured yet.
+
+Decisions:
+
+- The set-up of the api test is in `tests/support/gate-handover-world.ts`, not in the test file, because a test that imports a `.test.ts` file runs its tests again. K11 imports `startHandOverLoop` from there.
+- The 15 tests of the plan stay exactly 15, so that its Green holds. The orders of events and the restarts are in `server/services/gate-handover-orders.test.ts`.
+- `prNumberOf` also refuses a number that `gate_jobs.pr_number` cannot hold. Such a number gives a release, because a throw from Postgres gives a retry that never ends.
+- `laneEnvOf` removes `CASTRAFERRUM_GATE` that a lane env sets, so only the console sets it.
+
+Limit: the retry of decision 47 has no end. A `PR_OPEN` link to a pull request that does not exist keeps the claim open. Issue 373 tracks this.
+
 <!-- K8 -->
 
 ## K8

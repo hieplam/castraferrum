@@ -54,7 +54,7 @@ export class MemoryClaimRepository implements ClaimRepository {
     for (const c of [...this.#db.claims.values()].filter((row) => row.closedAt === null && row.owner === 'run').sort(oldestFirst)) {
       const run = this.#db.runs.get(c.runId);
       if (run && LIVE_RUN.includes(run.status)) continue;
-      out.push({ ...clone(c), runStatus: run?.status ?? null, endResult: run?.endResult ?? null });
+      out.push({ ...clone(c), runStatus: run?.status ?? null, endResult: run?.endResult ?? null, endPr: run?.endPr ?? null });
     }
     return out.slice(0, limit);
   }

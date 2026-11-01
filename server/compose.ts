@@ -141,8 +141,6 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
   const loopService = new DefaultLoopService({ ...repos, runService, executors, clock, ids, events: bus });
   const commands = new NodeCommandRunner();
   const claimGateway = new CommandClaimGateway(commands);
-  const probeService = new DefaultProbeService({ ...repos, commands, claimGateway, runService, loopService, clock, ids, notifier });
-  const holdService = new DefaultHoldService({ ...repos, commands, runService, clock });
   // The gate merges only for a repository with `repo_gate.enabled`, which is false until a person turns it on.
   const gitHost = new GhGitHost({ runner: commands, ghBin: opts.ghBin ?? 'gh' });
   const gateWorkspace = new GitGateWorkspace({ runner: commands, root: join(tmpdir(), 'castraferrum-gate') });
@@ -163,6 +161,8 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
       await delay(ms, undefined, { signal });
     },
   });
+  const probeService = new DefaultProbeService({ ...repos, commands, claimGateway, gateQueue: gateService, runService, loopService, clock, ids, notifier });
+  const holdService = new DefaultHoldService({ ...repos, commands, runService, clock });
   const testDirs = opts.testMode ? new OverridableDirectoryProbe(new NodeDirectoryProbe()) : null;
   const repoService = new DefaultRepoService({ repos: repos.repos, directories: testDirs ?? new NodeDirectoryProbe(), clock, ids });
   const testFolders = opts.testMode ? new OverridableFolderBrowser(new NodeFolderBrowser()) : null;

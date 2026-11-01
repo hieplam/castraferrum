@@ -77,7 +77,7 @@ export class DefaultRunService implements RunService {
     return done ?? (await this.get(runId));
   }
 
-  async resumeHeld(runId: string, { env }: { env: Record<string, string> }): Promise<RunView> {
+  async resumeHeld(runId: string, { env, gateGuard }: { env: Record<string, string>; gateGuard?: boolean }): Promise<RunView> {
     const d = this.#d;
     const held = await this.get(runId);
     if (held.status !== 'held' || !held.sessionId) return held;
@@ -90,7 +90,7 @@ export class DefaultRunService implements RunService {
     const run = await d.runs.resume(runId, deadlineOf(loop, now));
     if (!run) return this.get(runId); // a Stop came first
     d.events.publish({ type: 'loop.updated', at: now, loopId: run.loopId });
-    return this.#launch(run, repo.path, env, held.sessionId);
+    return this.#launch(run, repo.path, env, held.sessionId, gateGuard);
   }
 
   async expireOverdue(): Promise<number> {
@@ -177,11 +177,11 @@ export class DefaultRunService implements RunService {
     }
     const run = res.run;
     d.events.publish({ type: 'run.started', at: now, loopId, executionId, runId: run.id, iteration: run.iteration ?? 0 });
-    return this.#launch(run, repo.path, claim?.env);
+    return this.#launch(run, repo.path, claim?.env, undefined, claim?.gateGuard);
   }
 
   /** From a `running` row to a run in the background. `#begin` and `resumeHeld` share it, so a Stop reaches a resumed run like a new one. */
-  async #launch(run: RunRecord, cwd: string, env?: Record<string, string>, resumeSessionId?: string): Promise<RunView> {
+  async #launch(run: RunRecord, cwd: string, env?: Record<string, string>, resumeSessionId?: string, gateGuard = false): Promise<RunView> {
     const d = this.#d;
     // Register BEFORE any further await: a Stop sneaking in right now can still cancel the run.
     const controller = new AbortController();
@@ -212,7 +212,7 @@ export class DefaultRunService implements RunService {
       await this.#log(run, 'error', error);
       return (await this.#finish(run, { status: 'failed', finishedAt: d.clock.now(), error, costUsd: run.costUsd })) ?? this.get(run.id);
     }
-    const p = this.#drive(run, executor, controller, cwd, env, resumeSessionId, profile)
+    const p = this.#drive(run, executor, controller, cwd, env, resumeSessionId, profile, gateGuard)
       .catch(() => {
         // DB broke mid-run: the run left `running` will be cancelled by expireOverdue at the deadline, or by recovery at startup.
       })
@@ -221,7 +221,7 @@ export class DefaultRunService implements RunService {
     return run;
   }
 
-  async #drive(run: RunRecord, executor: LoopExecutor, controller: AbortController, cwd: string, env?: Record<string, string>, resumeSessionId?: string, profile: 'full' | 'review' = 'full'): Promise<void> {
+  async #drive(run: RunRecord, executor: LoopExecutor, controller: AbortController, cwd: string, env?: Record<string, string>, resumeSessionId?: string, profile: 'full' | 'review' = 'full', gateGuard = false): Promise<void> {
     const d = this.#d;
     const signal = controller.signal;
     let outcome: DriveOutcome | null = null;
@@ -241,6 +241,7 @@ export class DefaultRunService implements RunService {
         ...(env ? { env } : {}),
         ...(resumeSessionId ? { resumeSessionId } : {}),
         ...(profile === 'review' ? { toolProfile: profile } : {}),
+        ...(gateGuard ? { gateGuard } : {}), // no key with the gate off: such a run gets the input that it always got
       };
       for await (const ev of executor.execute(input, signal)) {
         if (signal.aborted) break; // already cancelled: the result is in the DB, drop the rest

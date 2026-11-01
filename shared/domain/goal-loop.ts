@@ -228,10 +228,10 @@ export function lowestFreeSlot(used: readonly (number | null)[]): number {
 }
 
 /**
- * The env of a claimed run: `lane_env` with every `{slot}` and `{port}` filled in (`port` = `lane_base_port + slot`), plus `CASTRAFERRUM_SLOT`.
- * The slot comes last, so a lane env cannot change it. Without a base port, `{port}` stays as written (a save refuses that, decision 24).
+ * The env of a claimed run: `lane_env` with every `{slot}` and `{port}` filled in (`port` = `lane_base_port + slot`), plus `CASTRAFERRUM_SLOT`,
+ * and `CASTRAFERRUM_GATE=1` when the gate of the repository is on (decision 19). These two come last, so a lane env cannot change them. Without a base port, `{port}` stays as written (a save refuses that, decision 24).
  */
-export function laneEnvOf(settings: Pick<ProbeSettings, 'laneEnv' | 'laneBasePort'>, slot: number): Record<string, string> {
+export function laneEnvOf(settings: Pick<ProbeSettings, 'laneEnv' | 'laneBasePort'>, slot: number, gateOn = false): Record<string, string> {
   const port = settings.laneBasePort === null ? null : String(settings.laneBasePort + slot);
   const env: Record<string, string> = {};
   for (const [name, value] of Object.entries(settings.laneEnv)) {
@@ -239,7 +239,23 @@ export function laneEnvOf(settings: Pick<ProbeSettings, 'laneEnv' | 'laneBasePor
     env[name] = port === null ? filled : filled.split('{port}').join(port);
   }
   env.CASTRAFERRUM_SLOT = String(slot);
+  delete env.CASTRAFERRUM_GATE;
+  if (gateOn) env.CASTRAFERRUM_GATE = '1';
   return env;
+}
+
+/** The largest number that the column `gate_jobs.pr_number` holds. */
+const MAX_PR_NUMBER = 2_147_483_647;
+
+/**
+ * Decision 47: the number of a pull request link of the repository `githubRepo` (`o/r`), compared with no regard to case. Any other text gives `null`,
+ * because a number from another repository names the wrong pull request.
+ */
+export function prNumberOf(endPr: string | null, githubRepo: string): number | null {
+  const m = /^https:\/\/github\.com\/([^/\s]+\/[^/\s]+)\/pull\/([1-9]\d*)$/i.exec(endPr ?? '');
+  if (!m || m[1]!.toLowerCase() !== githubRepo.toLowerCase()) return null;
+  const number = Number(m[2]);
+  return number <= MAX_PR_NUMBER ? number : null;
 }
 
 /** The first line of the prompt of a claimed run. `docs/ARCHITECTURE.md` holds the same text, and `tick.md` relies on it (spec 2.7). */

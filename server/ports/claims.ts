@@ -43,7 +43,7 @@ export type ClaimRecord = {
 export type OpenClaimInput = { id: string; loopId: string; taskKey: string; runId: string; at: Date; kind?: ClaimKind };
 
 /** `runStatus` is `null` when the row has no run. */
-export type OrphanedClaim = ClaimRecord & { runStatus: RunStatus | null; endResult: string | null };
+export type OrphanedClaim = ClaimRecord & { runStatus: RunStatus | null; endResult: string | null; endPr: string | null };
 
 export interface ClaimRepository {
   /** `taken`: the loop already has an open row for this task key. */
