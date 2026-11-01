@@ -30,6 +30,6 @@ export interface ExecutionRepository {
   findById(id: string): Promise<ExecutionRecord | null>;
   /** Newest first (seq descending). */
   listByLoop(loopId: string, page: PageRequest): Promise<Page<ExecutionRecord>>;
-  /** Recovery: close every open execution. Does not change loops (recovery calls `LoopRepository.stopAll`). */
-  closeAllOpen(reason: 'server_down', endedAt: Date): Promise<number>;
+  /** Recovery: close every open execution, except those of `keepLoopIds`. Does not change loops (recovery calls `LoopRepository.stopAll`). */
+  closeAllOpen(reason: 'server_down', endedAt: Date, keepLoopIds?: string[]): Promise<number>;
 }

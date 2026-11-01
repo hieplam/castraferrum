@@ -5,6 +5,8 @@
 //   created -> start: execution #1, round #1 running (session mock-...) -> working... -> stop: cancelled, execution #1 stopped
 //   -> start: execution #2 -> restart -> interrupted, execution #2 server_down, loop stopped -> sessionIds of execution #1 = 1, #2 = 1 ok
 //
+// A second loop has a probe with `restartPolicy` `resume`: after the restart it starts a run with no HTTP call (spec G5, decision 45).
+//
 // "restart" = KILL the process (like a crash / power cut; on Windows `kill` is TerminateProcess) and start it again; in the
 // end the second instance is shut down gracefully over IPC and must exit 0. A route that returns hard-coded JSON /
 // never touches the DB disagrees with the SELECT, so exit 1.
@@ -13,7 +15,7 @@
 // touched. Nothing is deleted: the loop has its own name and every count is filtered by its id. Port: a free one is picked.
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdtemp } from 'node:fs/promises';
+import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { createServer } from 'node:net';
 import { basename, join } from 'node:path';
@@ -114,6 +116,15 @@ async function waitLogLine(base, runId, needle, timeoutMs = 10_000) {
   }
 }
 
+/** Polls `test` until it is true. Fails with `what` after `timeoutMs`. */
+async function until(test, what, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (!(await test())) {
+    check(Date.now() < deadline, `gave up after ${timeoutMs} ms waiting for ${what}`);
+    await new Promise((r) => setTimeout(r, 200));
+  }
+}
+
 async function main() {
   const pool = new pg.Pool({ connectionString: dbUrl, max: 2 });
   pool.on('error', () => {});
@@ -186,6 +197,31 @@ async function main() {
     await waitLogLine(base, r2.id, 'Start round #2');
     out(' -> start: execution #2');
 
+    // Loop B: a probe that waits and a `resume` policy. The file is the answer of the probe, so the smoke changes the answer with no HTTP call.
+    const probeFile = join(repoDir, 'probe-line.json');
+    await writeFile(probeFile, '{"v":1,"action":"wait","reason":"no ready task"}');
+    const createdB = await call('POST', '/loops', {
+      repoId: repo.body.id,
+      name: `${name} resume`,
+      prompt: 'api-smoke: the probe starts this run',
+      cron: '0 0 1 1 *',
+      executor: { kind: 'mock', config: { durationSec: 120 } },
+    });
+    check(createdB.status === 201, `POST /loops (B) answered ${createdB.status} ${JSON.stringify(createdB.body)}`);
+    const loopB = createdB.body.id;
+    const probeB = await call('PUT', `/loops/${loopB}/probe`, {
+      command: [process.execPath, join(root, 'tests', 'support', 'fake-probe.mjs'), probeFile],
+      restartPolicy: 'resume',
+    });
+    check(probeB.status === 200, `PUT probe (B) answered ${probeB.status} ${JSON.stringify(probeB.body)}`);
+    const startB = await call('POST', `/loops/${loopB}/start`);
+    check(startB.status === 200 && startB.body.activeRun === null, `start of B: ${startB.status} ${JSON.stringify(startB.body)}`);
+    await until(async () => (await one('SELECT state FROM loop_probes WHERE loop_id = $1', [loopB]))?.state === 'waiting', 'the probe of B to reach waiting', 10_000);
+    const runsB = (await one('SELECT count(*)::int AS n FROM runs WHERE loop_id = $1', [loopB])).n;
+    check(runsB === 0, `B has ${runsB} runs while its probe waits, expected 0`);
+    await writeFile(probeFile, '{"v":1,"action":"take","tasks":[{"key":"smoke-1"}]}');
+    out(' -> loop B: probe waiting, 0 runs');
+
     // 6. Kill the process (a crash) and start it again on the same DB.
     const killedAt = Date.now();
     server.child.kill();
@@ -207,6 +243,18 @@ async function main() {
     const lagMs = Math.abs(db2.ended_at.getTime() - killedAt);
     check(lagMs <= 11_000, `endedAt is ${lagMs} ms away from the kill time (expected at most 10 seconds of heartbeat)`);
     out(` -> ${run2.status}, execution #2 ${exec2.endReason}, loop ${loop.status}`);
+
+    // Loop B after the restart: no HTTP call for B here, only SELECT. 30 s is under the 60 s probe period, so only the first-tick rule can start the run.
+    await until(
+      async () => (await one(`SELECT count(*)::int AS n FROM runs WHERE loop_id = $1 AND status = 'running'`, [loopB])).n === 1,
+      'one running run of loop B',
+      30_000,
+    );
+    const runB = await one('SELECT trigger, task_key, status FROM runs WHERE loop_id = $1', [loopB]);
+    check(runB.trigger === 'probe' && runB.task_key === 'smoke-1', `the run of B: ${JSON.stringify(runB)}`);
+    out(' -> restart: resume loop started a run with no http call');
+    const stopB = await call('POST', `/loops/${loopB}/stop`);
+    check(stopB.status === 200 && stopB.body.status === 'stopped', `stop of B answered ${stopB.status} ${JSON.stringify(stopB.body)}`);
 
     // 7. Session ids of each execution: API = SELECT; total number of runs: API = SELECT count(*).
     const counts = [];

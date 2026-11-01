@@ -339,6 +339,14 @@ export function repositoryContract(env: () => ContractEnv): void {
       expect((await r.loops.findById(c.id))?.updatedAt).toEqual(c.updatedAt);
       expect(await r.loops.stopAll(at(901))).toBe(0);
     });
+
+    it('stopAll keeps the loops in the list active, with their next_run_at', async () => {
+      const kept = await activeLoop();
+      const stops = await activeLoop();
+      expect(await r.loops.stopAll(at(900), [kept.loop.id])).toBe(1);
+      expect(await r.loops.findById(kept.loop.id)).toMatchObject({ status: 'active', updatedAt: kept.loop.updatedAt, nextRunAt: kept.loop.nextRunAt });
+      expect(await r.loops.findById(stops.loop.id)).toMatchObject({ status: 'stopped', nextRunAt: null });
+    });
   });
 
   // ================================================================ ExecutionRepository
@@ -424,6 +432,14 @@ export function repositoryContract(env: () => ContractEnv): void {
       }
       expect(await r.executions.findById(c.execution.id)).toMatchObject({ endedAt: at(100), endReason: 'stopped' });
       expect(await r.executions.closeAllOpen('server_down', at(300))).toBe(0);
+    });
+
+    it('closeAllOpen leaves the open executions of the loops in the list', async () => {
+      const kept = await activeLoop();
+      const closes = await activeLoop();
+      expect(await r.executions.closeAllOpen('server_down', at(200), [kept.loop.id])).toBe(1);
+      expect(await r.executions.findById(kept.execution.id)).toMatchObject({ endedAt: null, endReason: null });
+      expect(await r.executions.findById(closes.execution.id)).toMatchObject({ endedAt: at(200), endReason: 'server_down' });
     });
   });
 

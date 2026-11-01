@@ -94,10 +94,10 @@ export class PgExecutionRepository implements ExecutionRepository {
     return { items, nextCursor: rows.length > limit && last ? encodeExecutionCursor(last.seq) : null };
   }
 
-  async closeAllOpen(reason: 'server_down', endedAt: Date): Promise<number> {
+  async closeAllOpen(reason: 'server_down', endedAt: Date, keepLoopIds: string[] = []): Promise<number> {
     const res = await this.#pool.query(
-      'UPDATE loop_executions SET ended_at = $1, end_reason = $2 WHERE ended_at IS NULL',
-      [endedAt, reason],
+      'UPDATE loop_executions SET ended_at = $1, end_reason = $2 WHERE ended_at IS NULL AND NOT (loop_id = ANY($3::uuid[]))',
+      [endedAt, reason, keepLoopIds],
     );
     return res.rowCount ?? 0;
   }
