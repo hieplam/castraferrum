@@ -917,6 +917,56 @@ Full `npm run verify` in slot-1 on 10c6970, one run that ended by itself (an ear
 
 <!-- P11 -->
 
+## P11
+
+**Red** (tests and smoke step written, nothing built):
+
+    $ npx vitest run --project unit server/services/recovery-policy.test.ts
+    x resume loop: the running run is interrupted, the execution stays open and the loop stays active
+    x first tick: an excused release of the old claim, then a new run on the same execution, with no call from a person
+    x held run: stays held with its hold row, and the same session goes on after the reset
+    x mixed loops: only the resume loop stays, and the report counts the others
+    x the first tick of a process probes a resume loop that was probed seconds ago, and the second tick does not
+    x an open plan-window: the first tick makes no probe call, and the loop waits in state held
+          Tests  6 failed | 4 passed (10)
+    $ npm run api-smoke
+    FAIL: gave up after 30000 ms waiting for one running run of loop B
+
+**Green** (after the last rebase):
+
+    $ npx vitest run --project unit server/services/recovery-policy.test.ts server/services/recovery-service.test.ts
+     Test Files  2 passed (2)
+          Tests  14 passed (14)
+
+`server/services/recovery-service.test.ts` has no change in this PR.
+
+    $ npm run api-smoke
+    repo ->created -> ... -> start: execution #2 -> loop B: probe waiting, 0 runs -> restart -> interrupted, execution #2 server_down, loop stopped -> restart: resume loop started a run with no http call -> sessionIds of execution #1 = 1, #2 = 1 ok
+    $ npm run verify
+    verify exit 0, commit 2dc5905, slot-1
+    ratchets: ok
+          Tests  1179 passed | 3 skipped (1182)
+    memory: 117 passed · postgres: 117 passed
+          Tests  309 passed | 2 skipped (311)
+      123 passed (13.0m)
+    phone overflow: 0/12
+    UCs with a green e2e: 35/35
+
+The run before it, on the same commit, ended with 2 failed and 121 passed: UC-11 with `net::ERR_NO_BUFFER_SPACE`, and UC-23 with `Expected: 2 Received: 3`. Both loops have no probe, so this change does not reach them. Epic rule "another process skews a run": one re-run, both recorded. Filed as issue 377.
+
+**Stub check** (both run for real, then restored):
+
+    Ignore keep (`const keep: string[] = []`):
+          Tests  6 failed | 4 passed (10)
+    Remove the first-tick rule:
+          Tests  1 failed | 9 passed (10)
+    $ npm run api-smoke
+    FAIL: gave up after 30000 ms waiting for one running run of loop B
+    smoke exit 1
+
+**Ratchet:** unit test count 926 -> 936 (`npx vitest list --project unit | wc -l`), contract cases per adapter 110 -> 112. Metric `idle-days`: decision 7, baseline 10 days, not measured yet.
+
+
 <!-- P12 -->
 
 ## P12
