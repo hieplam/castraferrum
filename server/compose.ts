@@ -140,7 +140,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
   const loopService = new DefaultLoopService({ ...repos, runService, executors, clock, ids, events: bus });
   const commands = new NodeCommandRunner();
   const claimGateway = new CommandClaimGateway(commands);
-  const probeService = new DefaultProbeService({ ...repos, commands, claimGateway, runService, clock, ids, notifier });
+  const probeService = new DefaultProbeService({ ...repos, commands, claimGateway, runService, loopService, clock, ids, notifier });
   const holdService = new DefaultHoldService({ ...repos, commands, runService, clock });
   // The gate merges only for a repository with `repo_gate.enabled`, which is false until a person turns it on.
   const gitHost = new GhGitHost({ runner: commands, ghBin: opts.ghBin ?? 'gh' });

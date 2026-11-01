@@ -1147,8 +1147,8 @@ export function repositoryContract(env: () => ContractEnv): void {
       const early = await openClaim(loop.id, '141', 1);
       await openClaim(other.id);
       expect(await r.claims.listOpen(loop.id)).toEqual([
-        { id: early.id, loopId: loop.id, taskKey: '141', runId: early.runId, openedAt: at(1), closedAt: null, closeReason: null, owner: 'run', gateJobId: null },
-        { id: late.id, loopId: loop.id, taskKey: '142', runId: late.runId, openedAt: at(9), closedAt: null, closeReason: null, owner: 'run', gateJobId: null },
+        { id: early.id, loopId: loop.id, taskKey: '141', runId: early.runId, openedAt: at(1), closedAt: null, closeReason: null, owner: 'run', gateJobId: null, kind: 'task' },
+        { id: late.id, loopId: loop.id, taskKey: '142', runId: late.runId, openedAt: at(9), closedAt: null, closeReason: null, owner: 'run', gateJobId: null, kind: 'task' },
       ]);
     });
 
@@ -1189,6 +1189,44 @@ export function repositoryContract(env: () => ContractEnv): void {
         executorConfig: {},
       });
       expect(skipped).toMatchObject({ trigger: 'probe', taskKey: '141', status: 'skipped' });
+    });
+  });
+
+  describe('goal_met', () => {
+    it('close with goal_met stores the reason, stops the loop and frees the next Start', async () => {
+      const { loop, execution } = await activeLoop();
+      const closed = await r.executions.close(loop.id, 'goal_met', at(50));
+      expect(closed).toMatchObject({ id: execution.id, endedAt: at(50), endReason: 'goal_met' });
+      expect(await r.executions.findById(execution.id)).toMatchObject({ endReason: 'goal_met' });
+      expect(await r.loops.findById(loop.id)).toMatchObject({ status: 'stopped', nextRunAt: null });
+      expect(await r.executions.close(loop.id, 'stopped', at(60))).toBeNull(); // the period is closed once
+      expect(await r.executions.findOpen(loop.id)).toBeNull();
+    });
+
+    it('a plan row keeps its kind, the default kind is task, and a plan key is taken while its row is open', async () => {
+      const loop = await r.loops.insert(newLoop());
+      const plan = { id: randomUUID(), runId: randomUUID() };
+      expect(await r.claims.open({ id: plan.id, loopId: loop.id, taskKey: 'plan-217', runId: plan.runId, at: at(1), kind: 'plan' })).toBe('opened');
+      expect(await r.claims.open({ id: randomUUID(), loopId: loop.id, taskKey: 'plan-217', runId: randomUUID(), at: at(2), kind: 'plan' })).toBe('taken');
+      expect(await r.claims.open({ id: randomUUID(), loopId: loop.id, taskKey: '141', runId: randomUUID(), at: at(3) })).toBe('opened');
+      expect((await r.claims.listOpen(loop.id)).map((c) => [c.taskKey, c.kind])).toEqual([
+        ['plan-217', 'plan'],
+        ['141', 'task'],
+      ]);
+      await r.claims.close(plan.id, 'run succeeded', at(9));
+      expect(await r.claims.open({ id: randomUUID(), loopId: loop.id, taskKey: 'plan-217', runId: randomUUID(), at: at(10), kind: 'plan' })).toBe('opened');
+    });
+
+    it('findOrphaned gives the kind of the row, so the tick can close a plan row with no release', async () => {
+      const loop = await r.loops.insert(newLoop());
+      const plan = randomUUID();
+      const task = randomUUID();
+      await r.claims.open({ id: plan, loopId: loop.id, taskKey: 'plan-217', runId: randomUUID(), at: at(1), kind: 'plan' });
+      await r.claims.open({ id: task, loopId: loop.id, taskKey: '141', runId: randomUUID(), at: at(2) });
+      expect((await r.claims.findOrphaned(10)).map((c) => [c.id, c.kind])).toEqual([
+        [plan, 'plan'],
+        [task, 'task'],
+      ]);
     });
   });
 

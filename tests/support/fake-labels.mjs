@@ -3,6 +3,7 @@
 // nothing if it has `--if-claimed`. A plain release of such a task leaves the file `reopened-<key>`, which a test must never see.
 // The file `stale-offers` makes `next` also offer a labelled task: the answer of a probe that another worker overtook.
 // An entry of `queue.json` is a key, or `{key, resources}` for a task that needs a resource.
+// The file `answer.json`, when it exists, is the line that `next` prints, word for word: a test uses it for `plan`, `done` and the other actions.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -10,7 +11,9 @@ const [world, command, key, ...rest] = process.argv.slice(2);
 const path = (name) => join(world, name);
 appendFileSync(path('calls.log'), `${JSON.stringify([command, key ?? null, ...rest])}\n`);
 
-if (command === 'next') {
+if (command === 'next' && existsSync(path('answer.json'))) {
+  console.log(readFileSync(path('answer.json'), 'utf8').trim());
+} else if (command === 'next') {
   const queue = JSON.parse(readFileSync(path('queue.json'), 'utf8'));
   const stale = existsSync(path('stale-offers'));
   const tasks = queue.map((entry) => (typeof entry === 'string' ? { key: entry } : entry));

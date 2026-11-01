@@ -1,6 +1,6 @@
 import type pg from 'pg';
 import type { RunStatus } from '../../../shared/domain/run';
-import type { ClaimOwner, ClaimRecord, ClaimRepository, OpenClaimInput, OrphanedClaim } from '../../ports/claims';
+import type { ClaimKind, ClaimOwner, ClaimRecord, ClaimRepository, OpenClaimInput, OrphanedClaim } from '../../ports/claims';
 
 type Row = Record<string, unknown>;
 
@@ -15,6 +15,7 @@ function toClaim(r: Row): ClaimRecord {
     closeReason: (r.close_reason as string | null) ?? null,
     owner: r.owner as ClaimOwner,
     gateJobId: (r.gate_job_id as string | null) ?? null,
+    kind: r.kind as ClaimKind,
   };
 }
 
@@ -27,9 +28,9 @@ export class PgClaimRepository implements ClaimRepository {
 
   async open(input: OpenClaimInput): Promise<'opened' | 'taken'> {
     const res = await this.#pool.query(
-      `INSERT INTO run_claims (id, loop_id, task_key, run_id, opened_at) VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO run_claims (id, loop_id, task_key, run_id, opened_at, kind) VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (loop_id, task_key) WHERE closed_at IS NULL DO NOTHING`,
-      [input.id, input.loopId, input.taskKey, input.runId, input.at],
+      [input.id, input.loopId, input.taskKey, input.runId, input.at, input.kind ?? 'task'],
     );
     return res.rowCount === 1 ? 'opened' : 'taken';
   }

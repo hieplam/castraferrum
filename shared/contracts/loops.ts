@@ -114,7 +114,7 @@ export const executionDto = z.object({
   seq: z.number().int(),
   startedAt: isoDate,
   endedAt: isoDate.nullable(),
-  endReason: z.enum(['stopped', 'server_down']).nullable(),
+  endReason: z.enum(['stopped', 'server_down', 'goal_met']).nullable(),
   stats: executionStatsDto,
 });
 export type ExecutionDto = z.output<typeof executionDto>;

@@ -19,7 +19,7 @@ export const stateEventDto = z.discriminatedUnion('type', [
     type: z.literal('execution.ended'),
     ...base,
     executionId: z.string(),
-    reason: z.enum(['stopped', 'server_down']),
+    reason: z.enum(['stopped', 'server_down', 'goal_met']),
   }),
   z.object({
     type: z.literal('run.started'),

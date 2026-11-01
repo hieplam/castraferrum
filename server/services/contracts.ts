@@ -240,6 +240,11 @@ export interface LoopService {
   start(id: string): Promise<LoopView>;
   /** Closes the execution as `stopped` + cancels the running and held runs. Throws LOOP_NOT_ACTIVE. */
   stop(id: string): Promise<LoopView>;
+  /**
+   * Decision 46: the probe said `done`. Closes the execution as `goal_met` and publishes `execution.ended` and `loop.updated`. It cancels nothing, so the caller
+   * checks that no run is live. A loop with no open execution changes nothing.
+   */
+  finishGoal(id: string): Promise<void>;
   /** A copy named "… (copy)" in the Stopped state, carrying no executions / runs. */
   duplicate(id: string): Promise<LoopView>;
   /** Throws LOOP_IS_ACTIVE. */
@@ -322,9 +327,9 @@ export interface FolderService {
 
 /**
  * What a probe tick gives to a claimed run (spec 2.7). `slot` is stored on the run. `env` is not stored: a resume computes it again from `runs.slot`
- * (decision 24). `action` is the word of the probe line, and it goes to the first line of the prompt.
+ * (decision 24). `action` is the word of the probe line, and it goes to the first line of the prompt. `failing` (a `plan` run) adds the line `Failing goal rows: ...` (decision 46).
  */
-export type ClaimedStart = { runId: string; taskKey: string; slot: number; env: Record<string, string>; action: 'take' | 'plan' };
+export type ClaimedStart = { runId: string; taskKey: string; slot: number; env: Record<string, string>; action: 'take' | 'plan'; failing?: string[] };
 
 export interface RunService {
   /** The first run at Start (trigger `start`). Returns immediately, does not wait for the run to finish. */

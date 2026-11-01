@@ -1,7 +1,7 @@
 // Types + pure rules of a loop / run / turn (SPEC, model).
 
 export type LoopStatus = 'active' | 'stopped';
-export type ExecutionEndReason = 'stopped' | 'server_down';
+export type ExecutionEndReason = 'stopped' | 'server_down' | 'goal_met';
 
 export const RUN_STATUSES = ['running', 'succeeded', 'failed', 'cancelled', 'timed_out', 'interrupted', 'skipped', 'held'] as const;
 export type RunStatus = (typeof RUN_STATUSES)[number];

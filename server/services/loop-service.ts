@@ -135,6 +135,16 @@ export class DefaultLoopService implements LoopService {
     return this.#viewOf(id);
   }
 
+  async finishGoal(id: string): Promise<void> {
+    const d = this.#d;
+    await this.#load(id);
+    const now = d.clock.now();
+    const closed = await d.executions.close(id, 'goal_met', now);
+    if (!closed) return;
+    d.events.publish({ type: 'execution.ended', at: now, loopId: id, executionId: closed.id, reason: 'goal_met' });
+    d.events.publish({ type: 'loop.updated', at: now, loopId: id });
+  }
+
   async duplicate(id: string): Promise<LoopView> {
     const d = this.#d;
     const src = await this.#load(id);

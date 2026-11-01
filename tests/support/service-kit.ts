@@ -188,7 +188,7 @@ export function makeKit(opts: { db?: MemoryDb; clock?: OffsetClock; mock?: MockE
   const scheduling = new DefaultSchedulingService({ loops: repos.loops, heartbeat: repos.heartbeat, runService, clock });
   const commands = new FakeCommandRunner();
   const claimGateway = new FakeClaimGateway();
-  const probeService = new DefaultProbeService({ ...repos, commands, claimGateway, runService, clock, ids, notifier });
+  const probeService = new DefaultProbeService({ ...repos, commands, claimGateway, runService, loopService, clock, ids, notifier });
   const holdService = new DefaultHoldService({ ...repos, commands, runService, clock });
   const recovery = new DefaultRecoveryService({ ...repos, clock });
   const live = new DefaultLiveService({ runs: repos.runs, logs: repos.logs, source: bus });

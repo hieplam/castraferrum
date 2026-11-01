@@ -22,6 +22,9 @@ export interface ClaimGateway {
 
 export type ClaimOwner = 'run' | 'gate';
 
+/** Decision 46: a `task` row has a label on the task. A `plan` row has the key of a plan and no label, so ending it only closes it. */
+export type ClaimKind = 'task' | 'plan';
+
 export type ClaimRecord = {
   id: string;
   loopId: string;
@@ -34,9 +37,10 @@ export type ClaimRecord = {
   owner: ClaimOwner;
   /** Set when, and only when, `owner` is `gate`. */
   gateJobId: string | null;
+  kind: ClaimKind;
 };
 
-export type OpenClaimInput = { id: string; loopId: string; taskKey: string; runId: string; at: Date };
+export type OpenClaimInput = { id: string; loopId: string; taskKey: string; runId: string; at: Date; kind?: ClaimKind };
 
 /** `runStatus` is `null` when the row has no run. */
 export type OrphanedClaim = ClaimRecord & { runStatus: RunStatus | null; endResult: string | null };
