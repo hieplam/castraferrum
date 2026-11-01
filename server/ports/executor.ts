@@ -1,4 +1,5 @@
 import type { ZodType } from 'zod';
+import type { RunEnd } from '../../shared/domain/run-end';
 
 // Executor contract (ARCHITECTURE.md § Interface): phase 1 = Mock, phase 2 = Claude Agent SDK, same interface.
 // Every implementation must pass tests/contract/executor.contract.ts.
@@ -28,8 +29,8 @@ export type ExecutionEvent =
    */
   | { type: 'session'; sessionId: string }
   | { type: 'log'; level: 'info' | 'warn' | 'error'; message: string; data?: unknown }
-  /** Exactly once, as the final event. `costUsd`: estimated cost reported by the SDK (Claude); Mock has none. */
-  | { type: 'result'; outcome: 'succeeded' | 'failed'; summary?: string; error?: string; costUsd?: number };
+  /** Exactly once, as the final event. `costUsd`: estimated cost reported by the SDK (Claude); Mock has none. `end`: the run-end signal of a success. */
+  | { type: 'result'; outcome: 'succeeded' | 'failed'; summary?: string; error?: string; costUsd?: number; end?: RunEnd };
 
 export type ExecutorDescriptor = {
   kind: string;

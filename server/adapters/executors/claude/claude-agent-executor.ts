@@ -2,6 +2,7 @@ import { stat } from 'node:fs/promises';
 import { query as sdkQuery, type Options, type SDKMessage, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
 import { formatUsd, REPO_MISSING_PREFIX } from '../../../../shared/domain/cost';
+import { parseRunEnd, type RunEnd } from '../../../../shared/domain/run-end';
 import type { ExecutionEvent, ExecutionInput, ExecutorDescriptor, LoopExecutor } from '../../../ports/executor';
 
 // Claude Agent SDK executor (SPEC-phase-2 § `claude` executor, § One Claude turn): every turn is a new Claude Code session
@@ -198,7 +199,7 @@ export class ClaudeAgentExecutor implements LoopExecutor {
     // ---- Background-task wait state (SPEC-phase-2 § Rules of the `claude` executor) ----
     let sessionId: string | null = null;
     /** The last `result` success: summary + cost of the turn (total_cost_usd is cumulative across turns). */
-    let last: { summary: string; costUsd: number } | null = null;
+    let last: { summary: string; costUsd: number; end: RunEnd | null } | null = null;
     /** Idle = the latest turn already has a `result` success; a new turn (init / assistant / user / stream_event) resets it. */
     let idle = false;
     /** Live background tasks (excluding `ambient`): task_id → description. Each `background_tasks_changed` replaces the whole set. */
@@ -374,7 +375,8 @@ export class ClaudeAgentExecutor implements LoopExecutor {
           }
           if (m.subtype === 'success' && !m.is_error) {
             // The turn has NOT ended yet: Claude Code may still be waiting for background tasks and then wake the agent itself (new turn, new result).
-            last = { summary: cut(m.result), costUsd: m.total_cost_usd };
+            // Before `cut`: the signal is the LAST line of the text, and the summary keeps only the first 500 characters (decision 5).
+            last = { summary: cut(m.result), costUsd: m.total_cost_usd, end: parseRunEnd(m.result) };
             idle = true;
             recheck('result');
           } else {
@@ -393,7 +395,7 @@ export class ClaudeAgentExecutor implements LoopExecutor {
         yield* failed(overCeiling(stopped), last?.costUsd, last?.summary);
       } else if (last) {
         yield { type: 'log', level: 'info', message: `End · Success · ${formatUsd(last.costUsd)}` };
-        yield { type: 'result', outcome: 'succeeded', summary: last.summary, costUsd: last.costUsd };
+        yield { type: 'result', outcome: 'succeeded', summary: last.summary, costUsd: last.costUsd, ...(last.end ? { end: last.end } : {}) };
       } else {
         yield* failed('Claude finished without reporting a result');
       }

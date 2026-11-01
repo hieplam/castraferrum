@@ -5,6 +5,7 @@ import { InMemoryActiveRuns } from './adapters/active-runs/in-memory-active-runs
 import { OffsetClock } from './adapters/clock/offset-clock';
 import { SystemClock } from './adapters/clock/system-clock';
 import { InProcessEventBus } from './adapters/events/in-process-event-bus';
+import { CommandClaimGateway } from './adapters/claims/command-claim-gateway';
 import { ClaudeAgentExecutor } from './adapters/executors/claude/claude-agent-executor';
 import { testModeQuery } from './adapters/executors/claude/test-mode-query';
 import { MockExecutor } from './adapters/executors/mock/mock-executor';
@@ -128,7 +129,8 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
   const active = new InMemoryActiveRuns();
   const runService = new DefaultRunService({ ...repos, executors, active, clock, ids, events: bus });
   const loopService = new DefaultLoopService({ ...repos, runService, executors, clock, ids, events: bus });
-  const probeService = new DefaultProbeService({ ...repos, commands: new NodeCommandRunner(), clock });
+  const commands = new NodeCommandRunner();
+  const probeService = new DefaultProbeService({ ...repos, commands, claimGateway: new CommandClaimGateway(commands), runService, clock, ids });
   const testDirs = opts.testMode ? new OverridableDirectoryProbe(new NodeDirectoryProbe()) : null;
   const repoService = new DefaultRepoService({ repos: repos.repos, directories: testDirs ?? new NodeDirectoryProbe(), clock, ids });
   const testFolders = opts.testMode ? new OverridableFolderBrowser(new NodeFolderBrowser()) : null;

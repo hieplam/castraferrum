@@ -938,6 +938,130 @@ export function repositoryContract(env: () => ContractEnv): void {
     });
   });
 
+  describe('run_claims', () => {
+    const openClaim = async (loopId: string, taskKey = '141', sec = 0) => {
+      const id = randomUUID();
+      const runId = randomUUID();
+      return { id, runId, answer: await r.claims.open({ id, loopId, taskKey, runId, at: at(sec) }) };
+    };
+    /** A loop with a claim whose run is in the table with this status. */
+    const claimWithRun = async (status: 'running' | 'succeeded') => {
+      const loop = await r.loops.insert(newLoop());
+      const exec = await r.executions.open({ id: randomUUID(), loopId: loop.id, now: at(0), nextRunAt: null });
+      if (exec.kind !== 'opened') throw new Error('no execution');
+      const run = randomUUID();
+      const started = await r.runs.start({
+        id: run,
+        loopId: loop.id,
+        executionId: exec.execution.id,
+        trigger: 'probe',
+        taskKey: '141',
+        scheduledFor: null,
+        startedAt: at(1),
+        deadlineAt: null,
+        promptSnapshot: 'p',
+        executorKind: 'mock',
+        executorConfig: {},
+      });
+      if (started.kind !== 'started') throw new Error('no run');
+      expect(started.run).toMatchObject({ trigger: 'probe', taskKey: '141', slot: null, endResult: null, endPr: null });
+      if (status === 'succeeded') {
+        const done = await r.runs.finish(run, { status: 'succeeded', finishedAt: at(2), endResult: 'PR_OPEN', endPr: 'https://x/pull/7' });
+        expect(done).toMatchObject({ endResult: 'PR_OPEN', endPr: 'https://x/pull/7' });
+      }
+      const id = randomUUID();
+      await r.claims.open({ id, loopId: loop.id, taskKey: '141', runId: run, at: at(0) });
+      return { id, run };
+    };
+
+    it('open gives opened, and a second open of the same loop and key gives taken and no row', async () => {
+      const loop = await r.loops.insert(newLoop());
+      const first = await openClaim(loop.id);
+      expect(first.answer).toBe('opened');
+      expect((await openClaim(loop.id)).answer).toBe('taken');
+      expect((await r.claims.listOpen(loop.id)).map((c) => c.id)).toEqual([first.id]);
+    });
+
+    it('the same key in another loop opens, and another key in one loop opens', async () => {
+      const a = await r.loops.insert(newLoop());
+      const b = await r.loops.insert(newLoop());
+      expect((await openClaim(a.id)).answer).toBe('opened');
+      expect((await openClaim(b.id)).answer).toBe('opened');
+      expect((await openClaim(a.id, '142')).answer).toBe('opened');
+    });
+
+    it('a closed row frees its key', async () => {
+      const loop = await r.loops.insert(newLoop());
+      const first = await openClaim(loop.id);
+      await r.claims.close(first.id, 'run succeeded', at(5));
+      expect(await r.claims.listOpen(loop.id)).toEqual([]);
+      expect((await openClaim(loop.id)).answer).toBe('opened');
+    });
+
+    it('the first close stays', async () => {
+      const loop = await r.loops.insert(newLoop());
+      const { id } = await openClaim(loop.id);
+      await r.claims.close(id, 'run failed', at(5));
+      await r.claims.close(id, 'second', at(9));
+      await r.claims.close(randomUUID(), 'no such row', at(9));
+      const { id: other } = await openClaim(loop.id, '142', 1);
+      await r.claims.close(other, 'run failed', at(6));
+      expect(await r.claims.findOrphaned(10)).toEqual([]);
+      expect(await r.claims.listOpen(loop.id)).toEqual([]);
+    });
+
+    it('listOpen gives only the rows of the loop, oldest first, with every field', async () => {
+      const loop = await r.loops.insert(newLoop());
+      const other = await r.loops.insert(newLoop());
+      const late = await openClaim(loop.id, '142', 9);
+      const early = await openClaim(loop.id, '141', 1);
+      await openClaim(other.id);
+      expect(await r.claims.listOpen(loop.id)).toEqual([
+        { id: early.id, loopId: loop.id, taskKey: '141', runId: early.runId, openedAt: at(1), closedAt: null, closeReason: null },
+        { id: late.id, loopId: loop.id, taskKey: '142', runId: late.runId, openedAt: at(9), closedAt: null, closeReason: null },
+      ]);
+    });
+
+    it('findOrphaned skips a running run', async () => {
+      await claimWithRun('running');
+      expect(await r.claims.findOrphaned(10)).toEqual([]);
+    });
+
+    it('findOrphaned gives a finished run with its status and end word, and a row with no run with null', async () => {
+      const { id } = await claimWithRun('succeeded');
+      const loop = await r.loops.insert(newLoop());
+      const lost = await openClaim(loop.id, '200', 7);
+      expect((await r.claims.findOrphaned(10)).map((c) => [c.id, c.runStatus, c.endResult])).toEqual([
+        [id, 'succeeded', 'PR_OPEN'],
+        [lost.id, null, null],
+      ]);
+    });
+
+    it('findOrphaned keeps to its limit, oldest first, and a skipped run row keeps its trigger and key', async () => {
+      const loop = await r.loops.insert(newLoop());
+      const old = await openClaim(loop.id, '141', 1);
+      await openClaim(loop.id, '142', 2);
+      expect((await r.claims.findOrphaned(1)).map((c) => c.id)).toEqual([old.id]);
+
+      const exec = await r.executions.open({ id: randomUUID(), loopId: loop.id, now: at(0), nextRunAt: null });
+      if (exec.kind !== 'opened') throw new Error('no execution');
+      const skipped = await r.runs.recordSkipped({
+        id: randomUUID(),
+        trigger: 'probe',
+        taskKey: '141',
+        loopId: loop.id,
+        executionId: exec.execution.id,
+        scheduledFor: null,
+        at: at(3),
+        skipReason: 'full',
+        promptSnapshot: 'p',
+        executorKind: 'mock',
+        executorConfig: {},
+      });
+      expect(skipped).toMatchObject({ trigger: 'probe', taskKey: '141', status: 'skipped' });
+    });
+  });
+
   describe('notices', () => {
     const newNotice = (over: Partial<NewNoticeRecord> = {}): NewNoticeRecord => ({
       id: randomUUID(),

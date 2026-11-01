@@ -1,0 +1,47 @@
+import type { ProbeSettings } from '../../shared/domain/goal-loop';
+import type { RunStatus } from '../../shared/domain/run';
+
+// Claims (spec 2.4, decision 23): the console holds a task for one run. The order is `open`, `claim`, run, so two ticks cannot start one task.
+
+/** A task of a probe line. The console reads no meaning from `key`. */
+export type TaskRef = { key: string; resources: string[] };
+
+/** The argv commands of a loop's probe row, and the folder that they run in. */
+export type ClaimConfig = Pick<ProbeSettings, 'claim' | 'release'> & { cwd: string };
+
+export type ClaimResult = { ok: true } | { ok: false; reason: string };
+
+export type ReleaseWhy = { reason: string; excused: boolean };
+
+export interface ClaimGateway {
+  /** A command that says no gives `ok: false`. Throws when the answer is not known (a time-out): the claim can be on the task. */
+  claim(cfg: ClaimConfig, task: TaskRef): Promise<ClaimResult>;
+  /** Throws on a failed command, so that the claim row stays open and the tick tries again. Releases only a task that is still claimed. */
+  release(cfg: ClaimConfig, task: Pick<TaskRef, 'key'>, why: ReleaseWhy): Promise<void>;
+}
+
+export type ClaimRecord = {
+  id: string;
+  loopId: string;
+  taskKey: string;
+  runId: string;
+  openedAt: Date;
+  closedAt: Date | null;
+  closeReason: string | null;
+};
+
+export type OpenClaimInput = { id: string; loopId: string; taskKey: string; runId: string; at: Date };
+
+/** `runStatus` is `null` when the row has no run. */
+export type OrphanedClaim = ClaimRecord & { runStatus: RunStatus | null; endResult: string | null };
+
+export interface ClaimRepository {
+  /** `taken`: the loop already has an open row for this task key. */
+  open(input: OpenClaimInput): Promise<'opened' | 'taken'>;
+  /** The open rows of the loop, oldest first. */
+  listOpen(loopId: string): Promise<ClaimRecord[]>;
+  /** The first close stays: closing a closed row changes nothing. */
+  close(id: string, reason: string, at: Date): Promise<void>;
+  /** Open rows whose run is neither running nor held, or has no row at all, oldest first. */
+  findOrphaned(limit: number): Promise<OrphanedClaim[]>;
+}

@@ -67,7 +67,7 @@ export const runDto = z.object({
   executionId: z.string(),
   /** Iteration #N; `null` for a skipped run. */
   iteration: z.number().int().nullable(),
-  trigger: z.enum(['start', 'schedule']),
+  trigger: z.enum(['start', 'schedule', 'probe']),
   status: runStatus,
   skipReason: z.string().nullable(),
   scheduledFor: isoDate.nullable(),
@@ -82,6 +82,12 @@ export const runDto = z.object({
   error: z.string().nullable(),
   costUsd: z.number().nullable(),
   sessionId: z.string().nullable(),
+  /** The claimed task of a run that a probe started. */
+  taskKey: z.string().nullable(),
+  slot: z.number().int().nullable(),
+  /** The `result` word and the pull request of the run-end signal. */
+  endResult: z.string().nullable(),
+  endPr: z.string().nullable(),
 });
 export type RunDto = z.output<typeof runDto>;
 

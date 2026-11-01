@@ -50,7 +50,7 @@ export class MemoryRunRepository implements RunRepository {
     const run: RunRecord = {
       ...blankRun(input),
       iteration: null,
-      trigger: 'schedule',
+      trigger: input.trigger ?? 'schedule',
       status: 'skipped',
       skipReason: input.skipReason,
       scheduledFor: input.scheduledFor,
@@ -80,6 +80,8 @@ export class MemoryRunRepository implements RunRepository {
       summary: outcome.summary ?? null,
       error: outcome.error ?? null,
       costUsd: outcome.costUsd ?? null,
+      endResult: outcome.endResult ?? null,
+      endPr: outcome.endPr ?? null,
     };
     this.#db.writeRun(done, false);
     return clone(done);
@@ -210,6 +212,10 @@ function blankRun(input: StartRunInput | SkippedRunInput): RunRecord {
     error: null,
     costUsd: null,
     sessionId: null,
+    taskKey: input.taskKey ?? null,
+    slot: null,
+    endResult: null,
+    endPr: null,
   };
 }
 

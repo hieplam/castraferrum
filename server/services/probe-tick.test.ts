@@ -98,13 +98,13 @@ describe('ProbeService.tick', () => {
     ['hold', { resource: 'docker', reason: 'docker is down' }, 'held'],
     ['done', {}, 'complete'],
   ] as const) {
-    it(`action ${action} gives the state ${state}, and starts no run`, async () => {
+    it(`action ${action} gives the state ${state}, and only a take starts a run`, async () => {
       const id = await probeLoop();
       const line = JSON.stringify({ v: 1, action, ...fields });
       k.commands.reply = () => commandOk(`checking\n${line}\n`);
       expect((await tickAt(0)).failed).toEqual([]);
       expect(await k.repos.probes.get(id)).toMatchObject({ state, lastLine: line, lastProbeAt: at(0) });
-      expect(k.db.runs.size).toBe(0);
+      expect(k.db.runs.size).toBe(action === 'take' ? 1 : 0);
     });
   }
 

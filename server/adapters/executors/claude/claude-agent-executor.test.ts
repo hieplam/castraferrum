@@ -112,6 +112,20 @@ describe('ClaudeAgentExecutor', () => {
     ]);
   });
 
+  it('the run-end line after 600 characters reaches the result event, although the summary keeps only 500', async () => {
+    const line = '{"epic":217,"issue":141,"result":"PR_OPEN","pr":"https://github.com/o/r/pull/7","resource":null}';
+    const text = `${'x'.repeat(600)}\n\n${line}\n`;
+    const q = scriptedQuery(async function* () {
+      yield msg.init('s-1');
+      yield msg.success('s-1', text, 0.01);
+    });
+    const events = await all(new ClaudeAgentExecutor({ query: q }).execute(input(), new AbortController().signal));
+    const result = results(events)[0] as Extract<ExecutionEvent, { type: 'result' }>;
+    expect([...(result.summary ?? '')]).toHaveLength(500);
+    expect(result.summary).not.toContain('PR_OPEN');
+    expect(result.end).toEqual({ result: 'PR_OPEN', pr: 'https://github.com/o/r/pull/7', resource: null });
+  });
+
   it('result success but is_error (e.g. "Invalid API key", "Not logged in") → failed with the SDK\'s text', async () => {
     const q = scriptedQuery(async function* () {
       yield msg.init('s-2');

@@ -30,6 +30,8 @@ import { errorTitle, PageNotFound, PageSkeleton, PushedPage } from './PushedPage
 import { RUN_PILL } from './RunCell';
 import { TranscriptPanel } from './transcript/TranscriptPanel';
 
+const STARTED_BY = { start: 'run.byStart', schedule: 'run.bySchedule', probe: 'run.byProbe' } as const;
+
 export function RunView({ id }: { id: string }) {
   const t = useT();
   const q = useRun(id);
@@ -173,7 +175,7 @@ function RunBody({ run: r, loop, period }: { run: RunDto; loop: LoopDetailDto; p
   const copyCommand = (s: string) => void copyText(command(s)).then((ok) => ok && toast.show(t('run.copiedCommand', { id: s })));
   const facts = (
     <Group testId="run-facts">
-      <Cell plain title={t('run.startedBy')} value={t(r.trigger === 'start' ? 'run.byStart' : 'run.bySchedule')} />
+      <Cell plain title={t('run.startedBy')} value={t(STARTED_BY[r.trigger])} />
       {skipped ? null : (
         <Cell plain title={t('run.cost')} meta={t('run.costNote')} value={<span data-testid="run-cost">{r.costUsd === null ? '-' : formatUsd(r.costUsd)}</span>} />
       )}

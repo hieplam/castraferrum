@@ -138,9 +138,15 @@ export const runs = pgTable(
     error: text('error'),
     costUsd: numeric('cost_usd', { precision: 12, scale: 6, mode: 'number' }),
     sessionId: text('session_id'),
+    /** The claimed task of a run that a probe started. */
+    taskKey: text('task_key'),
+    slot: integer('slot'),
+    /** The run-end signal (spec 2.3). */
+    endResult: text('end_result'),
+    endPr: text('end_pr'),
   },
   (t) => [
-    check('runs_trigger', sql`${t.trigger} IN ('start','schedule')`),
+    check('runs_trigger', sql`${t.trigger} IN ('start','schedule','probe')`),
     check(
       'runs_status',
       sql`${t.status} IN ('running','succeeded','failed','cancelled','timed_out','interrupted','skipped')`,
@@ -197,6 +203,29 @@ export const loopProbes = pgTable(
       'loop_probes_state',
       sql`${t.state} IN ('active','waiting','blocked','held','budget_limited','complete','probe_failed')`,
     ),
+  ],
+);
+
+/**
+ * Claims (spec 2.4, decision 23): the console holds a task of a probe loop for one run. `run_id` has no foreign key, because the row is written
+ * before the run row, and a row with no run counts as orphaned. At most one open row for each loop and task key.
+ */
+export const runClaims = pgTable(
+  'run_claims',
+  {
+    id: uuid('id').primaryKey(),
+    loopId: uuid('loop_id')
+      .notNull()
+      .references(() => loops.id),
+    taskKey: text('task_key').notNull(),
+    runId: uuid('run_id').notNull(),
+    openedAt: ts('opened_at').notNull(),
+    closedAt: ts('closed_at'),
+    closeReason: text('close_reason'),
+  },
+  (t) => [
+    uniqueIndex('run_claims_one_open_per_task').on(t.loopId, t.taskKey).where(sql`${t.closedAt} IS NULL`),
+    index('run_claims_open').on(t.openedAt).where(sql`${t.closedAt} IS NULL`),
   ],
 );
 

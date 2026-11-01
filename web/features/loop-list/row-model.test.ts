@@ -17,6 +17,7 @@ const run = (over: Partial<RunDto> = {}): RunDto => ({
   id: 'r1', loopId: 'l1', executionId: 'e1', iteration: 69, trigger: 'schedule', status: 'running', skipReason: null,
   scheduledFor: null, startedAt: vn('2026-10-18T14:00:00'), deadlineAt: null, finishedAt: null, durationMs: null,
   promptSnapshot: 'p', executorKind: 'mock', executorConfig: {}, summary: null, error: null, costUsd: null, sessionId: null,
+  taskKey: null, slot: null, endResult: null, endPr: null,
   ...over,
 });
 const loop = (over: Partial<LoopDto> = {}): LoopDto => ({

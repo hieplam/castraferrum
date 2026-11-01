@@ -1,6 +1,7 @@
 import { PROBE_STATES, RESTART_POLICIES, type ProbeRecord } from '../../../shared/domain/goal-loop';
 import { RUN_STATUSES } from '../../../shared/domain/run';
 import { STANDING_GOAL_STATES, type StandingGoalRecord, type StandingIssueRecord, type StandingScheduleRecord } from '../../../shared/domain/standing-goal';
+import type { ClaimRecord } from '../../ports/claims';
 import type { ExecutionRecord } from '../../ports/execution-repository';
 import type { LoopRecord } from '../../ports/loop-repository';
 import type { NoticeRecord } from '../../ports/notice-repository';
@@ -47,6 +48,7 @@ export class MemoryDb {
   readonly runs = new Map<string, RunRecord>();
   readonly logs = new Map<string, LogLine[]>();
   readonly probes = new Map<string, ProbeRecord>();
+  readonly claims = new Map<string, ClaimRecord>();
   heartbeat: Date | null = null;
   readonly notices = new Map<string, NoticeRecord>();
   readonly standingGoals = new Map<string, StandingGoalRecord>();
@@ -61,6 +63,7 @@ export class MemoryDb {
     this.runs.clear();
     this.logs.clear();
     this.probes.clear();
+    this.claims.clear();
     this.heartbeat = null;
     this.notices.clear();
     this.standingGoals.clear();
@@ -77,6 +80,7 @@ export class MemoryDb {
       runs: clone(this.runs),
       logs: clone(this.logs),
       probes: clone(this.probes),
+      claims: clone(this.claims),
       heartbeat: this.heartbeat,
       notices: clone(this.notices),
       standingGoals: clone(this.standingGoals),
@@ -92,6 +96,7 @@ export class MemoryDb {
       restore(this.runs, before.runs);
       restore(this.logs, before.logs);
       restore(this.probes, before.probes);
+      restore(this.claims, before.claims);
       this.heartbeat = before.heartbeat;
       restore(this.notices, before.notices);
       restore(this.standingGoals, before.standingGoals);
@@ -159,6 +164,21 @@ export class MemoryDb {
     if (!(RESTART_POLICIES as readonly string[]).includes(row.restartPolicy)) throw new ConstraintViolation('check', 'loop_probes_restart_policy');
     if (!(PROBE_STATES as readonly string[]).includes(row.state)) throw new ConstraintViolation('check', 'loop_probes_state');
     this.probes.set(row.loopId, clone(row));
+  }
+
+  // ------------------------------------------------------------------ run_claims
+
+  /** INSERT or UPDATE: the partial unique index run_claims_one_open_per_task allows one open row for each loop and task key. */
+  writeClaim(row: ClaimRecord): void {
+    if (!this.loops.has(row.loopId)) throw new ConstraintViolation('foreign_key', 'run_claims_loop_id_loops_id_fk');
+    if (row.closedAt === null) {
+      for (const other of this.claims.values()) {
+        if (other.id !== row.id && other.closedAt === null && other.loopId === row.loopId && other.taskKey === row.taskKey) {
+          throw new ConstraintViolation('unique', 'run_claims_one_open_per_task');
+        }
+      }
+    }
+    this.claims.set(row.id, clone(row));
   }
 
   // ------------------------------------------------------------------ loop_executions
