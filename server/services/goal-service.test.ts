@@ -186,6 +186,7 @@ describe('goal_service', () => {
     expect((await gate.tick()).errors).toEqual([{ loopId: id2, message: 'the goal pass broke' }]);
     expect((await t.repos.gate.get(id2))?.state).toBe('merged');
     expect(t.world.gh.read().prs.find((p) => p.number === pr2.number)?.state).toBe('MERGED');
+    expect(t.world.statuses(pr2.headSha).at(-1)?.state).toBe('success');
   });
 
   test('a row that falls opens 1 issue and 1 sub-issue of the epic', async (t) => {
