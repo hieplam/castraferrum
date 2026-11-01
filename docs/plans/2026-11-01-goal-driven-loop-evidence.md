@@ -1016,6 +1016,18 @@ Goal: G6, G7, G9. A PR merges only if a gate with no model passed every step, on
 - Plan correction: the first run of stub check 2 passed, because an always-true test exits 0 with or without the restore. The test now asserts that the stub run saw no `impl.mjs`.
 - Ratchet: unit tests in this change +32 (31 gate, 1 abort), api +4, contract +1 per side, e2e +1, `uc-coverage` 33 to 34. Metrics `merged-on-red`, `stub-share`: decision 7, nothing changes until a repository turns the gate on.
 
+<!-- 320 -->
+
+## 320
+
+Goal: G6. A restart between the merge and `finish` does not mark a merged PR as failed.
+
+- Red: `npx vitest run server/services/gate-service.test.ts -t "restart after"` printed `expected [ 'failed', 'scope' ] to deeply equal [ 'merged', null ]`, `Tests  1 failed | 2 passed | 31 skipped (34)`. The two guard tests (no `success` status, another head) pass before and after.
+- Green, after the last rebase: the same file and `gh-git-host.test.ts` printed `Test Files  2 passed (2)`, `Tests  48 passed (48)`. The new test asserts state `merged`, no `base` step row, and 1 merge call.
+- Stub check: with the new branch in `attempts` switched off, the same command printed `Tests  1 failed | 2 passed | 31 skipped (34)`. The branch was restored.
+- `npm run verify` in `slot-1`: exit 0, `Tests  1051 passed | 3 skipped (1054)`, `phone overflow: 0/12`, `UCs with a green e2e: 34/34`.
+- Ratchet: unit tests 1047 to 1051 (3 gate, 1 `gateStatus` adapter). `GitHost` gains `gateStatus`.
+
 <!-- K6 -->
 
 <!-- K7 -->

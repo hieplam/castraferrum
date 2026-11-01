@@ -70,6 +70,14 @@ describe('GhGitHost on the fake gh and a bare repository', () => {
     expect(status?.description).toBe('x'.repeat(140));
   });
 
+  it('gateStatus gives the latest state under castraferrum/gate, and null when the commit has none', async () => {
+    seedPr();
+    expect(await host.gateStatus(REPO, headSha)).toBeNull();
+    await host.setStatus(REPO, headSha, { state: 'pending', description: 'gate: running' });
+    await host.setStatus(REPO, headSha, { state: 'success', description: 'gate: every step passed' });
+    expect(await host.gateStatus(REPO, headSha)).toBe('success');
+  });
+
   it('checks lists the check runs of a commit', async () => {
     seedPr();
     const w = gh.read();
