@@ -41,7 +41,7 @@ describe('API surface matches SPEC section API contract', () => {
   const rows = specRows();
 
   it('reads the API table of the spec (20 phase 1 routes + 3 repo routes + 2 folder-browse routes + 2 phase 2 transcript routes + 3 probe routes + 2 notice routes + 3 process routes; 4 test-mode routes separate)', () => {
-    expect(rows).toHaveLength(36);
+    expect(rows).toHaveLength(37);
   });
 
   it.each(rows.map((r) => [`${r.method} /api${r.path}`, r] as const))('%s has a registered route', (_name, r) => {

@@ -16,7 +16,7 @@ type Line = { tool: string; command: string; rule: string };
 const graphql = (name: string) => `gh api graphql -f query='mutation { ${name}(input: {}) { clientMutationId } }'`;
 const bash = (rule: string, commands: string[]): Line[] => commands.map((command) => ({ tool: 'Bash', command, rule }));
 
-// Refused: 35 lines of spec 2.15.
+// Refused: 39 lines of spec 2.15.
 const REFUSED: Line[] = [
   ...bash('pr-merge', [
     'gh pr merge 1',
@@ -46,6 +46,12 @@ const REFUSED: Line[] = [
     'gh api -X POST repos/o/r/statuses/abc --input b.json',
     'curl -d @s.json https://api.github.com/repos/o/r/statuses/abc',
   ]),
+  ...bash('ratify', [
+    'curl -X POST http://127.0.0.1:7070/api/gate/jobs/abc/ratify',
+    'id=abc; curl -X POST localhost:7070/api/gate/jobs/$id/ratify',
+    'u=http://127.0.0.1:7070/api/gate/jobs/abc; curl -X POST $u/ratify',
+  ]),
+  { tool: 'PowerShell', command: 'Invoke-RestMethod -Method Post http://127.0.0.1:7070/api/gate/jobs/abc/ratify', rule: 'ratify' },
   ...bash('check-run', ['gh api -X POST repos/o/r/check-runs -f name=x', 'gh api repos/o/r/check-runs --input b.json']),
   ...['mergePullRequest', 'enablePullRequestAutoMerge', 'mergeBranch', 'enqueuePullRequest'].map((name) => ({ tool: 'Bash', command: graphql(name), rule: 'graphql' })),
   ...bash('push-main', ['git push origin main', 'git push origin HEAD:main', 'git push origin HEAD:refs/heads/master', 'git -C x push -f origin main']),
@@ -54,7 +60,7 @@ const REFUSED: Line[] = [
   { tool: 'mcp__github__create_commit_status', command: '', rule: 'mcp' },
 ];
 
-// Allowed: 16 lines of spec 2.15.
+// Allowed: 18 lines of spec 2.15.
 const ALLOWED: Line[] = [
   ...bash('', [
     'gh pr create --title x --body-file b.md',
@@ -74,10 +80,12 @@ const ALLOWED: Line[] = [
     'npm run verify',
   ]),
   { tool: 'mcp__github__get_pull_request', command: '', rule: '' },
+  { tool: 'Bash', command: 'curl http://127.0.0.1:7070/api/gate/jobs', rule: '' },
+  { tool: 'Bash', command: 'grep -n ratify server/http/gate-routes.ts', rule: '' },
 ];
 
 // A dropped line fails the whole file here, not only one test.
-if (REFUSED.length !== 35 || ALLOWED.length !== 16) throw new Error(`spec 2.15 lists 35 refused and 16 allowed lines, found ${REFUSED.length} and ${ALLOWED.length}`);
+if (REFUSED.length !== 39 || ALLOWED.length !== 18) throw new Error(`spec 2.15 lists 39 refused and 18 allowed lines, found ${REFUSED.length} and ${ALLOWED.length}`);
 
 const label = (l: Line) => (l.tool.startsWith('mcp__') ? `tool ${l.tool}` : l.command);
 

@@ -1,7 +1,7 @@
 import type pg from 'pg';
 import { DomainError } from '../../../shared/domain/errors';
 import type { GateFinalState, GateJob, GateJobState, GateStep, GateStepName, GateStepStatus, RepoGate } from '../../../shared/domain/gate';
-import type { EnqueueGateJobInput, GateRepository, RepoGateInput } from '../../ports/gate-repository';
+import type { EnqueueGateJobInput, GateRatifyOutcome, GateRepository, RepoGateInput } from '../../ports/gate-repository';
 import { violated } from './pg-util';
 
 type Row = Record<string, unknown>;
@@ -106,13 +106,18 @@ export class PgGateRepository implements GateRepository {
     return rows[0] ? toJob(rows[0]) : null;
   }
 
-  async ratify(id: string, at: Date): Promise<boolean> {
-    const res = await this.#pool.query(
-      `UPDATE gate_jobs SET state = 'queued', failed_step = NULL, started_at = NULL, finished_at = NULL, ratified_at = $2
-        WHERE id = $1 AND state = 'needs_ratification'`,
-      [id, at],
-    );
-    return res.rowCount === 1;
+  async ratify(id: string, at: Date): Promise<GateRatifyOutcome> {
+    try {
+      const res = await this.#pool.query(
+        `UPDATE gate_jobs SET state = 'queued', failed_step = NULL, started_at = NULL, finished_at = NULL, ratified_at = $2
+          WHERE id = $1 AND state = 'needs_ratification'`,
+        [id, at],
+      );
+      return res.rowCount === 1 ? 'ratified' : 'not_ratifiable';
+    } catch (err) {
+      if (violated(err, '23505') === 'gate_jobs_one_live_per_head') return 'duplicate';
+      throw err;
+    }
   }
 
   async requeueRunning(_at: Date): Promise<number> {

@@ -422,12 +422,15 @@ export type GateQueueInput = { repoId: string; prNumber: number; taskKey?: strin
 export type GateQueueResult = { outcome: 'queued' | 'duplicate'; jobId: string | null; headSha: string; taskKey: string };
 /** `errors[].loopId` holds the id of the gate job. */
 export type GateTickReport = { jobId: string | null; errors: { loopId: string; message: string }[] };
+export type GateRatified = { jobId: string; state: 'queued'; headSha: string };
 
 export interface GateService extends BackgroundService {
   /** Runs at most one job of the queue to its end. */
   tick(): Promise<GateTickReport>;
   /** Throws REPO_NOT_FOUND, GATE_OFF (the gate of the repository is off). */
   queue(input: GateQueueInput): Promise<GateQueueResult>;
+  /** Decision 41: the job takes the queue again and skips only `checkScope`. Throws GATE_JOB_NOT_FOUND, GATE_JOB_NOT_RATIFIABLE (wrong state, or a live job of the same head). */
+  ratify(id: string): Promise<GateRatified>;
   /** Decision 37: aborts the running command and waits. The job stays `running`, and `tick` takes nothing. */
   stop(): Promise<void>;
   /** After `stop`, lets `tick` take jobs again. The reset of test mode uses it. */

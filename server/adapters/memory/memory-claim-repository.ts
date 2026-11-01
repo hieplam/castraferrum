@@ -42,6 +42,13 @@ export class MemoryClaimRepository implements ClaimRepository {
     return true;
   }
 
+  async listGateOwned(): Promise<ClaimRecord[]> {
+    return [...this.#db.claims.values()]
+      .filter((c) => c.closedAt === null && c.gateJobId !== null)
+      .sort(oldestFirst)
+      .map(clone);
+  }
+
   async findOrphaned(limit: number): Promise<OrphanedClaim[]> {
     const out: OrphanedClaim[] = [];
     for (const c of [...this.#db.claims.values()].filter((row) => row.closedAt === null && row.owner === 'run').sort(oldestFirst)) {
