@@ -55,7 +55,7 @@ made by merging a pull request whose commit carries a `Release-As: 1.0.0` footer
 
 Rules worth knowing:
 
-- Never lower a test count (unit, contract, API, e2e) or `uc-coverage` (32/32). A change that adds a use case
+- Never lower a test count (unit, contract, API, e2e) or `uc-coverage` (34/34). A change that adds a use case
   adds a row to [docs/USE-CASES.md](docs/USE-CASES.md), an e2e test tagged `@UC-NN` and raises `--min` in the
   `verify` script.
 - Adding or changing an API route or error code updates [docs/API.md](docs/API.md) in the same pull request;

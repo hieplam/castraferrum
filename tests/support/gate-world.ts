@@ -26,6 +26,7 @@ export const GOOD_FILES: Record<string, string> = { 'impl.mjs': 'export const ok
 
 const VERIFY_FILE = `import { existsSync } from 'node:fs';
 console.log(existsSync('impl.mjs') ? 'verify sees impl.mjs' : 'verify sees no impl.mjs');
+console.log('env ' + process.env.LC_GATE_ENV);
 process.exit(existsSync('fail-verify.txt') ? 1 : 0);
 `;
 

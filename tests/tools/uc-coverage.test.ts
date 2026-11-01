@@ -72,10 +72,10 @@ describe('uc-coverage', () => {
       return { code, out: out.join('\n') };
     };
 
-    it('prints k/33 and the list of missing ones', () => {
+    it('prints k/34 and the list of missing ones', () => {
       const { code, out } = run();
       expect(code).toBe(0);
-      expect(out).toContain('UCs with a green e2e: 2/33');
+      expect(out).toContain('UCs with a green e2e: 2/34');
       expect(out).toMatch(/Missing: UC-02 UC-03 UC-04 UC-06/);
     });
 
@@ -93,7 +93,7 @@ describe('uc-coverage', () => {
     it('runs via node scripts/uc-coverage.mjs', () => {
       const script = fileURLToPath(new URL('../../scripts/uc-coverage.mjs', import.meta.url));
       const res = spawnSync(process.execPath, [script, '--report', reportFile, '--min', '3'], { encoding: 'utf8' });
-      expect(res.stdout).toContain('UCs with a green e2e: 2/33');
+      expect(res.stdout).toContain('UCs with a green e2e: 2/34');
       expect(res.status).toBe(1);
     });
   });

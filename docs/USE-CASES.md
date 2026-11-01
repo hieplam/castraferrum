@@ -3,7 +3,7 @@
 Thirty-two use cases describe what a person can see and do. Every row has an ID (`UC-NN`), a title with the
 action, and the observable result that proves it works. The IDs are stable: end-to-end tests carry the tag
 `@UC-NN`, and `npm run uc-coverage` counts the use cases that have at least one green e2e test (the project
-keeps this at 32/32).
+keeps this at 34/34).
 
 Terms used below:
 

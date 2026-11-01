@@ -81,6 +81,7 @@ describe('gate_service', { timeout: 120_000 }, () => {
     expect(job.steps.map((s) => [s.step, s.status])).toEqual(ALL_STEPS.map((s) => [s, 'pass']));
     expect(job.steps.map((s) => s.seq)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     expect(job.step('verify').outputTail).toContain('verify sees impl.mjs');
+    expect(job.step('verify').outputTail).toContain('env from-main');
     expect(world.bare.show('main', 'impl.mjs')).toContain('ok = true');
     expect(world.statuses(pr.headSha).map((s) => s.state)).toEqual(['pending', 'success']);
     const calls = world.gh.read().calls.map((c) => c.args.join(' '));
@@ -178,10 +179,13 @@ describe('gate_service', { timeout: 120_000 }, () => {
   });
 
   it('an always-true test fails stub', async () => {
-    const pr = world.openPr({ files: { 'impl.mjs': 'export const ok = true;\n', 'tests/e.test.mjs': `console.log('e passed');\n` } });
+    const alwaysTrue = `import { existsSync } from 'node:fs';\nconsole.log('e passed', existsSync('impl.mjs') ? 'with the implementation' : 'with no implementation');\n`;
+    const pr = world.openPr({ files: { 'impl.mjs': 'export const ok = true;\n', 'tests/e.test.mjs': alwaysTrue } });
     const job = await runJob(pr);
     expect([job.state, job.failedStep]).toEqual(['failed', 'stub']);
     expect(job.step('green').status).toBe('pass');
+    expect(job.step('green').outputTail).toContain('with the implementation');
+    expect(job.step('stub').outputTail).toContain('with no implementation');
     expect(world.mergeCalls()).toEqual([]);
     noFolderLeft();
   });

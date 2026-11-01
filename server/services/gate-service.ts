@@ -84,6 +84,7 @@ type JobRun = {
 
 type Attempt = {
   mainSha: string;
+  headRef: string;
   config: GateConfig;
   files: ChangedFile[];
   /** Set when the verdict of `scope` is a plan PR: `green` and `stub` skip with this reason. */
@@ -224,7 +225,7 @@ export class DefaultGateService implements GateService {
 
   /** One pass from `scope` to `merge`. Gives true when `main` moved and the job must run again (decision 36). */
   private async attempt(run: JobRun, repo: RepoRecord, attempt: number): Promise<boolean> {
-    const state: Attempt = { mainSha: '', config: undefined as never, files: [], planReason: null, tree: null, task: null };
+    const state: Attempt = { mainSha: '', headRef: '', config: undefined as never, files: [], planReason: null, tree: null, task: null };
     let again = false;
     try {
       await this.step(run, 'scope', () => this.scope(run, state));
@@ -261,6 +262,7 @@ export class DefaultGateService implements GateService {
     const fetched = await workspace.fetch(repoPath, { headRef: pr.headRef, headSha: job.headSha });
     if (!fetched.headMatches) return fail('the head of the branch moved after the job was queued');
     state.mainSha = fetched.mainSha;
+    state.headRef = pr.headRef;
     const gateText = await workspace.readAt(repoPath, fetched.mainSha, GATE_FILE);
     if (gateText === null) return fail(`${GATE_FILE} is not on main`);
     state.config = parseGateConfig(gateText);
@@ -388,8 +390,7 @@ export class DefaultGateService implements GateService {
   private async merge(run: JobRun, repo: RepoRecord, state: Attempt, attempt: number): Promise<{ end: StepEnd; again: boolean }> {
     const { host, workspace } = this.deps;
     const { job, setting } = run;
-    const pr = await host.pullRequest(setting.githubRepo, job.prNumber);
-    const { mainSha } = await workspace.fetch(run.repoPath, { headRef: pr.headRef, headSha: job.headSha });
+    const { mainSha } = await workspace.fetch(run.repoPath, { headRef: state.headRef, headSha: job.headSha });
     if (mainSha !== state.mainSha) {
       if (attempt > 1) return { end: fail('main moved twice'), again: false };
       return { end: { status: 'skip', output: `main moved to ${mainSha}, the job runs again` }, again: true };

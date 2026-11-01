@@ -9,7 +9,7 @@ import { API_ERROR_CODES } from '../../shared/contracts/common';
 import { startApi, type ApiServer } from '../support/api-kit';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
-// The API surface table of docs/API.md (33 routes).
+// The API surface table of docs/API.md (34 routes).
 const SPEC = readFileSync(join(ROOT, 'docs', 'API.md'), 'utf8');
 
 type Row = { method: 'GET' | 'POST' | 'PUT' | 'DELETE'; path: string; codes: string[] };
@@ -41,7 +41,7 @@ describe('API surface matches SPEC section API contract', () => {
   const rows = specRows();
 
   it('reads the API table of the spec (20 phase 1 routes + 3 repo routes + 2 folder-browse routes + 2 phase 2 transcript routes + 3 probe routes + 2 notice routes + 1 process route; 4 test-mode routes separate)', () => {
-    expect(rows).toHaveLength(33);
+    expect(rows).toHaveLength(34);
   });
 
   it.each(rows.map((r) => [`${r.method} /api${r.path}`, r] as const))('%s has a registered route', (_name, r) => {
