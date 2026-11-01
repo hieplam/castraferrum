@@ -1,6 +1,70 @@
 # Castraferrum
 
-Castraferrum is a UI that runs, watches and manages agent loops.
+Castraferrum is a UI that runs, watches and manages agent loops. A loop is a prompt, a cron schedule and a
+repository. Each time the schedule fires, one new Claude Code session starts in that repository.
+
+## How it works
+
+```mermaid
+flowchart TB
+  ui["Browser: React UI<br/>web/"]
+
+  subgraph node["Node server, one process on 127.0.0.1:7070"]
+    http["HTTP API<br/>server/http/ (Fastify)"]
+    ticker["Ticker, runs every 1 second<br/>server/scheduler/"]
+    loopsvc["LoopService<br/>Start, Stop, edit"]
+    sched["SchedulingService<br/>finds the loops that are due"]
+    run["RunService<br/>controls one run from start to finish"]
+    executor["ClaudeAgentExecutor<br/>server/adapters/executors/claude/"]
+    bus["In-process event bus"]
+    streams["LiveService, TranscriptService<br/>SSE streams through server/http/"]
+  end
+
+  db[("PostgreSQL in Docker<br/>loops, runs, logs, next_run_at")]
+
+  subgraph machine["Same machine, with the Claude Code login"]
+    session["Claude Code session<br/>one per run, cwd is the repository"]
+    repo[/"Registered repository"/]
+    jsonl[/"Session file<br/>~/.claude/projects/*/*.jsonl"/]
+  end
+
+  ui -- "1. create, Start" --> http
+  http --> loopsvc
+  ticker -- "2. every second" --> sched
+  loopsvc -- "1. first run" --> run
+  sched -- "2. run of a due loop" --> run
+  run -- "3. insert the run<br/>5. store logs and result" --> db
+  run -- "4. execute()" --> executor
+  executor -- "4. Agent SDK" --> session
+  session -- "edits, commits" --> repo
+  session -- "writes" --> jsonl
+  run -- "5. publish" --> bus
+  bus -- "5" --> streams
+  jsonl -- "6. follow the file" --> streams
+  streams -- "5, 6. SSE" --> ui
+```
+
+Each number on an arrow is a step in this list:
+
+1. The engineer creates a loop in the UI and presses Start. `LoopService` opens an execution (one Start-to-Stop
+   span) and starts the first run.
+2. Every second, the ticker calls `SchedulingService`. `SchedulingService` reads `next_run_at` from PostgreSQL,
+   moves it forward and asks `RunService` for a run of each loop that is due.
+3. `RunService` inserts the run. A database trigger rejects the insert when the loop is at `max_concurrent`, and
+   `RunService` then records a `skipped` run. PostgreSQL holds this rule, so two ticks cannot both start a run.
+4. `ClaudeAgentExecutor` starts Claude Code through the Agent SDK. The session works in the registered repository
+   with the Claude Code login of the machine. The run ends when Claude Code exits.
+5. `RunService` stores each log line and the final result in PostgreSQL and publishes an event for each change.
+   `LiveService` sends those events to the browser over Server-Sent Events (SSE).
+6. Claude Code writes its own session file. `TranscriptService` reads that file and streams it to the UI, so
+   PostgreSQL holds no copy of the transcript.
+
+The server is one Node process. At startup, `RecoveryService` marks each run that was still `running` as
+`interrupted` and sets all loops to Stopped, so a person always starts them again. Each service calls interfaces
+in `server/ports/`, and `server/compose.ts` is the only file that connects them to implementations. The details
+are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Screens
 
 ![The Loops page (light)](design/ds/preview/shots/loops-overview-light.png)
 
@@ -37,36 +101,6 @@ LOOPS_PORT=7170 npm start      # PowerShell: $env:LOOPS_PORT = '7170'; npm start
 The server does not start by itself: leave the `npm start` window open while you use the UI. The UI is served
 from `dist/web`, so rerun `npm run build` after pulling new code. The first thing to do in the UI is register a
 repository on the Repos page (**Add a repo** opens a folder picker), then create a loop that uses it.
-
-## Scripts
-
-| Command | What it does |
-|---|---|
-| `npm start` | Real server: API and the built UI (`dist/web`) on `127.0.0.1:7070`, database `loops` |
-| `npm run dev` | API with `tsx watch` on 7070 plus the Vite dev server on `127.0.0.1:5180` (proxies `/api`) |
-| `npm run build` | Build the UI into `dist/web` |
-| `npm run verify` | The full gate: typecheck, language scan baseline, `arch`, `ratchets -- --base main`, unit, contract, API, `api-smoke`, build, e2e, `uc-coverage --min 32` |
-| `npm run typecheck` | Strict `tsc` for server, shared and tests, and for the UI |
-| `npm run arch` | Layer rules: prints `dependency-cruiser: N violations` (must be 0) and `arch-fixtures: k/k violations caught` |
-| `npm test` | All Vitest projects |
-| `npm run test:unit` | Unit tests that sit next to the code and in `tests/tools` |
-| `npm run test:contract` | The repository contract suite on the in-memory double and on Postgres, and the executor contract suite |
-| `npm run test:api` | API tests against the real composition and Postgres `loops_test` |
-| `npm run api-smoke` | Starts the real `server/main.ts`, walks the whole life cycle over HTTP, kills and restarts it |
-| `npm run test:e2e` | Playwright: starts its own server on `127.0.0.1:7071` from the build (run `npm run build` first) |
-| `npm run uc-coverage -- --min k` | Counts the use cases with a green e2e test (k/32) from `reports/e2e.json`; exits 1 below `k` |
-| `npm run ratchets` | Design-system ratchets from `scripts/ratchets.json`; `-- --base <git-ref>` also checks that no limit moved the wrong way against that ref; prints `ratchets: ok` or `ratchets: failed` |
-| `npm run design:tokens -- <tokens.css>` | Checks one design token file: empty or swallowed values, tokens missing in dark, contrast pairs, required tokens |
-| `npm run design:lint` | The design-system rule as a check: native `title` tooltips, classes the design CSS does not define, literal values in `style` |
-| `npm run design:fit` | Every demo of the design-system page fits its frame at 1440 and 390 px wide, and the page has no sideways scroll |
-| `npm run design:card` | The settings side card of the loop page (preview state `loop-running`, 1440 x 900) is within 40 px of the approved board's 528 px |
-| `npm run phone:check` | Starts a test-mode server and checks whether any of six screens scrolls sideways at phone and tablet widths (run `npm run build` first) |
-| `npm run design:compare` | Real app next to the approved reference screens, with per-region pixel diffs |
-| `npm run design:shots` / `design:states` | Regenerate and check the reference screens |
-| `npm run db:generate` | Generate a SQL migration from `server/adapters/postgres/schema.ts` (commit the result) |
-| `npm run bench:transcript` | Timing of the transcript reader on large files |
-| `node scripts/lang-scan.mjs` | Language and coupling scanner behind the baseline in `scripts/lang-baseline.json` |
-| `scripts/restart-console.ps1` | Windows helper: stop loops, rebuild, restart the server, start the same loops again |
 
 ## Configuration
 
