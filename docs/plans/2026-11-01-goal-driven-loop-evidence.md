@@ -64,6 +64,26 @@ Ratchet, metrics with a committed baseline: 0 before, 16 after (`baseline: 16 me
 
 <!-- F1 -->
 
+## F1
+
+Red (before the manifest and the test existed):
+
+- `node scripts/goal-check.mjs goals/2026-11-01-goal-driven-loop.json` exit 1, `Error: ENOENT: no such file or directory, open '...goals\2026-11-01-goal-driven-loop.json'`.
+- `npx vitest run --project unit tests/tools/goal-driven-manifest.test.ts`: `Test Files  1 failed (1)`, `Tests  no tests`.
+
+Green:
+
+- `npx vitest run --project unit tests/tools/goal-driven-manifest.test.ts`: `Tests  4 passed (4)`.
+- `node scripts/goal-check.mjs goals/2026-11-01-goal-driven-loop.json`: exit 1, 29 rows, last line `goals passed: 2/29`. Only G12 and G22 pass (the F0 metric tool). The 6 ap goals (G10, G11, G17, G25, G26, G29) are red here because the local `agent-plugins` clone is on an old commit on purpose.
+- The ap test-name patterns were run on `origin/master` of `agent-plugins` in a temporary worktree: `✔ G10: ...`, `✔ G11: ...`, `✔ G25: ...`, `✔ G26: ...`, `✔ G29: ...` all print. G17 has no file there yet, so it stays red.
+
+Stub check:
+
+- G1 set to `node -e 0` in a copy: `G1 pass`, `goals passed: 1/1` (1/29 on the full copy). The test `every goal has a check that can fail` is the guard: a check with no expected text fails it.
+- G1 with an empty `checks` list: `Tests  1 failed | 3 passed (4)`, the failing test is `every goal has a check that can fail`.
+
+Ratchet, goals passing: 0 before (no manifest), 2 of 29 after.
+
 <!-- F2 -->
 
 <!-- S1 -->
