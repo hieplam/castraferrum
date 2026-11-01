@@ -31,6 +31,9 @@ export const PROBE_KEY = /^[\w.-]{1,100}$/;
 
 export const PROBE_RAW_MAX_BYTES = 2000;
 
+/** How often the console calls the probe of an active loop (decision 22). The loop page names this period. */
+export const PROBE_EVERY_SEC = 60;
+
 // ---------------------------------------------------------------- probe settings (table loop_probes)
 
 export const RESTART_POLICIES = ['stop', 'resume'] as const;

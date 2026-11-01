@@ -101,6 +101,8 @@ export const executionStatsDto = z.object({
   interrupted: z.number().int(),
   cancelled: z.number().int(),
   skipped: z.number().int(),
+  /** Runs that a usage limit holds (spec 2.5). */
+  held: z.number().int(),
   /** Number of runs that have a session id (the "Session id" column of the execution history). */
   sessions: z.number().int(),
   elapsedMs: z.number(),

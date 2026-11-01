@@ -14,6 +14,11 @@ export const qk = {
   loop: (id: string) => ['loop', id] as const,
   loopExecutions: (id: string, page: PageRequest = {}) => ['loop', id, 'executions', page] as const,
   loopRuns: (id: string, page: PageRequest = {}) => ['loop', id, 'runs', page] as const,
+  /** The probe of one loop - under prefix `loop` + id: a run or loop event refreshes it. */
+  probe: (id: string) => ['loop', id, 'probe'] as const,
+  /** The open holds and the unread notices - under prefix `loops`: every live event refreshes them. */
+  holds: () => ['loops', 'holds'] as const,
+  notices: () => ['loops', 'notices'] as const,
   execution: (id: string) => ['execution', id] as const,
   run: (id: string) => ['run', id] as const,
   runLogs: (id: string) => ['run', id, 'logs'] as const,

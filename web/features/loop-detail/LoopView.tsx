@@ -4,9 +4,12 @@
 // (Duplicate, Archive) sit in the head, or in the navigation bar on the phone. Data comes from web/data, the actions from the
 // hook the Loops page uses (Stop asks first only while a run is working, D29).
 import { Link, useNavigate } from 'react-router';
+import type { ProbeDto } from '../../../shared/contracts/goal-loop';
 import type { LoopDetailDto } from '../../../shared/contracts/loops';
+import { PROBE_EVERY_SEC } from '../../../shared/domain/goal-loop';
 import { useNow, useSharedServerStatus } from '../../data/connection';
 import { useLoop } from '../../data/loops';
+import { useHolds, useProbe, useReadNoticesOf } from '../../data/probe';
 import type { MessageKey } from '../../prefs/messages';
 import { useT } from '../../prefs/prefs';
 import { Button, IconButton } from '../../ui/kit/Button';
@@ -20,6 +23,7 @@ import { Figures } from './Figures';
 import { executorSummary, fmtSpan, scheduleSentence } from './format';
 import { SettingsCard } from './LoopSettingsView';
 import { NowCard, pageKindOf, type PageKind } from './NowCard';
+import { HoldBanner, ProbeExtra, probeContext, probeKindOf } from './ProbeNow';
 import { errorTitle, PageNotFound, PageSkeleton, PushedPage, useBackToLoops } from './PushedPage';
 import { RecentRuns } from './RecentRuns';
 
@@ -31,14 +35,21 @@ const PILL: Record<PageKind, readonly [PillTone, MessageKey, string]> = {
   server_down: ['int', 'status.serverDown', 'server_down'],
   archived: ['stop', 'status.archived', 'archived'],
   stopping: ['run', 'status.stopping', 'cancelled'],
+  waiting: ['warn', 'goalLoop.loop.waiting', 'waiting'],
+  blocked: ['fail', 'goalLoop.loop.blocked', 'blocked'],
+  held: ['int', 'goalLoop.loop.held', 'held'],
+  budget_limited: ['warn', 'goalLoop.loop.budgetLimited', 'budget_limited'],
+  complete: ['ok', 'goalLoop.loop.complete', 'complete'],
+  probe_failed: ['fail', 'goalLoop.loop.probeFailed', 'probe_failed'],
 };
 
 export function LoopView({ id }: { id: string }) {
   const t = useT();
   const q = useLoop(id);
-  if (q.isPending) return <PageSkeleton />;
+  const probe = useProbe(id);
+  if (q.isPending || probe.isPending) return <PageSkeleton />;
   if (q.isError) return <PageNotFound title={errorTitle(t, q.error, 'error.LOOP_NOT_FOUND')} />;
-  return <LoopBody loop={q.data} />;
+  return <LoopBody loop={q.data} probe={probe.data ?? null} />;
 }
 
 /** The main action: Stop loop while the loop is active, Start when it is stopped, Restore when it is archived. */
@@ -54,7 +65,7 @@ function MainAction({ loop, kind, actions }: { loop: LoopDetailDto; kind: PageKi
       </Button>
     );
   }
-  if (kind === 'stopped' || kind === 'server_down') {
+  if (kind === 'stopped' || kind === 'server_down' || kind === 'complete') {
     return (
       <Button variant="primary" icon="play" {...size} disabled={busy} onClick={() => actions.run('start', loop.id)} data-testid="loop-start">
         {t('act.start')}
@@ -95,7 +106,7 @@ function LoopMenu({ loop, actions }: { loop: LoopDetailDto; actions: LoopActions
   );
 }
 
-function LoopBody({ loop }: { loop: LoopDetailDto }) {
+function LoopBody({ loop, probe }: { loop: LoopDetailDto; probe: ProbeDto | null }) {
   const t = useT();
   const navigate = useNavigate();
   const phone = useLayout() === 'phone';
@@ -103,8 +114,14 @@ function LoopBody({ loop }: { loop: LoopDetailDto }) {
   const offline = useSharedServerStatus().server === 'down';
   const actions = useLoopActions();
   const back = useBackToLoops();
-  const kind = pageKindOf(loop, actions.isStopping(loop.id));
-  const live = kind === 'running' || kind === 'active' || kind === 'stopping';
+  const holds = useHolds(probe !== null);
+  useReadNoticesOf(loop.id, probe !== null);
+  const kind = pageKindOf(loop, actions.isStopping(loop.id), probe);
+  const probeKind = probeKindOf(probe);
+  const ctx = probe ? probeContext(probe, holds.data) : null;
+  // A loop that the goal stopped keeps no live figures; every other state of a probe is live (the loop is active).
+  const live = kind === 'running' || kind === 'active' || kind === 'stopping' || (probe !== null && probeKind !== null && kind === probeKind && kind !== 'complete');
+  const top = ctx ? <HoldBanner holds={holds.data} tz={loop.timezone} /> : null;
   const [tone, key, status] = PILL[kind];
   const pill = (
     <Pill tone={tone} testId="loop-status" status={status}>
@@ -123,8 +140,10 @@ function LoopBody({ loop }: { loop: LoopDetailDto }) {
       {loop.description}
     </p>
   ) : null;
-  const now_ = <NowCard loop={loop} kind={kind} now={now} offline={offline} />;
-  const figures = <Figures loop={loop} live={live} now={now} />;
+  const now_ = <NowCard loop={loop} kind={kind} now={now} offline={offline} probe={ctx} />;
+  const extra = ctx ? <ProbeExtra kind={kind === probeKind ? probeKind : null} ctx={ctx} exec={loop.currentExecution} tz={loop.timezone} now={now} /> : null;
+  const figures = <Figures loop={loop} live={live} now={now} goals={ctx?.reading.line?.goals ?? null} />;
+  const schedule = probe ? t('goalLoop.probe.every', { s: PROBE_EVERY_SEC }) : scheduleSentence(loop.cron, t.lang);
   const recent = <RecentRuns loop={loop} now={now} />;
   const stop = actions.confirmId ? <StopSheet loop={loop} onCancel={actions.cancelStop} onConfirm={actions.confirmStop} /> : null;
 
@@ -140,6 +159,7 @@ function LoopBody({ loop }: { loop: LoopDetailDto }) {
           </>
         }
         testId="loop-page"
+        top={top}
       >
         <div className="page-head" data-testid="loop-header" data-status={status}>
           <h1 className="page-title">{name}</h1>
@@ -151,11 +171,12 @@ function LoopBody({ loop }: { loop: LoopDetailDto }) {
             <span data-raw="" data-testid="loop-repo">
               {loop.repo.name}
             </span>
-            {` ·\u00a0${scheduleSentence(loop.cron, t.lang)}`}
+            {` ·\u00a0${schedule}`}
           </span>
         </div>
         {desc}
         {now_}
+        {extra}
         {figures}
         {recent}
         <div className="group">
@@ -181,7 +202,7 @@ function LoopBody({ loop }: { loop: LoopDetailDto }) {
     );
   }
   return (
-    <PushedPage back={back} testId="loop-page">
+    <PushedPage back={back} testId="loop-page" top={top}>
       <div className="page-head" data-testid="loop-header" data-status={status}>
         <h1 className="page-title">
           {name}
@@ -196,13 +217,14 @@ function LoopBody({ loop }: { loop: LoopDetailDto }) {
         main={
           <>
             {now_}
+            {extra}
             {recent}
           </>
         }
         side={
           <>
             {figures}
-            <SettingsCard loop={loop} />
+            <SettingsCard loop={loop} probe={probe} />
           </>
         }
       />
