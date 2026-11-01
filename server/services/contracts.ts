@@ -440,6 +440,8 @@ export interface GateService extends BackgroundService {
   stop(): Promise<void>;
   /** After `stop`, lets `tick` take jobs again. The reset of test mode uses it. */
   resume(): void;
+}
+
 /** Result of one hold tick. An error names the loop of the run, or the hold id for a hold. */
 export type HoldTickReport = {
   at: Date;

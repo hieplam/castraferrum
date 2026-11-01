@@ -217,7 +217,12 @@ describe('the resume after the reset', () => {
     expect(runs()[0]).toMatchObject({ status: 'held', costUsd: 0.4 });
 
     await holdTick(2 * HOUR + MIN);
-    k.scripted.call(3).succeed('done', 0.9);
+    k.scripted.call(3).usageLimit('again', 0.7, at(3 * HOUR));
+    await flush();
+    expect(runs()[0]).toMatchObject({ status: 'held', costUsd: 0.7 }); // the session reports a cumulative cost, so this is not 1.1
+
+    await holdTick(3 * HOUR + MIN);
+    k.scripted.call(4).succeed('done', 0.9);
     await flush();
     expect(runs()[0]).toMatchObject({ status: 'succeeded', costUsd: 0.9 });
   });
