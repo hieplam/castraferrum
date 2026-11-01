@@ -57,11 +57,11 @@ The console reads the last non-empty stdout line. It needs exit 0 in 30 s.
 | `plan` | `plan: {"key":"plan-217","failing":["G4"]}` | One run, no claim, none if this key is live | `active` |
 | `skip` | none | Nothing | `active` |
 | `wait` | `reason` | One notice per reason | `waiting` |
-| `blocked` | `reason`, `issues` | Shows the blockers | `blocked` |
+| `blocked` | `reason`, `issues`; optional `blockers` | Shows the blockers | `blocked` |
 | `hold` | `resource`, `reason`, `until` optional | Opens a hold (2.5) | `held` |
 | `done` | none | Closes the period with `goal_met` | `complete` |
 
-`key` matches `^[\w.-]{1,100}$`, and the console reads no meaning from it. Other keys are ignored. The raw line is stored, cut at 2000 bytes. A bad line, a non-zero exit or a time-out gives `probe_failed`, one notice, no session. `E next <e> --probe` prints this line and implies `--parallel`.
+`key` matches `^[\w.-]{1,100}$`, and the console reads no meaning from it. The optional key `blockers` is `[{"key":"31","title":"...","blocks":3,"url":"https://github.com/o/r/issues/31"}]`: a missing key is `[]`, and a bad entry makes the line bad. Other keys are ignored. The raw line is stored, cut at 2000 bytes. A bad line, a non-zero exit or a time-out gives `probe_failed`, one notice, no session. `E next <e> --probe` prints this line and implies `--parallel`.
 
 ### 2.2 States
 
@@ -263,6 +263,7 @@ Each task is one PR. A star: it can start at once. Column ap: blank is cf. Needs
 | P13* | E next --probe, --if-claimed, --excused, needs: labels, tick mode | ap | G1, G4, G23 | | epic.mjs, tick.md | s |
 | P14 | End-to-end: idle and gap | | G1, G2 | P6, P10 | tests/e2e | s |
 | P15 | Loop state, editor fields, notices | | G28 | D2, P8, P10 | web | s |
+| P16 | Probe line carries the blockers | ap | G28 | | epic.mjs | s |
 | K1* | gate.json, verify data, scope guard | | G9 | | shared, goals | s |
 | K2 | Gate tables, repo_gate | | G6 | P5 | repository | s |
 | K3 | GitHost, gh adapter | | G6 | F2, P1 | adapters | s |
@@ -300,7 +301,7 @@ Each task is one PR. A star: it can start at once. Column ap: blank is cf. Needs
 | Z1 | Verify: goal:check, E check --dry-run on each task | | all | all above | goals | s |
 | Z2 | Agent acceptance, all new screens | | all | Z1 | tests/e2e | o: images |
 
-Tasks: foundation 13, issue 212: 15, 213: 12, 214: 6, 215: 9, 216: 7. Total 62.
+Tasks: foundation 13, issue 212: 16, 213: 12, 214: 6, 215: 9, 216: 7. Total 63.
 
 **Spikes.** Answers go to the evidence log. A changed design adds a decision.
 
@@ -380,6 +381,7 @@ Pages open from a `.cell.is-link`. The tab bar stays.
 49. R4: the profile `review` is a tool list plus a hook, because no scratch folder limits a session (issue 311). The list is `Read`, `Grep`, `Glob`, `Bash`, `Write`. The hook refuses a `Write` outside `reports/process-review/`, a `Bash` or `PowerShell` command that is not one of the three review scripts with its `--out` in that folder, and every other tool. A run gets the profile from the lane variable `CASTRAFERRUM_TOOL_PROFILE=review`. An unknown value fails the run before the executor. The limit: a script on the list is trusted, as in 2.15. The prompt writes `groups.json` in `reports/process-review/`.
 50. R6: the new-cause bar is a real model run on the real rows that no rule took, with no tools, `persistSession: false` and a spend limit of 1.00 USD. It passes only if the model names at least one cluster of 2 or more rows, with valid ids and a valid check, that no rule holds. If it does not, R6 fails, and nobody lowers the bar. The real rows stay in memory. The report holds counts and the cluster number, never an id, a cause or a text, because the rows hold private text. No person reads the clusters in the task. The option `--show-causes` prints each size and cause to stdout only, for the coordinator, who runs it once at the gate and judges whether each new cause is real. R6 is accepted only after that check.
 51. T5: `goals/health.json` holds one command string per row, like decision 31. `parseHealthFile` fills `{repo}`, makes the argv with `shellArgv`, and refuses an audit row with no `--since`. Row H2 starts at `2026-11-01T00:00:00Z`. The date is the day the gate is switched on, and a ratified pull request sets it. Until then H2 lists each merge since that day as an incident, which is correct, because the gate did not exist. The rows file issues with the label `standing-goal` and attach them to no epic (`epic` is 0). `StandingGoalService.runHealth` runs the file when it is due. Nothing calls it in this epic.
+52. P15, P16: the owner approved the `probe-blocked` shot with the title of each blocker, the number of tasks it blocks and a link, so the shot stays. `epic.mjs` holds that data, and `probeLine` dropped it. So the probe line carries `blockers` (2.1), built from the open blockers of the open tasks and sorted by `blocks`, then by number. `issues` stays as it is. A probe that gives no `blockers` shows a plain cell with the issue number. The page shows the line without the key `blockers`, because the cells above show it.
 
 **`docs/ARCHITECTURE.md`.** P4: services, ports, tables. P8: line 448 (no pause or resume) becomes "a hold pauses runs for a resource". P11: lines 447 and 231 (stop every loop on restart) become a per-loop `restartPolicy`, default `stop`.
 

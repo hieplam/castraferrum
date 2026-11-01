@@ -34,7 +34,7 @@ Why: plans written far ahead go stale (issue 214), and the spikes can change lat
 | Phase | Tasks | Plan file |
 |---|---|---|
 | Foundation: baselines, spikes, design, verify, acceptance | F0-F2, S1-S6, D1, D2, Z1, Z2 | `docs/plans/2026-11-01-goal-driven-loop-foundation.md` |
-| Issue 212: probe, claim, hold, resume | P1-P15 | `docs/plans/2026-11-01-goal-driven-loop-probe.md` |
+| Issue 212: probe, claim, hold, resume | P1-P16 | `docs/plans/2026-11-01-goal-driven-loop-probe.md` |
 | Issue 213: gate | K1-K12 | `docs/plans/2026-11-01-goal-driven-loop-gate.md` |
 | Issue 214: goal check | T1-T6 | `docs/plans/2026-11-01-goal-driven-loop-goal-check.md` |
 | Issue 215: process review | R1-R9 | `docs/plans/2026-11-01-goal-driven-loop-process-review.md` |
