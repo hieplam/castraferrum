@@ -10,6 +10,7 @@ import { basename, join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { api, closeDb, fill, loopRows, pickRepo, reset } from '../support/form-kit';
 import { box, offUiFont, textLeft } from '../support/frame-probe';
+import { ignoreHostKeys } from '../support/host-keys';
 import { ensureTestRepo, TEST_REPO } from '../support/test-repo';
 import { t } from '../support/ui-text';
 
@@ -25,7 +26,9 @@ test.use({
 });
 
 test.afterAll(closeDb);
-test.beforeEach(async ({ request }) => {
+// A Shift or Control held on the machine reaches WebKit and opens a link in a second page, so a tap looks lost (issue 362).
+test.beforeEach(async ({ page, request }) => {
+  await ignoreHostKeys(page);
   await reset(request);
 });
 
@@ -176,6 +179,13 @@ async function gutter(page: Page): Promise<number> {
 // Defects found by U27, the acceptance of epic 63 (castraferrum#183, castraferrum#184, castraferrum#194): each check reads
 // what the browser drew, in Chromium and in WebKit.
 test.describe('the phone frame', () => {
+  test('a Shift held on the machine does not open a link in a second page', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('tab-repos').click({ modifiers: ['Shift'] });
+    await expect(page).toHaveURL(/\/repos$/);
+    expect(page.context().pages(), 'a tab opened in the same page').toHaveLength(1);
+  });
+
   test('the folder picker: every control uses the UI font, and Cancel starts on the gutter', async ({ page }) => {
     await page.goto('/repos');
     await page.getByTestId('repo-add').tap();
