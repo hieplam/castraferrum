@@ -119,7 +119,6 @@ function seeded(): BareRepo {
       'goals/verify/e.json': verifyText(FIRST_TASKS),
       'tests/verify.mjs': VERIFY_FILE,
       'package.json': `${JSON.stringify({ scripts: { test: 'node tests/verify.mjs' } }, null, 2)}\n`,
-      '.gitignore': 'node_modules\n',
     },
     'seed of the gate',
   );
