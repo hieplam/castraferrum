@@ -29,6 +29,62 @@ Solid arrows are calls and only point downwards. No layer calls the layer above 
 values (even streams: a service pulls events from an executor with an `AsyncIterable`, it never hands the
 executor a callback to call back).
 
+### The full flow
+
+This diagram shows the components that take part in one run. Each number on an arrow is a step in this list:
+
+```mermaid
+flowchart TB
+  ui["Browser: React UI<br/>web/"]
+
+  subgraph node["Node server, one process on 127.0.0.1:7070"]
+    http["HTTP API<br/>server/http/ (Fastify)"]
+    ticker["Ticker, runs every 1 second<br/>server/scheduler/"]
+    loopsvc["LoopService<br/>Start, Stop, edit"]
+    sched["SchedulingService<br/>finds the loops that are due"]
+    run["RunService<br/>controls one run from start to finish"]
+    executor["ClaudeAgentExecutor<br/>server/adapters/executors/claude/"]
+    bus["In-process event bus"]
+    streams["LiveService, TranscriptService<br/>SSE streams through server/http/"]
+  end
+
+  db[("PostgreSQL in Docker<br/>loops, runs, logs, next_run_at")]
+
+  subgraph machine["Same machine, with the Claude Code login"]
+    session["Claude Code session<br/>one per run, cwd is the repository"]
+    repo[/"Registered repository"/]
+    jsonl[/"Session file<br/>~/.claude/projects/*/*.jsonl"/]
+  end
+
+  ui -- "1. create, Start" --> http
+  http --> loopsvc
+  ticker -- "2. every second" --> sched
+  loopsvc -- "1. first run" --> run
+  sched -- "2. run of a due loop" --> run
+  run -- "3. insert the run<br/>5. store logs and result" --> db
+  run -- "4. execute()" --> executor
+  executor -- "4. Agent SDK" --> session
+  session -- "edits, commits" --> repo
+  session -- "writes" --> jsonl
+  run -- "5. publish" --> bus
+  bus -- "5" --> streams
+  jsonl -- "6. follow the file" --> streams
+  streams -- "5, 6. SSE" --> ui
+```
+
+1. The engineer creates a loop in the UI and presses Start. `LoopService` opens an execution (one Start-to-Stop
+   span) and starts the first run.
+2. Every second, the ticker calls `SchedulingService`. `SchedulingService` reads `next_run_at` from PostgreSQL,
+   moves it forward and asks `RunService` for a run of each loop that is due.
+3. `RunService` inserts the run. A database trigger rejects the insert when the loop is at `max_concurrent`, and
+   `RunService` then records a `skipped` run. PostgreSQL holds this rule, so two ticks cannot both start a run.
+4. `ClaudeAgentExecutor` starts Claude Code through the Agent SDK. The session works in the registered repository
+   with the Claude Code login of the machine. The run ends when Claude Code exits.
+5. `RunService` stores each log line and the final result in PostgreSQL and publishes an event for each change.
+   `LiveService` sends those events to the browser over Server-Sent Events (SSE).
+6. Claude Code writes its own session file. `TranscriptService` reads that file and streams it to the UI, so
+   PostgreSQL holds no copy of the transcript.
+
 ## Technology
 
 | Part | Choice | Why |

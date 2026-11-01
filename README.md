@@ -7,62 +7,33 @@ repository. Each time the schedule fires, one new Claude Code session starts in 
 
 ```mermaid
 flowchart TB
-  ui["Browser: React UI<br/>web/"]
+  engineer(["Engineer<br/>runs and watches agent loops"])
 
-  subgraph node["Node server, one process on 127.0.0.1:7070"]
-    http["HTTP API<br/>server/http/ (Fastify)"]
-    ticker["Ticker, runs every 1 second<br/>server/scheduler/"]
-    loopsvc["LoopService<br/>Start, Stop, edit"]
-    sched["SchedulingService<br/>finds the loops that are due"]
-    run["RunService<br/>controls one run from start to finish"]
-    executor["ClaudeAgentExecutor<br/>server/adapters/executors/claude/"]
-    bus["In-process event bus"]
-    streams["LiveService, TranscriptService<br/>SSE streams through server/http/"]
+  subgraph castra["Castraferrum"]
+    ui["Web UI<br/>React, Vite<br/>shows loops, runs and transcripts"]
+    server["Server<br/>Node, Fastify, one process<br/>schedules loops and controls runs"]
+    db[("Database<br/>PostgreSQL in Docker<br/>holds loops, runs and logs")]
   end
 
-  db[("PostgreSQL in Docker<br/>loops, runs, logs, next_run_at")]
+  claude["Claude Code<br/>external, uses the machine's login<br/>one new session per run"]
+  repo[/"Registered repositories<br/>on the same machine"/]
+  sessions[/"Session files<br/>JSONL, written by Claude Code"/]
 
-  subgraph machine["Same machine, with the Claude Code login"]
-    session["Claude Code session<br/>one per run, cwd is the repository"]
-    repo[/"Registered repository"/]
-    jsonl[/"Session file<br/>~/.claude/projects/*/*.jsonl"/]
-  end
-
-  ui -- "1. create, Start" --> http
-  http --> loopsvc
-  ticker -- "2. every second" --> sched
-  loopsvc -- "1. first run" --> run
-  sched -- "2. run of a due loop" --> run
-  run -- "3. insert the run<br/>5. store logs and result" --> db
-  run -- "4. execute()" --> executor
-  executor -- "4. Agent SDK" --> session
-  session -- "edits, commits" --> repo
-  session -- "writes" --> jsonl
-  run -- "5. publish" --> bus
-  bus -- "5" --> streams
-  jsonl -- "6. follow the file" --> streams
-  streams -- "5, 6. SSE" --> ui
+  engineer -- "uses" --> ui
+  ui -- "sends commands<br/>HTTP JSON" --> server
+  server -- "sends live updates<br/>SSE" --> ui
+  server -- "reads and writes<br/>SQL" --> db
+  server -- "starts a session<br/>Agent SDK" --> claude
+  claude -- "changes code" --> repo
+  claude -- "writes" --> sessions
+  server -- "reads the transcript" --> sessions
 ```
 
-Each number on an arrow is a step in this list:
-
-1. The engineer creates a loop in the UI and presses Start. `LoopService` opens an execution (one Start-to-Stop
-   span) and starts the first run.
-2. Every second, the ticker calls `SchedulingService`. `SchedulingService` reads `next_run_at` from PostgreSQL,
-   moves it forward and asks `RunService` for a run of each loop that is due.
-3. `RunService` inserts the run. A database trigger rejects the insert when the loop is at `max_concurrent`, and
-   `RunService` then records a `skipped` run. PostgreSQL holds this rule, so two ticks cannot both start a run.
-4. `ClaudeAgentExecutor` starts Claude Code through the Agent SDK. The session works in the registered repository
-   with the Claude Code login of the machine. The run ends when Claude Code exits.
-5. `RunService` stores each log line and the final result in PostgreSQL and publishes an event for each change.
-   `LiveService` sends those events to the browser over Server-Sent Events (SSE).
-6. Claude Code writes its own session file. `TranscriptService` reads that file and streams it to the UI, so
-   PostgreSQL holds no copy of the transcript.
-
-The server is one Node process. At startup, `RecoveryService` marks each run that was still `running` as
-`interrupted` and sets all loops to Stopped, so a person always starts them again. Each service calls interfaces
-in `server/ports/`, and `server/compose.ts` is the only file that connects them to implementations. The details
-are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+The engineer works in the Web UI, and the Server does the work. The Server keeps the schedule and the run history
+in PostgreSQL. The Server fires each schedule by itself, so no browser needs to be open. For each run, the Server starts one new Claude
+Code session in the registered repository, with the Claude Code login of the machine. The Server reads the session
+file that Claude Code writes, so PostgreSQL holds no copy of the transcript. The components in the Server and the
+full flow of a run are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Screens
 
