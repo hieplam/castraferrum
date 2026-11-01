@@ -33,6 +33,7 @@ import { DefaultHealthService } from './services/health-service';
 import { DefaultLiveService } from './services/live-service';
 import { DefaultLoopService } from './services/loop-service';
 import { DefaultNoticeService } from './services/notice-service';
+import { DefaultProcessService } from './services/process-service';
 import { DefaultProbeService } from './services/probe-service';
 import { DefaultRecoveryService } from './services/recovery-service';
 import { DefaultRepoService } from './services/repo-service';
@@ -132,6 +133,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
   const folderService = new DefaultFolderService({ repos: repos.repos, folders: testFolders ?? new NodeFolderBrowser() });
   const scheduling = new DefaultSchedulingService({ loops: repos.loops, heartbeat: repos.heartbeat, runService, clock });
   const notices = new DefaultNoticeService({ notices: repos.notices, clock });
+  const processService = new DefaultProcessService({ runs: repos.runs });
   const live = new DefaultLiveService({ source: bus, runs: repos.runs, logs: repos.logs });
   const transcripts = new DefaultTranscriptService({
     runs: repos.runs,
@@ -198,6 +200,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
       transcripts,
       probes: probeService,
       notices,
+      processEvents: processService,
       now: () => clock.now(),
     },
     testHooks,
