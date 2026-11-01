@@ -1,0 +1,2 @@
+G1 FAIL: file tests/tools/fixtures/goal-check/sample.txt: does not contain "text that is not there"
+goals passed: 0/1

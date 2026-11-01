@@ -1,0 +1,2 @@
+G1 FAIL: run `node -e "process.stdout.write('x'.repeat(100))"`: stdout is 100 bytes, more than 10
+goals passed: 0/1
