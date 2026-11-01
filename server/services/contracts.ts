@@ -329,7 +329,7 @@ export interface FolderService {
  * What a probe tick gives to a claimed run (spec 2.7). `slot` is stored on the run. `env` is not stored: a resume computes it again from `runs.slot`
  * (decision 24). `action` is the word of the probe line, and it goes to the first line of the prompt. `failing` (a `plan` run) adds the line `Failing goal rows: ...` (decision 46).
  */
-export type ClaimedStart = { runId: string; taskKey: string; slot: number; env: Record<string, string>; action: 'take' | 'plan'; failing?: string[] };
+export type ClaimedStart = { runId: string; taskKey: string; slot: number; env: Record<string, string>; action: 'take' | 'plan'; failing?: string[]; gateGuard?: boolean };
 
 export interface RunService {
   /** The first run at Start (trigger `start`). Returns immediately, does not wait for the run to finish. */
@@ -344,7 +344,7 @@ export interface RunService {
    * The same session goes on with `RESUME_LINE` (spec 2.5, 2.7): the run is `running` again with a new deadline, and this returns at once. A run that is not
    * `held` → returned unchanged. Throws RUN_NOT_FOUND, or on a broken dependency: the run then stays `held`, so a later tick tries it again.
    */
-  resumeHeld(runId: string, input: { env: Record<string, string> }): Promise<RunView>;
+  resumeHeld(runId: string, input: { env: Record<string, string>; gateGuard?: boolean }): Promise<RunView>;
   /** Runs past their deadline → cancelled with reason `timed_out`. Returns the count. */
   expireOverdue(): Promise<number>;
   /** Throws RUN_NOT_FOUND. */

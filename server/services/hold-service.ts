@@ -1,6 +1,7 @@
 import { laneEnvOf, RESERVED_RESOURCE, type ProbeResource } from '../../shared/domain/goal-loop';
 import type { Clock } from '../ports/clock';
 import type { CommandRunner } from '../ports/command-runner';
+import type { GateRepository } from '../ports/gate-repository';
 import type { HoldRecord } from '../ports/hold-repository';
 import type { Repositories } from '../ports/repositories';
 import type { RunRecord } from '../ports/run-repository';
@@ -8,6 +9,7 @@ import type { HoldService, HoldTickReport, RunService } from './contracts';
 
 export type HoldServiceDeps = Pick<Repositories, 'holds' | 'loops' | 'probes' | 'repos' | 'runs'> & {
   commands: CommandRunner;
+  gate: Pick<GateRepository, 'getRepoGate'>;
   runService: Pick<RunService, 'resumeHeld'>;
   clock: Clock;
 };
@@ -109,10 +111,12 @@ export class DefaultHoldService implements HoldService {
     }
   }
 
-  /** The env is not stored: it comes again from `runs.slot` (decision 24). */
+  /** The env is not stored: it comes again from `runs.slot` (decision 24). The gate is read here too, so a resume keeps the variable and the guard (decision 47). */
   async #resume(run: RunRecord): Promise<void> {
-    const probe = await this.#d.probes.get(run.loopId);
-    await this.#d.runService.resumeHeld(run.id, { env: probe && run.slot !== null ? laneEnvOf(probe, run.slot) : {} });
+    const d = this.#d;
+    const [probe, loop] = await Promise.all([d.probes.get(run.loopId), d.loops.findById(run.loopId)]);
+    const gateOn = loop ? (await d.gate.getRepoGate(loop.repoId))?.enabled === true : false;
+    await d.runService.resumeHeld(run.id, { env: probe && run.slot !== null ? laneEnvOf(probe, run.slot, gateOn) : {}, ...(gateOn ? { gateGuard: true } : {}) });
   }
 }
 

@@ -56,7 +56,7 @@ export class PgClaimRepository implements ClaimRepository {
 
   async findOrphaned(limit: number): Promise<OrphanedClaim[]> {
     const { rows } = await this.#pool.query(
-      `SELECT c.*, r.status AS run_status, r.end_result
+      `SELECT c.*, r.status AS run_status, r.end_result, r.end_pr
          FROM run_claims c LEFT JOIN runs r ON r.id = c.run_id
         WHERE c.closed_at IS NULL AND c.owner = 'run' AND (r.id IS NULL OR r.status NOT IN ('running', 'held'))
         ORDER BY c.opened_at, c.id
@@ -67,6 +67,7 @@ export class PgClaimRepository implements ClaimRepository {
       ...toClaim(r),
       runStatus: (r.run_status as RunStatus | null) ?? null,
       endResult: (r.end_result as string | null) ?? null,
+      endPr: (r.end_pr as string | null) ?? null,
     }));
   }
 }
