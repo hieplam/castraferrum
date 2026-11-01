@@ -200,6 +200,8 @@ describe('GET /api/gate/jobs/:id', { timeout: 30_000 }, () => {
     const body = res.json();
     expect(body).toMatchObject({ repoId, headSha: '41'.padStart(40, '0'), job: { id, prNumber: 41, state: 'failed', step: 'green', title: 'PR 41 title', finishedAt: at(6).toISOString() } });
     expect(body.steps.map((s: { seq: number; step: string }) => [s.seq, s.step])).toEqual([[1, 'scope'], [2, 'base'], [3, 'setup'], [4, 'green']]);
+    // The page of the repo lists the same job, with the same fields as its own record.
+    expect((await getGate()).json().record[0]).toEqual(body.job);
     expect(body.steps[3]).toEqual({ seq: 4, step: 'green', status: 'fail', exitCode: 1, ms: 18_650, outputTail: 'Tests  1 failed | 2 passed (3)' });
   });
 
