@@ -1448,6 +1448,66 @@ Ratchet: the largest usage-limit cluster on the real rows, 9 (S5, model) to 12. 
 
 <!-- R6 -->
 
+## R6
+
+Red, before the code existed:
+```
+$ npx vitest run --project unit tests/tools/process-review-model-run.test.ts
+ Test Files  1 failed (1)
+      Tests  no tests
+$ npx vitest run --project api tests/api/process-review-replay.test.ts
+ Test Files  1 failed (1)
+      Tests  4 failed (4)
+$ node --import tsx scripts/process-review.mjs model-run --real
+usage: process-review.mjs first-pass --events <f> [--signals <f>] [--rules <f>] --repo <o/r> --from <ISO> --to <ISO> --out <f>
+       process-review.mjs first-pass --real [--rules <f>] [--until <ISO>]
+       process-review.mjs assemble --first-pass <f> --groups <f> --out <f>
+exit 2
+```
+Green:
+```
+$ npx vitest run --project unit tests/tools/process-review-model-run.test.ts tests/tools/process-review.test.ts
+ Test Files  2 passed (2)
+      Tests  28 passed (28)
+$ npx vitest run --project api tests/api/process-review-replay.test.ts
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+$ node --import tsx scripts/process-review.mjs model-run --real --model haiku --max-usd 1.00
+real rest 201
+real-model cause 1 63
+real-model cause 2 43
+real-model cause 3 44
+real-model cause 4 2
+real-model cause 5 7
+real-model cause 6 5
+real-model cause 7 3
+real-model new causes 7
+real-model spend-usd 0.0128
+real-model verdict: pass
+exit 0
+```
+The 28 tests are 13 in `process-review-model-run.test.ts` and 15 in `process-review.test.ts`, so the R5 file keeps its count.
+
+Real spend, all three sessions on haiku: 0.0072 USD to record `groups-haiku.json`, 0.0128 USD for the real run, 0.0032 USD for the budget stub. The total is 0.0232 USD, under the limit of 1.00 USD. No sonnet run was needed. Each session used a fresh `lc-real-claude-r6-*` folder, and none of these folders is left. `docker ps -a` shows the same 24 container names before and after.
+
+Stub check, each one run and restored:
+- `modelRun` returns `pass` with no clusters: `Tests  10 failed | 3 passed (13)`. The empty-clusters test is in the 10.
+- The report always prints the cause: the test of the report with the flag off fails, `Tests  1 failed | 12 passed (13)`.
+- The run writes the clusters to a file in the temp folder: the `--show-causes` test fails, `Tests  1 failed | 12 passed (13)`.
+- An empty `groups-haiku.json`: replay tests 1 and 3 fail, `Tests  2 failed | 2 passed (4)`.
+- `model-run --real --max-usd 0.001`: the budget stops the call.
+```
+real rest 201
+real-model new causes 0
+real-model spend-usd 0.0032
+real-model verdict: FAIL, the model call did not end with a reply
+exit 1
+```
+
+Limit: `pass` proves that the model grouped valid rows under a valid check, not that a cause is real. On the fixture, haiku also grouped 6 successful runs as one cause, and the recorded file keeps that cluster. So a pass on the real rows can count groups of successful runs. R6 is accepted only after the coordinator runs `model-run --real --model haiku --show-causes` at the gate and judges each cause. The `--show-causes` flag was not run in this task, and no cause text is in this log.
+
+Ratchet: tests 0 to 17 (13 unit, 4 replay), up only. Real `new causes`: 7, no target. F0 `causes-found`: D7.
+
 <!-- R7 -->
 
 ## R7
