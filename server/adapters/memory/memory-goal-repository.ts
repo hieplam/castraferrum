@@ -1,4 +1,4 @@
-import type { StandingGoalRecord, StandingIssueRecord, StandingScheduleRecord } from '../../../shared/domain/standing-goal';
+import type { GoalRunRecord, StandingGoalRecord, StandingIssueRecord, StandingScheduleRecord } from '../../../shared/domain/standing-goal';
 import type { GoalRepository, NewStandingIssueRecord } from '../../ports/goal-repository';
 import { clone, cmp, type MemoryDb } from './memory-db';
 
@@ -56,6 +56,17 @@ export class MemoryGoalRepository implements GoalRepository {
 
   async saveSchedule(schedule: StandingScheduleRecord): Promise<void> {
     this.#db.standingSchedules.set(schedule.repo, clone(schedule));
+  }
+
+  async saveRows(rows: GoalRunRecord[]): Promise<void> {
+    for (const row of rows) this.#db.goalRuns.set(`${row.repo}\n${row.manifest}\n${row.rowId}`, clone(row));
+  }
+
+  async listRows(repo: string, manifest: string): Promise<GoalRunRecord[]> {
+    return [...this.#db.goalRuns.values()]
+      .filter((r) => r.repo === repo && r.manifest === manifest)
+      .sort((a, b) => cmp(a.rowId, b.rowId))
+      .map(clone);
   }
 
   #open(): StandingIssueRecord[] {

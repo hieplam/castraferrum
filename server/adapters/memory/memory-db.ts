@@ -1,6 +1,6 @@
 import { PROBE_STATES, RESTART_POLICIES, type ProbeRecord } from '../../../shared/domain/goal-loop';
 import { RUN_STATUSES } from '../../../shared/domain/run';
-import { STANDING_GOAL_STATES, type StandingGoalRecord, type StandingIssueRecord, type StandingScheduleRecord } from '../../../shared/domain/standing-goal';
+import { STANDING_GOAL_STATES, type GoalRunRecord, type StandingGoalRecord, type StandingIssueRecord, type StandingScheduleRecord } from '../../../shared/domain/standing-goal';
 import { GATE_JOB_STATES, GATE_STEPS, GATE_STEP_STATUSES, type GateJob, type GateStep, type RepoGate } from '../../../shared/domain/gate';
 import type { ClaimRecord } from '../../ports/claims';
 import type { ExecutionRecord } from '../../ports/execution-repository';
@@ -61,6 +61,7 @@ export class MemoryDb {
   readonly standingGoals = new Map<string, StandingGoalRecord>();
   readonly standingIssues = new Map<string, StandingIssueRecord>();
   readonly standingSchedules = new Map<string, StandingScheduleRecord>();
+  readonly goalRuns = new Map<string, GoalRunRecord>();
 
   /** Wipe everything (like TRUNCATE in tests). */
   reset(): void {
@@ -80,6 +81,7 @@ export class MemoryDb {
     this.standingGoals.clear();
     this.standingIssues.clear();
     this.standingSchedules.clear();
+    this.goalRuns.clear();
   }
 
   /** Run `fn` atomically: an error midway → every table returns to its previous state (ROLLBACK). `fn` must be synchronous. */
@@ -101,6 +103,7 @@ export class MemoryDb {
       standingGoals: clone(this.standingGoals),
       standingIssues: clone(this.standingIssues),
       standingSchedules: clone(this.standingSchedules),
+      goalRuns: clone(this.goalRuns),
     };
     try {
       return fn();
@@ -121,6 +124,7 @@ export class MemoryDb {
       restore(this.standingGoals, before.standingGoals);
       restore(this.standingIssues, before.standingIssues);
       restore(this.standingSchedules, before.standingSchedules);
+      restore(this.goalRuns, before.goalRuns);
       throw err;
     }
   }

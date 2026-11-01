@@ -1,5 +1,6 @@
 {
   "setup": [],
+  "epic": 217,
   "opened": {
     "at": "2026-11-01T00:00:00Z",
     "passed": 0,
@@ -9,6 +10,7 @@
     {
       "id": "G1",
       "outcome": "A loop with no ready task starts no model session",
+      "cadence": "nightly",
       "checks": [
         {
           "run": "npx playwright test tests/e2e/probe-idle.spec.ts --project chromium --reporter list",
@@ -21,6 +23,7 @@
     {
       "id": "G2",
       "outcome": "The next task starts seconds after a run ends",
+      "cadence": "nightly",
       "checks": [
         {
           "run": "npx playwright test tests/e2e/probe-gap.spec.ts --project chromium --reporter list",
@@ -143,6 +146,7 @@
     {
       "id": "G11",
       "outcome": "The owner sees progress as a number",
+      "cadence": "nightly",
       "checks": [
         {
           "run": "npx playwright test tests/e2e/goal-number.spec.ts --project chromium --reporter list",
@@ -239,6 +243,7 @@
     {
       "id": "G18",
       "outcome": "When a goal ends, the next goal card appears with no owner message",
+      "cadence": "nightly",
       "checks": [
         {
           "run": "npx playwright test tests/e2e/goal-card.spec.ts --project chromium --reporter list",
@@ -374,6 +379,7 @@
     {
       "id": "G28",
       "outcome": "The screen answers \"is it still working?\"",
+      "cadence": "nightly",
       "checks": [
         {
           "run": "npx playwright test tests/e2e/probe-state.spec.ts --project chromium --reporter list",

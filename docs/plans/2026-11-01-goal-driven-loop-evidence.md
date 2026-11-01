@@ -1272,6 +1272,34 @@ Ratchet, tests in `goal-check.test.ts`: 11 before, 25 after.
 
 <!-- T2 -->
 
+## T2
+
+Issue 308. `GoalService` after a merge, `loop-goals:`, fall issue.
+
+Red, before any code, `npx vitest run --project unit server/services/goal-service.test.ts`:
+
+    Error: Cannot find module './goal-service' imported from <worktree>/server/services/goal-service.test.ts
+    Test Files  1 failed (1)
+    Tests  no tests
+
+Green, the same command after the rebase:
+
+    Test Files  1 passed (1)
+    Tests  14 passed (14)
+
+`npx vitest run --project contract -t goal_runs`: `Tests  4 passed | 244 skipped (248)`. `npx vitest run --project unit server/adapters/github`: `Tests  18 passed (18)`, 16 before. `npm run verify`: exit 0, last line `UCs with a green e2e: 35/35`, e2e `123 passed`.
+
+Nightly rows after a merge: the test `a nightly row does not run after a merge` records each row that ran. The log is `['A', 'B']`, not `N`, and the command is `node scripts/goal-check.mjs goals/g.json --json --cadence merge`.
+
+Stub checks, each run and restored:
+
+- Comment only the merge rows: `Tests  1 failed | 13 skipped (14)`, the `total stays 3` test.
+- No `findOpen`: `Tests  1 failed | 13 skipped (14)`, `expected [ 2, 3 ] to have a length of 1 but got 2`.
+- Goals after the next job: `Tests  1 failed | 13 skipped (14)`, the order test, `expected +0 to be 1`.
+- Let a failure throw: the first run passed, because `finish` keeps the first state. The mutant wrote a `failure` status on the merged commit. The test now reads that status: `Tests  1 failed | 13 skipped (14)`, `expected 'failure' to be 'success'`.
+
+Ratchet: unit tests + 16 (goal service 0 to 14, adapter 16 to 18). Contract 113 to 115 per side. Duplicate fall issues in the test: 0.
+
 <!-- T3 -->
 
 <!-- T4 -->

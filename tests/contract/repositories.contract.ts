@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { ErrorCode } from '../../shared/domain/errors';
 import type { GateJobState, GateStep } from '../../shared/domain/gate';
 import type { ProbeSettings } from '../../shared/domain/goal-loop';
+import type { GoalRunRecord } from '../../shared/domain/standing-goal';
 import type { NewStandingIssueRecord } from '../../server/ports/goal-repository';
 import type { NewLoopRecord } from '../../server/ports/loop-repository';
 import type { NewNoticeRecord } from '../../server/ports/notice-repository';
@@ -1604,6 +1605,37 @@ export function repositoryContract(env: () => ContractEnv): void {
       await r.goals.saveSchedule({ repo: 'o/r', lastAt: at(5), nextAt: null });
       expect(await r.goals.getSchedule('o/r')).toEqual({ repo: 'o/r', lastAt: at(5), nextAt: null });
       expect((await r.goals.getSchedule('p/r'))?.lastAt).toEqual(at(3));
+    });
+  });
+
+  describe('goal_runs', () => {
+    const row = (over: Partial<GoalRunRecord> = {}): GoalRunRecord => ({
+      repo: 'o/r',
+      manifest: 'goals/a.json',
+      rowId: 'G1',
+      pass: true,
+      value: 72.5,
+      of: 240,
+      line: 'G1 72.5/240 screens',
+      cadence: 'merge',
+      sha: 'abc1234',
+      at: at(1),
+      ...over,
+    });
+
+    it('saveRows replaces the row of the same key, also with no value', async () => {
+      await r.goals.saveRows([row()]);
+      expect(await r.goals.listRows('o/r', 'goals/a.json')).toEqual([row()]);
+      const next = row({ pass: false, value: null, of: null, line: 'G1 FAIL', cadence: 'nightly', sha: 'def5678', at: at(2) });
+      await r.goals.saveRows([next]);
+      expect(await r.goals.listRows('o/r', 'goals/a.json')).toEqual([next]);
+    });
+
+    it('listRows gives the rows of one repository and manifest by row id, and an empty save changes nothing', async () => {
+      await r.goals.saveRows([row({ rowId: 'G2' }), row({ rowId: 'G1' }), row({ manifest: 'goals/b.json' }), row({ repo: 'p/r' })]);
+      await r.goals.saveRows([]);
+      expect((await r.goals.listRows('o/r', 'goals/a.json')).map((x) => x.rowId)).toEqual(['G1', 'G2']);
+      expect(await r.goals.listRows('o/r', 'goals/none.json')).toEqual([]);
     });
   });
 }
