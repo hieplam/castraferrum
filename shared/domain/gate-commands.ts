@@ -1,8 +1,12 @@
 // Command lines of the gate (spec decisions 31, 34). Pure functions, no Node module.
 
-/** One command line of `goals/gate.json` or a verify file, as an argv that runs it in the shell of the platform. */
+/**
+ * One command line of `goals/gate.json` or a verify file, as an argv that runs it in the shell of the platform.
+ * On win32 the runner must pass the argv with `windowsVerbatimArguments`: `/s` then removes the one outer pair of
+ * quotes, and `cmd.exe` sees the line as written. With Node's own escaping, an inner quote becomes a different command.
+ */
 export function shellArgv(line: string, platform: string): string[] {
-  return platform === 'win32' ? ['cmd.exe', '/d', '/s', '/c', line] : ['sh', '-c', line];
+  return platform === 'win32' ? ['cmd.exe', '/d', '/s', '/c', `"${line}"`] : ['sh', '-c', line];
 }
 
 const VISUAL_PROJECT = /--project\s+visual(?![\w-])/;

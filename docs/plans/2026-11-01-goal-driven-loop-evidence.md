@@ -1237,3 +1237,13 @@ Goal: G13, a failing pass opens an issue on a repository that has no `standing-g
 - Green (new `GitHost.ensureLabel`, `gh label create --force`, called before `openIssue`; same command): `Tests  11 passed (11)`.
 - Stub check: the service change stashed, the same command printed `Tests  10 failed | 1 passed (11)`. Restored, 11 passed again.
 - Ratchet, tests of the standing-goal file that refuse on a missing label: 9 failed before the fix, 0 after. Other suites that used labels (`tests/tools/fake-gh.test.ts`, `server/adapters/github/gh-git-host.test.ts`) now seed their labels; `npx vitest run --project unit server/adapters/github tests/tools` printed `Tests  249 passed (249)`.
+
+## 310
+
+Goal: G7, a gate line with double quotes runs exactly as written, on Windows and on Linux.
+
+- Red (two new tests, no fix yet): `npx vitest run --project unit server/adapters/git/git-gate-workspace.test.ts` printed `Tests  2 failed | 20 passed (22)`. The quoted line gave empty stdout, not `2`, and `node -e "process.exit(3)"` gave `expected +0 to be 3`. So a failing line exited 0.
+- Green (`windowsVerbatimArguments` on `CommandRequest`, set by `GitGateWorkspace.run`; `shellArgv` puts the line in one outer pair of quotes on `win32`): the same file with `shared/domain/gate-commands.test.ts` and `server/adapters/process/node-command-runner.test.ts` printed `Test Files  3 passed (3)`, `Tests  41 passed (41)`.
+- Stub check: the option removed from `GitGateWorkspace.run`, the two tests printed `expected 1 to be +0`, `expected 1 to be 3`, and `Tests  2 failed | 20 skipped (22)`. Restored.
+- Ratchet, passing unit tests: 973 before, 975 after (2 skipped in both). The expected value of the `shellArgv` win32 test changed with the contract in decision 31.
+- Light verify, in order, exit 0: `arch` printed `dependency-cruiser: 0 violations`; `test:unit` printed `Test Files  75 passed | 1 skipped (76)`, `Tests  975 passed | 2 skipped (977)`; `test:contract` printed `Tests  200 passed (200)`; `test:api` printed `Tests  159 passed (159)`.

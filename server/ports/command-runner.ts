@@ -7,6 +7,8 @@ export type CommandRequest = {
   env?: Record<string, string>;
   /** Each of stdout and stderr keeps its last `maxBytes` bytes. Default 1 MiB. */
   maxBytes?: number;
+  /** On Windows, give the arguments to the program exactly as written, with no escaping. Other platforms ignore it. */
+  windowsVerbatimArguments?: boolean;
 };
 
 export type CommandResult = {

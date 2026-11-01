@@ -150,6 +150,7 @@ export class GitGateWorkspace implements GateWorkspace {
       cwd: tree.dir,
       env: command.env,
       timeoutMs: command.timeoutMs,
+      windowsVerbatimArguments: true,
     });
   }
 
