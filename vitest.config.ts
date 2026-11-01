@@ -13,6 +13,8 @@ export default defineConfig({
           name: 'unit',
           include: ['server/**/*.test.ts', 'shared/**/*.test.ts', 'web/**/*.test.ts', 'tests/tools/**/*.test.ts'],
           environment: 'node',
+          // Tests that start a real process (git, node) pass 5 s under CPU load with no fault (issue 271).
+          testTimeout: 30_000,
           sequence: { groupOrder: 0 },
         },
       },
