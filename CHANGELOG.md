@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.5.0](https://github.com/hieplam/castraferrum/compare/v0.4.0...v0.5.0) (2026-11-01)
+
+
+### Features
+
+* **executor:** review tool profile for a process-review run (R4) ([#368](https://github.com/hieplam/castraferrum/issues/368)) ([1ccdb37](https://github.com/hieplam/castraferrum/commit/1ccdb3796b8aecf9fc32da85a73152ccfa0998e9))
+* **gate:** failure feed, red main, ratify (K6) ([#340](https://github.com/hieplam/castraferrum/issues/340)) ([23ac1c1](https://github.com/hieplam/castraferrum/commit/23ac1c16b8f32d58783499e3bbd778857c2385ed))
+* **gate:** hand a PR_OPEN claim to the gate at the end of a run (K7) ([#375](https://github.com/hieplam/castraferrum/issues/375)) ([af406dc](https://github.com/hieplam/castraferrum/commit/af406dc4a1e30bcf8d5fd0bceff465309cfbde25))
+* **goals:** goal number after a merge, loop-goals comment and fall issue (T2) ([#367](https://github.com/hieplam/castraferrum/issues/367)) ([6ae503d](https://github.com/hieplam/castraferrum/commit/6ae503d0e5239220470971209f37eccbd17ec77d))
+* **hold:** a usage limit holds a run, and the same session resumes (P8) ([#370](https://github.com/hieplam/castraferrum/issues/370)) ([c46f661](https://github.com/hieplam/castraferrum/commit/c46f661bb7c7985775171e50965da3ddda428f92))
+* **probe:** wait, blocked, plan and done actions, goal_met period end (P10) ([#372](https://github.com/hieplam/castraferrum/issues/372)) ([45ec264](https://github.com/hieplam/castraferrum/commit/45ec26415f5ca9ffe4cadaa0856e757b1f9a5a0f))
+* **process:** gate refusals and loop-release comments as review input (R8) ([#338](https://github.com/hieplam/castraferrum/issues/338)) ([00e849e](https://github.com/hieplam/castraferrum/commit/00e849e9c419253ea17335fbb51a531d1889456f))
+* **process:** model run and recorded replay of the review (R6) ([#369](https://github.com/hieplam/castraferrum/issues/369)) ([03b9401](https://github.com/hieplam/castraferrum/commit/03b940124c1865bf99c331a670cb9cefd00feb06))
+* **process:** scoreboard API and page (R9) ([#363](https://github.com/hieplam/castraferrum/issues/363)) ([539a274](https://github.com/hieplam/castraferrum/commit/539a274fd97777b7715b925fbd5d403c689608ac))
+* **recovery:** a resume loop stays active over a restart (P11) ([#376](https://github.com/hieplam/castraferrum/issues/376)) ([2d68034](https://github.com/hieplam/castraferrum/commit/2d68034572315bac494d22313425032e46c3cf87))
+
+
+### Bug Fixes
+
+* **gate:** show a ratified merge in the final status and the audit ([#371](https://github.com/hieplam/castraferrum/issues/371)) ([2f013fe](https://github.com/hieplam/castraferrum/commit/2f013fe1e9f9e78e18a4b7eca7f809fd6b059046))
+* **goals:** goal rows read agent-plugins from a gate-worktree checkout ([#374](https://github.com/hieplam/castraferrum/issues/374)) ([23709cd](https://github.com/hieplam/castraferrum/commit/23709cd524c968f8d82e5c2fe8f5c1532c198787))
+* **test:** UC-23 gives the same result for each timing of the minute mark ([#378](https://github.com/hieplam/castraferrum/issues/378)) ([0c3c7cb](https://github.com/hieplam/castraferrum/commit/0c3c7cbceecb6b205ecafebac24f5d26b6276b02))
+
 ## [0.4.0](https://github.com/hieplam/castraferrum/compare/v0.3.0...v0.4.0) (2026-11-01)
 
 
