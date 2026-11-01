@@ -680,6 +680,33 @@ An earlier run after the T4 rebase ended with exit 1, from a stale lane database
 
 <!-- P6 -->
 
+## P6
+
+**Red**, before the build:
+
+    $ npx vitest run --project api tests/api/lanes.test.ts
+          Tests  3 failed (3)
+
+**Green**, after the rebase on main (main was 044ea54, no rebase needed):
+
+    $ npx vitest run --project api tests/api/lanes.test.ts
+          Tests  3 passed (3)
+    $ npx vitest run --project unit server/services/probe-lanes.test.ts
+          Tests  5 passed (5)
+    $ npx vitest run --project unit shared/domain/goal-loop.test.ts -t lanes
+          Tests  8 passed | 21 skipped (29)
+    $ npm run verify   (steps before test:e2e)
+    ratchets: ok
+          Tests  959 passed | 2 skipped (961)
+          Tests  170 passed (170)
+          Tests  162 passed (162)
+
+`npm run test:e2e` did not give a result. The browser workers of Playwright exited with code 3221225794 ("worker process exited unexpectedly") while the machine was out of memory, and Claude Code stopped the background run. The log has 24 such crashes, 86 tests did not run and 5 passed. This is not a test result. The coordinator runs the full e2e step.
+
+**Stub check:** `lowestFreeSlot` changed to return 0: the API test of three env sets failed (1 failed, 2 passed), and `probe-lanes.test.ts` failed 3 of 5. Restored.
+
+**Ratchet:** unit count 959 passed after the change. The ratchets tool printed `base main: every limit held`.
+
 <!-- P7 -->
 
 <!-- P8 -->
