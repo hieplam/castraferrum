@@ -17,7 +17,7 @@ flowchart TB
   subgraph SRV["Node - one process"]
     H["http/ - Fastify routes + SSE"] --> S
     T["scheduler/ - 1 second ticker"] --> S
-    S["services/ - Loop, Run, Scheduling, Recovery, Live, Transcript"] --> PO
+    S["services/ - Loop, Run, Scheduling, Probe, Recovery, Live, Transcript"] --> PO
     PO["ports/ - interfaces: repositories, executor, clock, event bus, id, transcript source, folder browser"]
     AD["adapters/ - Postgres, executors, clock, in-process bus, filesystem, process, transcripts"] -. implements .-> PO
     M["main.ts + compose.ts - composition root, the only place that wires interfaces to implementations"]
@@ -157,6 +157,8 @@ network. Component tests plug `FakeLoopsApi` and `FakeLiveEvents` into the same 
   `duplicate`, `archive`, `restore`, `listExecutions`, `getExecution`, `executors`.
 - `RunService`: `startFirst`, `startScheduled` (busy gives a skipped run), `cancel`, `expireOverdue`, `get`,
   `listByLoop`, `logs`.
+- `ProbeService`: `get`, `save`, `remove` for the settings of a loop's probe, and `tick()`, which the background
+  ticker calls every second.
 - `SchedulingService.tick()` is called every second; `RecoveryService.recover()` once at startup;
   `HealthService.check()`; `LiveService` (`events`, `runLogs` as async iterables); `TranscriptService`
   (`page`, `follow`).
@@ -165,8 +167,10 @@ network. Component tests plug `FakeLoopsApi` and `FakeLiveEvents` into the same 
 ### Ports (what services call, `server/ports/`)
 
 Repositories (`LoopRepository`, `ExecutionRepository`, `RunRepository`, `RunLogRepository`,
-`HeartbeatRepository`, `RepoRepository`), `Clock`, `IdGenerator`, `DbProbe`, `DirectoryProbe`, `FolderBrowser`,
-`ActiveRunRegistry`, `EventPublisher` and `EventSource`, `TranscriptSource`, and `LoopExecutor`.
+`HeartbeatRepository`, `RepoRepository`, `LoopProbeRepository`), `Clock`, `IdGenerator`, `DbProbe`,
+`DirectoryProbe`, `FolderBrowser`, `ActiveRunRegistry`, `EventPublisher` and `EventSource`, `TranscriptSource`,
+`CommandRunner` (runs a command with no shell, and kills a hung command with its whole process tree), and
+`LoopExecutor`.
 
 Rules every repository follows (held by the contract tests):
 
@@ -205,8 +209,11 @@ file shows every wire.
 Startup order: open the database and apply migrations; take the instance lock (a Postgres advisory lock on a
 dedicated connection, one database - one server); build the clock, bus, repositories, executors, services; run
 recovery (before the ticker and before HTTP); build the HTTP app; then `startTicker()` and `listen`.
+`startTicker()` starts the schedule ticker and the background ticker. The array `background` in `compose.ts`
+lists the services of the background ticker.
 
-Graceful shutdown: stop the ticker (wait for the running tick), `app.close()` (a `preClose` hook aborts every
+Graceful shutdown: stop the tickers (wait for the running ticks; a hung probe adds at most its 30 second limit
+and the 1 second kill grace), `app.close()` (a `preClose` hook aborts every
 SSE stream, otherwise Fastify waits forever), abort every running run **without writing a result**, wait for
 them to settle, write a last heartbeat, release the lock, close the database. Runs left `running` are handled by
 the next startup exactly like a crash, only with an `endedAt` equal to the real shutdown time. Windows has no
@@ -238,6 +245,26 @@ for loop in loops.findDue(now, 50):
 
 A run's deadline (`deadline_at = started_at + timeoutSec`) lives in the database and is checked on the tick;
 there is no `setTimeout`, so winding the test clock forward is enough to time a run out.
+
+### The probe tick (every second, `ProbeService.tick`)
+
+A loop with a row in `loop_probes` is a probe loop ([ADR 0004](adr/0004-console-owns-the-goal-life-cycle.md)).
+Start gives it `next_run_at` null and no first run, so `findDue` skips it. A loop with no row is not changed.
+
+```
+if the previous tick has not finished: return           // no overlap
+for each loop_probes row, at the same time, each caught alone:
+    skip a loop that is not active, or is archived
+    skip until 60 s after last_probe_at, or until a run ended after last_probe_at
+    skip a loop with no free lane                       // running runs >= max_concurrent
+    commands.run({ argv, cwd: repo.path, timeoutMs: 30000 }), then parseProbeLine
+    probes.record(state, lastLine, the tick's now)      // a run that ends during the call gives a new probe
+```
+
+`server/scheduler/background-ticker.ts` keeps one in-flight promise for each service, and a busy service skips a
+beat. So a hung probe holds back its own service for at most 31 seconds, and it cannot hold back the schedule
+tick, which has its own ticker. Exit 0 with a valid line sets the state of the action. A bad exit, a time-out or
+a bad line sets `probe_failed`. This task starts no run: the probe tick only stores the line.
 
 ### One run (`RunService`)
 
@@ -421,6 +448,7 @@ is committed and applied at startup):
 | `loop_executions` | one Start-to-Stop span: `seq`, `started_at`, `ended_at`, `end_reason` (`stopped` or `server_down`) | unique (loop, seq); at most one open per loop |
 | `runs` | one firing: `iteration`, `trigger` (`start` or `schedule`), `status`, `skip_reason`, timestamps, `deadline_at`, `duration_ms`, prompt and executor snapshot, `summary`, `error`, `cost_usd`, `session_id` | trigger `runs_max_concurrent_per_loop` (lock the loop row, count `running`, reject at `max_concurrent`); unique (loop, iteration) |
 | `run_logs` | lines of a run: `seq`, `at`, `level`, `message`, `data` | primary key (run, seq) |
+| `loop_probes` | the probe of a loop: argv commands (`command`, `claim`, `release`), `resources`, lane settings, `restart_policy`, `state`, `last_line`, `last_probe_at` | primary key `loop_id`; FK to `loops` |
 | `server_heartbeat` | a single row written every 10 seconds | `id` is a fixed boolean |
 
 Run states: `running`, `succeeded`, `failed`, `cancelled`, `timed_out`, `interrupted`, `skipped`.

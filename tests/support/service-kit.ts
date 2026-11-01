@@ -19,11 +19,13 @@ import type { ExecutionEvent, ExecutionInput, ExecutorDescriptor, LoopExecutor }
 import type { DomainEvent, LoopInput } from '../../server/services/contracts';
 import { DefaultLiveService } from '../../server/services/live-service';
 import { DefaultLoopService } from '../../server/services/loop-service';
+import { DefaultProbeService } from '../../server/services/probe-service';
 import { DefaultRecoveryService } from '../../server/services/recovery-service';
 import { DefaultRepoService } from '../../server/services/repo-service';
 import { DefaultRunService } from '../../server/services/run-service';
 import { DefaultSchedulingService } from '../../server/services/scheduling-service';
 import { fakeQuery } from './fake-claude-query';
+import { FakeCommandRunner } from './fake-command-runner';
 
 /** 08:00 Vietnam time. The default schedule `*\/5 * * * *` -> the next run is 08:05 (01:05Z). */
 export const T0 = new Date('2026-10-18T01:00:00.000Z');
@@ -173,6 +175,8 @@ export function makeKit(opts: { db?: MemoryDb; clock?: OffsetClock; mock?: MockE
   const runService = new DefaultRunService({ ...repos, executors, active, clock, ids, events: publisher });
   const loopService = new DefaultLoopService({ ...repos, runService, executors, clock, ids, events: publisher });
   const scheduling = new DefaultSchedulingService({ loops: repos.loops, heartbeat: repos.heartbeat, runService, clock });
+  const commands = new FakeCommandRunner();
+  const probeService = new DefaultProbeService({ ...repos, commands, clock });
   const recovery = new DefaultRecoveryService({ ...repos, clock });
   const live = new DefaultLiveService({ runs: repos.runs, logs: repos.logs, source: bus });
   const repoService = new DefaultRepoService({ repos: repos.repos, directories: new NodeDirectoryProbe(), clock, ids });
@@ -211,6 +215,8 @@ export function makeKit(opts: { db?: MemoryDb; clock?: OffsetClock; mock?: MockE
     runService,
     loopService,
     scheduling,
+    commands,
+    probeService,
     recovery,
     live,
     repoService,

@@ -104,6 +104,15 @@ export class MemoryRunRepository implements RunRepository {
     return run ? clone(run) : null;
   }
 
+  async latestFinishedAt(loopId: string): Promise<Date | null> {
+    let latest: Date | null = null;
+    for (const r of this.#db.runs.values()) {
+      if (r.loopId !== loopId || r.status === 'skipped' || r.finishedAt === null) continue;
+      if (latest === null || r.finishedAt.getTime() > latest.getTime()) latest = r.finishedAt;
+    }
+    return latest ? new Date(latest) : null;
+  }
+
   async listActive(loopId: string): Promise<RunRecord[]> {
     return listActive(this.#db, loopId).map(clone);
   }

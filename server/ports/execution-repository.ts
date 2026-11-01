@@ -12,7 +12,8 @@ export type ExecutionRecord = {
   endReason: ExecutionEndReason | null;
 };
 
-export type OpenExecutionInput = { id: string; loopId: string; now: Date; nextRunAt: Date };
+/** `nextRunAt` is `null` for a probe loop: `findDue` skips it, so only the probe starts its runs. */
+export type OpenExecutionInput = { id: string; loopId: string; now: Date; nextRunAt: Date | null };
 
 export type OpenResult = { kind: 'opened'; execution: ExecutionRecord } | { kind: 'already_active' };
 
