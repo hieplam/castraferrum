@@ -1,0 +1,47 @@
+{
+  "clusters": [
+    {
+      "id": "overlap-skip",
+      "cause": "A new tick started while the previous run of the same loop was still active, so the tick was skipped.",
+      "ids": [
+        "e06",
+        "e18"
+      ],
+      "check": {
+        "kind": "test",
+        "name": "scripts/process-review.mjs",
+        "replay": "node scripts/process-review.mjs first-pass"
+      }
+    },
+    {
+      "id": "manual-cancel",
+      "cause": "The run was cancelled by hand from the console.",
+      "ids": [
+        "e14",
+        "e27"
+      ],
+      "check": {
+        "kind": "probe",
+        "name": "scripts/process-review.mjs",
+        "replay": "node scripts/process-review.mjs first-pass"
+      }
+    },
+    {
+      "id": "merged-after-checks",
+      "cause": "The run merged a pull request after its checks passed, with no failure recorded.",
+      "ids": [
+        "e02",
+        "e04",
+        "e12",
+        "e19",
+        "e21",
+        "e29"
+      ],
+      "check": {
+        "kind": "eval",
+        "name": "scripts/process-review.mjs",
+        "replay": "node scripts/process-review.mjs first-pass"
+      }
+    }
+  ]
+}
