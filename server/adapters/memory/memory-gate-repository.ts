@@ -1,6 +1,6 @@
 import { DomainError } from '../../../shared/domain/errors';
 import type { GateFinalState, GateJob, GateStep, GateStepName, RepoGate } from '../../../shared/domain/gate';
-import type { EnqueueGateJobInput, GateRepository, RepoGateInput } from '../../ports/gate-repository';
+import type { EnqueueGateJobInput, GateRatifyOutcome, GateRepository, RepoGateInput } from '../../ports/gate-repository';
 import { clone, cmp, ConstraintViolation, type MemoryDb } from './memory-db';
 
 const oldestFirst = (a: GateJob, b: GateJob) => a.queuedAt.getTime() - b.queuedAt.getTime() || cmp(a.id, b.id);
@@ -57,11 +57,16 @@ export class MemoryGateRepository implements GateRepository {
     return clone(next);
   }
 
-  async ratify(id: string, at: Date): Promise<boolean> {
+  async ratify(id: string, at: Date): Promise<GateRatifyOutcome> {
     const row = this.#db.gateJobs.get(id);
-    if (!row || row.state !== 'needs_ratification') return false;
-    this.#db.writeGateJob({ ...row, state: 'queued', failedStep: null, startedAt: null, finishedAt: null, ratifiedAt: at });
-    return true;
+    if (!row || row.state !== 'needs_ratification') return 'not_ratifiable';
+    try {
+      this.#db.writeGateJob({ ...row, state: 'queued', failedStep: null, startedAt: null, finishedAt: null, ratifiedAt: at });
+      return 'ratified';
+    } catch (err) {
+      if (err instanceof ConstraintViolation && err.constraint === 'gate_jobs_one_live_per_head') return 'duplicate';
+      throw err;
+    }
   }
 
   async requeueRunning(_at: Date): Promise<number> {

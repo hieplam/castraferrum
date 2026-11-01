@@ -3,6 +3,7 @@
 import { readdirSync } from 'node:fs';
 import { afterAll, describe, expect, it } from 'vitest';
 import type { GateStep } from '../../shared/domain/gate';
+import { FakeClaimGateway } from '../../tests/support/fake-claim-gateway';
 import { EXAM, GITHUB_REPO, GOOD_FILES, TEST_LINE, VERIFY_LINE, createGateWorld, disposeGateSeed, type WorldPr } from '../../tests/support/gate-world';
 import { RandomIdGenerator } from '../adapters/ids/random-id-generator';
 import { createMemoryRepositories } from '../adapters/memory';
@@ -37,6 +38,9 @@ async function setup() {
     clock,
     ids: new RandomIdGenerator(),
     sleep: world.sleep,
+    claims: repos.claims,
+    probes: repos.probes,
+    gateway: new FakeClaimGateway(),
   });
   const queue = async (pr: WorldPr, taskKey = KEY): Promise<string> => (await service.queue({ repoId: REPO_ID, prNumber: pr.number, taskKey })).jobId!;
   const result = async (id: string) => {

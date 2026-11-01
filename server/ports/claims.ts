@@ -50,6 +50,8 @@ export interface ClaimRepository {
   close(id: string, reason: string, at: Date): Promise<void>;
   /** Gives an open row to the gate job. `false` when the row is closed or unknown. The job must exist. */
   handOver(id: string, gateJobId: string): Promise<boolean>;
+  /** Decision 40: the open rows that the gate owns, oldest first. */
+  listGateOwned(): Promise<ClaimRecord[]>;
   /** Open rows that a run owns, whose run is neither running nor held, or has no row at all, oldest first. A row that the gate owns is never orphaned. */
   findOrphaned(limit: number): Promise<OrphanedClaim[]>;
 }

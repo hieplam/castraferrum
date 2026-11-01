@@ -138,7 +138,8 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
   const runService = new DefaultRunService({ ...repos, executors, active, clock, ids, events: bus });
   const loopService = new DefaultLoopService({ ...repos, runService, executors, clock, ids, events: bus });
   const commands = new NodeCommandRunner();
-  const probeService = new DefaultProbeService({ ...repos, commands, claimGateway: new CommandClaimGateway(commands), runService, clock, ids });
+  const claimGateway = new CommandClaimGateway(commands);
+  const probeService = new DefaultProbeService({ ...repos, commands, claimGateway, runService, clock, ids });
   // The gate merges only for a repository with `repo_gate.enabled`, which is false until a person turns it on.
   const gitHost = new GhGitHost({ runner: commands, ghBin: opts.ghBin ?? 'gh' });
   const gateService = new DefaultGateService({
@@ -147,6 +148,9 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
     host: gitHost,
     workspace: new GitGateWorkspace({ runner: commands, root: join(tmpdir(), 'castraferrum-gate') }),
     commands,
+    claims: repos.claims,
+    probes: repos.probes,
+    gateway: claimGateway,
     clock,
     ids,
     sleep: async (ms, signal) => {

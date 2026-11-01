@@ -1,18 +1,20 @@
-// The merge gate (spec 2.8, 2.9, decisions 31 to 38): the only actor that merges. It has no model. It takes one job at a
+// The merge gate (spec 2.8, 2.9, decisions 31 to 41): the only actor that merges. It has no model. It takes one job at a
 // time, runs the steps in order, and stops at the first failure. The exam comes from the `main` commit of the job, never
 // from the PR. A step fails closed: anything that is not a proven pass is a failure.
 import { DomainError } from '../../shared/domain/errors';
 import type { GateFinalState, GateJob, GateStepName, GateStepStatus, RepoGate } from '../../shared/domain/gate';
 import { isRealRed, stubCommandProblem } from '../../shared/domain/gate-commands';
 import { checkScope, normalizePath, parseGateConfig, parseVerifyFile, type ChangedFile, type GateConfig, type VerifyChange, type VerifyTask } from '../../shared/domain/scope-guard';
+import type { ClaimConfig, ClaimGateway, ClaimRecord, ClaimRepository, ReleaseWhy } from '../ports/claims';
 import type { Clock } from '../ports/clock';
 import type { CommandResult, CommandRunner } from '../ports/command-runner';
 import type { GateRepository } from '../ports/gate-repository';
 import type { GateTree, GateWorkspace } from '../ports/gate-workspace';
-import type { GitHost } from '../ports/git-host';
+import type { CheckRun, GitHost } from '../ports/git-host';
 import type { IdGenerator } from '../ports/ids';
+import type { LoopProbeRepository } from '../ports/loop-probe-repository';
 import type { RepoRecord, RepoRepository } from '../ports/repo-repository';
-import type { GateQueueInput, GateQueueResult, GateService, GateTickReport } from './contracts';
+import type { GateQueueInput, GateQueueResult, GateRatified, GateService, GateTickReport } from './contracts';
 
 const MINUTE = 60_000;
 const SETUP_MS = 20 * MINUTE;
@@ -28,6 +30,13 @@ const OUTPUT_LINES = 60;
 const LIVE_JOBS_READ = 100;
 const VERIFY_DIR = 'goals/verify';
 const GATE_FILE = 'goals/gate.json';
+/** Decision 40: the last line must survive the 20000-character cut of `GhGitHost.comment`. */
+const COMMENT_TAIL = 18_000;
+const MAX_FENCE = 1000;
+const RED_TITLE = 'Gate: main is red';
+const RED_MARK = '<!-- gate:red-main -->';
+/** The first words of the output of a `base` step that a red `main` stopped. The settle step reads them, also after a restart. */
+const RED_OUTPUT = 'main is red:';
 
 /** The last 60 lines of a text. */
 export function outputTail(text: string): string {
@@ -40,6 +49,9 @@ export type GateServiceDeps = {
   host: GitHost;
   workspace: GateWorkspace;
   commands: CommandRunner;
+  claims: Pick<ClaimRepository, 'listGateOwned' | 'close'>;
+  probes: Pick<LoopProbeRepository, 'get'>;
+  gateway: Pick<ClaimGateway, 'release'>;
   clock: Clock;
   ids: IdGenerator;
   /** Rejects when `signal` aborts. Tests inject one that never waits. */
@@ -55,6 +67,8 @@ class JobEnded extends Error {
     readonly step: GateStepName,
     readonly line: string,
     readonly state: GateFinalState,
+    /** The full output of the step, not cut. */
+    readonly output: string = line,
   ) {
     super(line);
   }
@@ -85,6 +99,7 @@ type JobRun = {
 type Attempt = {
   mainSha: string;
   headRef: string;
+  closingIssues: number[];
   config: GateConfig;
   files: ChangedFile[];
   /** Set when the verdict of `scope` is a plan PR: `green` and `stub` skip with this reason. */
@@ -97,6 +112,20 @@ const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const firstLine = (text: string) => text.split(/\r?\n/).find((line) => line.trim() !== '') ?? text;
 const combined = (result: CommandResult) => [result.stdout, result.stderr, result.error].filter(Boolean).join('\n');
 const fail = (line: string, output = line, exitCode: number | null = null): StepEnd => ({ status: 'fail', exitCode, output, line });
+
+/** Decision 38: a check run that ended with a conclusion that is not a pass. Pending is not bad. */
+const isBadCheck = (c: CheckRun) => (c.status === 'completed' || c.conclusion !== null) && !PASSING_CONCLUSIONS.has(c.conclusion ?? '');
+
+/** The issue of a task key, or `null` for a key that is not a positive number. */
+const issueOf = (key: string) => (/^[1-9]\d*$/.test(key) ? Number(key) : null);
+
+/** The last 18000 characters in a code block whose fence is longer than any run of backticks in the text. */
+function codeBlock(text: string): string {
+  const tail = text.slice(-COMMENT_TAIL);
+  const longest = Math.max(0, ...(tail.match(/`+/g) ?? []).map((run) => run.length));
+  const fence = '`'.repeat(Math.min(Math.max(3, longest + 1), MAX_FENCE));
+  return `${fence}\n${tail}\n${fence}`;
+}
 
 function whyNotPassed(result: CommandResult): string {
   if (result.timedOut) return 'timed out';
@@ -128,11 +157,25 @@ export class DefaultGateService implements GateService {
     return { outcome, jobId: live?.id ?? null, headSha: pr.headSha, taskKey: live?.taskKey ?? taskKey };
   }
 
+  /** Decision 41. A job with a live duplicate of its head is refused: the index allows one live job, and the duplicate must end first. */
+  async ratify(id: string): Promise<GateRatified> {
+    const { gate, clock } = this.deps;
+    const job = await gate.get(id);
+    if (!job) throw new DomainError('GATE_JOB_NOT_FOUND', `No gate job ${id}`);
+    const outcome = await gate.ratify(id, clock.now());
+    if (outcome === 'ratified') return { jobId: id, state: 'queued', headSha: job.headSha };
+    if (outcome === 'duplicate') {
+      throw new DomainError('GATE_JOB_NOT_RATIFIABLE', `Another job of PR ${job.prNumber} at this head is queued or running. Ratify again after that job ends`);
+    }
+    throw new DomainError('GATE_JOB_NOT_RATIFIABLE', `Gate job ${id} is ${job.state}, and only a job in needs_ratification can be ratified`);
+  }
+
   async tick(): Promise<GateTickReport> {
     if (this.stopped) return { jobId: null, errors: [] };
-    const job = await this.deps.gate.takeNext(this.deps.clock.now());
-    if (!job) return { jobId: null, errors: [] };
     const errors: GateTickReport['errors'] = [];
+    await this.settle(errors);
+    const job = await this.deps.gate.takeNext(this.deps.clock.now());
+    if (!job) return { jobId: null, errors };
     const control = new AbortController();
     this.control = control;
     if (this.stopped) control.abort();
@@ -155,6 +198,39 @@ export class DefaultGateService implements GateService {
 
   resume(): void {
     this.stopped = false;
+  }
+
+  /** Decision 40: a claim row ends here, not in the job, so a failed release is tried again on the next tick. */
+  private async settle(errors: GateTickReport['errors']): Promise<void> {
+    const { claims, gate, gateway, clock } = this.deps;
+    for (const row of await claims.listGateOwned()) {
+      const job = await gate.get(row.gateJobId!);
+      if (job?.state === 'merged') await claims.close(row.id, 'gate: merged', clock.now());
+      if (job?.state !== 'failed') continue;
+      try {
+        const why = await this.releaseWhy(job);
+        const cfg = await this.claimConfig(row, job);
+        if (cfg) await gateway.release(cfg, { key: row.taskKey }, why);
+        await claims.close(row.id, why.reason, clock.now());
+      } catch (e) {
+        errors.push({ loopId: job.id, message: message(e) });
+      }
+    }
+  }
+
+  private async releaseWhy(job: GateJob): Promise<ReleaseWhy> {
+    const step = job.failedStep ?? 'scope';
+    const rows = step === 'base' ? await this.deps.gate.listSteps(job.id) : [];
+    const stopped = rows.filter((row) => row.step === 'base' && row.status === 'fail').at(-1);
+    return { reason: `gate: ${step}`, excused: stopped?.outputTail.startsWith(RED_OUTPUT) ?? false };
+  }
+
+  /** `null`: the owner removed the probe of the loop. No release command is left, so the row can only close. */
+  private async claimConfig(row: ClaimRecord, job: GateJob): Promise<ClaimConfig | null> {
+    const { probes, repos } = this.deps;
+    const [probe, repo] = await Promise.all([probes.get(row.loopId), repos.findById(job.repoId)]);
+    if (!probe || !repo) return null;
+    return { claim: probe.claim, release: probe.release, cwd: repo.path };
   }
 
   private async runJob(job: GateJob, signal: AbortSignal, errors: GateTickReport['errors']): Promise<void> {
@@ -219,6 +295,22 @@ export class DefaultGateService implements GateService {
     } catch (statusError) {
       run.errors.push({ loopId: run.job.id, message: message(statusError) });
     }
+    await this.feed(run, ended);
+  }
+
+  /** Decisions 40, 41. The next run reads the literal output here. A comment that throws stops nothing. */
+  private async feed(run: JobRun, ended: JobEnded): Promise<void> {
+    const issue = issueOf(run.job.taskKey);
+    if (issue === null) return;
+    const body =
+      ended.state === 'needs_ratification'
+        ? `Gate job ${run.job.id} needs ratification at ${ended.step}.\n\n${codeBlock(ended.output)}`
+        : `Gate failed at ${ended.step}.\n\n${codeBlock(outputTail(ended.output))}`;
+    try {
+      await this.deps.host.comment(run.setting.githubRepo, issue, body);
+    } catch (e) {
+      run.errors.push({ loopId: run.job.id, message: message(e) });
+    }
   }
 
   /** Runs `body` and writes one row. Any throw is a failed step, so a broken call can never pass. */
@@ -246,12 +338,12 @@ export class DefaultGateService implements GateService {
       ms: Math.max(0, clock.now().getTime() - started),
       outputTail: outputTail(end.output),
     });
-    if (end.status === 'fail') throw new JobEnded(name, end.line ?? name, end.state ?? 'failed');
+    if (end.status === 'fail') throw new JobEnded(name, end.line ?? name, end.state ?? 'failed', end.output);
   }
 
   /** One pass from `scope` to `merge`. Gives true when `main` moved and the job must run again (decision 36). */
   private async attempt(run: JobRun, repo: RepoRecord, attempt: number): Promise<boolean> {
-    const state: Attempt = { mainSha: '', headRef: '', config: undefined as never, files: [], planReason: null, tree: null, task: null };
+    const state: Attempt = { mainSha: '', headRef: '', closingIssues: [], config: undefined as never, files: [], planReason: null, tree: null, task: null };
     let again = false;
     try {
       await this.step(run, 'scope', () => this.scope(run, state));
@@ -289,6 +381,7 @@ export class DefaultGateService implements GateService {
     if (!fetched.headMatches) return fail('the head of the branch moved after the job was queued');
     state.mainSha = fetched.mainSha;
     state.headRef = pr.headRef;
+    state.closingIssues = pr.closingIssues;
     const gateText = await workspace.readAt(repoPath, fetched.mainSha, GATE_FILE);
     if (gateText === null) return fail(`${GATE_FILE} is not on main`);
     state.config = parseGateConfig(gateText);
@@ -317,7 +410,26 @@ export class DefaultGateService implements GateService {
     return { status: 'pass', exitCode: 0, output: `${files.length} changed files, verdict ${verdict.verdict}` };
   }
 
+  /**
+   * Decision 39. Gives the end of the step when a red `main` stops this PR, else `null`. A search hit has no body, so the exact
+   * title proves the issue: an issue that only quotes the title or the mark cannot let a PR through.
+   */
+  private async redMain(run: JobRun, state: Attempt): Promise<StepEnd | null> {
+    const { host } = this.deps;
+    const repo = run.setting.githubRepo;
+    const bad = (await host.checks(repo, state.mainSha)).filter(isBadCheck);
+    if (bad.length === 0) return null;
+    const list = bad.map((c) => `${c.name}: ${c.conclusion ?? 'no conclusion'}`).join('\n');
+    const hits = await host.searchIssues(repo, `"${RED_TITLE}"`);
+    const open = hits.find((hit) => hit.state === 'OPEN' && hit.title === RED_TITLE);
+    const issue = open?.number ?? (await host.openIssue(repo, { title: RED_TITLE, body: `${RED_MARK}\nThe check runs of main at ${state.mainSha} failed:\n\n${list}`, labels: [] })).number;
+    if (state.closingIssues.includes(issue)) return null;
+    return fail(`main is red, see issue ${issue}`, `${RED_OUTPUT} issue ${issue} at ${state.mainSha}\n${list}`);
+  }
+
   private async base(run: JobRun, state: Attempt): Promise<StepEnd> {
+    const red = await this.redMain(run, state);
+    if (red) return red;
     const prepared = await this.deps.workspace.prepare(run.repoPath, run.job.id, state.mainSha, run.job.headSha);
     if (!prepared.ok) return fail('the PR does not rebase on main', prepared.output);
     state.tree = prepared.tree;
@@ -402,7 +514,7 @@ export class DefaultGateService implements GateService {
     for (let read = 1; read <= CI_READS; read++) {
       const checks = await host.checks(run.setting.githubRepo, run.job.headSha);
       seen = checks.length;
-      const bad = checks.find((c) => (c.status === 'completed' || c.conclusion !== null) && !PASSING_CONCLUSIONS.has(c.conclusion ?? ''));
+      const bad = checks.find(isBadCheck);
       if (bad) return fail(`check ${bad.name}: ${bad.conclusion ?? 'no conclusion'}`);
       if (checks.length > 0 && checks.every((c) => c.status === 'completed')) {
         return { status: 'pass', exitCode: 0, output: checks.map((c) => `${c.name}: ${c.conclusion}`).join('\n') };

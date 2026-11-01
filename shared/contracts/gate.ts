@@ -1,4 +1,4 @@
-// Request / response of the gate queue (`POST /api/gate/jobs`, spec 2.8).
+// Request / response of the gate queue (`POST /api/gate/jobs`, `POST /api/gate/jobs/:id/ratify`, spec 2.8).
 import { z } from 'zod';
 
 export const gateJobBody = z.object({
@@ -12,4 +12,10 @@ export const gateJobQueuedDto = z.object({
   jobId: z.string().nullable(),
   headSha: z.string(),
   taskKey: z.string(),
+});
+
+export const gateJobRatifiedDto = z.object({
+  jobId: z.string(),
+  state: z.literal('queued'),
+  headSha: z.string(),
 });

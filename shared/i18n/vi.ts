@@ -446,6 +446,8 @@ export const vi: Record<MessageKey, string> = {
   'error.REPO_NOT_FOUND': 'Không tìm thấy repo',
   'error.GATE_OFF': 'Cổng kiểm tra của repo này đang tắt',
   'error.GIT_HOST_FAILED': 'GitHub không trả lời lệnh gọi',
+  'error.GATE_JOB_NOT_FOUND': 'Không tìm thấy việc của cổng kiểm tra',
+  'error.GATE_JOB_NOT_RATIFIABLE': 'Hiện không thể phê chuẩn việc này của cổng kiểm tra',
   'error.REPO_NAME_TAKEN': 'Tên đã có ở repo khác',
   'error.REPO_PATH_TAKEN': 'Đường dẫn này đã đăng ký',
   'error.REPO_IN_USE': 'Repo còn loop dùng — không xoá được',
