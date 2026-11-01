@@ -13,6 +13,6 @@ describe('executor contract', () => {
       long: { prompt: 'Do the work', config: { durationSec: 600, failRate: 0 } },
       invalidConfig: { durationSec: 0 },
       runWithinMs: 2000,
-    }));
+    }), { usageLimit: { prompt: 'Do the work [usage-limit]', config: { durationSec: 3, failRate: 0 } } });
   });
 });
