@@ -9,6 +9,8 @@ export type CommandRequest = {
   maxBytes?: number;
   /** On Windows, give the arguments to the program exactly as written, with no escaping. Other platforms ignore it. */
   windowsVerbatimArguments?: boolean;
+  /** An abort kills the whole process tree, as the time-out does. */
+  signal?: AbortSignal;
 };
 
 export type CommandResult = {

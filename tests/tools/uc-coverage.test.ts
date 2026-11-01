@@ -37,17 +37,17 @@ const report = {
 };
 
 describe('uc-coverage', () => {
-  it('reads all 33 UC ids from docs/USE-CASES.md (UC-33 is not written yet; UC-34 came with the phone layout)', () => {
+  it('reads all 34 UC ids from docs/USE-CASES.md (UC-33 is not written yet; UC-34 came with the phone layout)', () => {
     const ids = readUcIds(readFileSync(DEFAULT_SPECS[0]!, 'utf8'));
-    expect(ids).toHaveLength(33);
+    expect(ids).toHaveLength(34);
     expect(ids[0]).toBe('UC-01');
-    expect(ids.at(-1)).toBe('UC-34');
+    expect(ids.at(-1)).toBe('UC-35');
   });
 
-  it('reads docs/USE-CASES.md by default: 33 UC ids, the last 15 are UC-19…UC-32 and UC-34', () => {
+  it('reads docs/USE-CASES.md by default: 34 UC ids, the last 16 are UC-19…UC-32, UC-34 and UC-35', () => {
     const ids = readUcIds(DEFAULT_SPECS.map((f) => readFileSync(f, 'utf8')).join('\n'));
-    expect(ids).toHaveLength(33);
-    expect(ids.slice(-15)).toEqual(['UC-19', 'UC-20', 'UC-21', 'UC-22', 'UC-23', 'UC-24', 'UC-25', 'UC-26', 'UC-27', 'UC-28', 'UC-29', 'UC-30', 'UC-31', 'UC-32', 'UC-34']);
+    expect(ids).toHaveLength(34);
+    expect(ids.slice(-16)).toEqual(['UC-19', 'UC-20', 'UC-21', 'UC-22', 'UC-23', 'UC-24', 'UC-25', 'UC-26', 'UC-27', 'UC-28', 'UC-29', 'UC-30', 'UC-31', 'UC-32', 'UC-34', 'UC-35']);
   });
 
   it('counts green tests only: drops red, skipped, flaky, red in one project; recognises a tag in the name', () => {
@@ -72,10 +72,10 @@ describe('uc-coverage', () => {
       return { code, out: out.join('\n') };
     };
 
-    it('prints k/33 and the list of missing ones', () => {
+    it('prints k/34 and the list of missing ones', () => {
       const { code, out } = run();
       expect(code).toBe(0);
-      expect(out).toContain('UCs with a green e2e: 2/33');
+      expect(out).toContain('UCs with a green e2e: 2/34');
       expect(out).toMatch(/Missing: UC-02 UC-03 UC-04 UC-06/);
     });
 
@@ -93,7 +93,7 @@ describe('uc-coverage', () => {
     it('runs via node scripts/uc-coverage.mjs', () => {
       const script = fileURLToPath(new URL('../../scripts/uc-coverage.mjs', import.meta.url));
       const res = spawnSync(process.execPath, [script, '--report', reportFile, '--min', '3'], { encoding: 'utf8' });
-      expect(res.stdout).toContain('UCs with a green e2e: 2/33');
+      expect(res.stdout).toContain('UCs with a green e2e: 2/34');
       expect(res.status).toBe(1);
     });
   });

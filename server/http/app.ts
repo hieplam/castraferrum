@@ -10,13 +10,14 @@ import type {
   LoopService,
   NoticeService,
   ProcessService,
-  ProbeService,
+  GateService, ProbeService,
   RepoService,
   RunService,
   TranscriptService,
 } from '../services/contracts';
 import { HttpError, sendError } from './errors';
 import { folderRoutes } from './folder-routes';
+import { gateRoutes } from './gate-routes';
 import { healthRoutes } from './health-routes';
 import { liveRoutes } from './live-routes';
 import { loopRoutes } from './loop-routes';
@@ -48,6 +49,7 @@ export type ApiServices = {
   now: () => Date;
   /** Probe settings of a loop (goal-driven loop). */
   probes: ProbeService;
+  gate: GateService;
 };
 
 export type HttpDeps = {
@@ -79,10 +81,11 @@ export async function buildHttpApp(deps: HttpDeps) {
 
   await app.register(healthRoutes, { health: deps.health });
   if (deps.api) {
-    const { loops, repos, folders, runs, live, transcripts, now, probes, notices, processEvents } = deps.api;
+    const { loops, repos, folders, runs, live, transcripts, now, probes, notices, processEvents, gate } = deps.api;
     const sse = { heartbeatMs: deps.sseHeartbeatMs ?? 15_000, shutdown: shutdown.signal };
     await app.register(loopRoutes, { loops, runs });
     await app.register(probeRoutes, { probes });
+    await app.register(gateRoutes, { gate });
     await app.register(repoRoutes, { repos });
     await app.register(folderRoutes, { folders });
     await app.register(scheduleRoutes, { loops, now });
