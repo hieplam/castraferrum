@@ -1,0 +1,400 @@
+{
+  "setup": [],
+  "opened": {
+    "at": "2026-11-01T00:00:00Z",
+    "passed": 0,
+    "total": 29
+  },
+  "goals": [
+    {
+      "id": "G1",
+      "outcome": "A loop with no ready task starts no model session",
+      "checks": [
+        {
+          "run": "npx playwright test tests/e2e/probe-idle.spec.ts --project chromium --reporter list",
+          "expect": [
+            "passed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G2",
+      "outcome": "The next task starts seconds after a run ends",
+      "checks": [
+        {
+          "run": "npx playwright test tests/e2e/probe-gap.spec.ts --project chromium --reporter list",
+          "expect": [
+            "passed",
+            "gap_ms"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G3",
+      "outcome": "A usage limit pauses a run, and it continues with no person",
+      "checks": [
+        {
+          "run": "npx vitest run --project api tests/api/usage-hold.test.ts",
+          "expect": [
+            "usage-hold",
+            "passed"
+          ]
+        },
+        {
+          "run": "npx vitest run --project contract tests/contract/executor-mock.test.ts --reporter verbose",
+          "expect": [
+            "usage_limit"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G4",
+      "outcome": "A claim never outlives its run",
+      "checks": [
+        {
+          "run": "npx vitest run --project api tests/api/claims.test.ts",
+          "expect": [
+            "claims",
+            "passed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G5",
+      "outcome": "After a reboot the loop runs with no person",
+      "checks": [
+        {
+          "run": "npm run api-smoke",
+          "expect": [
+            "restart: resume loop started a run with no http call"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G6",
+      "outcome": "No PR merges with a failing check",
+      "checks": [
+        {
+          "run": "npx vitest run --project api tests/api/gate-red.test.ts",
+          "expect": [
+            "gate-red",
+            "passed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G7",
+      "outcome": "Empty work cannot merge",
+      "checks": [
+        {
+          "run": "npx vitest run --project api tests/api/gate-stub.test.ts",
+          "expect": [
+            "gate-stub",
+            "passed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G8",
+      "outcome": "A run does not wait for tests or CI",
+      "checks": [
+        {
+          "run": "npx vitest run --project api tests/api/gate-handover.test.ts",
+          "expect": [
+            "gate-handover",
+            "passed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G9",
+      "outcome": "A PR cannot lower its own bar",
+      "checks": [
+        {
+          "run": "npx vitest run --project api tests/api/gate-scope.test.ts",
+          "expect": [
+            "gate-scope",
+            "passed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G10",
+      "outcome": "A new epic shows a failing goal check before any build task",
+      "checks": [
+        {
+          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G10: \" ../agent-plugins/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
+          "expect": [
+            "✔ G10: ",
+            "ℹ fail 0"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G11",
+      "outcome": "The owner sees progress as a number",
+      "checks": [
+        {
+          "run": "npx playwright test tests/e2e/goal-number.spec.ts --project chromium --reporter list",
+          "expect": [
+            "passed"
+          ]
+        },
+        {
+          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G11: \" ../agent-plugins/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
+          "expect": [
+            "✔ G11: ",
+            "ℹ fail 0"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G12",
+      "outcome": "Defects appear early",
+      "checks": [
+        {
+          "run": "npx vitest run --project unit tests/tools/metrics-baseline.test.ts -t late-tasks --reporter verbose",
+          "expect": [
+            "late-tasks is the share"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G13",
+      "outcome": "A regression gives one issue, and a repeat gives no second issue",
+      "checks": [
+        {
+          "run": "npx vitest run --project api tests/api/standing-goals.test.ts",
+          "expect": [
+            "standing-goals",
+            "passed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G14",
+      "outcome": "A repeated cause opens one issue with no owner message",
+      "checks": [
+        {
+          "run": "npx vitest run --project api tests/api/process-review.test.ts",
+          "expect": [
+            "process-review",
+            "passed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G15",
+      "outcome": "A cause stops after its check merges",
+      "checks": [
+        {
+          "run": "npx vitest run --project api tests/api/scoreboard.test.ts",
+          "expect": [
+            "scoreboard",
+            "passed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G16",
+      "outcome": "A new rule has a check",
+      "checks": [
+        {
+          "run": "npx vitest run --project unit tests/tools/rule-lint.test.ts --reporter verbose",
+          "expect": [
+            "rule-lint",
+            "passed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G17",
+      "outcome": "A loop tool change cannot make the loop worse",
+      "checks": [
+        {
+          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G17: \" ../agent-plugins/plugins/epic-loop/skills/epic-loop/scripts/evals/eval-gate.test.mjs",
+          "expect": [
+            "✔ G17: ",
+            "ℹ fail 0"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G18",
+      "outcome": "When a goal ends, the next goal card appears with no owner message",
+      "checks": [
+        {
+          "run": "npx playwright test tests/e2e/goal-card.spec.ts --project chromium --reporter list",
+          "expect": [
+            "passed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G19",
+      "outcome": "A refused goal does not start",
+      "checks": [
+        {
+          "run": "npx vitest run --project api tests/api/goal-cards.test.ts",
+          "expect": [
+            "goal-cards",
+            "passed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G20",
+      "outcome": "A one-way goal never starts alone",
+      "checks": [
+        {
+          "run": "npx vitest run --project api tests/api/goal-cards.test.ts",
+          "expect": [
+            "goal-cards",
+            "passed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G21",
+      "outcome": "A lower rank cannot take the window from a higher rank",
+      "checks": [
+        {
+          "run": "npx vitest run --project unit server/services/rank.test.ts --reporter verbose",
+          "expect": [
+            "rank",
+            "passed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G22",
+      "outcome": "Owner messages per merged PR fall",
+      "checks": [
+        {
+          "run": "npx vitest run --project unit tests/tools/metrics-baseline.test.ts -t owner-messages --reporter verbose",
+          "expect": [
+            "owner-messages divides"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G23",
+      "outcome": "One root cause gives one hold and one push",
+      "checks": [
+        {
+          "run": "npx vitest run --project api tests/api/holds.test.ts",
+          "expect": [
+            "holds",
+            "passed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G24",
+      "outcome": "Each lane has its own number, database and port",
+      "checks": [
+        {
+          "run": "npx vitest run --project api tests/api/lanes.test.ts",
+          "expect": [
+            "lanes",
+            "passed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G25",
+      "outcome": "Failing rows write the next tasks",
+      "checks": [
+        {
+          "run": "npx vitest run --project api tests/api/plan-action.test.ts",
+          "expect": [
+            "plan-action",
+            "passed"
+          ]
+        },
+        {
+          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G25: \" ../agent-plugins/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
+          "expect": [
+            "✔ G25: ",
+            "ℹ fail 0"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G26",
+      "outcome": "An epic closes on the check, not on an empty list",
+      "checks": [
+        {
+          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G26: \" ../agent-plugins/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
+          "expect": [
+            "✔ G26: ",
+            "ℹ fail 0"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G27",
+      "outcome": "A run cannot merge",
+      "checks": [
+        {
+          "run": "npx vitest run --project api tests/api/merge-guard.test.ts",
+          "expect": [
+            "merge-guard",
+            "passed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G28",
+      "outcome": "The screen answers \"is it still working?\"",
+      "checks": [
+        {
+          "run": "npx playwright test tests/e2e/probe-state.spec.ts --project chromium --reporter list",
+          "expect": [
+            "passed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G29",
+      "outcome": "A task that ships a screen carries its own acceptance, not a last-day task",
+      "checks": [
+        {
+          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G29: \" ../agent-plugins/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
+          "expect": [
+            "✔ G29: ",
+            "ℹ fail 0"
+          ]
+        }
+      ]
+    }
+  ]
+}
