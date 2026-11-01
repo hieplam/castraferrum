@@ -657,21 +657,19 @@ Ratchet: unit run count 847 -> 871 (+24). `vitest list` is static and shows the 
     UCs with a green e2e: 33/33
     verify exit 0
 
-**Full verify is not complete on the final tree.** The `npm run verify` result above is from the tree before the rebase on T4 (migration 0006 became 0007). The three vitest Green commands above were run again after that rebase and pass.
+**Full verify on the final tree**, base c2652bd, machine kept quiet, migration 0007:
 
-The run after the rebase passed these steps:
-
+    $ npm run verify
     ratchets: ok
-          Tests  928 passed | 2 skipped (930)
+          Tests  940 passed | 2 skipped (942)
           Tests  170 passed (170)
           Tests  158 passed (158)
+      115 passed (12.7m)
+    phone overflow: 0/12
+    UCs with a green e2e: 33/33
+    verify exit 0
 
-Its e2e step ended with `14 failed`, `51 did not run`, `50 passed (6.5m)`, `verify exit 1`. Two causes, and neither is the code of this task:
-
-- A leftover of this lane. The e2e server uses a second database, `loops_p5_live_test`. It still held the migration under the old number, so `CREATE TABLE "run_claims"` failed with "the server exited during startup". That database is now dropped.
-- The machine. Claude Code stopped the command for low memory, and the other failures read `worker process exited unexpectedly (code=3221225794, signal=null)`.
-
-The run was not started again, because the memory stop says to wait for a request. The next full `verify` needs a quiet machine.
+An earlier run after the T4 rebase ended with exit 1, from a stale lane database and a low-memory stop of the machine. Neither came from this code.
 
 **Stub check**, both run for real, then restored:
 
