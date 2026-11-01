@@ -117,3 +117,78 @@ Wave 2 adds R2, R5 and R7. Spec: [../specs/2026-11-01-goal-driven-loop.md](../sp
 **Stub check:** a `decide` that always passes fails the two refuse tests and the one-worse-of-7 test. One that always refuses fails the equal, better and noise tests. A `verify-result` that ignores hashes fails the changed-copy test. Adding a line to the real `tick.md` makes the committed-tree test fail.
 
 **Ratchet:** tests in `test_eval_gate.py`, 0 to 13, up only. `gate-result.json` records the pooled passes of the 7 evals x 5 runs on both sides: baseline only, no target, because eval 3 varies from run to run. The PR adds a `## R7` section to the evidence log in a docs-only castraferrum PR.
+
+Wave 4 adds R4, R6 and R8. R9 waits for the owner's preview approval. Spec: [../specs/2026-11-01-goal-driven-loop.md](../specs/2026-11-01-goal-driven-loop.md) (decisions 48 to 50 are new). Plan index: [2026-11-01-goal-driven-loop.md](2026-11-01-goal-driven-loop.md).
+
+## R4 - Tool profile review
+
+**Needs** K8 (issue 292) merged. Read how K8 builds `hooks` in `claude-agent-executor.ts` first, and keep its entry as it is.
+
+**Files:** `shared/domain/review-guard.ts`; `server/ports/executor.ts`; `server/adapters/executors/claude/claude-agent-executor.ts`; `server/services/run-service.ts` and its test; `scripts/process-review/prompt.md`; `docs/ARCHITECTURE.md`; `tests/api/review-profile.test.ts`.
+
+**Steps** (decision 49; issue 311: a scratch folder holds no session, only a hook does):
+1. `review-guard.ts` exports `REVIEW_TOOLS = ['Read','Grep','Glob','Bash','Write']`; `parseToolProfile(v: string | undefined): 'full' | 'review' | null` (`undefined` gives `full`, an unknown word gives `null`); `checkReviewTool(toolName, toolInput, reviewDir): { deny: false } | { deny: true; rule; reason }`.
+2. Rules. `Read`, `Grep`, `Glob`: allow. `Write`: allow only an absolute `file_path` that starts with `reviewDir/` after `\` becomes `/` and case is ignored, with no `.` or `..` segment; else `write-path`. `Bash` or `PowerShell`: a non-string `command` is `bad-input`; the command must match `^node( --import tsx)? scripts/(process-review|process-file-issues|process-review-due)\.mjs( [\w./:@=+-]+)*$` with no `..`, else `bash-not-listed`; the word after `--out` must start with `reports/process-review/`, else `bash-out`. Any other tool, `mcp__*` too: `tool-not-listed`.
+3. `ExecutionInput.toolProfile?: 'full' | 'review'`. For `review` the executor sets `tools: REVIEW_TOOLS` and adds one `PreToolUse` entry, matcher `.*`. Its callback calls `checkReviewTool(tool_name, tool_input, join(input.cwd, 'reports', 'process-review'))`, returns the deny shape of K8, and calls the constructor option `onGuard?.({ tool, deny, rule })`. With `full` or no profile there is no `tools` key and no review entry.
+4. RunService reads `parseToolProfile(env?.CASTRAFERRUM_TOOL_PROFILE)`. `null` ends the run `failed` before the executor, error `Unknown tool profile "<v>"` (the path of "No such executor"). `review` sets `input.toolProfile`.
+5. `prompt.md`: each `groups.json` becomes `reports/process-review/groups.json`. `ARCHITECTURE.md`, The Claude executor: the profile, the variable, and the limit that a script on the allowed list is trusted.
+
+**Goal:** G14. A review run changes no file outside `reports/process-review/` and runs only the three review scripts, in the main thread or in a subagent.
+
+**Red:** write 37 tests in `describe('review-profile')`. `it.each` over 21 refused lines: `Write` outside the folder, with a relative path, with `..`, in `process-review-evil/`, with no `file_path`; `Edit`, `MultiEdit`, `NotebookEdit`; Bash `echo x > a.txt`, `git commit -am x`, `gh issue create --title x`, `<allowed script> && rm -rf x`, `--out src/x.json`, `--out reports/process-review/../x.json`, `node scripts/other.mjs`; PowerShell `Set-Content a.txt x`; a number as `command`; `mcp__github__create_issue`, `Agent`, `WebFetch`, `Foo`. `it.each` over 9 allowed lines: `Read`, `Grep`, `Glob`; `Write` inside, also `C:\repo\reports\process-review\g.json`; Bash `assemble` with every path in the folder, `first-pass --real`, `process-file-issues.mjs <file> --dry-run`, `process-review-due.mjs --now 2026-11-01T00:00:00Z`. Wiring on the fake query, 6 cases: review options; `full` has none; the hook denies `Write` outside and calls `onGuard`; it allows inside; with `gateGuard` there are 2 entries and `gh pr merge 1` is still denied; a call with `agent_id` is denied the same. Real, 1 case (`LC_REAL_CLAUDE=1`): haiku, low effort, folder `lc-real-claude-r4`, `GH_TOKEN=invalid`; asked to write a marker outside `reports/process-review/`, to run `echo x > bash.txt`, and to write `ok.txt` inside. Add 3 cases to `run-service.test.ts` (review passes; no variable gives no key; unknown fails). `npx vitest run --project api tests/api/review-profile.test.ts` prints `Cannot find module` and `Test Files  1 failed (1)`.
+
+**Green:** the same command prints `Tests  36 passed | 1 skipped (37)`. With `LC_REAL_CLAUDE=1` and `-t real` it prints `1 passed`: the marker and `bash.txt` do not exist, `ok.txt` exists, and `onGuard` ran at least 3 times with 2 or more `deny: true`. A model that chose not to write would leave no call. `npx vitest run --project unit server/services/run-service.test.ts` shows 3 more tests and 0 failed. `npm run verify` exits 0.
+
+**Stub check:** a `checkReviewTool` that always allows fails 21 lines. One that always denies fails 9. A wiring that omits `tools` fails wiring case 1, and the real run then writes the marker. Run all three, restore.
+
+**Ratchet:** `npx vitest list --project api 2>/dev/null | wc -l` rises by 37. Unit tests rise by 3. Up only.
+
+## R6 - Replay oracle, real and recorded
+
+**Needs** R2, R3 and R5 merged, and R4 (graph order). Decision 50.
+
+**Files:** `scripts/process-review/{groups.mjs,model-run.mjs}`; `scripts/process-review.mjs`; `tests/tools/process-review-model-run.test.ts`; `tests/api/process-review-replay.test.ts`; `tests/tools/fixtures/process-first-pass/groups-haiku.json`.
+
+**Steps** (spec 2.12, decisions 21 and 50):
+1. `groups.mjs` exports `groupProblems(pass, groups): string[]`: the checks of `assemble`, moved out as they are. `assemble` calls it. The R5 tests keep their count.
+2. `model-run.mjs` exports `modelRun({ rest, ruleIds, query, model, maxUsd, cwd })` and `formatReport(result)`. The prompt is `prompt.md`, then `Do not run a command. Reply with the content of groups.json only, as JSON.`, then `{"rest":[{"id":"r001","text":"..."}]}` (text cut at 1000 characters). Options of `query`: `model`, `effort: 'low'`, `tools: []`, `settingSources: []`, `persistSession: false`, `maxTurns: 1`, `maxBudgetUsd: maxUsd`, `cwd`, `env` with `GH_TOKEN: 'invalid'`. It reads the `result` message (`result`, `total_cost_usd`) and parses the first JSON object, also inside a json fence.
+3. Verdict `pass` only if all hold: cost at most `maxUsd`; `groupProblems` is empty; at least one cluster has 2 or more ids and an `id` that is no rule id. Else `FAIL, <reason>`.
+4. `model-run --real [--rules f] [--until ISO] [--model haiku|sonnet] [--max-usd 1.00]` reads the real rows as `first-pass --real` does, keeps `rest` in memory, uses a fresh `lc-real-claude-r6-*` folder as `cwd`, removes it, and writes no file. It prints only `real rest <n>`, one `real-model cause <k> <size>` per cluster (k counts from 1; no id, no cause, no text), `real-model new causes <n>`, `real-model spend-usd <x>`, and `real-model verdict: pass` or `real-model verdict: FAIL, <reason>`. Exit 0 on pass, 1 on FAIL. `--real` with `--record` exits 2.
+5. `model-run --first-pass <f> --record <out> [--model] [--max-usd]` does the same on a first-pass file and writes the groups to `<out>` only on pass. Record haiku on the first-pass file of `tests/fixtures/process-review/events.json`. Commit the output as `groups-haiku.json`.
+6. Replay test (api project, `startApi`): insert the 40 fixture rows as `runs` (a random uuid each; the text goes to `error` for `failed`, `skip_reason` for `skipped`, else `summary`). Read `GET /api/process/events` for 2026-10-19 to 2026-10-23. Run `first-pass`, `assemble` with `groups-haiku.json` (ids mapped to the uuids in a temp copy) and `process-file-issues` on the fake `gh`.
+7. Real run: `model-run --real --model haiku`. On FAIL, one try with `--model sonnet`. All spend together, with step 5, is at most 1.00 USD. If both FAIL, R6 fails: comment the issue with the literal output, change no rule, prompt or threshold, and report BLOCKED. Only counts go in the evidence log.
+
+**Goal:** G14. On the 201 real rows that no rule took, a real model run names a repeated cause that no rule holds. The recorded replay files one issue per cluster, and a repeat files none.
+
+**Red:** write 12 unit tests: the R5 `groups.json` as the reply gives pass with sizes 3 and 2; empty clusters fail; a cluster of 1 id fails; an id of a rule cluster fails; a reply that is not JSON fails; a json fence parses; the `query` options above; the report lines match `^real-model (cause \d+ \d+|new causes \d+|spend-usd [\d.]+|verdict: .+)$` and hold no row text or cause (the rows and the reply carry a marker word); spend over the limit fails; `--record` writes groups that `assemble` accepts; `--real` with `--record` exits 2; a cluster id equal to a rule id fails. Write 4 replay tests: issues equal the clusters with 2 or more events, with the fingerprints `58237cb2147d` and `0f274a882e6b`; a second replay adds 0 issues and 1 comment per issue; `{"clusters":[]}` gives 2 issues and the recorded file more; `rest` from the API equals `rest` from the file. `npx vitest run --project unit tests/tools/process-review-model-run.test.ts` prints `Test Files  1 failed (1)`. `npx vitest run --project api tests/api/process-review-replay.test.ts` prints `Tests  4 failed (4)`. `node --import tsx scripts/process-review.mjs model-run --real` exits 2 with the usage.
+
+**Green:** unit `Tests  12 passed (12)`; replay `Tests  4 passed (4)`; `tests/tools/process-review.test.ts` keeps its count. Real: `real rest 201`, at least one `real-model cause <k> <size>` with size 2 or more, `real-model verdict: pass`, exit 0.
+
+**Stub check:** a `modelRun` that returns no clusters fails the empty-clusters test. `model-run --real --max-usd 0.001` ends `real-model verdict: FAIL` with exit 1, because the budget stops the call. An empty `groups-haiku.json` fails replay tests 1 and 3.
+
+**Limit:** pass means the model grouped valid rows under a valid check. No person read the clusters, as in S5. The two rules still prove only known causes.
+
+**Ratchet:** tests 0 to 16, up only. Real `new causes`: no target, record the number. F0 `causes-found`: D7.
+
+## R8 - Gate refusals and the `loop-release:` and `loop-found:` comments as an input
+
+**Needs** K5 (issue 306) merged, and R2 merged. Read `gate-repository.ts`, `gate-service.ts` and `compose.ts` after K5. Decision 48.
+
+**Files:** `shared/contracts/process.ts`; `shared/domain/errors.ts`, `shared/contracts/common.ts`, `server/http/errors.ts`, `shared/i18n/{en,vi}.ts` (code `GIT_HOST_FAILED`; grep `GATE_OFF` for each place); `server/ports/{gate-repository,git-host}.ts` and the memory and Postgres gate adapters; `server/adapters/github/gh-git-host.ts` and its test; `server/services/{process-service,contracts}.ts`; `server/http/{process-routes,app}.ts`; `server/compose.ts`; `tests/support/{fake-gh.mjs,fake-gh-kit.ts}` and `tests/tools/fake-gh.test.ts`; `scripts/process-review.mjs`; `tests/fixtures/process-review/signals.json`; `docs/API.md`; `tests/api/{api-surface,process-signals-api}.test.ts`; `tests/contract/repositories.contract.ts`; `tests/tools/process-review.test.ts`.
+
+**Steps** (spec 2.12, decision 48):
+1. `GateRepository.listRefusedBetween(from, to): Promise<GateJob[]>`: state `failed` or `needs_ratification`, `finished_at >= from` and `< to`, ordered by `finished_at`, then `id`.
+2. `GitHost.loopComments(repo, since): Promise<{ issue: number; id: string; at: Date; body: string }[]>` runs `gh issue list -R <repo> --state all --search "updated:>=<date>" --limit 1000 --json number,comments` and keeps the comments whose body starts with `loop-release:`. A list of 1000 issues throws `GitHostError` (cut off). The fake `gh` gains the `updated:>=` search, `--limit`, and `id` and `createdAt` on each comment.
+3. `GET /api/process/signals?from&to&repo` answers `{ gate: Item[], comments: Item[] }`, `Item = { id, at, kind, text }`. Gate: `id` `gate:<job id>`, `text` `<failed step>: <firstFailingLine of the output tail of that step>`. Comment: `id` `comment:<issue>:<comment id>`, `text` the lines before the first blank line, plus the `loop-found:` line if there is one. Each text is cut at 2000. The range rules of R2 apply. A `GitHostError` gives 502 `GIT_HOST_FAILED`, never empty lists.
+4. `first-pass --signals <file>` appends the `gate` and `comments` items to the events. An item with a wrong key set, or an id that repeats, exits 2 and writes nothing. `signals.json` holds 2 gate and 2 comment items.
+5. `docs/API.md` row. Raise the route count in `api-surface.test.ts` by 1.
+
+**Goal:** G14. A refused gate job and a `loop-release:` or `loop-found:` comment reach the review as events, with no loop name, prompt, PR number or commit.
+
+**Red:** write 9 api tests: a failed job gives `green: ...`; `needs_ratification` gives `scope: ...`; merged and queued jobs give none; the range edges; a `loop-release:` comment gives its reason and found line with no boilerplate; `loop-attempt:` and out-of-range comments give none; each item has exactly `id, at, kind, text`, and the body holds no head sha, repo id or PR number; a broken `gh` gives 502 `GIT_HOST_FAILED`; a bad `repo` or range gives 400. Add 2 contract cases per side, 2 `loopComments` tests, 2 fake-gh tests and 3 `first-pass --signals` tests. `npx vitest run --project api tests/api/process-signals-api.test.ts` prints `Tests  9 failed (9)`.
+
+**Green:** the same command prints `Tests  9 passed (9)`. `npx vitest run --project api tests/api/api-surface.test.ts` prints 0 failed and `GET /api/process/signals has a registered route`. `npm run test:contract` shows 0 failed and 4 more tests. `tests/tools/process-review.test.ts` prints `Tests  15 passed (15)`. `npx vitest run --project unit server/adapters/github tests/tools/fake-gh.test.ts` shows 4 more tests. `npm run verify` exits 0.
+
+**Stub check:** a route that answers empty lists fails 6 of 9 tests. A swallowed `GitHostError` fails the 502 test. An item that holds the job id or PR number fails the keys test. Run all, restore.
+
+**Ratchet:** api tests, B to B + 9. Contract tests, C to C + 4. Routes in `docs/API.md`, N to N + 1. Up only. F0 `causes-found`: D7.
