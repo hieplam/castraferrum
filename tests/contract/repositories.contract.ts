@@ -676,6 +676,31 @@ export function repositoryContract(env: () => ContractEnv): void {
       expect(await r.runs.listByExecution(next.execution.id)).toHaveLength(1);
     });
 
+    it('listBetween: started_at >= from and < to, every status, ordered by started_at then id', async () => {
+      const { loop, execution } = await activeLoop();
+      const before = await started(loop.id, execution.id, { startedAt: at(50) });
+      await r.runs.finish(before.id, { status: 'succeeded', finishedAt: at(55) });
+      const a = await started(loop.id, execution.id, { startedAt: at(100) });
+      await r.runs.finish(a.id, { status: 'failed', finishedAt: at(110), error: 'boom' });
+      const s = await r.runs.recordSkipped(skipInput(loop.id, execution.id, 150));
+      const b = await started(loop.id, execution.id, { startedAt: at(200) });
+      await r.runs.finish(b.id, { status: 'cancelled', finishedAt: at(210) });
+      const edge = await started(loop.id, execution.id, { startedAt: at(300) });
+      await r.runs.finish(edge.id, { status: 'succeeded', finishedAt: at(310) });
+
+      const got = await r.runs.listBetween(at(100), at(300));
+      expect(got.map((x) => x.id)).toEqual([a.id, s.id, b.id]);
+      expect(got.map((x) => x.status)).toEqual(['failed', 'skipped', 'cancelled']);
+    });
+
+    it('listBetween: an empty range, and from = to, give no runs', async () => {
+      const { loop, execution } = await activeLoop();
+      const a = await started(loop.id, execution.id, { startedAt: at(100) });
+      await r.runs.finish(a.id, { status: 'succeeded', finishedAt: at(110) });
+      expect(await r.runs.listBetween(at(500), at(900))).toEqual([]);
+      expect(await r.runs.listBetween(at(100), at(100))).toEqual([]);
+    });
+
     it('statsByExecution: counts by status (failed = failed + timed_out; interrupted on its own, castraferrum#190), how long it has been running, average duration', async () => {
       const { loop, execution } = await activeLoop(); // opened at at(0)
       const finishAs = async (sec: number, status: 'succeeded' | 'failed' | 'cancelled' | 'timed_out', dur: number) => {
