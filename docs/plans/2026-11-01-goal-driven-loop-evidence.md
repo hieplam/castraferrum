@@ -507,6 +507,40 @@ Webhook safety: the only post in any test goes to a server that the test starts 
 
 <!-- P12 -->
 
+## P12
+
+Red (test file only, script absent):
+
+    $ npx vitest run --project unit tests/tools/logon-task.test.ts
+     Test Files  1 failed (1)
+          Tests  8 failed (8)
+
+Green (after the rebase on origin/main):
+
+    $ npx vitest run --project unit tests/tools/logon-task.test.ts
+     Test Files  1 passed (1)
+          Tests  8 passed (8)
+    > schtasks /Query /TN Castraferrum
+    ERROR: The system cannot find the file specified.
+    (exit code 1)
+
+Stub check (script replaced by one line that prints <Task/>):
+
+    Tests  7 failed | 1 passed (8)
+
+The one test that still passes is the one that checks that the source has no child_process import. The script was restored and 8 of 8 pass again.
+
+Light verify (nothing under server/ or web/ changed or imports the script):
+
+    $ grep -rn "logon-task" server web
+    (no output, exit 1)
+    test:unit      Tests  836 passed | 2 skipped (838)
+    test:contract  Tests  126 passed (126)
+    test:api       Tests  125 passed (125)
+    api-smoke, build, typecheck, arch, ratchets, rule-lint, lang-scan --check-baseline: ok
+
+Ratchet: unit tests 828 passed before, 836 passed after (plus 8). Metric idle-days: not measured yet (decision 7).
+
 <!-- P13 -->
 
 <!-- P14 -->

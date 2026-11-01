@@ -92,6 +92,12 @@ and Playwright all read it.
 `LOOPS_TEST_MODE=1` works only with a database whose name ends in `_test`. Several checkouts can run tests in
 parallel on one container if each one sets its own `LOOPS_TEST_DATABASE_URL` and `LOOPS_E2E_PORT`.
 
+## Scripts
+
+| Script | What it does |
+|---|---|
+| `node scripts/logon-task.mjs [--console-dir <abs>] [--port 7070] [--task-name Castraferrum] [--out <file>]` | Prints Windows Task Scheduler XML that starts the console at log-on. With `--out` it writes the XML file and prints the one `schtasks /Create` line for you to run. The script never installs the task. |
+
 ## Documentation
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): layers, flows, persistence, tests.
