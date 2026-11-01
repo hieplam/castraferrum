@@ -69,6 +69,9 @@ export class ScriptedRun {
   throw(message = 'boom'): this {
     return this.#push({ type: 'throw', error: new Error(message) });
   }
+  usageLimit(message = "You've hit your limit", costUsd?: number): this {
+    return this.#push({ type: 'usage_limit', resetsAt: null, limitType: null, message, ...(costUsd === undefined ? {} : { costUsd }) });
+  }
   /** End the iterable without reporting a result (a badly written executor). */
   end(): this {
     return this.#push({ type: 'end' });
@@ -98,7 +101,7 @@ export class ScriptedRun {
         if (item.type === 'throw') throw item.error;
         if (item.type === 'end') return;
         yield item;
-        if (item.type === 'result') return;
+        if (item.type === 'result' || item.type === 'usage_limit') return;
       }
     } finally {
       this.ended = true;
@@ -169,7 +172,7 @@ export function makeKit(opts: { db?: MemoryDb; clock?: OffsetClock; mock?: MockE
   const mock = opts.mock ?? new MockExecutor({ random: () => 0.99 });
   // Claude with a fake `query` (no process opened): enough to see the service pass `cwd` and the "Repo does not exist" branch (UC-23).
   const claudeQuery = fakeQuery();
-  const claude = new ClaudeAgentExecutor({ query: claudeQuery });
+  const claude = new ClaudeAgentExecutor({ query: claudeQuery, limitSettleMs: 5 });
   const executors = new StaticExecutorRegistry([mock, scripted, claude]);
   const active = new InMemoryActiveRuns();
   const ids = new RandomIdGenerator();

@@ -36,7 +36,7 @@ describe('executor contract', () => {
     executorContract(() => {
       q = fakeQuery();
       return {
-        make: () => new ClaudeAgentExecutor({ query: q, env: () => ({ PATH: 'p', ANTHROPIC_API_KEY: 'sk-fake' }) }),
+        make: () => new ClaudeAgentExecutor({ query: q, limitSettleMs: 5, env: () => ({ PATH: 'p', ANTHROPIC_API_KEY: 'sk-fake' }) }),
         succeeding: { prompt: 'Do the work', config: { model: 'haiku', effort: 'low' } },
         failing: { prompt: 'Do the work [fail]', config: {} },
         long: { prompt: 'Do the work [long]', config: {} },
@@ -70,7 +70,7 @@ describe('executor contract', () => {
           ]);
         },
       };
-    });
+    }, { usageLimit: { prompt: 'Do the work [limit]', config: { model: 'haiku', effort: 'low' } } });
   });
 
   if (REAL) {

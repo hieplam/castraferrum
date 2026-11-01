@@ -15,7 +15,8 @@
 //     turns the test red at an assert instead of hanging until the timeout.
 //   - The default script (`fakeQuery`, for the contract suite) is chosen by prompt:
 //       `[fail]` -> result `error_during_execution`; `[long]` -> init then wait until the abortController cancels (like an agent running
-//       a long command); anything else -> init -> assistant -> result success.
+//       a long command); `[limit]` -> init, a rejected `rate_limit_event`, an assistant `error: rate_limit`, then no end of the stream;
+//       anything else -> init -> assistant -> result success. The option `resume` keeps its session id.
 // Every call is recorded (`calls`) so tests can check the options the executor passed to the SDK.
 import { randomUUID } from 'node:crypto';
 import type { Options, SDKMessage, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
@@ -88,6 +89,12 @@ export const msg = {
     }) as unknown as SDKMessage,
   taskNotification: (sessionId: string, taskId: string, status: 'completed' | 'failed' | 'stopped', summary = ''): SDKMessage =>
     ({ type: 'system', subtype: 'task_notification', task_id: taskId, status, output_file: '', summary, uuid: randomUUID(), session_id: sessionId }) as unknown as SDKMessage,
+  /** `rate_limit_event`. `info` holds the fields beside `status`; a test can pass values that the SDK type does not allow. */
+  rateLimit: (sessionId: string, status: 'allowed' | 'allowed_warning' | 'rejected', info: Record<string, unknown> = {}): SDKMessage =>
+    ({ type: 'rate_limit_event', rate_limit_info: { status, ...info }, uuid: randomUUID(), session_id: sessionId }) as unknown as SDKMessage,
+  /** The only limit message that a stored transcript holds (evidence S1): an assistant message with `error: 'rate_limit'`. */
+  limitError: (sessionId: string, text = "You've hit your limit", parentToolUseId: string | null = null): SDKMessage =>
+    ({ type: 'assistant', error: 'rate_limit', session_id: sessionId, parent_tool_use_id: parentToolUseId, message: { content: [{ type: 'text', text }] } }) as unknown as SDKMessage,
 };
 
 /** Wait until `abort` cancels. */
@@ -162,12 +169,17 @@ export function scriptedQuery(script: (ctx: FakeCtx) => AsyncGenerator<SDKMessag
 export function fakeQuery(): FakeQuery {
   return scriptedQuery(async function* (ctx) {
     const prompt = await ctx.firstPrompt;
-    const id = randomUUID();
+    const id = ctx.options.resume ?? randomUUID();
     await Promise.resolve();
     yield msg.init(id, ctx.options.cwd);
     if (prompt.includes('[long]')) {
       await untilAborted(ctx.options.abortController);
       throw new Error('Claude Code process aborted by user');
+    }
+    if (prompt.includes('[limit]')) {
+      yield msg.rateLimit(id, 'rejected', { resetsAt: 1793527200, rateLimitType: 'five_hour' });
+      yield msg.limitError(id);
+      return;
     }
     if (prompt.includes('[fail]')) {
       yield msg.error(id, ['Fake SDK error']);

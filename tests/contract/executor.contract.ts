@@ -82,7 +82,33 @@ function expectProtocol(events: ExecutionEvent[]): void {
   if (results.length === 1) expect(events.at(-1)?.type, 'result is the last event').toBe('result');
 }
 
-export function executorContract(env: () => ExecutorContractEnv): void {
+/** Only an executor with a way to force a limit runs these cases: no agent can force a limit on real Claude (spec, goal table). */
+export function executorContract(env: () => ExecutorContractEnv, limit?: { usageLimit: ExecutorSample }): void {
+  if (limit) {
+    const reachLimit = (x: LoopExecutor, over: Partial<ExecutionInput> = {}) =>
+      collect(x.execute({ ...input(limit.usageLimit), ...over }, new AbortController().signal)[Symbol.asyncIterator](), env().runWithinMs);
+
+    it('usage_limit: the final event of the run, with session first, no result, and a message', async () => {
+      const out = await reachLimit(env().make());
+      expect(out.ended).toBe(true);
+      expect(out.error).toBeNull();
+      expectProtocol(out.events);
+      expect(out.events.filter((ev) => ev.type === 'result')).toEqual([]);
+      const last = out.events.at(-1) as Extract<ExecutionEvent, { type: 'usage_limit' }>;
+      expect(last.type).toBe('usage_limit');
+      expect(last.message.length).toBeGreaterThan(0);
+    });
+
+    it('usage_limit: a resume of that session keeps the same session id', async () => {
+      const x = env().make();
+      const first = await reachLimit(x);
+      const sessionId = (first.events[0] as Extract<ExecutionEvent, { type: 'session' }>).sessionId;
+      const resumed = await reachLimit(x, { resumeSessionId: sessionId });
+      expectProtocol(resumed.events);
+      expect(resumed.events[0]).toEqual({ type: 'session', sessionId });
+    });
+  }
+
   it('describe(): kind matches the executor, has a label, schema accepts the sample config and rejects the invalid one, declares the cancel deadline', () => {
     const e = env();
     const x = e.make();

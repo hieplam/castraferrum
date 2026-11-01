@@ -45,6 +45,12 @@ import type { ExecutionEvent, ExecutionInput, ExecutorDescriptor, LoopExecutor }
 //          killing ourselves, without waiting for the iterator to throw `Operation aborted`;
 //   - an ERROR result (outside the cleanup turn), a dead process, Stop / the loop's timeout: as before (stop immediately; on cancel return at once, no
 //     `result` emitted).
+//
+// A USAGE LIMIT (spec 2.5, decisions 25 to 28) ends the turn with one `usage_limit` event. Each of the three triggers works alone and in any order, also on
+// a subagent message: `rate_limit_event` with status `rejected`, an assistant message with `error: 'rate_limit'`, or an error result with the text
+// `You've hit your`. After the first trigger the executor reads on until a `result`, the end of the stream or `limitSettleMs`, merges the values that it saw,
+// aborts the process and emits the event. A limit is applied last, over a later `result` and over the over-ceiling error. Evidence S1: no stored run holds a
+// `rate_limit_event` or a `result`, so nothing here depends on one of them. With `resumeSessionId` the executor sets the SDK option `resume` and logs `Resume round`.
 
 export const claudeConfigSchema = z.object({
   /** Claude Code alias, always pointing to the latest version. */
@@ -75,6 +81,8 @@ export type ClaudeAgentExecutorOptions = {
   settleMs?: number;
   /** How long the cleanup turn has, from the moment the cleanup message is sent, to produce a `result` before being killed (default 10 minutes). */
   cleanupMs?: number;
+  /** How long the executor reads on after the first usage-limit trigger (default 5 seconds), so a hung stream cannot hang a run. */
+  limitSettleMs?: number;
 };
 
 const SUMMARY_MAX = 500;
@@ -83,6 +91,13 @@ const BG_WAIT_CEILING_MS = 30 * 60_000;
 const STOP_GRACE_MS = 120_000;
 const SETTLE_MS = 60_000;
 const CLEANUP_MS = 10 * 60_000;
+const LIMIT_SETTLE_MS = 5000;
+/** The text of an error result at a usage limit. The dot accepts a typographic apostrophe, as the metric `limit-failures` does. */
+const LIMIT_TEXT = /You.ve hit your/;
+/** The message of a limit whose trigger had no text. It starts like the real text, so the metric `limit-failures` counts this run too. */
+const LIMIT_FALLBACK = "You've hit your usage limit";
+/** Epoch seconds reach this value in the year 5138, and 13-digit milliseconds are above it (decision 27). */
+const RESETS_AT_MAX = 1e11;
 
 /** "30 minutes" when a multiple of 60 000 ms, otherwise "N seconds" (rounded); singular for 1. Used in the over-ceiling error. */
 export function formatWait(ms: number): string {
@@ -106,6 +121,36 @@ export function cleanupMessage(ceilingMs: number, stopped: readonly string[]): s
 
 const userMessage = (text: string): SDKUserMessage => ({ type: 'user', message: { role: 'user', content: text }, parent_tool_use_id: null, session_id: '' });
 
+/** What one trigger says. `null` values are unknown. */
+type LimitSignal = { resetsAt: Date | null; limitType: string | null; assistantText: string | null; resultText: string | null };
+
+/** The usage-limit values of one SDK message; `null` = this message is not a trigger. */
+function limitSignal(m: SDKMessage): LimitSignal | null {
+  const none = { resetsAt: null, limitType: null, assistantText: null, resultText: null };
+  if (m.type === 'rate_limit_event') {
+    const info = m.rate_limit_info;
+    return info.status === 'rejected' ? { ...none, resetsAt: resetsAtOf(info.resetsAt), limitType: info.rateLimitType ?? null } : null;
+  }
+  if (m.type === 'assistant') return m.error === 'rate_limit' ? { ...none, assistantText: firstText(m) } : null;
+  if (m.type === 'result') {
+    if (m.subtype === 'success') return m.is_error && LIMIT_TEXT.test(m.result) ? { ...none, resultText: m.result } : null;
+    const text = m.errors.find((e) => LIMIT_TEXT.test(e));
+    return text === undefined ? null : { ...none, resultText: text };
+  }
+  return null;
+}
+
+/** Decision 27: `resetsAt` is proven in epoch seconds on an `allowed` event only. A value that is missing, not positive, or 1e11 or more gives `null`. */
+function resetsAtOf(value: unknown): Date | null {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 && value < RESETS_AT_MAX ? new Date(value * 1000) : null;
+}
+
+/** The first text block of an assistant message; `null` when it has none. */
+function firstText(m: Extract<SDKMessage, { type: 'assistant' }>): string | null {
+  for (const block of m.message.content) if (block.type === 'text' && block.text.trim() !== '') return block.text.trim();
+  return null;
+}
+
 export class ClaudeAgentExecutor implements LoopExecutor {
   readonly kind = 'claude';
   readonly #query: QueryFn;
@@ -114,6 +159,7 @@ export class ClaudeAgentExecutor implements LoopExecutor {
   readonly #graceMs: number;
   readonly #settleMs: number;
   readonly #cleanupMs: number;
+  readonly #limitSettleMs: number;
 
   constructor(opts: ClaudeAgentExecutorOptions = {}) {
     this.#query = opts.query ?? (sdkQuery as QueryFn);
@@ -122,6 +168,7 @@ export class ClaudeAgentExecutor implements LoopExecutor {
     this.#graceMs = opts.stopGraceMs ?? STOP_GRACE_MS;
     this.#settleMs = opts.settleMs ?? SETTLE_MS;
     this.#cleanupMs = opts.cleanupMs ?? CLEANUP_MS;
+    this.#limitSettleMs = opts.limitSettleMs ?? LIMIT_SETTLE_MS;
   }
 
   describe(): ExecutorDescriptor {
@@ -192,6 +239,7 @@ export class ClaudeAgentExecutor implements LoopExecutor {
         systemPrompt: { type: 'preset', preset: 'claude_code' },
         env,
         abortController: abort,
+        ...(input.resumeSessionId ? { resume: input.resumeSessionId } : {}),
       },
     });
     const messages = handle[Symbol.asyncIterator]();
@@ -215,11 +263,16 @@ export class ClaudeAgentExecutor implements LoopExecutor {
     let graceTimer: NodeJS.Timeout | undefined;
     /** Deadline of the cleanup turn (step 4): from sending the cleanup message, or from when Claude Code opens a turn itself after stopping. */
     let cleanupTimer: NodeJS.Timeout | undefined;
+    /** Not null = a usage limit was seen: the values so far. From then on the turn can only end with `usage_limit`. */
+    let limit = null as LimitSignal | null;
+    /** The cost of a `result` in the wait. `total_cost_usd` is cumulative, so a value replaces another and is never added (decision 28). */
+    let limitCostUsd: number | undefined;
+    let limitTimer: NodeJS.Timeout | undefined;
     // unref: the timer does not keep the server process alive (the ceiling is up to 30 minutes).
     const after = (ms: number, fn: () => void) => setTimeout(fn, ms).unref();
     const stopTimers = () => {
-      for (const t of [ceilingTimer, settleTimer, graceTimer, cleanupTimer]) if (t) clearTimeout(t);
-      ceilingTimer = settleTimer = graceTimer = cleanupTimer = undefined;
+      for (const t of [ceilingTimer, settleTimer, graceTimer, cleanupTimer, limitTimer]) if (t) clearTimeout(t);
+      ceilingTimer = settleTimer = graceTimer = cleanupTimer = limitTimer = undefined;
     };
     const armGrace = () => {
       if (graceTimer) clearTimeout(graceTimer);
@@ -331,6 +384,20 @@ export class ClaudeAgentExecutor implements LoopExecutor {
       if (stopped !== null) cleanupTimer ??= after(cleanupMs, kill);
     };
 
+    /** Merges one trigger. The first trigger replaces every wait of the turn with one wait of `limitSettleMs`. */
+    const noteLimit = (seen: LimitSignal) => {
+      if (limit === null) {
+        stopTimers();
+        limitTimer = after(this.#limitSettleMs, kill);
+      }
+      limit = {
+        resetsAt: limit?.resetsAt ?? seen.resetsAt,
+        limitType: limit?.limitType ?? seen.limitType,
+        assistantText: limit?.assistantText ?? seen.assistantText,
+        resultText: limit?.resultText ?? seen.resultText,
+      };
+    };
+
     try {
       for (;;) {
         let next: IteratorResult<SDKMessage> | 'aborted' | 'killed';
@@ -341,7 +408,7 @@ export class ClaudeAgentExecutor implements LoopExecutor {
         } catch (err) {
           ended = true;
           if (signal.aborted) return;
-          if (killed || stopped !== null) break; // already decided to end because of the ceiling: the turn's error is the over-ceiling error
+          if (killed || stopped !== null || limit !== null) break; // already decided to end because of the ceiling or a limit
           // Process died / SDK threw: the turn's error, not the console's.
           stopTimers();
           yield* failed(`Claude error: ${err instanceof Error ? err.message : String(err)}`, last?.costUsd, last?.summary);
@@ -354,14 +421,23 @@ export class ClaudeAgentExecutor implements LoopExecutor {
           break;
         }
         const m = next.value;
+        // Decision 26: `rate_limit_event` can come before `system/init`, and it carries `session_id`. So the first message with an id gives `session`.
+        if (sessionId === null && 'session_id' in m && m.session_id) {
+          sessionId = m.session_id;
+          yield { type: 'session', sessionId };
+          if (signal.aborted) return;
+          if (m.type !== 'result') yield { type: 'log', level: 'info', message: `${input.resumeSessionId ? 'Resume' : 'Start'} round #${input.iteration} · session ${sessionId}` };
+        }
+        const seen = limitSignal(m);
+        if (seen !== null) noteLimit(seen);
+        if (limit !== null) {
+          // In the wait only a `result` matters: it ends the wait, and its cost is the last one.
+          if (m.type !== 'result') continue;
+          limitCostUsd = m.total_cost_usd;
+          break;
+        }
         if (m.type === 'system' && m.subtype === 'init') {
           newTurn();
-          if (sessionId === null) {
-            sessionId = m.session_id;
-            yield { type: 'session', sessionId };
-            if (signal.aborted) return;
-            yield { type: 'log', level: 'info', message: `Start round #${input.iteration} · session ${sessionId}` };
-          }
         } else if (m.type === 'system' && m.subtype === 'background_tasks_changed') {
           live.clear();
           for (const t of m.tasks) if (!t.ambient) live.set(t.task_id, t.description);
@@ -369,10 +445,6 @@ export class ClaudeAgentExecutor implements LoopExecutor {
         } else if (m.type === 'assistant' || m.type === 'user' || m.type === 'stream_event') {
           if (isMainThread(m)) newTurn();
         } else if (m.type === 'result') {
-          if (sessionId === null) {
-            sessionId = m.session_id;
-            yield { type: 'session', sessionId };
-          }
           if (m.subtype === 'success' && !m.is_error) {
             // The turn has NOT ended yet: Claude Code may still be waiting for background tasks and then wake the agent itself (new turn, new result).
             // Before `cut`: the signal is the LAST line of the text, and the summary keeps only the first 500 characters (decision 5).
@@ -391,7 +463,9 @@ export class ClaudeAgentExecutor implements LoopExecutor {
       }
       stopTimers();
       if (signal.aborted) return;
-      if (stopped !== null) {
+      if (limit !== null) {
+        yield* usageLimit(limit, limitCostUsd ?? last?.costUsd);
+      } else if (stopped !== null) {
         yield* failed(overCeiling(stopped), last?.costUsd, last?.summary);
       } else if (last) {
         yield { type: 'log', level: 'info', message: `End · Success · ${formatUsd(last.costUsd)}` };
@@ -417,6 +491,15 @@ function failed(error: string, costUsd?: number, summary?: string): ExecutionEve
     { type: 'log', level: 'error', message: `Error · ${error}` },
     ...(costUsd === undefined ? [] : [{ type: 'log', level: 'info', message: `End · Error · ${formatUsd(costUsd)}` } as const]),
     { type: 'result', outcome: 'failed', error, ...(summary === undefined ? {} : { summary }), ...(costUsd === undefined ? {} : { costUsd }) },
+  ];
+}
+
+/** The events that end a turn at a usage limit: one `Error · …` line, then `usage_limit`. */
+function usageLimit(limit: LimitSignal, costUsd: number | undefined): ExecutionEvent[] {
+  const message = limit.resultText ?? limit.assistantText ?? LIMIT_FALLBACK;
+  return [
+    { type: 'log', level: 'error', message: `Error · ${message}` },
+    { type: 'usage_limit', resetsAt: limit.resetsAt, limitType: limit.limitType, message, ...(costUsd === undefined ? {} : { costUsd }) },
   ];
 }
 

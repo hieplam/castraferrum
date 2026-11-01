@@ -25,6 +25,8 @@ export type ExecutionInput = {
    * `ANTHROPIC_API_KEY`, so an env here cannot put the key back. Absent for a run with no probe.
    */
   env?: Record<string, string>;
+  /** Continue this session instead of opening a new one (spec 2.5). `prompt` is the head message. The session id stays the same. */
+  resumeSessionId?: string;
 };
 
 export type ExecutionEvent =
@@ -34,8 +36,13 @@ export type ExecutionEvent =
    */
   | { type: 'session'; sessionId: string }
   | { type: 'log'; level: 'info' | 'warn' | 'error'; message: string; data?: unknown }
-  /** Exactly once, as the final event. `costUsd`: estimated cost reported by the SDK (Claude); Mock has none. `end`: the run-end signal of a success. */
-  | { type: 'result'; outcome: 'succeeded' | 'failed'; summary?: string; error?: string; costUsd?: number; end?: RunEnd };
+  /** Exactly once, as the final event, unless the run ends at a usage limit. `costUsd`: estimated cost reported by the SDK (Claude); Mock has none. `end`: the run-end signal of a success. */
+  | { type: 'result'; outcome: 'succeeded' | 'failed'; summary?: string; error?: string; costUsd?: number; end?: RunEnd }
+  /**
+   * The final event in place of `result` when the account hit a usage limit (spec 2.5). `resetsAt` and `limitType` are `null` when not known. `costUsd` is
+   * the cumulative cost of the session, so it replaces a stored cost and is never added. A limit before any message with an id has no `session` event.
+   */
+  | { type: 'usage_limit'; resetsAt: Date | null; limitType: string | null; message: string; costUsd?: number };
 
 export type ExecutorDescriptor = {
   kind: string;
@@ -51,8 +58,8 @@ export interface LoopExecutor {
   readonly kind: string;
   describe(): ExecutorDescriptor;
   /**
-   * `session` → 0..n `log` → `result`, or throws while iterating (never synchronously). When `signal` aborts, the iterable ends
-   * within `cancelWithinMs` and emits no `result` afterwards. Does not touch the DB and does not know the service.
+   * `session` → 0..n `log` → `result` or `usage_limit`, or throws while iterating (never synchronously). When `signal` aborts, the iterable ends
+   * within `cancelWithinMs` and emits no final event afterwards. Does not touch the DB and does not know the service.
    */
   execute(input: ExecutionInput, signal: AbortSignal): AsyncIterable<ExecutionEvent>;
 }

@@ -14,7 +14,8 @@ import type { QueryFn, QueryHandle } from './claude-agent-executor';
 // FAKE Claude: a directory whose name starts with FAKE_CLAUDE_DIR_PREFIX → a fake `query` inside the server, no
 // process is opened, yet it still goes through the whole ClaudeAgentExecutor (streaming input, session id, summary, cost,
 // cancel). A prompt with `[soak:N]` → "soaks" for N seconds and then finishes (SPEC-phase-2 § Running N turns in
-// parallel) - e2e UC-32 uses it to keep many turns running at the same time.
+// parallel) - e2e UC-32 uses it to keep many turns running at the same time. A prompt with `[limit]` → a rejected `rate_limit_event`, then an
+// assistant `error`, then the end of the stream (spec 2.5). The option `resume` keeps its session id.
 
 export const REAL_CLAUDE_DIR_PREFIX = 'lc-real-claude-';
 export const FAKE_CLAUDE_DIR_PREFIX = 'lc-fake-claude-';
@@ -48,11 +49,16 @@ function fakeSoak(params: Parameters<QueryFn>[0]): QueryHandle {
   const abort = params.options.abortController;
   return (async function* (): AsyncGenerator<SDKMessage> {
     const prompt = await firstText(params.prompt);
-    const sessionId = randomUUID();
+    const sessionId = params.options.resume ?? randomUUID();
     const seconds = soakSecondsOf(prompt);
     if (prompt.includes(ECHO_ENV)) echoLaneEnv(params.options);
     yield { type: 'system', subtype: 'init', session_id: sessionId, apiKeySource: 'none', cwd: params.options.cwd ?? '', tools: [], mcp_servers: [] } as unknown as SDKMessage;
     yield { type: 'assistant', session_id: sessionId, parent_tool_use_id: null, message: { content: [{ type: 'text', text: `soaking for ${seconds} seconds` }] } } as unknown as SDKMessage;
+    if (prompt.includes('[limit]')) {
+      yield { type: 'rate_limit_event', rate_limit_info: { status: 'rejected', resetsAt: Math.floor(Date.now() / 1000) + 3600, rateLimitType: 'five_hour' }, session_id: sessionId } as unknown as SDKMessage;
+      yield { type: 'assistant', error: 'rate_limit', session_id: sessionId, parent_tool_use_id: null, message: { content: [{ type: 'text', text: "You've hit your limit" }] } } as unknown as SDKMessage;
+      return;
+    }
     await sleep(seconds * 1000, abort?.signal);
     if (abort?.signal.aborted) throw new Error('Claude Code process aborted by user');
     yield { type: 'result', subtype: 'success', is_error: false, result: `soak finished after ${seconds} seconds`, total_cost_usd: 0.0001, session_id: sessionId } as unknown as SDKMessage;

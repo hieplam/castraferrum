@@ -69,6 +69,17 @@ describe('Fake Claude lc-fake-claude-*: soaks [soak:N] seconds through the real 
     expect(events.at(-1)).toMatchObject({ type: 'result', outcome: 'succeeded', summary: 'soak finished after 1 seconds', costUsd: 0.0001 });
   });
 
+  it('[limit] → usage_limit through the real executor, with no real query and no soak; the option resume keeps the id', async () => {
+    const real = recordingQuery();
+    const executor = new ClaudeAgentExecutor({ query: testModeQuery(real) });
+    const events = await all(executor.execute(soakInput(fakeDir(), 'work [limit]'), new AbortController().signal));
+    expect(real.calls).toHaveLength(0);
+    expect(events.at(-1)).toMatchObject({ type: 'usage_limit', limitType: 'five_hour', message: "You've hit your limit", resetsAt: expect.any(Date) });
+    const sessionId = (events[0] as { sessionId: string }).sessionId;
+    const resumed = await all(executor.execute({ ...soakInput(fakeDir(), 'work'), resumeSessionId: sessionId }, new AbortController().signal));
+    expect(resumed[0]).toEqual({ type: 'session', sessionId });
+  });
+
   it('cancel during a 60-second soak → the executor ends within 3 seconds, with no result', async () => {
     const ctl = new AbortController();
     const t0 = Date.now();

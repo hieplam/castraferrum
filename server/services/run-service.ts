@@ -200,7 +200,11 @@ export class DefaultRunService implements RunService {
         if (signal.aborted) break; // already cancelled: the result is in the DB, drop the rest
         if (ev.type === 'session') await d.runs.setSession(run.id, ev.sessionId);
         else if (ev.type === 'log') await this.#log(run, ev.level, ev.message, ev.data);
-        else {
+        else if (ev.type === 'usage_limit') {
+          // Every loop fails here for now: P8 adds `held`. The executor already wrote the `Error · ` line.
+          outcome = { status: 'failed', summary: null, error: ev.message, costUsd: ev.costUsd ?? null };
+          break; // `usage_limit` is the last event
+        } else {
           outcome =
             ev.outcome === 'succeeded'
               ? { status: 'succeeded', summary: ev.summary ?? null, costUsd: ev.costUsd ?? null, endResult: ev.end?.result ?? null, endPr: ev.end?.pr ?? null }
