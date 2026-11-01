@@ -4,6 +4,7 @@
 import { randomUUID } from 'node:crypto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { ErrorCode } from '../../shared/domain/errors';
+import type { GateJobState, GateStep } from '../../shared/domain/gate';
 import type { ProbeSettings } from '../../shared/domain/goal-loop';
 import type { NewStandingIssueRecord } from '../../server/ports/goal-repository';
 import type { NewLoopRecord } from '../../server/ports/loop-repository';
@@ -17,6 +18,8 @@ export type ContractEnv = Repositories & {
   reset(): Promise<void>;
   /** Insert a `running` run straight into the runs "table", NOT through the repository (Postgres: raw SQL). */
   rawInsertRunning(row: { id: string; loopId: string; executionId: string; iteration: number }): Promise<void>;
+  /** Insert a gate job straight into the gate_jobs "table", NOT through the repository: only the partial unique indexes can block it. */
+  rawInsertGateJob(row: { id: string; repoId: string; prNumber: number; headSha: string; state: GateJobState }): Promise<void>;
 };
 
 const T0 = new Date('2026-10-18T01:00:00.000Z');
@@ -1017,8 +1020,8 @@ export function repositoryContract(env: () => ContractEnv): void {
       const early = await openClaim(loop.id, '141', 1);
       await openClaim(other.id);
       expect(await r.claims.listOpen(loop.id)).toEqual([
-        { id: early.id, loopId: loop.id, taskKey: '141', runId: early.runId, openedAt: at(1), closedAt: null, closeReason: null },
-        { id: late.id, loopId: loop.id, taskKey: '142', runId: late.runId, openedAt: at(9), closedAt: null, closeReason: null },
+        { id: early.id, loopId: loop.id, taskKey: '141', runId: early.runId, openedAt: at(1), closedAt: null, closeReason: null, owner: 'run', gateJobId: null },
+        { id: late.id, loopId: loop.id, taskKey: '142', runId: late.runId, openedAt: at(9), closedAt: null, closeReason: null, owner: 'run', gateJobId: null },
       ]);
     });
 
@@ -1059,6 +1062,185 @@ export function repositoryContract(env: () => ContractEnv): void {
         executorConfig: {},
       });
       expect(skipped).toMatchObject({ trigger: 'probe', taskKey: '141', status: 'skipped' });
+    });
+  });
+
+  describe('gate_tables', () => {
+    const job = (over: Partial<{ id: string; prNumber: number; headSha: string; taskKey: string; sec: number }> = {}) => {
+      const { sec, ...rest } = over;
+      return { id: randomUUID(), repoId, prNumber: 7, headSha: 'a'.repeat(40), taskKey: '141', at: at(sec ?? 0), ...rest };
+    };
+    const enqueue = async (over: Parameters<typeof job>[0] = {}) => {
+      const j = job(over);
+      return { id: j.id, answer: await r.gate.enqueue(j) };
+    };
+    const setting = { enabled: true, githubRepo: 'o/r', checkCommand: ['node', 'check.mjs'] };
+
+    it('a repository with no gate row has none', async () => {
+      expect(await r.gate.getRepoGate(repoId)).toBeNull();
+    });
+
+    it('setRepoGate stores the setting, and the gate stays off when the caller says so', async () => {
+      expect(await r.gate.setRepoGate(repoId, { enabled: false, githubRepo: 'o/r', checkCommand: [] }, at(1))).toEqual({
+        repoId,
+        enabled: false,
+        githubRepo: 'o/r',
+        checkCommand: [],
+        updatedAt: at(1),
+      });
+      expect(await r.gate.setRepoGate(repoId, setting, at(2))).toMatchObject({ enabled: true, checkCommand: ['node', 'check.mjs'] });
+    });
+
+    it('setRepoGate replaces the whole setting', async () => {
+      await r.gate.setRepoGate(repoId, setting, at(1));
+      await r.gate.setRepoGate(repoId, { enabled: false, githubRepo: 'x/y', checkCommand: [] }, at(2));
+      expect(await r.gate.getRepoGate(repoId)).toEqual({ repoId, enabled: false, githubRepo: 'x/y', checkCommand: [], updatedAt: at(2) });
+    });
+
+    it('setRepoGate for an unknown repository gives REPO_NOT_FOUND and writes nothing', async () => {
+      const unknown = randomUUID();
+      await expectCode(r.gate.setRepoGate(unknown, setting, at(1)), 'REPO_NOT_FOUND');
+      expect(await r.gate.getRepoGate(unknown)).toBeNull();
+    });
+
+    it('enqueue queues a job with its fields', async () => {
+      const first = await enqueue();
+      expect(first.answer).toBe('queued');
+      expect(await r.gate.get(first.id)).toEqual({
+        id: first.id,
+        repoId,
+        prNumber: 7,
+        headSha: 'a'.repeat(40),
+        taskKey: '141',
+        state: 'queued',
+        failedStep: null,
+        queuedAt: at(0),
+        startedAt: null,
+        finishedAt: null,
+        ratifiedAt: null,
+      });
+    });
+
+    it('the same repository, PR and head commit is a duplicate, and the index refuses it when the repository is bypassed', async () => {
+      expect((await enqueue()).answer).toBe('queued');
+      expect((await enqueue({ sec: 1 })).answer).toBe('duplicate');
+      expect((await enqueue({ headSha: 'b'.repeat(40) })).answer).toBe('queued');
+      expect((await enqueue({ prNumber: 8 })).answer).toBe('queued');
+      expect(await r.gate.list(10)).toHaveLength(3);
+      await expect(r.rawInsertGateJob({ id: randomUUID(), repoId, prNumber: 7, headSha: 'a'.repeat(40), state: 'queued' })).rejects.toThrow(
+        /gate_jobs_one_live_per_head/,
+      );
+    });
+
+    it('a running job also blocks a duplicate, and enqueue works again after the job finished', async () => {
+      const first = await enqueue();
+      await r.gate.takeNext(at(1));
+      expect((await enqueue({ sec: 2 })).answer).toBe('duplicate');
+      await r.gate.finish(first.id, { state: 'failed', failedStep: 'green', at: at(3) });
+      expect((await enqueue({ sec: 4 })).answer).toBe('queued');
+    });
+
+    it('takeNext takes the oldest queued job and marks it running', async () => {
+      const late = await enqueue({ prNumber: 2, sec: 9 });
+      const early = await enqueue({ prNumber: 1, sec: 1 });
+      const taken = await r.gate.takeNext(at(20));
+      expect(taken).toMatchObject({ id: early.id, state: 'running', startedAt: at(20), finishedAt: null });
+      expect(await r.gate.get(early.id)).toMatchObject({ state: 'running' });
+      expect(await r.gate.get(late.id)).toMatchObject({ state: 'queued', startedAt: null });
+    });
+
+    it('takeNext gives null while a job runs, and the index refuses a second running row', async () => {
+      await enqueue({ prNumber: 1 });
+      await enqueue({ prNumber: 2, sec: 1 });
+      expect(await r.gate.takeNext(at(5))).not.toBeNull();
+      expect(await r.gate.takeNext(at(6))).toBeNull();
+      expect((await r.gate.list(10)).filter((j) => j.state === 'running')).toHaveLength(1);
+      await expect(r.rawInsertGateJob({ id: randomUUID(), repoId, prNumber: 99, headSha: 'c'.repeat(40), state: 'running' })).rejects.toThrow(
+        /gate_jobs_one_running/,
+      );
+    });
+
+    it('takeNext gives null when nothing is queued', async () => {
+      expect(await r.gate.takeNext(at(1))).toBeNull();
+    });
+
+    it('finish moves a running job to its end state, and the first finish stays', async () => {
+      const { id } = await enqueue();
+      expect(await r.gate.finish(id, { state: 'merged', failedStep: null, at: at(2) })).toBeNull();
+      await r.gate.takeNext(at(3));
+      expect(await r.gate.finish(id, { state: 'failed', failedStep: 'verify', at: at(4) })).toMatchObject({
+        id,
+        state: 'failed',
+        failedStep: 'verify',
+        finishedAt: at(4),
+      });
+      expect(await r.gate.finish(id, { state: 'merged', failedStep: null, at: at(5) })).toBeNull();
+      expect(await r.gate.get(id)).toMatchObject({ state: 'failed', failedStep: 'verify', finishedAt: at(4) });
+      expect(await r.gate.finish(randomUUID(), { state: 'failed', failedStep: null, at: at(6) })).toBeNull();
+      // The job no longer runs, so the next one can start.
+      const next = await enqueue({ prNumber: 8, sec: 7 });
+      expect((await r.gate.takeNext(at(8)))?.id).toBe(next.id);
+    });
+
+    it('ratify moves needs_ratification back to queued and keeps its place in the queue', async () => {
+      const { id } = await enqueue({ sec: 1 });
+      await r.gate.takeNext(at(2));
+      await r.gate.finish(id, { state: 'needs_ratification', failedStep: 'scope', at: at(3) });
+      const newer = await enqueue({ prNumber: 9, sec: 5 });
+      expect(await r.gate.ratify(id, at(6))).toBe(true);
+      expect(await r.gate.get(id)).toMatchObject({ state: 'queued', ratifiedAt: at(6), startedAt: null, finishedAt: null, failedStep: null });
+      expect((await r.gate.takeNext(at(7)))?.id).toBe(id);
+      expect((await r.gate.get(newer.id))?.state).toBe('queued');
+    });
+
+    it('ratify of a job in any other state, or of an unknown job, gives false and changes nothing', async () => {
+      const { id } = await enqueue();
+      expect(await r.gate.ratify(id, at(1))).toBe(false);
+      await r.gate.takeNext(at(2));
+      expect(await r.gate.ratify(id, at(3))).toBe(false);
+      await r.gate.finish(id, { state: 'failed', failedStep: 'base', at: at(4) });
+      expect(await r.gate.ratify(id, at(5))).toBe(false);
+      expect(await r.gate.ratify(randomUUID(), at(5))).toBe(false);
+      expect(await r.gate.get(id)).toMatchObject({ state: 'failed', ratifiedAt: null });
+    });
+
+    it('listSteps gives the steps of one job by seq, and list gives the newest job first', async () => {
+      const a = await enqueue({ prNumber: 1, sec: 1 });
+      const b = await enqueue({ prNumber: 2, sec: 2 });
+      const step = (jobId: string, seq: number, over: Partial<GateStep> = {}): GateStep => ({
+        jobId,
+        seq,
+        step: 'scope',
+        status: 'pass',
+        exitCode: 0,
+        ms: 12,
+        outputTail: 'ok',
+        ...over,
+      });
+      const second = step(a.id, 2, { step: 'base', status: 'skip', exitCode: null, outputTail: 'no base' });
+      await r.gate.appendStep(second);
+      await r.gate.appendStep(step(a.id, 1));
+      await r.gate.appendStep(step(b.id, 1, { step: 'green', status: 'fail', exitCode: 1 }));
+      expect(await r.gate.listSteps(a.id)).toEqual([step(a.id, 1), second]);
+      expect(await r.gate.listSteps(randomUUID())).toEqual([]);
+      expect((await r.gate.list(10)).map((j) => j.id)).toEqual([b.id, a.id]);
+      expect((await r.gate.list(1)).map((j) => j.id)).toEqual([b.id]);
+    });
+
+    it('handOver gives a claim to the gate, and the claim is then not an orphan', async () => {
+      const loop = await r.loops.insert(newLoop());
+      const claimId = randomUUID();
+      // The claim has no run row, so it counts as orphaned until the gate owns it.
+      await r.claims.open({ id: claimId, loopId: loop.id, taskKey: '141', runId: randomUUID(), at: at(0) });
+      expect((await r.claims.findOrphaned(10)).map((c) => c.id)).toEqual([claimId]);
+      const { id: jobId } = await enqueue();
+      expect(await r.claims.handOver(claimId, jobId)).toBe(true);
+      expect(await r.claims.findOrphaned(10)).toEqual([]);
+      expect(await r.claims.listOpen(loop.id)).toMatchObject([{ id: claimId, owner: 'gate', gateJobId: jobId, closedAt: null }]);
+      // A closed row cannot be handed over, and an unknown row cannot either.
+      await r.claims.close(claimId, 'merged', at(2));
+      expect(await r.claims.handOver(claimId, jobId)).toBe(false);
+      expect(await r.claims.handOver(randomUUID(), jobId)).toBe(false);
     });
   });
 

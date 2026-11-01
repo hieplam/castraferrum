@@ -1,6 +1,6 @@
 import type pg from 'pg';
 import type { RunStatus } from '../../../shared/domain/run';
-import type { ClaimRecord, ClaimRepository, OpenClaimInput, OrphanedClaim } from '../../ports/claims';
+import type { ClaimOwner, ClaimRecord, ClaimRepository, OpenClaimInput, OrphanedClaim } from '../../ports/claims';
 
 type Row = Record<string, unknown>;
 
@@ -13,6 +13,8 @@ function toClaim(r: Row): ClaimRecord {
     openedAt: r.opened_at as Date,
     closedAt: (r.closed_at as Date | null) ?? null,
     closeReason: (r.close_reason as string | null) ?? null,
+    owner: r.owner as ClaimOwner,
+    gateJobId: (r.gate_job_id as string | null) ?? null,
   };
 }
 
@@ -41,11 +43,16 @@ export class PgClaimRepository implements ClaimRepository {
     await this.#pool.query('UPDATE run_claims SET closed_at = $3, close_reason = $2 WHERE id = $1 AND closed_at IS NULL', [id, reason, at]);
   }
 
+  async handOver(id: string, gateJobId: string): Promise<boolean> {
+    const res = await this.#pool.query(`UPDATE run_claims SET owner = 'gate', gate_job_id = $2 WHERE id = $1 AND closed_at IS NULL`, [id, gateJobId]);
+    return res.rowCount === 1;
+  }
+
   async findOrphaned(limit: number): Promise<OrphanedClaim[]> {
     const { rows } = await this.#pool.query(
       `SELECT c.*, r.status AS run_status, r.end_result
          FROM run_claims c LEFT JOIN runs r ON r.id = c.run_id
-        WHERE c.closed_at IS NULL AND (r.id IS NULL OR r.status NOT IN ('running', 'held'))
+        WHERE c.closed_at IS NULL AND c.owner = 'run' AND (r.id IS NULL OR r.status NOT IN ('running', 'held'))
         ORDER BY c.opened_at, c.id
         LIMIT $1`,
       [limit],

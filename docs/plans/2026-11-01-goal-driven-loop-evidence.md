@@ -790,6 +790,47 @@ Goal: G9, a PR cannot lower its bar. Issue 251, amends spec 2.9 (Decisions, item
 
 <!-- K2 -->
 
+## K2
+
+Goal G6: the gate keeps one job at a time, a record of each step, and each claim that it owns.
+
+Red (before building):
+
+    $ npx vitest run --project contract -t gate_tables
+     Test Files  2 failed | 2 skipped (4)
+          Tests  30 failed | 170 skipped (200)
+
+Green (after the rebase on main):
+
+    $ npx vitest run --project contract -t gate_tables
+          Tests  30 passed | 170 skipped (200)
+    $ npx vitest run --project api tests/api/db-migrate.test.ts
+          Tests  2 passed (2)
+    $ npm run verify
+          Tests  973 passed | 2 skipped (975)
+          Tests  200 passed (200)
+    memory: 93 passed · postgres: 93 passed
+          Tests  159 passed (159)
+      115 passed (12.8m)
+    phone overflow: 0/12
+    UCs with a green e2e: 33/33
+    verify exit 0
+
+Stub check:
+
+- `takeNext` with no running guard and no catch of the index error: `takeNext gives null while a job runs, and the index refuses a second running row` failed on memory and postgres (`Tests  2 failed | 28 passed`).
+- `handOver` that changes nothing: `handOver gives a claim to the gate, and the claim is then not an orphan` failed on memory and postgres (`Tests  2 failed | 28 passed`).
+- Both restored; Green printed `30 passed` again.
+
+Ratchet: `npm run test:contract`, each side 78 -> 93 (+15).
+
+Decisions:
+
+- Full verify, not light: `claims.ts` and `repositories.ts` are reached from `server/compose.ts`.
+- `ClaimRecord` gains `owner` and `gateJobId`; the existing `listOpen` expectations list them.
+- The migration is named `gate` (`drizzle-kit generate --name gate`). `real-console.test.ts` has its own `TRUNCATE` list and now names the three gate tables.
+- Gap: `ratify` can meet the live-row index when a duplicate was queued while the job waited for ratification. It throws on both sides. Recorded on K6.
+
 <!-- K3 -->
 
 ## K3

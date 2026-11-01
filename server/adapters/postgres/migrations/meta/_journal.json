@@ -57,6 +57,13 @@
       "when": 1793530558267,
       "tag": "0007_run_claims",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793532933068,
+      "tag": "0008_gate",
+      "breakpoints": true
     }
   ]
 }

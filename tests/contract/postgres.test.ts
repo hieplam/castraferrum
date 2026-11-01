@@ -14,7 +14,14 @@ describe('postgres', () => {
     env = {
       ...createPgRepositories(db.pool),
       reset: async () => {
-        await db.pool.query('TRUNCATE run_logs, runs, run_claims, loop_executions, loop_probes, loops, repos, server_heartbeat, notices, standing_goals, standing_issues, standing_schedule');
+        await db.pool.query('TRUNCATE run_logs, runs, run_claims, gate_steps, gate_jobs, repo_gate, loop_executions, loop_probes, loops, repos, server_heartbeat, notices, standing_goals, standing_issues, standing_schedule');
+      },
+      // Raw SQL, bypassing PgGateRepository: only the partial unique indexes can block it.
+      rawInsertGateJob: async (row) => {
+        await db.pool.query(
+          `INSERT INTO gate_jobs (id, repo_id, pr_number, head_sha, task_key, state, queued_at) VALUES ($1, $2, $3, $4, 'raw', $5, '2026-10-18T01:00:00Z')`,
+          [row.id, row.repoId, row.prNumber, row.headSha, row.state],
+        );
       },
       // Raw SQL, bypassing PgRunRepository: only the runs_max_concurrent_per_loop trigger can block it.
       rawInsertRunning: async (row) => {

@@ -15,7 +15,7 @@ export class MemoryClaimRepository implements ClaimRepository {
   async open(input: OpenClaimInput): Promise<'opened' | 'taken'> {
     const { at, ...rest } = input;
     try {
-      this.#db.writeClaim({ ...rest, openedAt: at, closedAt: null, closeReason: null });
+      this.#db.writeClaim({ ...rest, openedAt: at, closedAt: null, closeReason: null, owner: 'run', gateJobId: null });
       return 'opened';
     } catch (err) {
       if (err instanceof ConstraintViolation && err.constraint === 'run_claims_one_open_per_task') return 'taken';
@@ -35,9 +35,16 @@ export class MemoryClaimRepository implements ClaimRepository {
     if (row && row.closedAt === null) this.#db.writeClaim({ ...row, closedAt: at, closeReason: reason });
   }
 
+  async handOver(id: string, gateJobId: string): Promise<boolean> {
+    const row = this.#db.claims.get(id);
+    if (!row || row.closedAt !== null) return false;
+    this.#db.writeClaim({ ...row, owner: 'gate', gateJobId });
+    return true;
+  }
+
   async findOrphaned(limit: number): Promise<OrphanedClaim[]> {
     const out: OrphanedClaim[] = [];
-    for (const c of [...this.#db.claims.values()].filter((row) => row.closedAt === null).sort(oldestFirst)) {
+    for (const c of [...this.#db.claims.values()].filter((row) => row.closedAt === null && row.owner === 'run').sort(oldestFirst)) {
       const run = this.#db.runs.get(c.runId);
       if (run && LIVE_RUN.includes(run.status)) continue;
       out.push({ ...clone(c), runStatus: run?.status ?? null, endResult: run?.endResult ?? null });
