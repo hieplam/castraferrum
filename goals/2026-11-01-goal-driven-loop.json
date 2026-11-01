@@ -86,7 +86,7 @@
       "outcome": "No PR merges with a failing check",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/gate-red.test.ts",
+          "run": "npx vitest run --project api tests/api/gate-red.test.ts --reporter verbose",
           "expect": [
             "gate-red",
             "passed"
@@ -99,7 +99,7 @@
       "outcome": "Empty work cannot merge",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/gate-stub.test.ts",
+          "run": "npx vitest run --project api tests/api/gate-stub.test.ts --reporter verbose",
           "expect": [
             "gate-stub",
             "passed"
@@ -112,7 +112,7 @@
       "outcome": "A run does not wait for tests or CI",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/gate-handover.test.ts",
+          "run": "npx vitest run --project api tests/api/gate-handover.test.ts --reporter verbose",
           "expect": [
             "gate-handover",
             "passed"
@@ -125,7 +125,7 @@
       "outcome": "A PR cannot lower its own bar",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/gate-scope.test.ts",
+          "run": "npx vitest run --project api tests/api/gate-scope.test.ts --reporter verbose",
           "expect": [
             "gate-scope",
             "passed"
@@ -196,7 +196,7 @@
       "outcome": "A repeated cause opens one issue with no owner message",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/process-review.test.ts",
+          "run": "npx vitest run --project api tests/api/process-review.test.ts --reporter verbose",
           "expect": [
             "process-review",
             "passed"
@@ -263,7 +263,7 @@
       "outcome": "A refused goal does not start",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/goal-cards.test.ts",
+          "run": "npx vitest run --project api tests/api/goal-cards.test.ts --reporter verbose",
           "expect": [
             "goal-cards",
             "passed"
@@ -276,7 +276,7 @@
       "outcome": "A one-way goal never starts alone",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/goal-cards.test.ts",
+          "run": "npx vitest run --project api tests/api/goal-cards.test.ts --reporter verbose",
           "expect": [
             "goal-cards",
             "passed"
