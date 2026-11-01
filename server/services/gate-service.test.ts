@@ -137,6 +137,25 @@ describe('gate_service', { timeout: 120_000 }, () => {
     expect(world.lines()).toEqual([]);
   });
 
+  test('a job that is not ratified merges with the status gate: every step passed', async ({ world, runJob, lastStatus }) => {
+    const pr = world.openPr();
+    expect((await runJob(pr)).state).toBe('merged');
+    expect(lastStatus(pr.headSha)).toMatchObject({ state: 'success', description: 'gate: every step passed' });
+  });
+
+  test('a ratified job that merges ends with the status gate: ratified <time>', async ({ world, repos, service, queue, result, lastStatus }) => {
+    world.setGate({ guarded: ['impl.mjs'] });
+    const pr = world.openPr();
+    const id = await queue(pr);
+    await service.tick();
+    expect((await result(id)).state).toBe('needs_ratification');
+    const at = clock.now();
+    expect(await repos.gate.ratify(id, at)).toBe('ratified');
+    await service.tick();
+    expect((await result(id)).state).toBe('merged');
+    expect(lastStatus(pr.headSha)).toMatchObject({ state: 'success', description: `gate: ratified ${at.toISOString()}` });
+  });
+
   test('a task with no entry fails green', async ({ world, runJob }) => {
     const job = await runJob(world.openPr(), 'no-such-key');
     expect([job.state, job.failedStep]).toEqual(['failed', 'green']);

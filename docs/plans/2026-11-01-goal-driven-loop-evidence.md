@@ -1645,3 +1645,15 @@ Goal: G7, a gate line with double quotes runs exactly as written, on Windows and
 - Stub check: the option removed from `GitGateWorkspace.run`, the two tests printed `expected 1 to be +0`, `expected 1 to be 3`, and `Tests  2 failed | 20 skipped (22)`. Restored.
 - Ratchet, passing unit tests: 973 before, 975 after (2 skipped in both). The expected value of the `shellArgv` win32 test changed with the contract in decision 31.
 - Light verify, in order, exit 0: `arch` printed `dependency-cruiser: 0 violations`; `test:unit` printed `Test Files  75 passed | 1 skipped (76)`, `Tests  975 passed | 2 skipped (977)`; `test:contract` printed `Tests  200 passed (200)`; `test:api` printed `Tests  159 passed (159)`.
+
+<!-- 339 -->
+
+## 339
+
+Goal: G9, a ratification that a run makes through a script file cannot stay unseen.
+
+- Red: with the gate change stashed, the new gate test printed `"description": "gate: every step passed"` where `gate: ratified <time>` was expected. With the audit unchanged, `npx vitest run --project unit tests/tools/merge-audit.test.ts` printed `Tests  4 failed | 6 passed (10)`.
+- Green (after the rebase): the same command with `server/services/gate-service.test.ts` prints `Test Files  2 passed (2)`, `Tests  46 passed (46)`. A world with a ratified merge prints one `ratified` entry with the PR number and the time, a world with none prints `[]`, exit code 0 in both.
+- Stub check: the gate change stashed fails the ratified-status test (Red above). An audit that always gives `[]` fails the test that expects `{ pr: 2, at }`.
+- Ratchet, tests in `tests/tools/merge-audit.test.ts`: 7 before, 10 after.
+- Full `npm run verify` in slot-1: exit 0, `UCs with a green e2e: 35/35`.

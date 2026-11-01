@@ -533,7 +533,9 @@ export class DefaultGateService implements GateService {
       if (attempt > 1) return { end: fail('main moved twice'), again: false };
       return { end: { status: 'skip', output: `main moved to ${mainSha}, the job runs again` }, again: true };
     }
-    await host.setStatus(setting.githubRepo, job.headSha, { state: 'success', description: 'gate: every step passed' });
+    // Decision 41: a ratified merge says so in the final status, and scripts/merge-audit.mjs lists it.
+    const description = job.ratifiedAt === null ? 'gate: every step passed' : `gate: ratified ${job.ratifiedAt.toISOString()}`;
+    await host.setStatus(setting.githubRepo, job.headSha, { state: 'success', description });
     await host.merge(setting.githubRepo, job.prNumber, job.headSha);
     return { end: { status: 'pass', exitCode: 0, output: `merged ${job.headSha}\n${await this.checkCommand(run, repo)}` }, again: false };
   }

@@ -50,12 +50,12 @@ function mergedPr(number: number, mergedAt: string, patch: Partial<FakePr> = {})
 }
 
 /** Seed merged PRs; `status` maps a PR number to the state of its gate status (absent: no status). */
-function seed(gh: FakeGh, prs: FakePr[], status: Record<number, string>): void {
+function seed(gh: FakeGh, prs: FakePr[], status: Record<number, string>, description: Record<number, string> = {}): void {
   const w = gh.read();
   w.prs.push(...prs);
   for (const [n, state] of Object.entries(status)) {
     w.statuses[sha(Number(n))] = [
-      { state, context: 'castraferrum/gate', description: 'verify: ok', created_at: '2026-11-01T00:00:00.000Z' },
+      { state, context: 'castraferrum/gate', description: description[Number(n)] ?? 'verify: ok', created_at: '2026-11-01T00:00:00.000Z' },
     ];
   }
   writeFileSync(gh.world, JSON.stringify(w));
@@ -103,7 +103,35 @@ describe('merge-audit', () => {
     seed(gh, [mergedPr(1, AFTER), mergedPr(2, AFTER)], { 1: 'success' });
     const r = audit('-R', 'fake/repo', '--since', SINCE, '--json');
     expect(r.code).toBe(1);
-    expect(JSON.parse(r.out)).toEqual({ incidents: [{ pr: 2, sha: sha(2), why: 'no status' }], merged: 2 });
+    expect(JSON.parse(r.out)).toEqual({ incidents: [{ pr: 2, sha: sha(2), why: 'no status' }], ratified: [], merged: 2 });
+  });
+
+  it('lists a ratified merge in the text output and in --json, and the exit code stays 0', () => {
+    const { gh, audit } = setup();
+    const at = '2026-11-01T09:30:00.000Z';
+    seed(gh, [mergedPr(1, AFTER), mergedPr(2, AFTER)], { 1: 'success', 2: 'success' }, { 2: `gate: ratified ${at}` });
+    const text = audit('-R', 'fake/repo', '--since', SINCE);
+    expect(text.code).toBe(0);
+    expect(text.out.trim().split('\n')).toEqual([`ratified: PR 2 ${at}`, 'merge-audit: 0 incidents in 2 merged PRs']);
+    const json = audit('-R', 'fake/repo', '--since', SINCE, '--json');
+    expect(json.code).toBe(0);
+    expect(JSON.parse(json.out)).toEqual({ incidents: [], ratified: [{ pr: 2, at }], merged: 2 });
+  });
+
+  it('prints an empty ratified list when no merge was ratified', () => {
+    const { gh, audit } = setup();
+    seed(gh, [mergedPr(1, AFTER)], { 1: 'success' }, { 1: 'gate: every step passed' });
+    const r = audit('-R', 'fake/repo', '--since', SINCE, '--json');
+    expect(r.code).toBe(0);
+    expect(JSON.parse(r.out)).toEqual({ incidents: [], ratified: [], merged: 1 });
+  });
+
+  it('does not list a ratified description on a failed status, which stays an incident', () => {
+    const { gh, audit } = setup();
+    seed(gh, [mergedPr(3, AFTER)], { 3: 'failure' }, { 3: 'gate: ratified 2026-11-01T09:30:00.000Z' });
+    const r = audit('-R', 'fake/repo', '--since', SINCE, '--json');
+    expect(r.code).toBe(1);
+    expect(JSON.parse(r.out).ratified).toEqual([]);
   });
 
   it('exits 2 when --since is missing, or is not a date', () => {
