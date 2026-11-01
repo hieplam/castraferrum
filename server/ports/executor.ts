@@ -20,6 +20,11 @@ export type ExecutionInput = {
    * was deleted / renamed after registration → an executor that needs the folder returns `failed` "Repo does not exist: <path>".
    */
   cwd: string;
+  /**
+   * Extra env of the run (the lane env of a claimed run, spec 2.7). The executor spreads it over its base env, then drops
+   * `ANTHROPIC_API_KEY`, so an env here cannot put the key back. Absent for a run with no probe.
+   */
+  env?: Record<string, string>;
 };
 
 export type ExecutionEvent =

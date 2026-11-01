@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { appendFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { query as sdkQuery, type SDKMessage, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { QueryFn, QueryHandle } from './claude-agent-executor';
 
@@ -48,12 +50,21 @@ function fakeSoak(params: Parameters<QueryFn>[0]): QueryHandle {
     const prompt = await firstText(params.prompt);
     const sessionId = randomUUID();
     const seconds = soakSecondsOf(prompt);
+    if (prompt.includes(ECHO_ENV)) echoLaneEnv(params.options);
     yield { type: 'system', subtype: 'init', session_id: sessionId, apiKeySource: 'none', cwd: params.options.cwd ?? '', tools: [], mcp_servers: [] } as unknown as SDKMessage;
     yield { type: 'assistant', session_id: sessionId, parent_tool_use_id: null, message: { content: [{ type: 'text', text: `soaking for ${seconds} seconds` }] } } as unknown as SDKMessage;
     await sleep(seconds * 1000, abort?.signal);
     if (abort?.signal.aborted) throw new Error('Claude Code process aborted by user');
     yield { type: 'result', subtype: 'success', is_error: false, result: `soak finished after ${seconds} seconds`, total_cost_usd: 0.0001, session_id: sessionId } as unknown as SDKMessage;
   })();
+}
+
+/** Prompt `[echo-env]`: the run writes the lane env that it got, one JSON line, to `<cwd>/lane-env.jsonl` (P6 oracle). */
+export const ECHO_ENV = '[echo-env]';
+
+function echoLaneEnv(options: Parameters<QueryFn>[0]['options']): void {
+  const lane = Object.entries(options.env ?? {}).filter(([name, value]) => /^(CASTRAFERRUM_|LANE_)/.test(name) && value !== undefined);
+  appendFileSync(join(options.cwd ?? '.', 'lane-env.jsonl'), `${JSON.stringify(Object.fromEntries(lane))}\n`);
 }
 
 function firstText(prompt: string | AsyncIterable<SDKUserMessage>): Promise<string> {

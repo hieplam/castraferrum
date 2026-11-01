@@ -1,4 +1,5 @@
 import { DomainError } from '../../shared/domain/errors';
+import { claimedLine } from '../../shared/domain/goal-loop';
 import type { LogLevel, RunTrigger } from '../../shared/domain/run';
 import type { ActiveRunRegistry } from '../ports/active-runs';
 import type { Clock } from '../ports/clock';
@@ -9,7 +10,7 @@ import type { Page, PageRequest } from '../ports/page';
 import type { Repositories } from '../ports/repositories';
 import type { LogLine } from '../ports/run-log-repository';
 import type { RunOutcome, RunRecord } from '../ports/run-repository';
-import type { RunService, RunView } from './contracts';
+import type { ClaimedStart, RunService, RunView } from './contracts';
 
 export type RunServiceDeps = Pick<Repositories, 'repos' | 'loops' | 'executions' | 'runs' | 'logs'> & {
   executors: ExecutorRegistry;
@@ -46,7 +47,7 @@ export class DefaultRunService implements RunService {
     return this.#begin(loopId, executionId, 'schedule', scheduledFor);
   }
 
-  startClaimed(loopId: string, executionId: string, claim: { runId: string; taskKey: string }): Promise<RunView> {
+  startClaimed(loopId: string, executionId: string, claim: ClaimedStart): Promise<RunView> {
     return this.#begin(loopId, executionId, 'probe', null, claim);
   }
 
@@ -111,7 +112,7 @@ export class DefaultRunService implements RunService {
     executionId: string,
     trigger: RunTrigger,
     scheduledFor: Date | null,
-    claim: { runId: string; taskKey: string } | null = null,
+    claim: ClaimedStart | null = null,
   ): Promise<RunView> {
     const d = this.#d;
     const loop = await d.loops.findById(loopId);
@@ -120,7 +121,9 @@ export class DefaultRunService implements RunService {
     const repo = await d.repos.findById(loop.repoId);
     if (!repo) throw new Error(`Loop ${loopId} points at repo ${loop.repoId} which does not exist (the foreign key should prevent this)`);
     const now = d.clock.now();
-    const snapshot = { promptSnapshot: loop.prompt, executorKind: loop.executorKind, executorConfig: loop.executorConfig };
+    // A claimed run starts with the line that tells the model which task is its own (spec 2.7). A run with no probe keeps the loop prompt.
+    const promptSnapshot = claim ? `${claimedLine(claim.taskKey, claim.action)}\n\n${loop.prompt}` : loop.prompt;
+    const snapshot = { promptSnapshot, executorKind: loop.executorKind, executorConfig: loop.executorConfig };
     // A claimed run keeps the id that its claim row already holds, also when the row becomes `skipped`.
     const runId = claim?.runId ?? d.ids.newId();
     const taskKey = claim?.taskKey ?? null;
@@ -134,6 +137,7 @@ export class DefaultRunService implements RunService {
       // Unlimited → no deadline: expireOverdue never picks this run (UC-24).
       deadlineAt: loop.timeoutSec === null ? null : new Date(now.getTime() + loop.timeoutSec * 1000),
       taskKey,
+      slot: claim?.slot ?? null,
       ...snapshot,
     });
     if (res.kind === 'busy') {
@@ -167,7 +171,7 @@ export class DefaultRunService implements RunService {
       await this.#log(run, 'error', error);
       return (await this.#finish(run, { status: 'failed', finishedAt: d.clock.now(), error })) ?? this.get(run.id);
     }
-    const p = this.#drive(run, executor, controller, repo.path)
+    const p = this.#drive(run, executor, controller, repo.path, claim?.env)
       .catch(() => {
         // DB broke mid-run: the run left `running` will be cancelled by expireOverdue at the deadline, or by recovery at startup.
       })
@@ -176,7 +180,7 @@ export class DefaultRunService implements RunService {
     return run;
   }
 
-  async #drive(run: RunRecord, executor: LoopExecutor, controller: AbortController, cwd: string): Promise<void> {
+  async #drive(run: RunRecord, executor: LoopExecutor, controller: AbortController, cwd: string, env?: Record<string, string>): Promise<void> {
     const d = this.#d;
     const signal = controller.signal;
     let outcome: Omit<RunOutcome, 'finishedAt'> | null = null;
@@ -190,6 +194,7 @@ export class DefaultRunService implements RunService {
         prompt: run.promptSnapshot,
         config: run.executorConfig,
         cwd,
+        ...(env ? { env } : {}),
       };
       for await (const ev of executor.execute(input, signal)) {
         if (signal.aborted) break; // already cancelled: the result is in the DB, drop the rest

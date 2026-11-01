@@ -206,6 +206,28 @@ describe('ClaudeAgentExecutor', () => {
     expect(q.calls[0]!.options.env).toEqual({ PATH: 'p', HOME: 'h' });
     expect(base.ANTHROPIC_API_KEY).toBe('sk-gia');
   });
+
+  it('input.env is spread over the base env, and it wins over the same name', async () => {
+    const q = scriptedQuery(async function* () {
+      yield msg.init('s-9');
+      yield msg.success('s-9', 'xong');
+    });
+    const base = { PATH: 'p', LANE_PORT: 'old' };
+    const env = { LANE_PORT: '7101', CASTRAFERRUM_SLOT: '1' };
+    await all(new ClaudeAgentExecutor({ query: q, env: () => base }).execute(input({ env }), new AbortController().signal));
+    expect(q.calls[0]!.options.env).toEqual({ PATH: 'p', LANE_PORT: '7101', CASTRAFERRUM_SLOT: '1' });
+    expect(base.LANE_PORT).toBe('old');
+  });
+
+  it('ANTHROPIC_API_KEY is dropped after input.env is merged, so a lane env cannot put it back', async () => {
+    const q = scriptedQuery(async function* () {
+      yield msg.init('s-10');
+      yield msg.success('s-10', 'xong');
+    });
+    const env = { ANTHROPIC_API_KEY: 'sk-lane', CASTRAFERRUM_SLOT: '0' };
+    await all(new ClaudeAgentExecutor({ query: q, env: () => ({ PATH: 'p' }) }).execute(input({ env }), new AbortController().signal));
+    expect(q.calls[0]!.options.env).toEqual({ PATH: 'p', CASTRAFERRUM_SLOT: '0' });
+  });
 });
 
 // ---- the turn only ends when Claude Code exits on its own - waiting for background tasks ------------------------------------------------

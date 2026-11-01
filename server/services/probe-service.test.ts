@@ -90,6 +90,13 @@ describe('ProbeService', () => {
     expect(k.db.probes.size).toBe(0);
   });
 
+  it('save: {port} in lane_env with no base port throws laneEnv:missingBasePort and stores nothing (decision 24)', async () => {
+    const id = await stoppedLoop();
+    expect(await issuesOf(probes.save(id, input({ laneEnv: { LANE_PORT: 'x:{port}' } })))).toEqual(['laneEnv:missingBasePort']);
+    expect(await probes.get(id)).toBeNull();
+    await expect(probes.save(id, input({ laneEnv: { LANE_PORT: '{port}' }, laneBasePort: 7100 }))).resolves.toMatchObject({ laneBasePort: 7100 });
+  });
+
   it('remove: deletes the row, accepts a loop with no probe, and refuses an active loop', async () => {
     const id = await stoppedLoop();
     await probes.save(id, input());
