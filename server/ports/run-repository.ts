@@ -75,6 +75,8 @@ export interface RunRepository {
   setSession(id: string, sessionId: string): Promise<void>;
   /** Only a `running` run changes; a finished run keeps its first outcome (first to arrive wins). Throws `RUN_NOT_FOUND`. */
   finish(id: string, outcome: RunOutcome): Promise<RunRecord>;
+  /** The latest `finished_at` of the loop's runs, with no `skipped` rows. No finished run -> null. */
+  latestFinishedAt(loopId: string): Promise<Date | null>;
   /** Oldest first (started_at ascending). */
   listByExecution(executionId: string): Promise<RunRecord[]>;
   findById(id: string): Promise<RunRecord | null>;

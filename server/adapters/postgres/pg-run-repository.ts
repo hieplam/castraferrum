@@ -130,6 +130,14 @@ export class PgRunRepository implements RunRepository {
     return rows[0] ? toRun(rows[0]) : null;
   }
 
+  async latestFinishedAt(loopId: string): Promise<Date | null> {
+    const { rows } = await this.#pool.query<{ latest: Date | null }>(
+      `SELECT max(finished_at) AS latest FROM runs WHERE loop_id = $1 AND status <> 'skipped'`,
+      [loopId],
+    );
+    return rows[0]?.latest ?? null;
+  }
+
   async listActive(loopId: string): Promise<RunRecord[]> {
     const { rows } = await this.#pool.query(
       `SELECT * FROM runs WHERE loop_id = $1 AND status = 'running' ORDER BY started_at, id`,

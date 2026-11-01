@@ -1,14 +1,13 @@
-// ProbeService (settings only): rules of spec 2.1 on top of the memory repositories. The tick that calls the probe is P4.
+// ProbeService (settings only): rules of spec 2.1 on top of the memory repositories. probe-tick.test.ts holds the tick.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { flush, makeKit, type Kit } from '../../tests/support/service-kit';
-import type { ProbeInput } from './contracts';
-import { DefaultProbeService } from './probe-service';
+import type { ProbeInput, ProbeService } from './contracts';
 
 let k: Kit;
-let probes: DefaultProbeService;
+let probes: ProbeService;
 beforeEach(() => {
   k = makeKit();
-  probes = new DefaultProbeService({ loops: k.repos.loops, probes: k.repos.probes });
+  probes = k.probeService;
 });
 
 const input = (over: Partial<ProbeInput> = {}): ProbeInput => ({ command: ['node', 'probe.mjs'], ...over });

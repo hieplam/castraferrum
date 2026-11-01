@@ -15,6 +15,17 @@ export const PROBE_STATES = [
 ] as const;
 export type ProbeState = (typeof PROBE_STATES)[number];
 
+/** The state that each action of a probe line gives the loop (spec 2.1). */
+export const PROBE_ACTION_STATE: Record<ProbeAction, ProbeState> = {
+  take: 'active',
+  plan: 'active',
+  skip: 'active',
+  wait: 'waiting',
+  blocked: 'blocked',
+  hold: 'held',
+  done: 'complete',
+};
+
 /** A key matches this pattern; the console reads no meaning from it. */
 export const PROBE_KEY = /^[\w.-]{1,100}$/;
 

@@ -22,7 +22,7 @@ import type {
 } from './contracts';
 import { cleanLoopInput, nextRunAfter, startOfDay } from './loop-input';
 
-export type LoopServiceDeps = Pick<Repositories, 'repos' | 'loops' | 'executions' | 'runs'> & {
+export type LoopServiceDeps = Pick<Repositories, 'repos' | 'loops' | 'executions' | 'runs' | 'probes'> & {
   /** Only calls down into RunService (through the interface) — never the other way round. */
   runService: RunService;
   executors: ExecutorRegistry;
@@ -106,17 +106,18 @@ export class DefaultLoopService implements LoopService {
     const loop = await this.#load(id);
     if (loop.archivedAt) throw new DomainError('LOOP_ARCHIVED', `Loop ${id} is archived — restore it before Start`);
     const now = d.clock.now();
+    const probed = (await d.probes.get(id)) !== null; // a probe loop has no cron mark and no first run: only its probe starts work
     const res = await d.executions.open({
       id: d.ids.newId(),
       loopId: id,
       now,
-      nextRunAt: nextRunAfter(loop.cron, loop.timezone, now), // next run = the first cron mark after Start
+      nextRunAt: probed ? null : nextRunAfter(loop.cron, loop.timezone, now), // next run = the first cron mark after Start
     });
     if (res.kind === 'already_active') throw new DomainError('LOOP_ALREADY_ACTIVE', `Loop ${id} is already running`);
     const execution = res.execution;
     d.events.publish({ type: 'execution.started', at: now, loopId: id, executionId: execution.id, seq: execution.seq });
     d.events.publish({ type: 'loop.updated', at: now, loopId: id });
-    await d.runService.startFirst(id, execution.id); // UC-04: the first run starts immediately
+    if (!probed) await d.runService.startFirst(id, execution.id); // UC-04: the first run starts immediately
     return this.#viewOf(id);
   }
 

@@ -19,7 +19,7 @@ prefix of the first path.
 | POST | `/loops` | create (UC-01) | `VALIDATION_FAILED`, `LOOP_NAME_TAKEN` |
 | GET | `/loops/:id` | detail with figures (plus `longestExecution`, `runCount`) | `LOOP_NOT_FOUND` |
 | PUT | `/loops/:id` | edit, carrying `version` (UC-09) | `VERSION_CONFLICT`, `VALIDATION_FAILED` |
-| POST | `/loops/:id/start`, `/stop`, `/duplicate`, `/archive`, `/restore` | UC-04, 05, 10, 11, 11 | `LOOP_ALREADY_ACTIVE`, `LOOP_NOT_ACTIVE`, `LOOP_ARCHIVED`, `LOOP_IS_ACTIVE` |
+| POST | `/loops/:id/start`, `/stop`, `/duplicate`, `/archive`, `/restore` | UC-04, 05, 10, 11, 11. Start of a loop with a probe gives no run and `nextRunAt: null`: the probe decides | `LOOP_ALREADY_ACTIVE`, `LOOP_NOT_ACTIVE`, `LOOP_ARCHIVED`, `LOOP_IS_ACTIVE` |
 | GET | `/loops/:id/executions?cursor=` | execution history, cursor paged | - |
 | GET | `/executions/:id` | execution detail with its runs and `sessionIds` (UC-08) | `EXECUTION_NOT_FOUND` |
 | GET | `/loops/:id/runs?cursor=` | run history, cursor paged | - |

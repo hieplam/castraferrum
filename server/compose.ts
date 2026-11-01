@@ -19,6 +19,7 @@ import { RandomIdGenerator } from './adapters/ids/random-id-generator';
 import { FanoutNotifier } from './adapters/notify/fanout-notifier';
 import { StoreNotifier } from './adapters/notify/store-notifier';
 import { WebhookNotifier } from './adapters/notify/webhook-notifier';
+import { NodeCommandRunner } from './adapters/process/node-command-runner';
 import { openDb, truncateAll, type Db } from './adapters/postgres/db';
 import { PgDbProbe } from './adapters/postgres/db-probe';
 import { acquireInstanceLock, type InstanceLock } from './adapters/postgres/instance-lock';
@@ -26,8 +27,9 @@ import { createPgRepositories } from './adapters/postgres/repositories';
 import { ClaudeJsonlTranscriptSource } from './adapters/transcripts/claude-jsonl/claude-jsonl-transcript-source';
 import { buildHttpApp, type HttpApp, type TestHooks } from './http/app';
 import type { Notifier } from './ports/notifier';
+import { startBackgroundTicker, type BackgroundTicker } from './scheduler/background-ticker';
 import { startTicker, type Ticker } from './scheduler/ticker';
-import type { RecoveryReport } from './services/contracts';
+import type { BackgroundService, RecoveryReport } from './services/contracts';
 import { DefaultFolderService } from './services/folder-service';
 import { DefaultHealthService } from './services/health-service';
 import { DefaultLiveService } from './services/live-service';
@@ -81,7 +83,7 @@ export type ComposedServer = {
   notifier: Notifier;
   /** Result of the recovery at startup (runs BEFORE the ticker and HTTP open). */
   recovery: RecoveryReport;
-  /** Starts the 1-second ticker (main.ts calls it right before `listen`). */
+  /** Starts the 1-second tickers (main.ts calls it right before `listen`). */
   startTicker(): void;
   /**
    * Graceful shutdown: stop the ticker → close HTTP (abort SSE streams) → abort the signals of running runs WITHOUT recording a result, wait for them
@@ -91,9 +93,9 @@ export type ComposedServer = {
   shutdown(): Promise<void>;
   /**
    * Observation for tests: listeners on the bus (a closed SSE must unregister), runs executing in the process, ticks run so far,
-   * number of open transcript streams.
+   * number of open transcript streams; `backgroundTick` awaits one tick of each background service.
    */
-  inspect: { listeners(): number; activeRuns(): number; ticks(): number; transcriptFollowers(): number };
+  inspect: { listeners(): number; activeRuns(): number; ticks(): number; transcriptFollowers(): number; backgroundTick(): Promise<void> };
 };
 
 export async function composeServer(opts: ComposeOptions): Promise<ComposedServer> {
@@ -126,7 +128,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
   const active = new InMemoryActiveRuns();
   const runService = new DefaultRunService({ ...repos, executors, active, clock, ids, events: bus });
   const loopService = new DefaultLoopService({ ...repos, runService, executors, clock, ids, events: bus });
-  const probeService = new DefaultProbeService({ loops: repos.loops, probes: repos.probes });
+  const probeService = new DefaultProbeService({ ...repos, commands: new NodeCommandRunner(), clock });
   const testDirs = opts.testMode ? new OverridableDirectoryProbe(new NodeDirectoryProbe()) : null;
   const repoService = new DefaultRepoService({ repos: repos.repos, directories: testDirs ?? new NodeDirectoryProbe(), clock, ids });
   const testFolders = opts.testMode ? new OverridableFolderBrowser(new NodeFolderBrowser()) : null;
@@ -153,9 +155,17 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
     throw err;
   }
 
+  // Services that can wait on a slow command. Each has its own in-flight promise, so none of them holds back the schedule tick or another.
+  const background: BackgroundService[] = [probeService];
   let ticker: Ticker | null = null;
+  let backgroundTicker: BackgroundTicker | null = null;
   let ticks = 0;
   const tick = () => {
+    backgroundTicker = startBackgroundTicker(background, {
+      everyMs: opts.tickEveryMs ?? 1000,
+      onTick: (r) => r.errors.forEach((e) => opts.log?.(`Background tick failed for loop ${e.loopId}: ${e.message}`)),
+      onError: (err) => opts.log?.(`Background tick failed (retried every tick): ${err instanceof Error ? err.message : String(err)}`),
+    });
     ticker = startTicker(scheduling, {
       everyMs: opts.tickEveryMs ?? 1000,
       onTick: (r) => {
@@ -163,6 +173,11 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
       },
       onError: (err) => opts.log?.(`Schedule tick failed (retried every tick): ${err instanceof Error ? err.message : String(err)}`),
     });
+  };
+  const stopTickers = async () => {
+    await Promise.all([ticker?.stop(), backgroundTicker?.stop()]);
+    ticker = null;
+    backgroundTicker = null;
   };
   /** Stops every run executing in the process (without recording a result) and waits for them to exit. */
   const drainRuns = async () => {
@@ -177,8 +192,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
         folders: testFolders,
         async reset() {
           const wasTicking = ticker !== null;
-          await ticker?.stop();
-          ticker = null;
+          await stopTickers();
           await drainRuns();
           await truncateAll(db.pool);
           testClock.reset();
@@ -218,8 +232,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
     },
     shutdown() {
       closing ??= (async () => {
-        await ticker?.stop();
-        ticker = null;
+        await stopTickers();
         await app.close();
         await drainRuns();
         await repos.heartbeat.beat(clock.now()).catch(() => {}); // if the DB is already down, fall back to the latest heartbeat (up to 10 seconds old)
@@ -233,6 +246,10 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
       activeRuns: () => active.size(),
       ticks: () => ticks,
       transcriptFollowers: () => transcripts.followers(),
+      backgroundTick: async () => {
+        if (backgroundTicker) await backgroundTicker.once();
+        else await Promise.all(background.map((s) => s.tick()));
+      },
     },
   };
 }

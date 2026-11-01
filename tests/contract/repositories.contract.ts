@@ -58,7 +58,7 @@ export function repositoryContract(env: () => ContractEnv): void {
     ...over,
   });
   /** An active loop: has an open execution. */
-  async function activeLoop(over: Partial<NewLoopRecord> = {}, nextRunAt = at(300)) {
+  async function activeLoop(over: Partial<NewLoopRecord> = {}, nextRunAt: Date | null = at(300)) {
     const loop = await r.loops.insert(newLoop(over));
     const opened = await r.executions.open({ id: randomUUID(), loopId: loop.id, now: at(0), nextRunAt });
     if (opened.kind !== 'opened') throw new Error('could not open the execution');
@@ -338,6 +338,12 @@ export function repositoryContract(env: () => ContractEnv): void {
 
   // ================================================================ ExecutionRepository
   describe('ExecutionRepository', () => {
+    it('open with nextRunAt null: the loop is active with no next run, and findDue skips it', async () => {
+      const { loop } = await activeLoop({}, null);
+      expect(await r.loops.findById(loop.id)).toMatchObject({ status: 'active', nextRunAt: null });
+      expect((await r.loops.findDue(at(999_999), 50)).map((l) => l.id)).not.toContain(loop.id);
+    });
+
     it('open: execution #1, loop -> active + next_run_at; a second open -> already_active, counter does not bump', async () => {
       const loop = await r.loops.insert(newLoop());
       const first = await r.executions.open({ id: randomUUID(), loopId: loop.id, now: at(10), nextRunAt: at(60) });
@@ -418,6 +424,39 @@ export function repositoryContract(env: () => ContractEnv): void {
 
   // ================================================================ RunRepository
   describe('RunRepository', () => {
+    it('latestFinishedAt: no run, or only a running run -> null', async () => {
+      const { loop, execution } = await activeLoop();
+      expect(await r.runs.latestFinishedAt(loop.id)).toBeNull();
+      await r.runs.start(startInput(loop.id, execution.id));
+      expect(await r.runs.latestFinishedAt(loop.id)).toBeNull();
+    });
+
+    it('latestFinishedAt: the latest finished run of this loop, with no skipped rows', async () => {
+      const { loop, execution } = await activeLoop({ maxConcurrent: 2 });
+      const other = await activeLoop();
+      for (const [loopId, executionId, sec] of [
+        [loop.id, execution.id, 100],
+        [loop.id, execution.id, 200],
+        [other.loop.id, other.execution.id, 900],
+      ] as const) {
+        const res = await r.runs.start(startInput(loopId, executionId));
+        if (res.kind !== 'started') throw new Error('the run did not start');
+        await r.runs.finish(res.run.id, { status: 'succeeded', finishedAt: at(sec) });
+      }
+      await r.runs.recordSkipped({
+        id: randomUUID(),
+        loopId: loop.id,
+        executionId: execution.id,
+        scheduledFor: at(500),
+        at: at(500),
+        skipReason: 'round #1 still running',
+        promptSnapshot: 'Do the work #1',
+        executorKind: 'mock',
+        executorConfig: {},
+      });
+      expect(await r.runs.latestFinishedAt(loop.id)).toEqual(at(200));
+    });
+
     it('start: round #1 running with a snapshot of prompt + executor; a second start -> busy, round counter does not bump', async () => {
       const { loop, execution } = await activeLoop();
       const res = await r.runs.start(startInput(loop.id, execution.id, { trigger: 'start', scheduledFor: null }));
