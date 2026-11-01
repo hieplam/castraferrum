@@ -205,6 +205,7 @@ export class MemoryDb {
   writeClaim(row: ClaimRecord): void {
     if (!this.loops.has(row.loopId)) throw new ConstraintViolation('foreign_key', 'run_claims_loop_id_loops_id_fk');
     if (row.owner !== 'run' && row.owner !== 'gate') throw new ConstraintViolation('check', 'run_claims_owner');
+    if (row.kind !== 'task' && row.kind !== 'plan') throw new ConstraintViolation('check', 'run_claims_kind');
     if ((row.owner === 'gate') !== (row.gateJobId !== null)) throw new ConstraintViolation('check', 'run_claims_gate_owner_has_job');
     if (row.gateJobId !== null && !this.gateJobs.has(row.gateJobId)) throw new ConstraintViolation('foreign_key', 'run_claims_gate_job_id_gate_jobs_id_fk');
     if (row.closedAt === null) {

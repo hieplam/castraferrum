@@ -94,7 +94,7 @@ export const loopExecutions = pgTable(
     endReason: text('end_reason'),
   },
   (t) => [
-    check('executions_end_reason', sql`${t.endReason} IN ('stopped','server_down')`),
+    check('executions_end_reason', sql`${t.endReason} IN ('stopped','server_down','goal_met')`),
     check('executions_ended_has_reason', sql`(${t.endedAt} IS NULL) = (${t.endReason} IS NULL)`),
     unique('executions_loop_seq').on(t.loopId, t.seq),
     uniqueIndex('executions_one_open_per_loop').on(t.loopId).where(sql`${t.endedAt} IS NULL`),
@@ -247,9 +247,12 @@ export const runClaims = pgTable(
     // Decision 4: a claim has one owner, a run or the gate. The gate owns the row once it has a job (`gate_job_id`).
     owner: text('owner').notNull().default('run'),
     gateJobId: uuid('gate_job_id').references(() => gateJobs.id),
+    // Decision 46: a `plan` row has the key of the plan and no label on a task, so it calls no `ClaimGateway`.
+    kind: text('kind').notNull().default('task'),
   },
   (t) => [
     check('run_claims_owner', sql`${t.owner} IN ('run','gate')`),
+    check('run_claims_kind', sql`${t.kind} IN ('task','plan')`),
     check('run_claims_gate_owner_has_job', sql`(${t.owner} = 'gate') = (${t.gateJobId} IS NOT NULL)`),
     uniqueIndex('run_claims_one_open_per_task').on(t.loopId, t.taskKey).where(sql`${t.closedAt} IS NULL`),
     index('run_claims_open').on(t.openedAt).where(sql`${t.closedAt} IS NULL`),

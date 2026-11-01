@@ -13,7 +13,7 @@ import {
   type ProbeSettings,
   type ProbeState,
 } from '../../shared/domain/goal-loop';
-import type { ClaimConfig, ClaimGateway, OrphanedClaim } from '../ports/claims';
+import type { ClaimConfig, ClaimGateway, OrphanedClaim, TaskRef } from '../ports/claims';
 import type { Clock } from '../ports/clock';
 import type { CommandResult, CommandRunner } from '../ports/command-runner';
 import type { HoldRecord } from '../ports/hold-repository';
@@ -22,13 +22,14 @@ import type { LoopRecord } from '../ports/loop-repository';
 import type { Notifier } from '../ports/notifier';
 import type { Repositories } from '../ports/repositories';
 import type { RunRecord } from '../ports/run-repository';
-import type { ProbeInput, ProbeService, ProbeTickReport, ProbeView, RunService, ValidationIssue } from './contracts';
+import type { LoopService, ProbeInput, ProbeService, ProbeTickReport, ProbeView, RunService, ValidationIssue } from './contracts';
 import { openHold } from './hold-open';
 
 export type ProbeServiceDeps = Pick<Repositories, 'claims' | 'executions' | 'holds' | 'loops' | 'probes' | 'repos' | 'runs'> & {
   commands: CommandRunner;
   claimGateway: ClaimGateway;
   runService: Pick<RunService, 'startClaimed'>;
+  loopService: Pick<LoopService, 'finishGoal'>;
   clock: Clock;
   ids: IdGenerator;
   notifier: Notifier;
@@ -108,20 +109,65 @@ export class DefaultProbeService implements ProbeService {
       const repo = await d.repos.findById(loop.repoId);
       if (!repo) throw new Error(`Loop points at repo ${loop.repoId} which does not exist`);
       const result = await d.commands.run({ argv: probe.command, cwd: repo.path, timeoutMs: PROBE_TIMEOUT_MS });
+      const before = parsePrevious(probe); // decision 46: read before `record`, which replaces the stored line
       const { state, lastLine, line } = readResult(result);
       // The tick's `now`, not the time of the answer: a run that ends during the call is later than this mark, so it gives a new probe.
       await d.probes.record(loop.id, { state, lastLine, at: now });
       report.probed.push(loop.id);
       if (state === 'probe_failed') report.failed.push(loop.id);
-      if (line?.action === 'take') await this.#take(loop, probe, repo.path, line, holds, now, report);
+      await this.#announce(loop.id, probe.state, before, state, lastLine, line, now);
+      if (line?.action === 'take') await this.#take(loop, probe, repo.path, line.tasks.map((t) => ({ key: t.key, resources: t.resources })), 'take', holds, now, report);
+      if (line?.action === 'plan') await this.#take(loop, probe, repo.path, [{ key: line.plan!.key, resources: [] }], 'plan', holds, now, report, line.plan!.failing);
+      if (line?.action === 'done') await this.#finish(loop.id);
       if (line?.action === 'hold') await openHold(d, { resource: line.resource!, reason: line.reason, until: dateOf(line.until), openedByRunId: null, now });
     } catch (err) {
       report.errors.push({ loopId: probe.loopId, message: err instanceof Error ? err.message : String(err) });
     }
   }
 
-  /** Decision 23: `taken` goes to the next task, a refused claim closes its row, and the lanes end the list. */
-  async #take(loop: LoopRecord, probe: ProbeRecord, cwd: string, line: ProbeLine, holds: HoldRecord[], now: Date, report: ProbeTickReport): Promise<void> {
+  /**
+   * Decision 46. The store keeps one unread notice per key, so after a read the same reason could come back each 60 s. So the tick sends only when the
+   * stored line had another action or another reason. A probe that fails sends once, until a probe passes.
+   */
+  async #announce(loopId: string, was: ProbeState, before: ProbeLine | null, state: ProbeState, lastLine: string, line: ProbeLine | null, at: Date): Promise<void> {
+    const d = this.#d;
+    if (state === 'probe_failed') {
+      if (was === 'probe_failed') return;
+      await d.notifier.send({ dedupeKey: `probe_failed:${loopId}`, kind: 'probe_failed', loopId, messageKey: 'notice.probeFailed', params: { reason: lastLine }, at });
+      return;
+    }
+    if (!line || (line.action !== 'wait' && line.action !== 'blocked')) return;
+    if (before?.action === line.action && before.reason === line.reason) return;
+    await d.notifier.send({
+      dedupeKey: `${line.action}:${loopId}:${line.reason}`,
+      kind: line.action,
+      loopId,
+      messageKey: line.action === 'wait' ? 'notice.wait' : 'notice.blocked',
+      params: { reason: line.reason },
+      at,
+    });
+  }
+
+  /** Decision 46: `done` closes the period at once when no run of the loop lives. A live run closes it on the first probe after it ends. */
+  async #finish(loopId: string): Promise<void> {
+    if ((await this.#lanesInUse(loopId)).length === 0) await this.#d.loopService.finishGoal(loopId);
+  }
+
+  /**
+   * Decision 23: `taken` goes to the next task, a refused claim closes its row, and the lanes end the list. A `plan` task (decision 46) has a row of kind `plan`
+   * and calls no gateway, so no label exists: `taken` means that a run of this plan key lives, also a held one.
+   */
+  async #take(
+    loop: LoopRecord,
+    probe: ProbeRecord,
+    cwd: string,
+    tasks: TaskRef[],
+    action: 'take' | 'plan',
+    holds: HoldRecord[],
+    now: Date,
+    report: ProbeTickReport,
+    failing?: string[],
+  ): Promise<void> {
     const d = this.#d;
     const execution = await d.executions.findOpen(loop.id); // a Stop during the probe call leaves none
     if (!execution) return;
@@ -130,20 +176,21 @@ export class DefaultProbeService implements ProbeService {
     const used = active.map((r) => r.slot); // a slot taken in this tick joins the list, so two tasks of one tick never share it
     const cfg: ClaimConfig = { claim: probe.claim, release: probe.release, cwd };
     const held = new Set(holds.map((h) => h.resource));
-    for (const task of line.tasks) {
+    const kind = action === 'plan' ? 'plan' : 'task';
+    for (const task of tasks) {
       if (lanes <= 0) return;
       if (task.resources.some((r) => held.has(r))) continue; // a named hold stops only the tasks that list it
       const claimId = d.ids.newId();
       const runId = d.ids.newId();
-      if ((await d.claims.open({ id: claimId, loopId: loop.id, taskKey: task.key, runId, at: now })) === 'taken') continue;
-      const answer = await d.claimGateway.claim(cfg, task);
+      if ((await d.claims.open({ id: claimId, loopId: loop.id, taskKey: task.key, runId, at: now, kind })) === 'taken') continue;
+      const answer = kind === 'plan' ? { ok: true as const } : await d.claimGateway.claim(cfg, task);
       if (!answer.ok) {
         await d.claims.close(claimId, `refused: ${answer.reason}`, d.clock.now());
         continue;
       }
       const slot = lowestFreeSlot(used);
-      const run = await d.runService.startClaimed(loop.id, execution.id, { runId, taskKey: task.key, slot, env: laneEnvOf(probe, slot), action: line.action === 'plan' ? 'plan' : 'take' });
-      if (run.status === 'skipped') await this.#endClaim({ id: claimId, loopId: loop.id, taskKey: task.key, runStatus: 'skipped', endResult: null }, now, report);
+      const run = await d.runService.startClaimed(loop.id, execution.id, { runId, taskKey: task.key, slot, env: laneEnvOf(probe, slot), action, ...(failing ? { failing } : {}) });
+      if (run.status === 'skipped') await this.#endClaim({ id: claimId, loopId: loop.id, taskKey: task.key, kind, runStatus: 'skipped', endResult: null }, now, report);
       if (run.status !== 'running') return; // no lane after all, or a Stop came first: the orphan step ends what is left
       used.push(slot);
       lanes--;
@@ -164,12 +211,12 @@ export class DefaultProbeService implements ProbeService {
   }
 
   /** A failed release keeps the row open for a try 60 s later, so a `gh` failure cannot lose a release. */
-  async #endClaim(claim: Pick<OrphanedClaim, 'id' | 'loopId' | 'taskKey' | 'runStatus' | 'endResult'>, now: Date, report: ProbeTickReport): Promise<void> {
+  async #endClaim(claim: Pick<OrphanedClaim, 'id' | 'loopId' | 'taskKey' | 'kind' | 'runStatus' | 'endResult'>, now: Date, report: ProbeTickReport): Promise<void> {
     const d = this.#d;
     const why = releaseWhy(claim);
     try {
       const cfg = await this.#claimConfig(claim.loopId);
-      if (cfg) await d.claimGateway.release(cfg, { key: claim.taskKey }, why);
+      if (cfg && claim.kind === 'task') await d.claimGateway.release(cfg, { key: claim.taskKey }, why); // a plan row has no label: it only closes
       await d.claims.close(claim.id, why.reason, now);
       this.#retryAt.delete(claim.id);
     } catch (err) {
@@ -223,6 +270,13 @@ function readResult(result: CommandResult): { state: ProbeState; lastLine: strin
 function releaseWhy({ runStatus, endResult }: Pick<OrphanedClaim, 'runStatus' | 'endResult'>): { reason: string; excused: boolean } {
   const excused = runStatus === null || runStatus === 'interrupted' || runStatus === 'skipped' || endResult === 'RESOURCE_DOWN' || endResult === USAGE_LIMIT_END;
   return { reason: `run ${runStatus ?? 'missing'}${endResult ? ` ${endResult}` : ''}`, excused };
+}
+
+/** The line that the last probe stored, or `null` when none was stored, or it was a bad line. */
+function parsePrevious(probe: ProbeRecord): ProbeLine | null {
+  if (probe.lastLine === null) return null;
+  const parsed = parseProbeLine(probe.lastLine);
+  return parsed.ok ? parsed.line : null;
 }
 
 /** The `until` of a probe line. Text that is not a date counts as no end. */
