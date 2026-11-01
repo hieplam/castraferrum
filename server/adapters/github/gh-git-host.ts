@@ -1,6 +1,7 @@
 import type { CommandRunner } from '../../ports/command-runner';
 import {
   GitHostError,
+  PullRequestNotFoundError,
   type CheckRun,
   type GitHost,
   type IssueHit,
@@ -15,6 +16,8 @@ const STATUS_CONTEXT = 'castraferrum/gate';
 const MAX_DESCRIPTION = 140;
 const MAX_COMMENT = 20_000;
 const ISSUE_LIST_LIMIT = 1000;
+/** The text that `gh pr view <n>` prints on stderr for a pull request that does not exist. */
+const PR_MISSING = /Could not resolve to a PullRequest with the number of/;
 const PR_FIELDS = 'number,headRefOid,headRefName,baseRefName,state,title,body,url,mergedAt,closingIssuesReferences';
 
 export type GhGitHostOptions = {
@@ -60,7 +63,10 @@ export class GhGitHost implements GitHost {
       url: string;
       mergedAt: string | null;
       closingIssuesReferences: { number: number }[] | null;
-    }>(['pr', 'view', String(number), '-R', repo, '--json', PR_FIELDS]);
+    }>(['pr', 'view', String(number), '-R', repo, '--json', PR_FIELDS]).catch((err: unknown) => {
+      if (err instanceof GitHostError && PR_MISSING.test(err.stderr)) throw new PullRequestNotFoundError(number, err.exitCode, err.stderr);
+      throw err;
+    });
     return {
       number: raw.number,
       headSha: raw.headRefOid,

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { RESUME_LINE } from '../../shared/domain/goal-loop';
 import { commandOk } from '../../tests/support/fake-command-runner';
 import { flush, makeKit, MIN, T0, type Kit } from '../../tests/support/service-kit';
+import { GitHostError, PullRequestNotFoundError } from '../ports/git-host';
 import { DefaultGateService } from './gate-service';
 
 const SEC = 1000;
@@ -139,6 +140,41 @@ describe('gate_handover', () => {
     expect(k.gateQueue.calls).toHaveLength(2);
     expect(claim()).toMatchObject({ owner: 'gate', gateJobId: 'job-2', closedAt: null });
     expect(k.claimGateway.released()).toEqual([]);
+  });
+
+  it('queue says the pull request does not exist: one release, not excused, with a reason that names the pull request', async () => {
+    await gateOn();
+    await running();
+    await endRun(1, { result: 'PR_OPEN', pr: 'https://github.com/fake/repo/pull/9' });
+    k.gateQueue.answer = () => {
+      throw new PullRequestNotFoundError(9, 1, 'GraphQL: Could not resolve to a PullRequest with the number of 9. (repository.pullRequest)');
+    };
+    const report = await tickAt(SEC);
+    await tickAt(SEC + MIN);
+    await tickAt(SEC + 2 * MIN);
+
+    expect(report.errors).toEqual([]);
+    expect(k.gateQueue.calls).toHaveLength(1);
+    expect(k.claimGateway.released()).toEqual([
+      { op: 'release', key: '141', why: { reason: 'run succeeded PR_OPEN: pull request 9 does not exist', excused: false } },
+    ]);
+    expect(claim()).toMatchObject({ owner: 'run', closedAt: at(SEC) });
+  });
+
+  it('queue fails with a gh failure that is not a missing pull request: no release, a retry every 60 s', async () => {
+    await gateOn();
+    await running();
+    await endRun(1, { result: 'PR_OPEN', pr: PR });
+    k.gateQueue.answer = () => {
+      throw new GitHostError('gh pr view failed: exit 1', 1, 'error connecting to api.github.com');
+    };
+    await tickAt(SEC);
+    await tickAt(SEC + MIN);
+    await tickAt(SEC + 2 * MIN);
+
+    expect(k.gateQueue.calls).toHaveLength(3);
+    expect(k.claimGateway.released()).toEqual([]);
+    expect(claim()).toMatchObject({ owner: 'run', closedAt: null });
   });
 
   it('a duplicate that ended before the read gives a null job id: the same try 60 s later', async () => {

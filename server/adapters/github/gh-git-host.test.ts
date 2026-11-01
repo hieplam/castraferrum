@@ -3,7 +3,7 @@ import { writeFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createBareRepo, type BareRepo } from '../../../tests/support/bare-repo';
 import { createFakeGh, FAKE_GH_SCRIPT, type FakeGh } from '../../../tests/support/fake-gh-kit';
-import { GitHostError } from '../../ports/git-host';
+import { GitHostError, PullRequestNotFoundError } from '../../ports/git-host';
 import { NodeCommandRunner } from '../process/node-command-runner';
 import { GhGitHost } from './gh-git-host';
 
@@ -212,10 +212,23 @@ describe('GhGitHost on the fake gh and a bare repository', () => {
     expect(calls[1]?.slice(1, 5)).toEqual(['-X', 'POST', 'repos/fake/repo/issues/1/sub_issues', '-F']);
   });
 
-  it('a gh call that exits 1 throws a GitHostError with the exit code and the stderr', async () => {
-    const err = await host.pullRequest(REPO, 99).catch((e: unknown) => e);
+  it('a gh call that exits 1 throws a GitHostError with the exit code and the stderr, and it is not a missing pull request', async () => {
+    const err = await host.merge(REPO, 99, 'a'.repeat(40)).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(GitHostError);
+    expect(err).not.toBeInstanceOf(PullRequestNotFoundError);
     expect((err as GitHostError).exitCode).toBe(1);
     expect((err as GitHostError).stderr).toContain('pull request 99 not found');
+  });
+
+  it('pullRequest tells a pull request that does not exist from a gh failure', async () => {
+    const missing = await host.pullRequest(REPO, 9).catch((e: unknown) => e);
+    expect(missing).toBeInstanceOf(PullRequestNotFoundError);
+    expect(missing).toMatchObject({ number: 9, exitCode: 1 });
+    expect((missing as GitHostError).stderr).toContain('Could not resolve to a PullRequest with the number of 9');
+
+    const broken = new GhGitHost({ runner: new NodeCommandRunner(), ghBin: FAKE_GH_SCRIPT, cwd: '/no/such/folder/for/gh' });
+    const failure = await broken.pullRequest(REPO, 9).catch((e: unknown) => e);
+    expect(failure).toBeInstanceOf(GitHostError);
+    expect(failure).not.toBeInstanceOf(PullRequestNotFoundError);
   });
 });
