@@ -237,8 +237,8 @@
         {
           "run": "python3 -m unittest discover -v -s agent-plugins-checkout/scripts/evals/tests -p test_eval_gate.py",
           "expect": [
-            "test_five_of_five_to_two_of_five_is_refused ... ok",
-            "test_verify_result_passes_on_the_committed_tree ... ok",
+            "test_five_of_five_to_two_of_five_is_refused (test_eval_gate.Decide.test_five_of_five_to_two_of_five_is_refused) ... ok",
+            "test_verify_result_passes_on_the_committed_tree (test_eval_gate.VerifyResult.test_verify_result_passes_on_the_committed_tree) ... ok",
             "Ran 13 tests",
             "OK"
           ]
