@@ -631,6 +631,39 @@ Ratchet: unit run count 847 -> 871 (+24). `vitest list` is static and shows the 
 
 <!-- P5 -->
 
+## P5
+
+**Red**, before the build:
+
+    $ npx vitest run --project api tests/api/claims.test.ts
+    error: column "task_key" does not exist
+          Tests  4 failed (4)
+
+**Green**, after the rebase on main:
+
+    $ npx vitest run --project api tests/api/claims.test.ts
+          Tests  4 passed (4)
+    $ npx vitest run --project unit server/services/probe-claims.test.ts
+          Tests  18 passed (18)
+    $ npx vitest run --project contract -t run_claims
+          Tests  16 passed | 146 skipped (162)
+    $ npm run verify
+    ratchets: ok
+          Tests  919 passed | 2 skipped (921)
+          Tests  162 passed (162)
+          Tests  148 passed (148)
+      115 passed (15.7m)
+    phone overflow: 0/12
+    UCs with a green e2e: 33/33
+    verify exit 0
+
+**Stub check**, both run for real, then restored:
+
+- No orphan step: `Tests  2 failed | 2 passed (4)` in the API file, and `stop` is one of the two. `Tests  8 failed | 10 passed (18)` in the unit file.
+- `claim` after `startClaimed`: `Tests  4 failed | 14 passed (18)`, and `order` is one of the four.
+
+**Ratchet:** unit count 889 -> 919 (+30, plan +24, plus 1 gateway case and 5 fault cases). Contract 146 -> 162 (each side +8). API 144 -> 148. Metric `dead-claims`: 253 hours recorded before and after, because decision 7 of the epic has the tool measure only the baseline, so the after value is "not measured yet".
+
 <!-- P6 -->
 
 <!-- P7 -->
