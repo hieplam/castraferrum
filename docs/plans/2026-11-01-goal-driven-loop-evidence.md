@@ -206,6 +206,17 @@ Consequence for the design of K8: a `PreToolUse` hook is a working block for `gh
 
 <!-- P2 -->
 
+## P2
+
+Task: probe line parser and run-end parser (issue 237, PR 250).
+
+- Red: `npx vitest run --project unit shared/domain/run-end.test.ts shared/domain/goal-loop.test.ts` printed `Error: Cannot find module './run-end'` and `Error: Cannot find module './goal-loop'`, then `Tests  no tests`. After the code-fence change, the new fence test failed on the old parser: `Tests  1 failed | 14 passed (15)`.
+- Green: the same command prints `Tests  36 passed (36)` (run-end 15, probe 21). `select count(*), count(*) filter (where summary like '%"result"%') from runs where summary is not null` prints `167|0`.
+- Stub check: an always-null `parseRunEnd` fails `reads PR_OPEN with its pull request` and 6 more. An always-failing `parseProbeLine` fails the 7 action tests and 5 more. Both restored.
+- Ratchet: unit tests 532 passed before, 568 after (+36). `node scripts/lang-scan.mjs --check-baseline` prints `baseline check: ok`.
+- Verify: `npm run verify` exit 0, 115 e2e passed, `UCs with a green e2e: 33/33`.
+- Coordinator change: `parseRunEnd` reads the line before a last line that is only a code fence (haiku replies in the P13 evals ended with a fence).
+
 <!-- P3 -->
 
 <!-- P4 -->
