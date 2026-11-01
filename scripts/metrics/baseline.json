@@ -1,0 +1,89 @@
+{
+  "window": {
+    "rows": 227,
+    "until": "2026-10-23T00:00:00Z"
+  },
+  "now": "2026-11-01T15:15:00Z",
+  "metrics": {
+    "idle-runs": {
+      "value": "125",
+      "unit": "sessions",
+      "source": "transcripts"
+    },
+    "gap": {
+      "value": "14.4",
+      "unit": "min",
+      "source": "runs"
+    },
+    "limit-failures": {
+      "value": "12",
+      "unit": "runs",
+      "source": "runs"
+    },
+    "idle-days": {
+      "value": "10",
+      "unit": "days",
+      "source": "runs"
+    },
+    "late-tasks": {
+      "value": "57.9",
+      "unit": "percent",
+      "source": "github"
+    },
+    "owner-stops": {
+      "value": "6",
+      "unit": "stops",
+      "source": "recorded"
+    },
+    "dead-claims": {
+      "value": "253",
+      "unit": "hours",
+      "source": "recorded"
+    },
+    "merged-on-red": {
+      "value": "12",
+      "unit": "PRs",
+      "source": "recorded"
+    },
+    "stub-share": {
+      "value": "0",
+      "unit": "percent",
+      "source": "recorded"
+    },
+    "poll-share": {
+      "value": "37",
+      "unit": "percent",
+      "source": "recorded"
+    },
+    "first-goal-day": {
+      "value": "3",
+      "unit": "day",
+      "source": "recorded"
+    },
+    "status-questions": {
+      "value": "7",
+      "unit": "questions",
+      "source": "recorded"
+    },
+    "owner-messages": {
+      "value": "0.84,1.77",
+      "unit": "messages per PR",
+      "source": "recorded"
+    },
+    "causes-found": {
+      "value": "0",
+      "unit": "causes",
+      "source": "recorded"
+    },
+    "cause-repeats": {
+      "value": "11",
+      "unit": "repeats",
+      "source": "recorded"
+    },
+    "blocked-runs": {
+      "value": "12",
+      "unit": "runs",
+      "source": "recorded"
+    }
+  }
+}

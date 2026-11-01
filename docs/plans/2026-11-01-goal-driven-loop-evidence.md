@@ -8,6 +8,60 @@ A task adds its section directly under its own anchor line, so that parallel lan
 
 <!-- F0 -->
 
+## F0
+
+Red (test file only, tool absent):
+
+    $ npx vitest run --project unit tests/tools/metrics-baseline.test.ts
+    Error: Cannot find module '../../scripts/metrics/baseline.mjs' imported from tests/tools/metrics-baseline.test.ts
+     Test Files  1 failed (1)
+          Tests  no tests
+
+Green:
+
+    $ npx vitest run --project unit tests/tools/metrics-baseline.test.ts
+     Test Files  1 passed (1)
+          Tests  10 passed (10)
+    $ node scripts/metrics/baseline.mjs --all --check
+    baseline: 16 metrics, 0 differences
+
+The 16 lines (`node scripts/metrics/baseline.mjs --all --now 2026-11-01T15:15:00Z`):
+
+    window 227 rows until 2026-10-23T00:00:00Z
+    idle-runs 125 sessions transcripts
+    gap 14.4 min runs
+    limit-failures 12 runs runs
+    idle-days 10 days runs
+    late-tasks 57.9 percent github
+    owner-stops 6 stops recorded
+    dead-claims 253 hours recorded
+    merged-on-red 12 PRs recorded
+    stub-share 0 percent recorded
+    poll-share 37 percent recorded
+    first-goal-day 3 day recorded
+    status-questions 7 questions recorded
+    owner-messages 0.84,1.77 messages per PR recorded
+    causes-found 0 causes recorded
+    cause-repeats 11 repeats recorded
+    blocked-runs 12 runs recorded
+
+Live numbers, issue against measured (the measured number is in `baseline.json`):
+
+| Metric | Issue | Measured | In `baseline.json` |
+|---|---|---|---|
+| idle-runs | 108 | 125 | 125 |
+| gap | 14.5 | 14.4 | 14.4 |
+| limit-failures | 12 | 12 | 12 |
+| idle-days | 10 | 10 | 10 |
+| late-tasks | 56 | 57.9 | 57.9 |
+
+Stub check:
+
+- Six functions replaced by constants (gap, limit-failures, idle-days, idle-runs, late-tasks, owner-messages): `Tests  5 failed | 5 passed (10)`, then with idle-days alone as the constant 10: `Tests  1 failed | 9 passed (10)`. The idle-days test uses a second clock, so that the constant 10 fails.
+- Tool file removed: `Test Files  1 failed (1)`, `Tests  no tests`, cause `Cannot find module '../../scripts/metrics/baseline.mjs'`.
+
+Ratchet, metrics with a committed baseline: 0 before, 16 after (`baseline: 16 metrics, 0 differences`).
+
 <!-- F1 -->
 
 <!-- F2 -->
