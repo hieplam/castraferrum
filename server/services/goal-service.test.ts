@@ -7,6 +7,7 @@ import { GITHUB_REPO, VERIFY_LINE, createGateWorld, disposeGateSeed } from '../.
 import { RandomIdGenerator } from '../adapters/ids/random-id-generator';
 import { createMemoryRepositories } from '../adapters/memory';
 import type { GoalService } from './contracts';
+import { FakeClaimGateway } from '../../tests/support/fake-claim-gateway';
 import { DefaultGateService } from './gate-service';
 import { DefaultGoalService } from './goal-service';
 
@@ -56,7 +57,7 @@ async function setup() {
   const deps = { goals: repos.goals, repos: repos.repos, gate: repos.gate, host: world.host, workspace: world.workspace, clock, ids: new RandomIdGenerator() };
   const goals = new DefaultGoalService(deps);
   const gateWith = (service: GoalService) =>
-    new DefaultGateService({ gate: repos.gate, repos: repos.repos, host: world.host, workspace: world.workspace, commands: world.runner, clock, ids: new RandomIdGenerator(), sleep: world.sleep, goals: service });
+    new DefaultGateService({ gate: repos.gate, repos: repos.repos, host: world.host, workspace: world.workspace, commands: world.runner, claims: repos.claims, probes: repos.probes, gateway: new FakeClaimGateway(), clock, ids: new RandomIdGenerator(), sleep: world.sleep, goals: service });
   const gate = gateWith(goals);
 
   let jobs = 0;
