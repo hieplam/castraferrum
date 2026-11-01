@@ -941,6 +941,133 @@ export function repositoryContract(env: () => ContractEnv): void {
     });
   });
 
+  describe('resource_holds', () => {
+    const holdInput = (resource = 'plan-window', sec = 0) => ({ id: randomUUID(), resource, reason: 'a limit', openedAt: at(sec), until: null, openedByRunId: null });
+    /** A probe loop with one running run. */
+    const runningRun = async (over: Partial<StartRunInput> = {}) => {
+      const { loop, execution } = await activeLoop({ maxConcurrent: 3 }, null);
+      return { loop, run: await started(loop.id, execution.id, { trigger: 'probe', ...over }) };
+    };
+
+    it('open gives opened, and listOpen returns the row with every field', async () => {
+      const runId = randomUUID();
+      const input = { ...holdInput(), until: at(100), openedByRunId: runId };
+      expect(await r.holds.open(input)).toBe('opened');
+      expect(await r.holds.listOpen()).toEqual([{ ...input, checkedAt: null, closedAt: null, trialRunId: null }]);
+    });
+
+    it('a second open of one resource gives kept and changes nothing, and another resource opens its own row', async () => {
+      const first = holdInput();
+      await r.holds.open(first);
+      expect(await r.holds.open({ ...holdInput(), reason: 'another', until: at(100) })).toBe('kept');
+      expect(await r.holds.open(holdInput('docker', 1))).toBe('opened');
+      expect((await r.holds.listOpen()).map((h) => [h.id === first.id, h.resource, h.reason, h.until])).toEqual([
+        [true, 'plan-window', 'a limit', null],
+        [false, 'docker', 'a limit', null],
+      ]);
+    });
+
+    it('a resource can open again after its hold closes', async () => {
+      const first = holdInput();
+      await r.holds.open(first);
+      await r.holds.close(first.id, at(10));
+      expect(await r.holds.open(holdInput('plan-window', 20))).toBe('opened');
+      expect((await r.holds.listOpen()).map((h) => h.openedAt)).toEqual([at(20)]);
+    });
+
+    it('raiseUntil replaces a null, raises a value, and never lowers it', async () => {
+      await r.holds.open(holdInput());
+      const until = async () => (await r.holds.listOpen())[0]?.until;
+      await r.holds.raiseUntil('plan-window', at(100));
+      expect(await until()).toEqual(at(100));
+      await r.holds.raiseUntil('plan-window', at(50));
+      expect(await until()).toEqual(at(100));
+      await r.holds.raiseUntil('plan-window', at(200));
+      expect(await until()).toEqual(at(200));
+    });
+
+    it('raiseUntil does not touch a closed hold or another resource', async () => {
+      const closed = holdInput();
+      await r.holds.open(closed);
+      await r.holds.close(closed.id, at(1));
+      await r.holds.open(holdInput('docker'));
+      await r.holds.raiseUntil('plan-window', at(100));
+      expect((await r.holds.listOpen()).map((h) => [h.resource, h.until])).toEqual([['docker', null]]);
+    });
+
+    it('markChecked writes the time and the trial run, and a null clears the trial', async () => {
+      const hold = holdInput();
+      const trial = randomUUID();
+      await r.holds.open(hold);
+      await r.holds.markChecked(hold.id, at(30), trial);
+      expect((await r.holds.listOpen())[0]).toMatchObject({ checkedAt: at(30), trialRunId: trial });
+      await r.holds.markChecked(hold.id, at(60), null);
+      expect((await r.holds.listOpen())[0]).toMatchObject({ checkedAt: at(60), trialRunId: null });
+    });
+
+    it('hold: a running run becomes held with its session and no end, a null cost keeps the stored cost, and a value replaces it', async () => {
+      const { run } = await runningRun();
+      await r.runs.setSession(run.id, 's-1');
+      expect(await r.runs.hold(run.id, 0.5)).toMatchObject({ status: 'held', sessionId: 's-1', costUsd: 0.5, finishedAt: null, durationMs: null });
+      await r.runs.resume(run.id, null);
+      expect(await r.runs.hold(run.id, null)).toMatchObject({ status: 'held', costUsd: 0.5 });
+      expect(await r.runs.hold(run.id, 0.75)).toBeNull(); // already held
+    });
+
+    it('resume: a held run is running again, with a new deadline and one more resume, and any other run gives null', async () => {
+      const { run } = await runningRun({ deadlineAt: at(100) });
+      expect(run.resumeCount).toBe(0);
+      expect(await r.runs.resume(run.id, at(500))).toBeNull(); // still running
+      await r.runs.hold(run.id, null);
+      expect(await r.runs.resume(run.id, at(500))).toMatchObject({ status: 'running', deadlineAt: at(500), resumeCount: 1 });
+      await r.runs.hold(run.id, null);
+      expect(await r.runs.resume(run.id, null)).toMatchObject({ deadlineAt: null, resumeCount: 2 });
+    });
+
+    it('finish accepts a held run, and a finished run keeps its first outcome', async () => {
+      const { run } = await runningRun();
+      await r.runs.hold(run.id, 0.5);
+      expect(await r.runs.finish(run.id, { status: 'cancelled', finishedAt: at(90), costUsd: 0.5 })).toMatchObject({ status: 'cancelled', costUsd: 0.5, finishedAt: at(90), durationMs: 30_000 });
+      expect(await r.runs.finish(run.id, { status: 'failed', finishedAt: at(95) })).toMatchObject({ status: 'cancelled' });
+      expect(await r.runs.hold(run.id, null)).toBeNull();
+    });
+
+    it('listHeld and listAllHeld are oldest first, and a held run is neither active nor overdue', async () => {
+      const a = await runningRun({ startedAt: at(70), deadlineAt: at(71) });
+      const b = await runningRun({ startedAt: at(65) });
+      await r.runs.hold(a.run.id, null);
+      await r.runs.hold(b.run.id, null);
+
+      expect((await r.runs.listAllHeld()).map((x) => x.id)).toEqual([b.run.id, a.run.id]);
+      expect((await r.runs.listHeld(a.loop.id)).map((x) => x.id)).toEqual([a.run.id]);
+      expect(await r.runs.listActive(a.loop.id)).toEqual([]);
+      expect(await r.runs.findOverdue(at(1000))).toEqual([]);
+    });
+
+    it('markHeldInterrupted changes the held runs of other loops, with the duration up to aliveUntil, and leaves running runs', async () => {
+      const stops = await runningRun({ startedAt: at(60) });
+      const kept = await runningRun({ startedAt: at(60) });
+      const live = await runningRun({ startedAt: at(60) });
+      await r.runs.hold(stops.run.id, null);
+      await r.runs.hold(kept.run.id, null);
+
+      expect(await r.runs.markHeldInterrupted(at(500), at(100), [kept.loop.id])).toBe(1);
+      expect(await r.runs.findById(stops.run.id)).toMatchObject({ status: 'interrupted', finishedAt: at(500), durationMs: 40_000 });
+      expect(await r.runs.findById(kept.run.id)).toMatchObject({ status: 'held', finishedAt: null });
+      expect(await r.runs.findById(live.run.id)).toMatchObject({ status: 'running' });
+    });
+
+    it('findOrphaned skips a claim whose run is held, and finds it when the run ends', async () => {
+      const { loop, run } = await runningRun();
+      await r.claims.open({ id: randomUUID(), loopId: loop.id, taskKey: '141', runId: run.id, at: at(0) });
+      await r.runs.hold(run.id, null);
+      expect(await r.claims.findOrphaned(10)).toEqual([]);
+
+      await r.runs.finish(run.id, { status: 'cancelled', finishedAt: at(90) });
+      expect(await r.claims.findOrphaned(10)).toEqual([expect.objectContaining({ runId: run.id, runStatus: 'cancelled' })]);
+    });
+  });
+
   describe('run_claims', () => {
     const openClaim = async (loopId: string, taskKey = '141', sec = 0) => {
       const id = randomUUID();

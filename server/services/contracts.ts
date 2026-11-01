@@ -238,7 +238,7 @@ export interface LoopService {
   update(id: string, input: LoopInput, version: number): Promise<LoopView>;
   /** Opens a new execution + its first run starts immediately (a loop with a probe: no run, no next run). Throws LOOP_ALREADY_ACTIVE, LOOP_ARCHIVED. */
   start(id: string): Promise<LoopView>;
-  /** Closes the execution as `stopped` + cancels the running run. Throws LOOP_NOT_ACTIVE. */
+  /** Closes the execution as `stopped` + cancels the running and held runs. Throws LOOP_NOT_ACTIVE. */
   stop(id: string): Promise<LoopView>;
   /** A copy named "… (copy)" in the Stopped state, carrying no executions / runs. */
   duplicate(id: string): Promise<LoopView>;
@@ -333,8 +333,13 @@ export interface RunService {
   startScheduled(loopId: string, executionId: string, scheduledFor: Date): Promise<RunView>;
   /** A run for a claimed task (trigger `probe`), with the id that the claim row holds. Full lanes give a `skipped` run with that id. */
   startClaimed(loopId: string, executionId: string, claim: ClaimedStart): Promise<RunView>;
-  /** Cancel a running run: the DB changes at once, the executor receives the signal. A finished run → returned unchanged. Throws RUN_NOT_FOUND. */
+  /** Cancel a running or held run: the DB changes at once, the executor receives the signal. A finished run → returned unchanged. Throws RUN_NOT_FOUND. */
   cancel(runId: string, reason: 'cancelled' | 'timed_out'): Promise<RunView>;
+  /**
+   * The same session goes on with `RESUME_LINE` (spec 2.5, 2.7): the run is `running` again with a new deadline, and this returns at once. A run that is not
+   * `held` → returned unchanged. Throws RUN_NOT_FOUND, or on a broken dependency: the run then stays `held`, so a later tick tries it again.
+   */
+  resumeHeld(runId: string, input: { env: Record<string, string> }): Promise<RunView>;
   /** Runs past their deadline → cancelled with reason `timed_out`. Returns the count. */
   expireOverdue(): Promise<number>;
   /** Throws RUN_NOT_FOUND. */
@@ -435,6 +440,17 @@ export interface GateService extends BackgroundService {
   stop(): Promise<void>;
   /** After `stop`, lets `tick` take jobs again. The reset of test mode uses it. */
   resume(): void;
+/** Result of one hold tick. An error names the loop of the run, or the hold id for a hold. */
+export type HoldTickReport = {
+  at: Date;
+  /** `false` = the previous tick has not finished, so this tick is dropped (does nothing). */
+  ran: boolean;
+  errors: { loopId: string; message: string }[];
+};
+
+export interface HoldService extends BackgroundService {
+  /** Closes the holds that ended (decision 44), starts a trial when the end is not known, and resumes the held runs when no `plan-window` hold is open. */
+  tick(): Promise<HoldTickReport>;
 }
 
 export interface ProbeService extends BackgroundService {

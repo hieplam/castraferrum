@@ -15,7 +15,8 @@ import type { QueryFn, QueryHandle } from './claude-agent-executor';
 // process is opened, yet it still goes through the whole ClaudeAgentExecutor (streaming input, session id, summary, cost,
 // cancel). A prompt with `[soak:N]` → "soaks" for N seconds and then finishes (SPEC-phase-2 § Running N turns in
 // parallel) - e2e UC-32 uses it to keep many turns running at the same time. A prompt with `[limit]` → a rejected `rate_limit_event`, then an
-// assistant `error`, then the end of the stream (spec 2.5). The option `resume` keeps its session id.
+// assistant `error`, then the end of the stream (spec 2.5). The option `resume` keeps its session id. A prompt with `[run-end:<word>:<value>]` ends the
+// result with the run-end line of spec 2.3: `<value>` is the `resource` of `RESOURCE_DOWN`, and the `pr` of each other word.
 
 export const REAL_CLAUDE_DIR_PREFIX = 'lc-real-claude-';
 export const FAKE_CLAUDE_DIR_PREFIX = 'lc-fake-claude-';
@@ -61,8 +62,17 @@ function fakeSoak(params: Parameters<QueryFn>[0]): QueryHandle {
     }
     await sleep(seconds * 1000, abort?.signal);
     if (abort?.signal.aborted) throw new Error('Claude Code process aborted by user');
-    yield { type: 'result', subtype: 'success', is_error: false, result: `soak finished after ${seconds} seconds`, total_cost_usd: 0.0001, session_id: sessionId } as unknown as SDKMessage;
+    yield { type: 'result', subtype: 'success', is_error: false, result: `soak finished after ${seconds} seconds${runEndLineOf(prompt)}`, total_cost_usd: 0.0001, session_id: sessionId } as unknown as SDKMessage;
   })();
+}
+
+/** The line of spec 2.3 that a prompt asks for with `[run-end:<word>:<value>]`, after a line break. No mark gives an empty string. */
+function runEndLineOf(prompt: string): string {
+  const m = /\[run-end:(\w+):([^\]]*)\]/.exec(prompt);
+  if (!m) return '';
+  const [, result, value] = m;
+  const down = result === 'RESOURCE_DOWN';
+  return `\n${JSON.stringify({ epic: 1, issue: 1, result, pr: down ? null : value, resource: down ? value : null, progress: null, note: '' })}`;
 }
 
 /** Prompt `[echo-env]`: the run writes the lane env that it got, one JSON line, to `<cwd>/lane-env.jsonl` (P6 oracle). */
