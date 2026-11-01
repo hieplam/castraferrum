@@ -407,6 +407,37 @@ Task: probe line parser and run-end parser (issue 237, PR 250).
 
 <!-- P3 -->
 
+## P3
+
+Red (implementation stashed, test file only):
+
+    $ npx vitest run --project api tests/api/probe-settings-api.test.ts
+     Test Files  1 failed (1)
+          Tests  7 failed (7)
+
+Green (after the rebase on origin/main):
+
+    $ npx vitest run --project api tests/api/probe-settings-api.test.ts
+          Tests  7 passed (7)
+    $ npx vitest run --project unit server/services/probe-service.test.ts
+          Tests  8 passed (8)
+    $ npx vitest run --project contract -t loop_probes
+          Tests  12 passed | 114 skipped (126)
+    $ npx vitest run --project api tests/api/api-surface.test.ts tests/api/db-migrate.test.ts
+          Tests  35 passed (35)
+
+Stub check: the `upsert` call in `DefaultProbeService.save` replaced by a fake record.
+
+    api:  Tests  3 failed | 4 passed (7)
+    unit: Tests  3 failed | 5 passed (8)
+
+Ratchet (`npm run test:contract`):
+
+    before: memory: 50 passed · postgres: 50 passed
+    after:  memory: 56 passed · postgres: 56 passed
+
+Verify: `npm run verify` exit 0 (unit 595 passed, contract 126, 115 e2e passed, `phone overflow: 0/12`, `UCs with a green e2e: 33/33`).
+
 <!-- P4 -->
 
 <!-- P5 -->
