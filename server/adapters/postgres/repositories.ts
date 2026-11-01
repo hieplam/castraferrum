@@ -2,6 +2,7 @@ import type pg from 'pg';
 import type { Repositories } from '../../ports/repositories';
 import { PgClaimRepository } from './pg-claim-repository';
 import { PgExecutionRepository } from './pg-execution-repository';
+import { PgGateRepository } from './pg-gate-repository';
 import { PgGoalRepository } from './pg-goal-repository';
 import { PgHeartbeatRepository } from './pg-heartbeat-repository';
 import { PgLoopProbeRepository } from './pg-loop-probe-repository';
@@ -23,5 +24,6 @@ export function createPgRepositories(pool: pg.Pool): Repositories {
     probes: new PgLoopProbeRepository(pool),
     goals: new PgGoalRepository(pool),
     claims: new PgClaimRepository(pool),
+    gate: new PgGateRepository(pool),
   };
 }

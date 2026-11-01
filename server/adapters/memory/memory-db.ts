@@ -1,6 +1,7 @@
 import { PROBE_STATES, RESTART_POLICIES, type ProbeRecord } from '../../../shared/domain/goal-loop';
 import { RUN_STATUSES } from '../../../shared/domain/run';
 import { STANDING_GOAL_STATES, type StandingGoalRecord, type StandingIssueRecord, type StandingScheduleRecord } from '../../../shared/domain/standing-goal';
+import { GATE_JOB_STATES, GATE_STEPS, GATE_STEP_STATUSES, type GateJob, type GateStep, type RepoGate } from '../../../shared/domain/gate';
 import type { ClaimRecord } from '../../ports/claims';
 import type { ExecutionRecord } from '../../ports/execution-repository';
 import type { LoopRecord } from '../../ports/loop-repository';
@@ -49,6 +50,10 @@ export class MemoryDb {
   readonly logs = new Map<string, LogLine[]>();
   readonly probes = new Map<string, ProbeRecord>();
   readonly claims = new Map<string, ClaimRecord>();
+  readonly repoGates = new Map<string, RepoGate>();
+  readonly gateJobs = new Map<string, GateJob>();
+  /** Keyed by the job id and `seq`. */
+  readonly gateSteps = new Map<string, GateStep>();
   heartbeat: Date | null = null;
   readonly notices = new Map<string, NoticeRecord>();
   readonly standingGoals = new Map<string, StandingGoalRecord>();
@@ -64,6 +69,9 @@ export class MemoryDb {
     this.logs.clear();
     this.probes.clear();
     this.claims.clear();
+    this.repoGates.clear();
+    this.gateJobs.clear();
+    this.gateSteps.clear();
     this.heartbeat = null;
     this.notices.clear();
     this.standingGoals.clear();
@@ -81,6 +89,9 @@ export class MemoryDb {
       logs: clone(this.logs),
       probes: clone(this.probes),
       claims: clone(this.claims),
+      repoGates: clone(this.repoGates),
+      gateJobs: clone(this.gateJobs),
+      gateSteps: clone(this.gateSteps),
       heartbeat: this.heartbeat,
       notices: clone(this.notices),
       standingGoals: clone(this.standingGoals),
@@ -97,6 +108,9 @@ export class MemoryDb {
       restore(this.logs, before.logs);
       restore(this.probes, before.probes);
       restore(this.claims, before.claims);
+      restore(this.repoGates, before.repoGates);
+      restore(this.gateJobs, before.gateJobs);
+      restore(this.gateSteps, before.gateSteps);
       this.heartbeat = before.heartbeat;
       restore(this.notices, before.notices);
       restore(this.standingGoals, before.standingGoals);
@@ -118,11 +132,15 @@ export class MemoryDb {
     this.repos.set(row.id, clone(row));
   }
 
-  /** DELETE: a loop (even an archived one) still points at it → foreign-key violation, like Postgres. */
+  /** DELETE: a loop (even an archived one) or a gate job still points at it → foreign-key violation, like Postgres. The gate setting goes with the repo (ON DELETE CASCADE). */
   deleteRepo(id: string): void {
     for (const l of this.loops.values()) {
       if (l.repoId === id) throw new ConstraintViolation('foreign_key', 'loops_repo_id_repos_id_fk');
     }
+    for (const j of this.gateJobs.values()) {
+      if (j.repoId === id) throw new ConstraintViolation('foreign_key', 'gate_jobs_repo_id_repos_id_fk');
+    }
+    this.repoGates.delete(id);
     this.repos.delete(id);
   }
 
@@ -171,6 +189,9 @@ export class MemoryDb {
   /** INSERT or UPDATE: the partial unique index run_claims_one_open_per_task allows one open row for each loop and task key. */
   writeClaim(row: ClaimRecord): void {
     if (!this.loops.has(row.loopId)) throw new ConstraintViolation('foreign_key', 'run_claims_loop_id_loops_id_fk');
+    if (row.owner !== 'run' && row.owner !== 'gate') throw new ConstraintViolation('check', 'run_claims_owner');
+    if ((row.owner === 'gate') !== (row.gateJobId !== null)) throw new ConstraintViolation('check', 'run_claims_gate_owner_has_job');
+    if (row.gateJobId !== null && !this.gateJobs.has(row.gateJobId)) throw new ConstraintViolation('foreign_key', 'run_claims_gate_job_id_gate_jobs_id_fk');
     if (row.closedAt === null) {
       for (const other of this.claims.values()) {
         if (other.id !== row.id && other.closedAt === null && other.loopId === row.loopId && other.taskKey === row.taskKey) {
@@ -179,6 +200,40 @@ export class MemoryDb {
       }
     }
     this.claims.set(row.id, clone(row));
+  }
+
+  // ------------------------------------------------------------------ repo_gate, gate_jobs, gate_steps
+
+  /** INSERT or UPDATE one repo_gate row. */
+  writeRepoGate(row: RepoGate): void {
+    if (!this.repos.has(row.repoId)) throw new ConstraintViolation('foreign_key', 'repo_gate_repo_id_repos_id_fk');
+    this.repoGates.set(row.repoId, clone(row));
+  }
+
+  /** INSERT or UPDATE one gate_jobs row. The partial unique indexes gate_jobs_one_running and gate_jobs_one_live_per_head live here. */
+  writeGateJob(row: GateJob): void {
+    if (!this.repos.has(row.repoId)) throw new ConstraintViolation('foreign_key', 'gate_jobs_repo_id_repos_id_fk');
+    if (!(GATE_JOB_STATES as readonly string[]).includes(row.state)) throw new ConstraintViolation('check', 'gate_jobs_state');
+    if (row.failedStep !== null && !(GATE_STEPS as readonly string[]).includes(row.failedStep)) throw new ConstraintViolation('check', 'gate_jobs_failed_step');
+    const live = (state: string) => state === 'queued' || state === 'running';
+    for (const other of this.gateJobs.values()) {
+      if (other.id === row.id) continue;
+      if (row.state === 'running' && other.state === 'running') throw new ConstraintViolation('unique', 'gate_jobs_one_running');
+      if (live(row.state) && live(other.state) && other.repoId === row.repoId && other.prNumber === row.prNumber && other.headSha === row.headSha) {
+        throw new ConstraintViolation('unique', 'gate_jobs_one_live_per_head');
+      }
+    }
+    this.gateJobs.set(row.id, clone(row));
+  }
+
+  /** INSERT one gate_steps row: the primary key is the job and `seq`. */
+  insertGateStep(row: GateStep): void {
+    if (!this.gateJobs.has(row.jobId)) throw new ConstraintViolation('foreign_key', 'gate_steps_job_id_gate_jobs_id_fk');
+    if (!(GATE_STEPS as readonly string[]).includes(row.step)) throw new ConstraintViolation('check', 'gate_steps_step');
+    if (!(GATE_STEP_STATUSES as readonly string[]).includes(row.status)) throw new ConstraintViolation('check', 'gate_steps_status');
+    const key = `${row.jobId}\n${row.seq}`;
+    if (this.gateSteps.has(key)) throw new ConstraintViolation('unique', 'gate_steps_job_id_seq_pk');
+    this.gateSteps.set(key, clone(row));
   }
 
   // ------------------------------------------------------------------ loop_executions

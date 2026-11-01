@@ -8,6 +8,18 @@ describe('memory', () => {
   const env: ContractEnv = {
     ...repos,
     reset: async () => repos.db.reset(),
+    // Write straight into the MemoryDb gate_jobs "table", where the partial unique indexes live.
+    rawInsertGateJob: async (row) => {
+      repos.db.writeGateJob({
+        ...row,
+        taskKey: 'raw',
+        failedStep: null,
+        queuedAt: new Date('2026-10-18T01:00:00Z'),
+        startedAt: null,
+        finishedAt: null,
+        ratifiedAt: null,
+      });
+    },
     // Write straight into the MemoryDb runs "table" - the place that holds the constraint, bypassing MemoryRunRepository.
     rawInsertRunning: async (row) => {
       repos.db.writeRun(

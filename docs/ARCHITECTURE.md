@@ -459,8 +459,11 @@ is committed and applied at startup):
 | `loop_executions` | one Start-to-Stop span: `seq`, `started_at`, `ended_at`, `end_reason` (`stopped` or `server_down`) | unique (loop, seq); at most one open per loop |
 | `runs` | one firing: `iteration`, `trigger` (`start`, `schedule` or `probe`), `status`, `skip_reason`, timestamps, `deadline_at`, `duration_ms`, prompt and executor snapshot, `summary`, `error`, `cost_usd`, `session_id`, `task_key`, `slot`, `end_result`, `end_pr` | trigger `runs_max_concurrent_per_loop` (lock the loop row, count `running`, reject at `max_concurrent`); unique (loop, iteration) |
 | `run_logs` | lines of a run: `seq`, `at`, `level`, `message`, `data` | primary key (run, seq) |
-| `run_claims` | the claim of a task for one run: `task_key`, `run_id` (no FK: the row comes before the run), `opened_at`, `closed_at`, `close_reason` | primary key `id`; FK to `loops`; partial unique index: one open row for each `loop_id` and `task_key` |
+| `run_claims` | the claim of a task for one run: `task_key`, `run_id` (no FK: the row comes before the run), `opened_at`, `closed_at`, `close_reason`, `owner` (`run` or `gate`, decision 4), `gate_job_id` (set when the gate owns the row) | primary key `id`; FK to `loops` and to `gate_jobs`; partial unique index: one open row for each `loop_id` and `task_key`; a row has `gate_job_id` exactly when its owner is `gate` |
 | `loop_probes` | the probe of a loop: argv commands (`command`, `claim`, `release`), `resources`, lane settings, `restart_policy`, `state`, `last_line`, `last_probe_at` | primary key `loop_id`; FK to `loops` |
+| `repo_gate` | the merge gate of a repository: `enabled` (default false: the gate is off until a person turns it on), `github_repo`, `check_command` (argv), `updated_at` | primary key `repo_id`; FK to `repos` (deleted with it) |
+| `gate_jobs` | one PR head in the gate queue: `repo_id`, `pr_number`, `head_sha`, `task_key`, `state`, `failed_step`, `queued_at`, `started_at`, `finished_at`, `ratified_at` | partial unique index `gate_jobs_one_running`: at most one `running` job; partial unique index `gate_jobs_one_live_per_head`: at most one `queued` or `running` row for each repo, PR and head commit; FK to `repos` |
+| `gate_steps` | one step of a job: `seq`, `step`, `status`, `exit_code`, `ms`, `output_tail` | primary key (job, seq); FK to `gate_jobs` |
 | `server_heartbeat` | a single row written every 10 seconds | `id` is a fixed boolean |
 
 Run states: `running`, `succeeded`, `failed`, `cancelled`, `timed_out`, `interrupted`, `skipped`.

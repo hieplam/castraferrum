@@ -20,6 +20,8 @@ export interface ClaimGateway {
   release(cfg: ClaimConfig, task: Pick<TaskRef, 'key'>, why: ReleaseWhy): Promise<void>;
 }
 
+export type ClaimOwner = 'run' | 'gate';
+
 export type ClaimRecord = {
   id: string;
   loopId: string;
@@ -28,6 +30,10 @@ export type ClaimRecord = {
   openedAt: Date;
   closedAt: Date | null;
   closeReason: string | null;
+  /** Decision 4: one owner. A run owns the row until the gate takes it over with `handOver`. */
+  owner: ClaimOwner;
+  /** Set when, and only when, `owner` is `gate`. */
+  gateJobId: string | null;
 };
 
 export type OpenClaimInput = { id: string; loopId: string; taskKey: string; runId: string; at: Date };
@@ -42,6 +48,8 @@ export interface ClaimRepository {
   listOpen(loopId: string): Promise<ClaimRecord[]>;
   /** The first close stays: closing a closed row changes nothing. */
   close(id: string, reason: string, at: Date): Promise<void>;
-  /** Open rows whose run is neither running nor held, or has no row at all, oldest first. */
+  /** Gives an open row to the gate job. `false` when the row is closed or unknown. The job must exist. */
+  handOver(id: string, gateJobId: string): Promise<boolean>;
+  /** Open rows that a run owns, whose run is neither running nor held, or has no row at all, oldest first. A row that the gate owns is never orphaned. */
   findOrphaned(limit: number): Promise<OrphanedClaim[]>;
 }

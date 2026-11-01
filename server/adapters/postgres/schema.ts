@@ -222,10 +222,77 @@ export const runClaims = pgTable(
     openedAt: ts('opened_at').notNull(),
     closedAt: ts('closed_at'),
     closeReason: text('close_reason'),
+    // Decision 4: a claim has one owner, a run or the gate. The gate owns the row once it has a job (`gate_job_id`).
+    owner: text('owner').notNull().default('run'),
+    gateJobId: uuid('gate_job_id').references(() => gateJobs.id),
   },
   (t) => [
+    check('run_claims_owner', sql`${t.owner} IN ('run','gate')`),
+    check('run_claims_gate_owner_has_job', sql`(${t.owner} = 'gate') = (${t.gateJobId} IS NOT NULL)`),
     uniqueIndex('run_claims_one_open_per_task').on(t.loopId, t.taskKey).where(sql`${t.closedAt} IS NULL`),
     index('run_claims_open').on(t.openedAt).where(sql`${t.closedAt} IS NULL`),
+  ],
+);
+
+/** The merge gate of one repository (spec 2.8, decision 30). No row means off. The gate is off until a person turns it on. */
+export const repoGate = pgTable('repo_gate', {
+  repoId: uuid('repo_id')
+    .primaryKey()
+    .references(() => repos.id, { onDelete: 'cascade' }),
+  enabled: boolean('enabled').notNull().default(false),
+  githubRepo: text('github_repo').notNull(),
+  checkCommand: jsonb('check_command').notNull().default(sql`'[]'::jsonb`),
+  updatedAt: ts('updated_at').notNull(),
+});
+
+/**
+ * Gate jobs (spec 2.8). Two partial unique indexes keep the rules in the database: at most one `running` job, and at most one
+ * `queued` or `running` row for each repository, PR and head commit.
+ */
+export const gateJobs = pgTable(
+  'gate_jobs',
+  {
+    id: uuid('id').primaryKey(),
+    repoId: uuid('repo_id')
+      .notNull()
+      .references(() => repos.id),
+    prNumber: integer('pr_number').notNull(),
+    headSha: text('head_sha').notNull(),
+    taskKey: text('task_key').notNull(),
+    state: text('state').notNull().default('queued'),
+    failedStep: text('failed_step'),
+    queuedAt: ts('queued_at').notNull(),
+    startedAt: ts('started_at'),
+    finishedAt: ts('finished_at'),
+    ratifiedAt: ts('ratified_at'),
+  },
+  (t) => [
+    check('gate_jobs_state', sql`${t.state} IN ('queued','running','merged','failed','needs_ratification')`),
+    check('gate_jobs_failed_step', sql`${t.failedStep} IS NULL OR ${t.failedStep} IN ('scope','base','setup','green','stub','verify','ci','merge')`),
+    uniqueIndex('gate_jobs_one_running').on(t.state).where(sql`${t.state} = 'running'`),
+    uniqueIndex('gate_jobs_one_live_per_head').on(t.repoId, t.prNumber, t.headSha).where(sql`${t.state} IN ('queued','running')`),
+    index('gate_jobs_queued').on(t.queuedAt, t.id).where(sql`${t.state} = 'queued'`),
+  ],
+);
+
+/** One step of one gate job; `output_tail` holds the last 60 lines. */
+export const gateSteps = pgTable(
+  'gate_steps',
+  {
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => gateJobs.id),
+    seq: integer('seq').notNull(),
+    step: text('step').notNull(),
+    status: text('status').notNull(),
+    exitCode: integer('exit_code'),
+    ms: integer('ms').notNull(),
+    outputTail: text('output_tail').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.jobId, t.seq] }),
+    check('gate_steps_step', sql`${t.step} IN ('scope','base','setup','green','stub','verify','ci','merge')`),
+    check('gate_steps_status', sql`${t.status} IN ('pass','fail','skip')`),
   ],
 );
 

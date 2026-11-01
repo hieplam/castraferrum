@@ -1,5 +1,6 @@
 import type { ClaimRepository } from './claims';
 import type { ExecutionRepository } from './execution-repository';
+import type { GateRepository } from './gate-repository';
 import type { GoalRepository } from './goal-repository';
 import type { HeartbeatRepository } from './heartbeat-repository';
 import type { LoopProbeRepository } from './loop-probe-repository';
@@ -21,4 +22,5 @@ export type Repositories = {
   probes: LoopProbeRepository;
   goals: GoalRepository;
   claims: ClaimRepository;
+  gate: GateRepository;
 };
