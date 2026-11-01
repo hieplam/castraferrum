@@ -219,3 +219,97 @@ Phase: issue 212 of epic 217. Spec: [goal-driven loop](../specs/2026-11-01-goal-
 **Stub check:** no handler fails each trigger. Only `rate_limit_event` fails `assistant`. Adding costs fails the resume cost. Run all.
 
 **Ratchet:** unit count +24. Metric `limit-failures`: decision 7.
+
+Wave 4 adds P8, P10, P11 and P14. The rules are decisions 43 to 46 of the spec. A test that needs time uses the wound clock and a condition poll, never a fixed real wait. Make the kit change first, so Red runs on the new kit with no service change. Each task keeps a test that a loop with no probe behaves as today.
+
+## P8 - Holds, held, resume, stop on held
+
+**Files:** schema, migration, `db.ts`; `hold-repository.ts`, run port, repositories, adapters; services `hold-open.ts`, `hold`, `run`, `probe`, `loop`, `recovery`, `contracts.ts`; `compose.ts`; `shared/domain/run.ts`, `shared/i18n/*.ts`, `RunCell.tsx`; `test-mode-query.ts`, `fake-labels.mjs`, `service-kit.ts`; `ARCHITECTURE.md`; tests of Green.
+
+**Steps:**
+1. Kit: `usageLimit(message, costUsd, resetsAt)`; a scripted session id is `input.resumeSessionId ?? scripted-<n>`; a `StoreNotifier`. `fakeSoak`: `[run-end:<word>:<value>]` ends the result with the line of 2.3. A `fake-labels.mjs` queue entry can be `{key, resources}`.
+2. Migration of spec 3, `trial_run_id`, `truncateAll`.
+3. `HoldRepository`: `open`, `raiseUntil`, `listOpen`, `markChecked(id, at, trialRunId)`, `close`. Runs: `hold(id, costUsd)`, `resume(id, deadlineAt)`, `listHeld(loopId)`, `listAllHeld()`, `markHeldInterrupted(now, aliveUntil, keepLoopIds)`. `finish` accepts `held`.
+4. `openHold`, `#drive`, `cancel`: decision 43. `RunService.resumeHeld(runId, { env })`: 2.5, decision 28, `RESUME_LINE`, `laneEnvOf`. `LoopService.stop` also cancels `listHeld`.
+5. `DefaultHoldService`, one `background` entry, probe tick, action `hold`: decision 44. Lanes and slots count held runs.
+6. Recovery, every loop stops: decision 45.
+7. `RUN_PILL.held` is `['int', 'status.held']`, the `SYSTEM.md` row. Add `status.held`, `notice.holdNoEnd`. PR body: `.pill`, and the `Acceptance:` line of G29 from `npm run design:compare`.
+8. `ARCHITECTURE.md`: "no pause or resume" becomes "a hold pauses runs for a resource".
+9. `hold-service.test.ts`, 24: held keeps session, claim open; two limits, 1 hold, 1 notice; no probe in a hold; other task runs; no-probe control; no session; +59 s, +60 s, oldest first; deadline, count, env; 2 cost; 5 trial (decision 44); `raiseUntil`; past `resetsAt`; Stop; held slot; check clears at `everySec`; `RESOURCE_DOWN`; `hold` line; failed resume; restart. API `usage-hold` 3, `holds` 3. Contract 12, `describe('resource_holds')`.
+
+**Goal:** G3, G23. A limit waits, then the same session goes on with no person. One cause gives one hold and one notice.
+
+**Red:** `npx vitest run --project unit server/services/hold-service.test.ts` prints `Tests  23 failed | 1 passed (24)`. `npx vitest run --project api tests/api/usage-hold.test.ts tests/api/holds.test.ts` prints `Tests  4 failed | 2 passed (6)`. The passes are no-probe controls.
+
+**Green:** the same commands print `Tests  24 passed (24)`, `Tests  6 passed (6)`. `npx vitest run --project contract -t resource_holds` prints `24 passed`. `npx vitest run --project unit server/services/run-usage-limit.test.ts` prints `Tests  2 passed (2)`. `npm run verify` exits 0.
+
+**Stub check:** a fresh session on resume, no resume on close, no hold test in the tick, `listActive` only in Stop, one row per limit: each fails its case. Run all.
+
+**Ratchet:** unit +24, api +6, contract +12 per side. Metrics `limit-failures`, `blocked-runs`: decision 7.
+
+## P10 - wait, blocked, plan, done, goal_met
+
+**Files:** `schema.ts`, migration; `shared/domain/run.ts`, `shared/contracts/events.ts`, `loops.ts`; `probe-service.ts`, `run-service.ts`, `loop-service.ts`, `contracts.ts`, `compose.ts`; `server/ports/claims.ts`, `execution-repository.ts`, claim and execution adapters; `service-kit.ts`; `docs/API.md`; the tests of Green.
+
+**Steps:**
+1. Migration of spec 3: `goal_met` in `executions_end_reason`, `run_claims.kind`.
+2. Deps gain `notifier`, `loopService: Pick<LoopService, 'finishGoal'>`.
+3. `wait`, `blocked`, `probe_failed`: decision 46. Read `probe.lastLine` before `record`.
+4. `plan`: decision 46, with the lanes and slot of `#take`, `action: 'plan'`.
+5. `done`: decision 46. `finishGoal` publishes `execution.ended` and `loop.updated`.
+6. No `web/` change: P15 shows the word.
+7. `server/services/probe-actions.test.ts`, 18. Wait: state and 1 notice; 3 ticks, 1 notice; read, same reason, no notice; new reason. Blocked: `issues` in `last_line`; 3 ticks, 1 notice. Failed: 3 ticks, 1 notice; again after a pass. Plan: 1 run with both prompt lines, 0 gateway calls; repeat none; new run after the end; live held run; full lanes none. Done: `goal_met`, loop stopped; live run waits, closes on next probe; no probe after. `skip`, no notice. No-probe loop on cron.
+8. `tests/api/plan-action.test.ts`, 3: failure text in `prompt_snapshot`; repeat none; `done` gives `end_reason` `goal_met`. Contract 3, `describe('goal_met')`.
+
+**Goal:** G1, G25, G28. Each action does what spec 2.1 says, a reason gives one notice, and `done` ends the period as Goal met.
+
+**Red:** `npx vitest run --project unit server/services/probe-actions.test.ts` prints `Tests  15 failed | 3 passed (18)`. The passes: full lanes, `skip`, no-probe loop. `npx vitest run --project api tests/api/plan-action.test.ts` prints `Tests  3 failed (3)`.
+
+**Green:** the same commands print `Tests  18 passed (18)`, `Tests  3 passed (3)`. `npx vitest run --project contract -t goal_met` prints `6 passed`. `npm run verify` exits 0.
+
+**Stub check:** send on each tick: read-then-silent fails. Call the gateway for `plan`: 0 calls fails. No `plan` row: repeat fails. `done` by `stop`: the end reason fails. Run all.
+
+**Ratchet:** unit +18, api +3, contract +3 per side.
+
+## P11 - Restart policy, smoke step
+
+**Files:** `recovery-service.ts`, new `recovery-policy.test.ts`; `probe-service.ts`; `execution-repository.ts`, `loop-repository.ts`, their adapters; `scripts/api-smoke.mjs`; `docs/ARCHITECTURE.md`.
+
+**Steps:**
+1. Recovery: decision 45. `keep`: active loops with an open execution and a probe with `restartPolicy` `resume`. `closeAllOpen(reason, at, keep)`, `stopAll(now, keep)`, `markHeldInterrupted(now, aliveUntil, keep)`.
+2. `ProbeService`: first-tick rule of decision 45.
+3. `ARCHITECTURE.md`: "No loop restarts by itself" and the row "Restart closes executions" become a per-loop `restartPolicy`, default `stop`.
+4. Smoke, before step 6: loop B, Mock 120 s, no `claim`, `command` `[node, tests/support/fake-probe.mjs, <file>]`, `restartPolicy` `resume`. `<file>` holds a `wait` line. Start B, poll `loop_probes.state` for `waiting`, check 0 runs. Write a `take` line, key `smoke-1`. Kill. After the restart make no call for B. Poll `SELECT` at most 30 s for one `running` run, trigger `probe`, task key `smoke-1`. Print `restart: resume loop started a run with no http call`. Stop B before step 8. The checks of the first loop stay.
+5. Tests, 10, `describe('restart_policy')`, a second kit on one `db`: resume loop: run `interrupted`, execution open, loop active; first tick: excused release, new run, no HTTP; default loop as today; no-probe loop as today; stopped resume loop stays; held stays, same session after the reset; mixed loops; active with no execution stops; second tick no probe; open `plan-window`, no probe.
+
+**Goal:** G5, G4. After a restart a `resume` loop works with no person. A default loop stays stopped.
+
+**Red:** `npx vitest run --project unit server/services/recovery-policy.test.ts` prints `Tests  6 failed | 4 passed (10)`. The passes: default, no-probe, stopped, no execution. `npm run api-smoke` with step 4 alone prints `FAIL:`.
+
+**Green:** the same command prints `Tests  10 passed (10)`. `npx vitest run --project unit server/services/recovery-service.test.ts` passes with that file unchanged. `npm run api-smoke` prints `restart: resume loop started a run with no http call`, exit 0. `npm run verify` exits 0.
+
+**Stub check:** ignore `keep`: the first case fails. Remove the first-tick rule: the smoke fails, because 30 s is under the 60 s probe period. Run both.
+
+**Ratchet:** unit +10. Metric `idle-days`: decision 7.
+
+## P14 - End-to-end: idle and gap
+
+**Files:** new `tests/e2e/probe-idle.spec.ts`, `tests/e2e/probe-gap.spec.ts`, `tests/support/fake-probe-seq.mjs`.
+
+**Steps:**
+1. `fake-probe-seq.mjs <dir>`: appends a line to `<dir>/calls.log`, prints entry `n` of `<dir>/lines.json`, the last entry after the end.
+2. Idle: Mock loop, lines `wait`, `skip`, `done`. Poll for 1 call, `POST /api/__test/clock` `advanceMs` 60000, poll for 2, the same for 3. `SELECT`: 0 runs, `end_reason` `goal_met`. A witness loop prints only `skip`. Advance 120 s twice, poll for 2 more witness calls. The first loop stays at 3, so real ticks prove the count, not a wait.
+3. Control `take`, no `claim`: poll for 1 run.
+4. Gap: repository `lc-fake-claude-*`, prompt `[soak:2]`, yearly cron, `maxConcurrent` 1, real clock, `tests/support/fake-labels.mjs` queue `a`, `b`. Poll at most 60 s for 2 runs, trigger `probe`. `gap_ms` is the second `started_at` less the first `finished_at`. Print `gap_ms=<n>`. Assert under 15000.
+5. `POST /api/__test/reset` before each test. Read rows as `concurrency.spec.ts` does.
+6. No existing `server/` or `web/` file changes, so the light verify applies.
+
+**Goal:** G1, G2. An idle loop starts no session. The next task starts seconds after a run ends.
+
+**Red:** `npx playwright test tests/e2e/probe-idle.spec.ts --project chromium --reporter list` prints `Error: No tests found`.
+
+**Green:** after `npm run build`, that command with `--workers 1` prints `2 passed`. `npx playwright test tests/e2e/probe-gap.spec.ts --project chromium --reporter list --workers 1` prints `gap_ms=` and `1 passed`.
+
+**Stub check:** remove the `latestFinishedAt` test of `#isDue`: gap fails. Return from `#probeLoop` before the call: idle fails on 3 calls. Treat `done` as `skip`: `goal_met` fails. Run all, restore.
+
+**Ratchet:** `npx playwright test --list --project chromium | wc -l` +3. Metric `gap`: 14.4 min before, the printed `gap_ms` after. `idle-runs`: decision 7.
