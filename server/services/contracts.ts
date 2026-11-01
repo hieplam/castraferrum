@@ -92,6 +92,7 @@ export type ValidationIssue = {
     | 'notDirectory'
     | 'missingKey'
     | 'missingReason'
+    | 'missingBasePort'
     | 'reserved';
   message: string;
 };
@@ -285,13 +286,19 @@ export interface FolderService {
   places(): Promise<FolderPlacesView>;
 }
 
+/**
+ * What a probe tick gives to a claimed run (spec 2.7). `slot` is stored on the run. `env` is not stored: a resume computes it again from `runs.slot`
+ * (decision 24). `action` is the word of the probe line, and it goes to the first line of the prompt.
+ */
+export type ClaimedStart = { runId: string; taskKey: string; slot: number; env: Record<string, string>; action: 'take' | 'plan' };
+
 export interface RunService {
   /** The first run at Start (trigger `start`). Returns immediately, does not wait for the run to finish. */
   startFirst(loopId: string, executionId: string): Promise<RunView>;
   /** A scheduled run; if the loop already has a running run → returns a `skipped` run. */
   startScheduled(loopId: string, executionId: string, scheduledFor: Date): Promise<RunView>;
   /** A run for a claimed task (trigger `probe`), with the id that the claim row holds. Full lanes give a `skipped` run with that id. */
-  startClaimed(loopId: string, executionId: string, claim: { runId: string; taskKey: string }): Promise<RunView>;
+  startClaimed(loopId: string, executionId: string, claim: ClaimedStart): Promise<RunView>;
   /** Cancel a running run: the DB changes at once, the executor receives the signal. A finished run → returned unchanged. Throws RUN_NOT_FOUND. */
   cancel(runId: string, reason: 'cancelled' | 'timed_out'): Promise<RunView>;
   /** Runs past their deadline → cancelled with reason `timed_out`. Returns the count. */
@@ -384,7 +391,7 @@ export interface ProbeService extends BackgroundService {
   /**
    * Stores the settings (insert or replace). Throws LOOP_NOT_FOUND, LOOP_ARCHIVED, LOOP_IS_ACTIVE (stop the loop first),
    * VALIDATION_FAILED (`details.issues`: `command:required`, `claim:missingKey`, `release:missingKey`, `release:missingReason`,
-   * `resources:reserved`, and range errors).
+   * `resources:reserved`, `laneEnv:missingBasePort`, and range errors).
    */
   save(loopId: string, input: ProbeInput): Promise<ProbeView>;
   /** Deletes the probe; a loop with no probe is not an error. Throws LOOP_NOT_FOUND, LOOP_ARCHIVED, LOOP_IS_ACTIVE. */

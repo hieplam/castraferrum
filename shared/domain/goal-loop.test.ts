@@ -1,5 +1,7 @@
+/// <reference types="vite/client" />
 import { describe, expect, test } from 'vitest';
-import { parseProbeLine } from './goal-loop';
+import architecture from '../../docs/ARCHITECTURE.md?raw';
+import { claimedLine, laneEnvOf, lowestFreeSlot, parseProbeLine, RESUME_LINE } from './goal-loop';
 
 const base = {
   v: 1,
@@ -118,5 +120,56 @@ describe('parseProbeLine: other input', () => {
     expect(bytes).toBeLessThanOrEqual(2000);
     expect(bytes).toBeGreaterThan(1996);
     expect(r.raw).not.toContain('�');
+  });
+});
+
+describe('lanes', () => {
+  test('lowestFreeSlot: the lowest slot that no run holds, from 0', () => {
+    expect(lowestFreeSlot([])).toBe(0);
+    expect(lowestFreeSlot([0, 1, 3])).toBe(2);
+    expect(lowestFreeSlot([1, 2])).toBe(0);
+  });
+
+  test('lowestFreeSlot: a run with no slot holds none, and a slot is reused after its run ends', () => {
+    expect(lowestFreeSlot([null, 0, null])).toBe(1);
+    expect(lowestFreeSlot([null])).toBe(0);
+  });
+
+  test('laneEnvOf: fills every {slot} and {port} and adds CASTRAFERRUM_SLOT', () => {
+    const env = laneEnvOf({ laneEnv: { DB: 'loops_{slot}_test', URL: 'http://x:{port}/{slot}/{port}' }, laneBasePort: 7100 }, 2);
+    expect(env).toEqual({ DB: 'loops_2_test', URL: 'http://x:7102/2/7102', CASTRAFERRUM_SLOT: '2' });
+  });
+
+  test('laneEnvOf: three slots give three different numbers, databases and ports', () => {
+    const settings = { laneEnv: { DB: 'db_{slot}', PORT: '{port}' }, laneBasePort: 7100 };
+    const envs = [0, 1, 2].map((slot) => laneEnvOf(settings, slot));
+    for (const key of ['CASTRAFERRUM_SLOT', 'DB', 'PORT']) expect(new Set(envs.map((e) => e[key])).size).toBe(3);
+    expect(envs.map((e) => e.PORT)).toEqual(['7100', '7101', '7102']);
+  });
+
+  test('laneEnvOf: no lane env gives only the slot, and a lane env cannot set the slot itself', () => {
+    expect(laneEnvOf({ laneEnv: {}, laneBasePort: null }, 1)).toEqual({ CASTRAFERRUM_SLOT: '1' });
+    expect(laneEnvOf({ laneEnv: { CASTRAFERRUM_SLOT: '9' }, laneBasePort: null }, 1)).toEqual({ CASTRAFERRUM_SLOT: '1' });
+  });
+
+  test('claimedLine: the prompt line of spec 2.7, with the key and the action', () => {
+    expect(claimedLine('141', 'take')).toBe(
+      '[Castraferrum] The console claimed task 141 for this run (action take). Do not run next or claim. Do this task only.',
+    );
+    expect(claimedLine('plan-217', 'plan')).toContain('task plan-217 for this run (action plan)');
+  });
+
+  // The two lines are a contract with `tick.md`: a change in the code must change the document, and the other way round.
+  const lineOf = (label: string) => new RegExp(`^\\s*- ${label}: \`([^\`]+)\``, 'm').exec(architecture)?.[1];
+
+  test('ARCHITECTURE.md holds the prompt line of claimedLine, word for word', () => {
+    const doc = lineOf('Prompt line');
+    expect(doc).toBeDefined();
+    expect(claimedLine('<key>', '<take or plan>' as 'take')).toBe(doc);
+  });
+
+  test('ARCHITECTURE.md holds RESUME_LINE, word for word', () => {
+    expect(lineOf('Resume message')).toBe(RESUME_LINE);
+    expect(RESUME_LINE).toBe('[Castraferrum] The usage limit has reset. Continue the same task from where you stopped.');
   });
 });

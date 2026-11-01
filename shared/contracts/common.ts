@@ -63,6 +63,7 @@ export const validationIssue = z.object({
     'notDirectory',
     'missingKey',
     'missingReason',
+    'missingBasePort',
     'reserved',
   ]),
   message: z.string(),

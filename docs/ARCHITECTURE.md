@@ -316,6 +316,12 @@ sequenceDiagram
   when the count reaches `loops.max_concurrent` the insert is rejected and the service records a `skipped` run.
   Two ticks, or a tick and the Start run, can never both win. A similar partial unique index allows only one
   open execution per loop.
+- **A claimed run** (trigger `probe`, spec 2.7) holds the lowest free slot of its loop, from 0, and `runs.slot` stores it.
+  Its env is `CASTRAFERRUM_SLOT` plus the `lane_env` of the probe with `{slot}` and `{port}` filled in. The executor
+  spreads that env over its base env and then drops `ANTHROPIC_API_KEY`. The env is not stored. The prompt snapshot is the
+  prompt line, a blank line, and the loop prompt. A run with no probe has no slot, no extra env and the plain prompt.
+  - Prompt line: `[Castraferrum] The console claimed task <key> for this run (action <take or plan>). Do not run next or claim. Do this task only.`
+  - Resume message: `[Castraferrum] The usage limit has reset. Continue the same task from where you stopped.`
 
 ### Startup recovery (`RecoveryService`, before the ticker and HTTP)
 

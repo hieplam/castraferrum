@@ -1,6 +1,8 @@
 import { DomainError } from '../../shared/domain/errors';
 import {
   cutBytes,
+  laneEnvOf,
+  lowestFreeSlot,
   parseProbeLine,
   PROBE_ACTION_STATE,
   PROBE_RAW_MAX_BYTES,
@@ -111,7 +113,9 @@ export class DefaultProbeService implements ProbeService {
     const d = this.#d;
     const execution = await d.executions.findOpen(loop.id); // a Stop during the probe call leaves none
     if (!execution) return;
-    let lanes = loop.maxConcurrent - (await d.runs.listActive(loop.id)).length; // read again: the probe call took time
+    const active = await d.runs.listActive(loop.id); // read again: the probe call took time
+    let lanes = loop.maxConcurrent - active.length;
+    const used = active.map((r) => r.slot); // a slot taken in this tick joins the list, so two tasks of one tick never share it
     const cfg: ClaimConfig = { claim: probe.claim, release: probe.release, cwd };
     for (const task of line.tasks) {
       if (lanes <= 0) return;
@@ -123,9 +127,11 @@ export class DefaultProbeService implements ProbeService {
         await d.claims.close(claimId, `refused: ${answer.reason}`, d.clock.now());
         continue;
       }
-      const run = await d.runService.startClaimed(loop.id, execution.id, { runId, taskKey: task.key });
+      const slot = lowestFreeSlot(used);
+      const run = await d.runService.startClaimed(loop.id, execution.id, { runId, taskKey: task.key, slot, env: laneEnvOf(probe, slot), action: line.action === 'plan' ? 'plan' : 'take' });
       if (run.status === 'skipped') await this.#endClaim({ id: claimId, loopId: loop.id, taskKey: task.key, runStatus: 'skipped', endResult: null }, now, report);
       if (run.status !== 'running') return; // no lane after all, or a Stop came first: the orphan step ends what is left
+      used.push(slot);
       lanes--;
     }
   }
@@ -234,6 +240,9 @@ function clean(input: ProbeInput): { settings: ProbeSettings; issues: Validation
     } else if (r.everySec < EVERY_SEC_MIN || r.everySec > EVERY_SEC_MAX) {
       issues.push({ field: 'resources', code: 'outOfRange', message: `everySec must be ${EVERY_SEC_MIN}-${EVERY_SEC_MAX}` });
     }
+  }
+  if (settings.laneBasePort === null && Object.values(settings.laneEnv).some((v) => v.includes('{port}'))) {
+    issues.push({ field: 'laneEnv', code: 'missingBasePort', message: 'lane_env uses {port}, so set the base port' });
   }
   const port = settings.laneBasePort;
   if (port !== null && (port < BASE_PORT_MIN || port > BASE_PORT_MAX)) {

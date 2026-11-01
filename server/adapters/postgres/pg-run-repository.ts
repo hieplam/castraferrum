@@ -37,8 +37,8 @@ export class PgRunRepository implements RunRepository {
           try {
             const { rows } = await c.query(
               `INSERT INTO runs (id, loop_id, execution_id, iteration, trigger, status, scheduled_for, started_at,
-                                 deadline_at, prompt_snapshot, executor_kind, executor_config, task_key)
-               VALUES ($1, $2, $3, $4, $5, 'running', $6, $7, $8, $9, $10, $11, $12)
+                                 deadline_at, prompt_snapshot, executor_kind, executor_config, task_key, slot)
+               VALUES ($1, $2, $3, $4, $5, 'running', $6, $7, $8, $9, $10, $11, $12, $13)
                RETURNING *`,
               [
                 input.id,
@@ -53,6 +53,7 @@ export class PgRunRepository implements RunRepository {
                 input.executorKind,
                 json(input.executorConfig),
                 input.taskKey ?? null,
+                input.slot ?? null,
               ],
             );
             return toRun(rows[0]);

@@ -150,8 +150,8 @@ export class ClaudeAgentExecutor implements LoopExecutor {
     /** Error text of an over-ceiling turn: names the stopped tasks. */
     const overCeiling = (tasks: string[]) => `Waited more than ${formatWait(ceilingMs)} for background tasks - stopped: ${tasks.join(', ')}`;
 
-    const env = { ...this.#env() };
-    delete env.ANTHROPIC_API_KEY; // subscription plan, so API usage is never billed by accident
+    const env = { ...this.#env(), ...input.env }; // the lane env of a claimed run wins over the base env (spec 2.7)
+    delete env.ANTHROPIC_API_KEY; // subscription plan, so API usage is never billed by accident; after the merge, so a lane env cannot put it back
     const abort = new AbortController();
     // Cancel → return at once, without waiting for the SDK to clean up the process (abortController kills the child process in the background).
     let cancel!: () => void;
