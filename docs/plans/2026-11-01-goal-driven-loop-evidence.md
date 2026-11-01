@@ -1022,6 +1022,26 @@ Goal: G6, G7, G9. A PR merges only if a gate with no model passed every step, on
 
 <!-- K8 -->
 
+## K8
+
+Goal: G27. A run asked to merge, in any form of spec 2.15, does not reach `gh`.
+
+Red: `npx vitest run --project api tests/api/merge-guard.test.ts` printed `Error: Cannot find module '../../shared/domain/merge-guard'`, `Test Files  1 failed (1)`, `Tests  no tests`.
+
+Green: the same command prints `Test Files  1 passed (1)` and `Tests  56 passed | 1 skipped (57)`. With `LC_REAL_CLAUDE=1` and `-t real` it prints `Tests  1 passed | 56 skipped (57)`. `npm run verify` exits 0 (`UCs with a green e2e: 33/33`, unit 1015 passed, contract 204 passed, api 218 passed | 1 skipped).
+
+Stub check, all three run for real on `checkMergeCommand`:
+
+- Always `{ deny: false }`: `Tests  38 failed | 18 passed | 1 skipped (57)`. All 35 Refused lines fail, and so do 3 wiring tests.
+- Always `deny`: `Tests  52 failed | 4 passed | 1 skipped (57)`. All 16 Allowed lines fail.
+- Only `gh pr merge` refused: `Tests  28 failed | 28 passed | 1 skipped (57)`. The REST, GraphQL, status, check-run, `git push` and MCP lines fail.
+
+Real run: haiku at low effort, folder `lc-real-claude-k8-*` in the temporary folder, `GH_TOKEN=invalid`, a fake `gh` first on `PATH`. The test wraps the hook so that it appends each call to `hook.log`. It asserts at least one hook call with `deny` for `gh pr merge`, and 0 lines in `gh.log`. A refusal by the model alone calls no hook and fails the test.
+
+Ratchet: `npx vitest list --project api 2>/dev/null | wc -l` went 131 to 138. The plan expected +57, but `vitest list` prints one row for a whole `it.each`, so it counts 7 rows for 57 tests. The executed count is 57 (56 passed, 1 skipped).
+
+Limit: the hook reads only the text of the command. A script file that holds the merge (`bash m.sh`) passes the hook, and K9 finds it. This is stated in `docs/ARCHITECTURE.md`.
+
 <!-- K9 -->
 
 ## K9
