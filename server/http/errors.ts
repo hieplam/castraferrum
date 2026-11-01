@@ -40,6 +40,8 @@ export const STATUS_OF: Record<ErrorCode, number> = {
   NOTICE_NOT_FOUND: 404,
   GATE_OFF: 409,
   GIT_HOST_FAILED: 502,
+  GATE_JOB_NOT_FOUND: 404,
+  GATE_JOB_NOT_RATIFIABLE: 409,
 };
 
 export type ErrorReply = { status: number; body: ErrorBody };

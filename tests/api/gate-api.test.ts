@@ -1,4 +1,4 @@
-// POST /api/gate/jobs (spec 2.8): a person queues a PR by hand. The real composition on the test Postgres and the fake `gh`.
+// POST /api/gate/jobs and POST /api/gate/jobs/:id/ratify (spec 2.8): a person queues a PR by hand, and ratifies a guarded change. The real composition on the test Postgres and the fake `gh`.
 // No ticker runs here, so a queued job stays queued and the duplicate answer does not depend on timing.
 import { writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
@@ -55,6 +55,8 @@ beforeEach(async () => {
   repoId = await resetApi(server);
 });
 
+const ratify = (id: string) => server.app.inject({ method: 'POST', url: `/api/gate/jobs/${id}/ratify` });
+
 const gateOn = () => createPgRepositories(pool).gate.setRepoGate(repoId, { enabled: true, githubRepo: 'fake/repo', checkCommand: [] }, new Date());
 
 describe('POST /api/gate/jobs', { timeout: 30_000 }, () => {
@@ -87,5 +89,47 @@ describe('POST /api/gate/jobs', { timeout: 30_000 }, () => {
     const res = await post({ repoId: randomUUID(), prNumber: PR });
     expect(res.statusCode).toBe(404);
     expect(res.json().error.code).toBe('REPO_NOT_FOUND');
+  });
+});
+
+describe('POST /api/gate/jobs/:id/ratify', { timeout: 30_000 }, () => {
+  /** A job that waits for a ratification. */
+  const waiting = async () => {
+    await gateOn();
+    const gate = createPgRepositories(pool).gate;
+    const { jobId } = (await post({ repoId, prNumber: PR, taskKey: '141' })).json() as { jobId: string };
+    await gate.takeNext(new Date());
+    await gate.finish(jobId, { state: 'needs_ratification', failedStep: 'scope', at: new Date() });
+    return { gate, jobId };
+  };
+
+  it('moves a job in needs_ratification back to the queue: 200', async () => {
+    const { gate, jobId } = await waiting();
+    const res = await ratify(jobId);
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ jobId, state: 'queued', headSha: HEAD });
+    expect((await gate.get(jobId))?.ratifiedAt).toBeInstanceOf(Date);
+  });
+
+  it('an unknown job gives 404 GATE_JOB_NOT_FOUND', async () => {
+    for (const id of [randomUUID(), 'not-a-uuid']) {
+      const res = await ratify(id);
+      expect(res.statusCode).toBe(404);
+      expect(res.json().error.code).toBe('GATE_JOB_NOT_FOUND');
+    }
+  });
+
+  it('a job in another state, or with a live job of the same head, gives 409 GATE_JOB_NOT_RATIFIABLE', async () => {
+    const { gate, jobId } = await waiting();
+    const live = (await post({ repoId, prNumber: PR, taskKey: '141' })).json() as { jobId: string };
+    const duplicate = await ratify(jobId);
+    expect(duplicate.statusCode).toBe(409);
+    expect(duplicate.json().error.code).toBe('GATE_JOB_NOT_RATIFIABLE');
+    expect(duplicate.json().error.message).toContain('queued or running');
+    expect((await gate.get(jobId))?.state).toBe('needs_ratification');
+
+    const queued = await ratify(live.jobId);
+    expect(queued.statusCode).toBe(409);
+    expect(queued.json().error.code).toBe('GATE_JOB_NOT_RATIFIABLE');
   });
 });

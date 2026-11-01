@@ -1197,20 +1197,20 @@ export function repositoryContract(env: () => ContractEnv): void {
       await r.gate.takeNext(at(2));
       await r.gate.finish(id, { state: 'needs_ratification', failedStep: 'scope', at: at(3) });
       const newer = await enqueue({ prNumber: 9, sec: 5 });
-      expect(await r.gate.ratify(id, at(6))).toBe(true);
+      expect(await r.gate.ratify(id, at(6))).toBe('ratified');
       expect(await r.gate.get(id)).toMatchObject({ state: 'queued', ratifiedAt: at(6), startedAt: null, finishedAt: null, failedStep: null });
       expect((await r.gate.takeNext(at(7)))?.id).toBe(id);
       expect((await r.gate.get(newer.id))?.state).toBe('queued');
     });
 
-    it('ratify of a job in any other state, or of an unknown job, gives false and changes nothing', async () => {
+    it('ratify of a job in any other state, or of an unknown job, gives not_ratifiable and changes nothing', async () => {
       const { id } = await enqueue();
-      expect(await r.gate.ratify(id, at(1))).toBe(false);
+      expect(await r.gate.ratify(id, at(1))).toBe('not_ratifiable');
       await r.gate.takeNext(at(2));
-      expect(await r.gate.ratify(id, at(3))).toBe(false);
+      expect(await r.gate.ratify(id, at(3))).toBe('not_ratifiable');
       await r.gate.finish(id, { state: 'failed', failedStep: 'base', at: at(4) });
-      expect(await r.gate.ratify(id, at(5))).toBe(false);
-      expect(await r.gate.ratify(randomUUID(), at(5))).toBe(false);
+      expect(await r.gate.ratify(id, at(5))).toBe('not_ratifiable');
+      expect(await r.gate.ratify(randomUUID(), at(5))).toBe('not_ratifiable');
       expect(await r.gate.get(id)).toMatchObject({ state: 'failed', ratifiedAt: null });
     });
 
@@ -1278,6 +1278,48 @@ export function repositoryContract(env: () => ContractEnv): void {
       await r.claims.close(claimId, 'merged', at(2));
       expect(await r.claims.handOver(claimId, jobId)).toBe(false);
       expect(await r.claims.handOver(randomUUID(), jobId)).toBe(false);
+    });
+  });
+
+  describe('gate_feed', () => {
+    const queued = async (prNumber: number, sec: number) => {
+      const id = randomUUID();
+      await r.gate.enqueue({ id, repoId, prNumber, headSha: 'b'.repeat(40), taskKey: '141', at: at(sec) });
+      return id;
+    };
+
+    it('listGateOwned gives the open rows with a gate job, oldest first, and no closed row or row of a run', async () => {
+      const loop = await r.loops.insert(newLoop());
+      const openRow = async (taskKey: string, sec: number) => {
+        const id = randomUUID();
+        await r.claims.open({ id, loopId: loop.id, taskKey, runId: randomUUID(), at: at(sec) });
+        return id;
+      };
+      const jobId = await queued(7, 0);
+      const late = await openRow('143', 9);
+      const early = await openRow('141', 1);
+      const closed = await openRow('142', 2);
+      await openRow('144', 3);
+      for (const id of [late, early, closed]) expect(await r.claims.handOver(id, jobId)).toBe(true);
+      await r.claims.close(closed, 'gate: merged', at(10));
+      expect((await r.claims.listGateOwned()).map((c) => [c.id, c.owner, c.gateJobId])).toEqual([
+        [early, 'gate', jobId],
+        [late, 'gate', jobId],
+      ]);
+    });
+
+    it('ratify with a live job of the same head gives duplicate and changes nothing, and works after that job ends', async () => {
+      const waiting = await queued(7, 0);
+      await r.gate.takeNext(at(1));
+      await r.gate.finish(waiting, { state: 'needs_ratification', failedStep: 'scope', at: at(2) });
+      const live = await queued(7, 3);
+      expect(await r.gate.ratify(waiting, at(4))).toBe('duplicate');
+      expect(await r.gate.get(waiting)).toMatchObject({ state: 'needs_ratification', ratifiedAt: null, failedStep: 'scope' });
+      await r.gate.takeNext(at(5));
+      expect(await r.gate.ratify(waiting, at(6))).toBe('duplicate');
+      await r.gate.finish(live, { state: 'needs_ratification', failedStep: 'scope', at: at(7) });
+      expect(await r.gate.ratify(waiting, at(8))).toBe('ratified');
+      expect(await r.gate.get(live)).toMatchObject({ state: 'needs_ratification', ratifiedAt: null });
     });
   });
 

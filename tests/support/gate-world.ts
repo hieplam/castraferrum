@@ -94,7 +94,7 @@ export type GateWorld = {
   setEntry(key: string, task: VerifyTask, file?: string): void;
   /** Changes `goals/gate.json` on main. */
   setGate(over: Partial<GateConfigText>): void;
-  openPr(over?: { files?: Record<string, string>; body?: string; base?: string; checks?: Record<string, unknown>[] }): WorldPr;
+  openPr(over?: { files?: Record<string, string>; body?: string; base?: string; checks?: Record<string, unknown>[]; closing?: number[] }): WorldPr;
   commitToPr(pr: WorldPr, files: Record<string, string>): string;
   setChecks(sha: string, checks: Record<string, unknown>[]): void;
   mergeCalls(): string[][];
@@ -197,7 +197,7 @@ export function createGateWorld(): GateWorld {
         baseRefName: over.base ?? 'main',
         headRefOid: headSha,
         mergeCommit: null,
-        closingIssuesReferences: [],
+        closingIssuesReferences: (over.closing ?? []).map((n) => ({ number: n })),
         url: `https://github.com/fake/repo/pull/${number}`,
         createdAt: new Date(0).toISOString(),
         mergedAt: null,

@@ -48,6 +48,11 @@ export class PgClaimRepository implements ClaimRepository {
     return res.rowCount === 1;
   }
 
+  async listGateOwned(): Promise<ClaimRecord[]> {
+    const { rows } = await this.#pool.query('SELECT * FROM run_claims WHERE closed_at IS NULL AND gate_job_id IS NOT NULL ORDER BY opened_at, id');
+    return rows.map(toClaim);
+  }
+
   async findOrphaned(limit: number): Promise<OrphanedClaim[]> {
     const { rows } = await this.#pool.query(
       `SELECT c.*, r.status AS run_status, r.end_result

@@ -398,7 +398,8 @@ of a resumed run replaces the stored cost and is never added to it.
 matcher `Bash|PowerShell|mcp__.*`. It reads `tool_name` and `tool_input.command` and calls `checkMergeCommand` in
 `shared/domain/merge-guard.ts`. A refusal returns `permissionDecision: 'deny'` with a reason. Any other call
 returns `{}`. With `gateGuard` off or absent, the executor passes no `hooks` key to the SDK, so a run works as it
-did before. The run service sets `gateGuard` for a gated repository (K7).
+did before. The run service sets `gateGuard` for a gated repository (K7). The console has no login, so a run on this
+machine can reach `POST /api/gate/jobs/:id/ratify`. The rule `ratify` of the guard refuses that path.
 
 The hook refuses on the text of the command and does not parse a shell. A nested form (`bash -c`, `xargs`,
 `node -e`) gives the same result as the plain form. The check refuses `gh pr merge`, the REST merge and status

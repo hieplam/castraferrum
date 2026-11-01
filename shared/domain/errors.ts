@@ -24,7 +24,9 @@ export type ErrorCode =
   | 'NOTICE_NOT_FOUND'
   | 'GATE_OFF'
   /** A call to the Git host (GitHub) failed, so a list that needs it cannot be complete. */
-  | 'GIT_HOST_FAILED';
+  | 'GIT_HOST_FAILED'
+  | 'GATE_JOB_NOT_FOUND'
+  | 'GATE_JOB_NOT_RATIFIABLE';
 
 export class DomainError extends Error {
   readonly code: ErrorCode;

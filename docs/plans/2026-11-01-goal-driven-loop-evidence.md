@@ -1073,6 +1073,27 @@ Goal: G6. A restart between the merge and `finish` does not mark a merged PR as 
 - Ratchet: unit tests 1047 to 1051 (3 gate, 1 `gateStatus` adapter). `GitHost` gains `gateStatus`.
 
 <!-- K6 -->
+## K6
+
+Red, before the build, `npx vitest run --project unit server/services/gate-feed.test.ts`: `Tests  16 failed | 3 passed (19)`. The 3 passes: key `plan-217`, pending is not red, green control.
+
+Green, after the rebase:
+
+```
+gate-feed.test.ts: Tests  19 passed (19)
+gate-api.test.ts: Tests  7 passed (7)
+npx vitest run --project contract -t gate_feed: Tests  4 passed | 206 skipped (210)
+merge-guard.test.ts: Tests  62 passed | 1 skipped (63)
+npm run verify (one run, slot-1), last lines: UCs with a green e2e: 35/35, exit 0
+  unit Tests  1087 passed | 3 skipped (1090); contract memory: 98 passed, postgres: 98 passed
+  api Tests  251 passed | 1 skipped (252); e2e 117 passed (13.1m)
+```
+
+Stub results, each run for real, then restored: no comment, 1 failed. No 18000 cut, 1 failed. Release in the job, 1 failed. Search with no OPEN filter, 1 failed. No title test, 1 failed. Merge on red, 1 failed. Pending counts as red, 1 failed. Ratify that skips `green`, 1 failed. No excuse, 1 failed. Memory `ratify` with no catch, 1 failed. Postgres `ratify` with no catch, 1 failed. No guard rule, 4 failed.
+
+Ratchet: unit run count +19. Api +3 in `gate-api.test.ts`, +6 lines in `merge-guard.test.ts`. Contract +2 per side. `uc-coverage --min` 34 to 35.
+
+CI found one thing that Windows did not show: on Linux, `process.exit` lost the end of a 100 KB fixture output. The fixture now sets `exitCode`. The gate code did not change.
 
 <!-- K7 -->
 

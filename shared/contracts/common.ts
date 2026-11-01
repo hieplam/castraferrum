@@ -33,6 +33,8 @@ export const API_ERROR_CODES = [
   'NOTICE_NOT_FOUND',
   'GATE_OFF',
   'GIT_HOST_FAILED',
+  'GATE_JOB_NOT_FOUND',
+  'GATE_JOB_NOT_RATIFIABLE',
   /** `GET /schedule/preview`: cron sai. */
   'INVALID_CRON',
   /** No such path / method (includes `/api/__test/*` when not in test mode). */

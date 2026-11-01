@@ -4,6 +4,8 @@ export type EnqueueGateJobInput = { id: string; repoId: string; prNumber: number
 
 export type RepoGateInput = { enabled: boolean; githubRepo: string; checkCommand: string[] };
 
+export type GateRatifyOutcome = 'ratified' | 'not_ratifiable' | 'duplicate';
+
 export interface GateRepository {
   /** `null` when nobody set the gate of the repository: it is off. */
   getRepoGate(repoId: string): Promise<RepoGate | null>;
@@ -15,8 +17,11 @@ export interface GateRepository {
   takeNext(at: Date): Promise<GateJob | null>;
   /** Only a `running` job ends. `null` when the job is not running: the first `finish` stays. */
   finish(id: string, input: { state: GateFinalState; failedStep: GateStepName | null; at: Date }): Promise<GateJob | null>;
-  /** Moves a `needs_ratification` job back to `queued`. `false` for any other state. */
-  ratify(id: string, at: Date): Promise<boolean>;
+  /**
+   * Moves a `needs_ratification` job back to `queued`. `not_ratifiable`: any other state, or an unknown job.
+   * `duplicate`: another job of the same repository, PR and head commit is `queued` or `running`, and nothing changes.
+   */
+  ratify(id: string, at: Date): Promise<GateRatifyOutcome>;
   /** Decision 37: at start-up, moves each `running` job to `queued`. Gives the number of jobs moved. */
   requeueRunning(at: Date): Promise<number>;
   appendStep(step: GateStep): Promise<void>;
