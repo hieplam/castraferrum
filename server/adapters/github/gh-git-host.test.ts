@@ -123,6 +123,20 @@ describe('GhGitHost on the fake gh and a bare repository', () => {
     expect(hits).toEqual([{ number: 1, title: 'fingerprint abc', state: 'OPEN', url: 'https://github.com/fake/repo/issues/1' }]);
   });
 
+  it('closeIssue closes the issue', async () => {
+    await host.openIssue(REPO, { title: 'T', body: 'B', labels: [] });
+    await host.closeIssue(REPO, 1);
+    expect(gh.read().issues[0]?.state).toBe('CLOSED');
+  });
+
+  it('editIssueBody replaces the body and keeps the labels', async () => {
+    await host.openIssue(REPO, { title: 'T', body: 'old', labels: ['bug'] });
+    await host.editIssueBody(REPO, 1, 'new');
+    const stored = gh.read().issues[0];
+    expect(stored?.body).toBe('new');
+    expect(stored?.labels.map((l) => l.name)).toEqual(['bug']);
+  });
+
   it('a gh call that exits 1 throws a GitHostError with the exit code and the stderr', async () => {
     const err = await host.pullRequest(REPO, 99).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(GitHostError);

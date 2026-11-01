@@ -22,6 +22,21 @@ export type { Page, PageRequest } from '../ports/page';
 
 export type HealthReport = { ok: boolean; db: 'up' | 'down' };
 
+/** One row of `goals/health.json`, with its command as an argv array. */
+export type StandingRow = { id: string; outcome: string; run: string[]; timeoutSec: number };
+
+export type StandingPassInput = { repo: string; cwd: string; rows: StandingRow[]; maxNewIssues?: number; now: Date };
+
+/** Numbers of issues (`opened`, `updated`, `closed`), and of failing rows that wait for the next pass (`deferred`). */
+export type StandingPassResult = { opened: number; updated: number; closed: number; deferred: number };
+
+export interface StandingGoalService {
+  runPass(input: StandingPassInput): Promise<StandingPassResult>;
+  /** True with no schedule, or when the next time has come. */
+  isDue(repo: string, now: Date): Promise<boolean>;
+  markRan(repo: string, cron: string, timezone: string, now: Date): Promise<void>;
+}
+
 export interface HealthService {
   check(): Promise<HealthReport>;
 }
