@@ -1007,6 +1007,31 @@ Ratchet: unit tests 828 passed before, 836 passed after (plus 8). Metric idle-da
 
 <!-- P14 -->
 
+## P14
+
+**Red**, before the specs existed (the test server started, the file list was empty):
+
+    $ npx playwright test tests/e2e/probe-idle.spec.ts --project chromium --reporter list
+    Error: No tests found.
+
+**Green**, after the last rebase (origin/main at 23709cd):
+
+    $ npx playwright test tests/e2e/probe-idle.spec.ts --project chromium --reporter list --workers 1
+      2 passed (12.4s)
+    $ npx playwright test tests/e2e/probe-gap.spec.ts --project chromium --reporter list --workers 1
+    gap_ms=1169
+      1 passed (10.8s)
+
+**Stub check**, each stub applied to the probe service alone and restored with `git checkout`:
+
+    isDue without the latestFinishedAt test   -> probe-gap: 1 failed (1.0m, the second run did not start)
+    return before the probe command call      -> probe-idle: 2 failed (timed out after 20000 ms waiting: 0)
+    done handled as skip                      -> probe-idle: 1 failed (the end reason stayed null), control passed
+
+**Ratchet**: `npx playwright test --list --project chromium | wc -l` 55 -> 58 (+3). Metric gap: 14.4 min before, 1169 ms after (1091 ms in the first run). idle-runs: 0 runs for the idle loop and for the witness loop.
+
+Light verify (no existing server or web file changes; `grep -rn "fake-probe-seq\|probe-idle\|probe-gap" server web` printed nothing): design:states, typecheck, lang-scan baseline, arch, ratchets (base main: every limit held), rule-lint, unit (1169 passed), contract (248 passed), api (309 passed), api-smoke and build all passed in slot-1.
+
 <!-- P15 -->
 
 <!-- P16 -->
