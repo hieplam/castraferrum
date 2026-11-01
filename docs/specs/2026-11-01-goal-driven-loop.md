@@ -217,6 +217,8 @@ Allowed, 18 lines, each a test: `gh pr create --title x --body-file b.md`; `gh p
 
 **Limit.** The hook reads only the command text. A script file that holds the merge (`bash m.sh`) or an encoded command passes the hook. The audit of K9 finds that merge, and decision 1 of the epic accepts two layers.
 
+**Limit for a ratification.** The same limit holds for the `ratify` rule. A script file that posts to `/api/gate/jobs/:id/ratify` passes the hook, and the console has no login and no token, because a run on the same machine can read all that the console serves. So the audit is the second layer for a ratification too. When a job with `ratified_at` merges, the final commit status has the description `gate: ratified <ISO time>`. `scripts/merge-audit.mjs` lists each such merge, one line `ratified: PR <n> <time>` in the text output and the key `ratified` (a list of `{ pr, at }`) in `--json`. A ratified merge is not an incident, and the exit code stays 0. The owner reads the list and sees a ratification that the owner did not make.
+
 ## 3. Module map
 
 Each repository port has a `postgres/` and a `memory/` adapter. Each service has its `http/<name>-routes.ts`. New services call `RunService` and `LoopService`, and neither calls back.

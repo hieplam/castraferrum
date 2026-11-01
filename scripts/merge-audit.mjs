@@ -4,6 +4,8 @@
 //   node scripts/merge-audit.mjs -R <owner/name> --since <ISO date> [--json]
 // For each PR merged at or after --since, it reads the `castraferrum/gate` status of the PR head commit. A PR with
 // no such status, or with a state other than `success`, is an incident. It writes nothing to GitHub.
+// A success status whose description is `gate: ratified <ISO time>` is a ratified merge (decision 41). The audit lists it
+// (`ratified: PR <n> <time>`, and the key `ratified` in --json). It is not an incident, and it does not change the exit code.
 // `--since` is required, because older PRs have no gate status.
 // `LOOPS_GH_BIN` names the gh program (a path that ends in `.mjs` runs as a script of the current Node), else `gh`.
 // Exit 0: no incident. Exit 1: one or more incidents. Exit 2: a bad argument, or any failed `gh` call.
@@ -12,6 +14,7 @@ import { spawnSync } from 'node:child_process';
 
 const GATE_CONTEXT = 'castraferrum/gate';
 const LIMIT = 1000;
+const RATIFIED = /^gate: ratified (\S+)$/;
 
 function fail(message) {
   process.stderr.write(`merge-audit: ${message}\n`);
@@ -64,6 +67,7 @@ if (listed.length >= LIMIT) fail(`gh pr list returned ${LIMIT} PRs, the list may
 
 const merged = listed.filter((p) => p && p.mergedAt && Date.parse(p.mergedAt) >= opts.sinceMs);
 const incidents = [];
+const ratified = [];
 for (const pr of merged) {
   if (typeof pr.headRefOid !== 'string' || !pr.headRefOid) fail(`PR ${pr.number} has no head commit`);
   const status = gh(['api', `repos/${opts.repo}/commits/${pr.headRefOid}/status`]);
@@ -71,12 +75,17 @@ for (const pr of merged) {
   const gate = status.statuses.find((s) => s.context === GATE_CONTEXT);
   if (!gate) incidents.push({ pr: pr.number, sha: pr.headRefOid, why: 'no status' });
   else if (gate.state !== 'success') incidents.push({ pr: pr.number, sha: pr.headRefOid, why: `status ${gate.state}` });
+  else {
+    const match = RATIFIED.exec(typeof gate.description === 'string' ? gate.description : '');
+    if (match) ratified.push({ pr: pr.number, at: match[1] });
+  }
 }
 
 if (opts.json) {
-  process.stdout.write(`${JSON.stringify({ incidents, merged: merged.length })}\n`);
+  process.stdout.write(`${JSON.stringify({ incidents, ratified, merged: merged.length })}\n`);
 } else {
   for (const i of incidents) process.stdout.write(`incident: PR ${i.pr} ${i.sha.slice(0, 7)} ${i.why}\n`);
+  for (const x of ratified) process.stdout.write(`ratified: PR ${x.pr} ${x.at}\n`);
   process.stdout.write(`merge-audit: ${incidents.length} incidents in ${merged.length} merged PRs\n`);
 }
 process.exitCode = incidents.length ? 1 : 0;
