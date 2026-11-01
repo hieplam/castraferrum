@@ -8,22 +8,24 @@ Phase: issue 213 of epic 217. Spec: [goal-driven loop](../specs/2026-11-01-goal-
 
 **Steps:**
 1. `gate.json`: spec 2.9, database `gate_test`. Verify file: `{"v":1,"tasks":{}}`.
-2. `checkScope({ changed: { status; path; oldPath? }[], guarded, verifyChanges: { path; base; head }[] })` gives `verdict`: `pass`, `plan` with `addedKeys`, or `guarded` with `paths`, `reason`.
+2. `checkScope({ changed: { status; path; oldPath? }[], guarded, verifyChanges: { path; base; head }[] })` plus `packageChange?`, gives `verdict`: `pass`, `plan` with `addedKeys`, or `guarded` with `paths`, `reason`.
 3. Test `path`, `oldPath`. `\` becomes `/`, drop `./`, ignore case. `..` is guarded. `*` stops at `/`, `**` crosses it.
 4. Plan PR: only `goals/verify/<slug>.json` (A or M) and `docs/plans/**`. Each verify path has a `verifyChanges` row. Base keys stay deep-equal, `v` stays, added keys have `green`. Else guarded.
 5. `parseGateConfig`, `parseVerifyFile` throw on a bad shape, with no zod.
-6. Tests, 43. Per guarded path, 10: `goals/gate.json`, `goals/health.json`, `goals/charter.json`, a manifest, `scripts/ratchets.json`, `scripts/ratchets.mjs`, `scripts/arch-check.mjs`, `scripts/goal-check.mjs`, `.github/workflows/ci.yml`, `.githooks/pre-commit`. Forms 6: rename out, delete, `Goals/x`, backslashes, `./goals/x`, `a/../goals/x`. Pass 4: `server/x.ts`, `scripts/a.mjs`, `scripts/sub/a-check.mjs`, `goalsx/a.json`. Plan 5: added key, new file, with docs, docs only, key order. Guarded 10: changed key, removed key, `v`, bad JSON, delete, rename, plus server file, plus `gate.json`, no row, empty `green`. Globs 3, parsers 5.
-7. `gate-data.test.ts`, 3: `guarded`, `testGlobs` equal the 2.9 block of the spec; both files parse.
+6. `package.json`: optional `packageChange: { base; head }`, rule of 2.9, also for `./Package.json`.
+7. `verifyEntryFiles(scripts)` splits `scripts.verify` on `&&`, and follows `npm run <x>`. `node [--import tsx] <file>` gives the file. `tsc`, `vitest`, `playwright`, `vite` give none. Any other command throws.
+8. Tests, 78. Per entry of 2.9, a matching path, 33 (`scripts/metrics/baseline.mjs` for the glob; the list is literal in the test). Forms 6: rename out, delete, `Goals/x`, backslashes, `./goals/x`, `a/../goals/x`. Pass 4: `server/x.ts`, `scripts/a.mjs`, `scripts/sub/a-check.mjs`, `goalsx/a.json`. Plan 5: added key, new file, with docs, docs only, key order. Guarded 10: changed key, removed key, `v`, bad JSON, delete, rename, plus server file, plus `gate.json`, no row, empty `green`. Package pass 3: dependency bump, `scripts` key order, higher `--min`. Package guarded 9: lower `--min`, higher `--min` plus a new step, other script changed, script added, bad JSON, delete, rename, no `packageChange`, `./Package.json` with a changed script. Globs 3, parsers 5.
+9. `gate-data.test.ts`, 6: `guarded`, `testGlobs` equal the 2.9 block; both files parse; the real `verify` and each file's `from './x'` imports are all guarded; a fixture line with `node scripts/evil.mjs` fails; a fixture line with `npx evil` throws.
 
 **Goal:** G9. A PR cannot lower its bar, and a plan PR only adds keys.
 
 **Red:** `npx vitest run --project unit shared/domain/scope-guard.test.ts` prints `Cannot find module './scope-guard'`.
 
-**Green:** the same command prints `Tests  43 passed (43)`. `npx vitest run --project unit tests/tools/gate-data.test.ts` prints `Tests  3 passed (3)`.
+**Green:** the same command prints `Tests  78 passed (78)`. `npx vitest run --project unit tests/tools/gate-data.test.ts` prints `Tests  6 passed (6)`.
 
-**Stub check:** always `pass`: 25 or more fail. Always `guarded`: pass and plan cases fail. Run both.
+**Stub check:** always `pass`: 50 or more fail. A `verifyEntryFiles` that returns `[]` fails the fixture line. Always `guarded`: pass and plan cases fail. Run both.
 
-**Ratchet:** unit count rises by 46.
+**Ratchet:** unit count rises by 84.
 
 ## K3 - GitHost, gh adapter
 
