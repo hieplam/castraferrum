@@ -177,7 +177,33 @@ export class DefaultGateService implements GateService {
     }
   }
 
+  /**
+   * A restart between `merge` and `finish` queues a merged job again (decision 37). The job counts as merged only when the PR is
+   * `MERGED`, its head is `job.headSha`, and the status `success` of the gate is on that commit. It runs no step and never merges again.
+   */
+  private async alreadyMerged(run: JobRun): Promise<boolean> {
+    const { host } = this.deps;
+    const { job, setting } = run;
+    const pr = await host.pullRequest(setting.githubRepo, job.prNumber);
+    if (pr.state !== 'MERGED' || pr.headSha !== job.headSha) return false;
+    if ((await host.gateStatus(setting.githubRepo, job.headSha)) !== 'success') return false;
+    await this.deps.gate.appendStep({
+      jobId: job.id,
+      seq: run.seq++,
+      step: 'merge',
+      status: 'skip',
+      exitCode: null,
+      ms: 0,
+      outputTail: `the PR is already merged at ${job.headSha}, with the status success on it`,
+    });
+    return true;
+  }
+
   private async attempts(run: JobRun, repo: RepoRecord): Promise<void> {
+    if (await this.alreadyMerged(run)) {
+      await this.deps.gate.finish(run.job.id, { state: 'merged', failedStep: null, at: this.deps.clock.now() });
+      return;
+    }
     await this.deps.host.setStatus(run.setting.githubRepo, run.job.headSha, { state: 'pending', description: 'gate: running' });
     if (await this.attempt(run, repo, 1)) await this.attempt(run, repo, 2);
     await this.deps.gate.finish(run.job.id, { state: 'merged', failedStep: null, at: this.deps.clock.now() });

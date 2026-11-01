@@ -313,6 +313,51 @@ describe('gate_service', { timeout: 120_000 }, () => {
     expect(job.steps.map((s) => s.seq)).toEqual(Array.from({ length: 9 }, (_, i) => i + 1));
   });
 
+  test('a restart after the merge and before finish: the job ends merged, with no step run and no second merge call', async ({ world, repos, service, queue, result }) => {
+    const pr = world.openPr();
+    const id = await queue(pr);
+    await repos.gate.takeNext(clock.now());
+    await world.host.setStatus(GITHUB_REPO, pr.headSha, { state: 'success', description: 'gate: every step passed' });
+    await world.host.merge(GITHUB_REPO, pr.number, pr.headSha);
+    expect(await repos.gate.requeueRunning(clock.now())).toBe(1);
+    await service.tick();
+
+    const job = await result(id);
+    expect([job.state, job.failedStep]).toEqual(['merged', null]);
+    expect(job.names).not.toContain('base');
+    expect(world.mergeCalls()).toHaveLength(1);
+    expect(world.statuses(pr.headSha).map((s) => s.state)).toEqual(['success']);
+  });
+
+  test('a restart after a merge with no success status on the commit still fails scope', async ({ world, repos, service, queue, result }) => {
+    const pr = world.openPr();
+    const id = await queue(pr);
+    await repos.gate.takeNext(clock.now());
+    await world.host.merge(GITHUB_REPO, pr.number, pr.headSha);
+    expect(await repos.gate.requeueRunning(clock.now())).toBe(1);
+    await service.tick();
+
+    const job = await result(id);
+    expect([job.state, job.failedStep]).toEqual(['failed', 'scope']);
+    expect(job.step('scope').outputTail).toContain('MERGED');
+    expect(world.mergeCalls()).toHaveLength(1);
+  });
+
+  test('a restart after a merge of another head than the job head still fails scope, though the job head has success', async ({ world, repos, service, queue, result }) => {
+    const pr = world.openPr();
+    const id = await queue(pr);
+    await repos.gate.takeNext(clock.now());
+    await world.host.setStatus(GITHUB_REPO, pr.headSha, { state: 'success', description: 'gate: every step passed' });
+    const later = world.commitToPr(pr, { 'late.txt': 'not checked\n' });
+    await world.host.merge(GITHUB_REPO, pr.number, later);
+    expect(await repos.gate.requeueRunning(clock.now())).toBe(1);
+    await service.tick();
+
+    const job = await result(id);
+    expect([job.state, job.failedStep]).toEqual(['failed', 'scope']);
+    expect(world.mergeCalls()).toHaveLength(1);
+  });
+
   test('stop aborts the running command, and the job stays running for the next start', async ({ world, repos, service, queue, result, noFolderLeft, lastStatus }) => {
     world.setGate({ verify: ['node -e "setInterval(() => {}, 1000)"'] });
     let stopped: Promise<void> | undefined;
