@@ -599,7 +599,18 @@ Ratchet (`node scripts/rule-lint.mjs --count`, same tool before and after; the t
 
 The plan expected `without a check 8`. CLAUDE.md and CONTRIBUTING.md are byte-identical between 32252ca and main, and the tool measured 7 on both trees. The measured number wins: the first measure of G16 is 7. The ratchet only falls.
 
-<!-- R1 verify -->
+Full `npm run verify` after the last rebase (lane database `loops_r1_test`, port 7210, heavy-command slot):
+
+    ratchets: ok
+    rule-lint: ok (rule lines 13, without a check 7, new 0)
+    Tests  607 passed | 2 skipped (609)      (unit)
+    Tests  114 passed (114)                 (contract)
+    Tests  115 passed (115)                 (api)
+    run 1, test:e2e: 1 failed, 114 passed   UC-15 killed server: Expected <= 10000, Received 11762
+    run 2, test:e2e re-run once: 5 failed, 109 passed, 1 did not run (32.1 min on a loaded machine)
+      G9 light and dark, UC-15 graceful, UC-34 phone, loop.visual active periods (180 s timeout)
+
+The e2e failures are timing failures of tests that this task does not touch (it changes no server or web code). Issue 272 already tracks the same tests (UC-15, G9) on a tests-only branch; a comment with this evidence was added there. Pull request CI (typecheck, arch, ratchets, rule-lint, unit, build, contract, lang-scan) is green.
 
 <!-- R2 -->
 
