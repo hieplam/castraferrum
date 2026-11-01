@@ -501,7 +501,19 @@ export type HoldTickReport = {
   errors: { loopId: string; message: string }[];
 };
 
+/** An open hold as the API shows it: `openedByRun` is `null` for a hold that a probe line opened. */
+export type OpenHoldView = {
+  id: string;
+  resource: string;
+  reason: string;
+  openedAt: Date;
+  until: Date | null;
+  openedByRun: { id: string; iteration: number | null } | null;
+};
+
 export interface HoldService extends BackgroundService {
+  /** The open holds, oldest first, each with the iteration of the run that opened it. */
+  listOpen(): Promise<OpenHoldView[]>;
   /** Closes the holds that ended (decision 44), starts a trial when the end is not known, and resumes the held runs when no `plan-window` hold is open. */
   tick(): Promise<HoldTickReport>;
 }
