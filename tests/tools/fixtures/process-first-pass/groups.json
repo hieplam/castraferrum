@@ -1,0 +1,16 @@
+{
+  "clusters": [
+    {
+      "id": "skipped-runs",
+      "cause": "A tick found the loop busy or outside its active hours, so the run was skipped.",
+      "ids": ["e06", "e18", "e23"],
+      "check": { "kind": "test", "name": "skip-reasons.test.ts", "replay": "npx vitest run skip-reasons.test.ts" }
+    },
+    {
+      "id": "cancelled-from-console",
+      "cause": "The owner cancelled the run from the console.",
+      "ids": ["e14", "e27"],
+      "check": { "kind": "probe", "name": "cancel-probe", "replay": "npx vitest run cancel-probe.test.ts" }
+    }
+  ]
+}
