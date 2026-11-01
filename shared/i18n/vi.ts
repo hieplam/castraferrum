@@ -444,6 +444,7 @@ export const vi: Record<MessageKey, string> = {
 
   // ── Phase 2: mã lỗi repo + lỗi tại ô của trang Repo / ô repo của form ──
   'error.REPO_NOT_FOUND': 'Không tìm thấy repo',
+  'error.GATE_OFF': 'Cổng kiểm tra của repo này đang tắt',
   'error.REPO_NAME_TAKEN': 'Tên đã có ở repo khác',
   'error.REPO_PATH_TAKEN': 'Đường dẫn này đã đăng ký',
   'error.REPO_IN_USE': 'Repo còn loop dùng — không xoá được',

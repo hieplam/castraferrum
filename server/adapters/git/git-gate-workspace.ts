@@ -144,13 +144,14 @@ export class GitGateWorkspace implements GateWorkspace {
     await this.must(tree.dir, ['clean', '-fdq']);
   }
 
-  run(tree: GateTree, command: { line: string; env: Record<string, string>; timeoutMs: number }): Promise<CommandResult> {
+  run(tree: GateTree, command: { line: string; env: Record<string, string>; timeoutMs: number; signal?: AbortSignal }): Promise<CommandResult> {
     return this.runner.run({
       argv: shellArgv(command.line, process.platform),
       cwd: tree.dir,
       env: command.env,
       timeoutMs: command.timeoutMs,
       windowsVerbatimArguments: true,
+      ...(command.signal ? { signal: command.signal } : {}),
     });
   }
 

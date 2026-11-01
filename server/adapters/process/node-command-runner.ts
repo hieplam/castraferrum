@@ -50,6 +50,9 @@ export class NodeCommandRunner implements CommandRunner {
     if (!program) {
       return Promise.resolve({ exitCode: null, stdout: '', stderr: '', timedOut: false, error: 'argv is empty' });
     }
+    if (req.signal?.aborted) {
+      return Promise.resolve({ exitCode: null, stdout: '', stderr: '', timedOut: false, error: 'aborted' });
+    }
     const max = req.maxBytes ?? DEFAULT_MAX_BYTES;
     return new Promise<CommandResult>((resolve) => {
       const out = new TailBuffer(max);
@@ -59,12 +62,14 @@ export class NodeCommandRunner implements CommandRunner {
       let settled = false;
       let timer: NodeJS.Timeout | undefined;
       let graceTimer: NodeJS.Timeout | undefined;
+      let onAbort: (() => void) | undefined;
 
       const finish = (exitCode: number | null): void => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
         clearTimeout(graceTimer);
+        if (onAbort) req.signal?.removeEventListener('abort', onAbort);
         resolve({ exitCode, stdout: out.text(), stderr: err.text(), timedOut, error });
       };
 
@@ -91,12 +96,21 @@ export class NodeCommandRunner implements CommandRunner {
         finish(null);
       });
       // `close` waits for the streams, which a surviving grandchild can hold open. `exit` only reports the exit code.
-      child.on('close', (code) => finish(timedOut ? null : code));
+      child.on('close', (code) => finish(timedOut || error !== null ? null : code));
 
-      timer = setTimeout(() => {
-        timedOut = true;
+      const kill = (): void => {
         if (child.pid !== undefined) killTree(child.pid);
         graceTimer = setTimeout(() => finish(null), KILL_GRACE_MS);
+      };
+      onAbort = () => {
+        clearTimeout(timer);
+        error = 'aborted';
+        kill();
+      };
+      req.signal?.addEventListener('abort', onAbort, { once: true });
+      timer = setTimeout(() => {
+        timedOut = true;
+        kill();
       }, req.timeoutMs);
     });
   }

@@ -14,6 +14,7 @@ const server: ComposedServer = await composeServer({
   webRoot: cfg.webRoot,
   transcriptPage: cfg.transcriptPage,
   notifyWebhook: cfg.notifyWebhook,
+  ghBin: cfg.ghBin,
   log,
 }).catch((err: Error) => {
   console.error(`Could not start (DB ${redactUrl(cfg.databaseUrl)}): ${err.message}`);

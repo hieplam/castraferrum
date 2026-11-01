@@ -40,7 +40,7 @@ export interface GateWorkspace {
   stubRestore(tree: GateTree, files: ChangedFile[], testGlobs: string[]): Promise<string[]>;
   /** Gives the tree back at `rebasedSha`. Ignored files stay. */
   stubUndo(tree: GateTree): Promise<void>;
-  run(tree: GateTree, command: { line: string; env: Record<string, string>; timeoutMs: number }): Promise<CommandResult>;
+  run(tree: GateTree, command: { line: string; env: Record<string, string>; timeoutMs: number; signal?: AbortSignal }): Promise<CommandResult>;
   /** Removes the worktree of the job. Safe to call when it does not exist. */
   remove(repoPath: string, jobId: string): Promise<void>;
 }

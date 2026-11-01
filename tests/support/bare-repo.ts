@@ -10,9 +10,10 @@
 // How to read it back:
 //   repo.sha('main')                          // sha of a branch in the bare repository
 //   repo.show('main', 'a.txt')                // exact content of a file on a branch
+// A test file that seeds the same repository for each test can seed it once and call `repo.copy()` for each test.
 // Always call `repo.dispose()` (an afterEach) - it deletes the bare repository and every clone.
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -25,6 +26,8 @@ export interface BareRepo {
   push(dir: string, branch: string): void;
   sha(branch: string): string;
   show(branch: string, path: string): string;
+  /** A new, separate bare repository with the same commits. Dispose it on its own. */
+  copy(): BareRepo;
   dispose(): void;
 }
 
@@ -34,10 +37,24 @@ function git(cwd: string, args: string[]): string {
   return execFileSync('git', [...IDENT, ...args], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 }
 
-export function createBareRepo(): BareRepo {
+function newRoot(): { root: string; bare: string } {
   const root = mkdtempSync(join(tmpdir(), 'lc-fake-bare-'));
-  const bare = join(root, 'world.bare');
+  return { root, bare: join(root, 'world.bare') };
+}
+
+export function createBareRepo(): BareRepo {
+  const { root, bare } = newRoot();
   git(root, ['init', '--bare', '-b', 'main', bare]);
+  const repo = openBareRepo(root, bare);
+  // The first commit on main.
+  const first = repo.clone();
+  git(first, ['checkout', '-q', '-b', 'main']);
+  repo.commit(first, { 'README.md': 'fake repository\n' }, 'first commit');
+  git(first, ['push', '-q', 'origin', 'main']);
+  return repo;
+}
+
+function openBareRepo(root: string, bare: string): BareRepo {
   let n = 0;
 
   const clone = (): string => {
@@ -56,12 +73,6 @@ export function createBareRepo(): BareRepo {
     return git(dir, ['rev-parse', 'HEAD']).trim();
   };
 
-  // The first commit on main.
-  const first = clone();
-  git(first, ['checkout', '-q', '-b', 'main']);
-  commit(first, { 'README.md': 'fake repository\n' }, 'first commit');
-  git(first, ['push', '-q', 'origin', 'main']);
-
   return {
     bare,
     clone,
@@ -70,6 +81,11 @@ export function createBareRepo(): BareRepo {
     push: (dir, branch) => void git(dir, ['push', '-q', '-u', 'origin', branch]),
     sha: (branch) => git(bare, ['rev-parse', `refs/heads/${branch}`]).trim(),
     show: (branch, path) => git(bare, ['show', `refs/heads/${branch}:${path}`]),
+    copy() {
+      const target = newRoot();
+      cpSync(bare, target.bare, { recursive: true });
+      return openBareRepo(target.root, target.bare);
+    },
     dispose: () => rmSync(root, { recursive: true, force: true }),
   };
 }

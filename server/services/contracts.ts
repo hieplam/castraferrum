@@ -383,6 +383,23 @@ export interface BackgroundService {
   tick(): Promise<{ errors: { loopId: string; message: string }[] }>;
 }
 
+export type GateQueueInput = { repoId: string; prNumber: number; taskKey?: string };
+/** `jobId` is `null` only when a duplicate job ended before the read. */
+export type GateQueueResult = { outcome: 'queued' | 'duplicate'; jobId: string | null; headSha: string; taskKey: string };
+/** `errors[].loopId` holds the id of the gate job. */
+export type GateTickReport = { jobId: string | null; errors: { loopId: string; message: string }[] };
+
+export interface GateService extends BackgroundService {
+  /** Runs at most one job of the queue to its end. */
+  tick(): Promise<GateTickReport>;
+  /** Throws REPO_NOT_FOUND, GATE_OFF (the gate of the repository is off). */
+  queue(input: GateQueueInput): Promise<GateQueueResult>;
+  /** Decision 37: aborts the running command and waits. The job stays `running`, and `tick` takes nothing. */
+  stop(): Promise<void>;
+  /** After `stop`, lets `tick` take jobs again. The reset of test mode uses it. */
+  resume(): void;
+}
+
 export interface ProbeService extends BackgroundService {
   /** Releases orphaned claims, then calls each due probe (decision 22), stores its line, and starts the tasks of a `take` (decision 23). */
   tick(): Promise<ProbeTickReport>;

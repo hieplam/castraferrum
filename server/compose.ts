@@ -10,10 +10,13 @@ import { ClaudeAgentExecutor } from './adapters/executors/claude/claude-agent-ex
 import { testModeQuery } from './adapters/executors/claude/test-mode-query';
 import { MockExecutor } from './adapters/executors/mock/mock-executor';
 import { StaticExecutorRegistry } from './adapters/executors/static-executor-registry';
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 import { NodeDirectoryProbe } from './adapters/fs/node-directory-probe';
 import { NodeFolderBrowser } from './adapters/fs/node-folder-browser';
+import { GitGateWorkspace } from './adapters/git/git-gate-workspace';
+import { GhGitHost } from './adapters/github/gh-git-host';
 import { OverridableFolderBrowser } from './adapters/fs/overridable-folder-browser';
 import { OverridableDirectoryProbe } from './adapters/fs/overridable-directory-probe';
 import { RandomIdGenerator } from './adapters/ids/random-id-generator';
@@ -32,6 +35,7 @@ import { startBackgroundTicker, type BackgroundTicker } from './scheduler/backgr
 import { startTicker, type Ticker } from './scheduler/ticker';
 import type { BackgroundService, RecoveryReport } from './services/contracts';
 import { DefaultFolderService } from './services/folder-service';
+import { DefaultGateService } from './services/gate-service';
 import { DefaultHealthService } from './services/health-service';
 import { DefaultLiveService } from './services/live-service';
 import { DefaultLoopService } from './services/loop-service';
@@ -76,6 +80,8 @@ export type ComposeOptions = {
   transcriptPage?: { minEntries: number; maxBytes: number };
   /** `LOOPS_NOTIFY_WEBHOOK`: each new notice is also posted to this URL. Unset = no push (the default). */
   notifyWebhook?: string;
+  /** The `gh` program of the gate. Defaults to `gh`. A path that ends in `.mjs` runs as a script (the fake `gh` of tests). */
+  ghBin?: string;
 };
 
 export type ComposedServer = {
@@ -131,6 +137,19 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
   const loopService = new DefaultLoopService({ ...repos, runService, executors, clock, ids, events: bus });
   const commands = new NodeCommandRunner();
   const probeService = new DefaultProbeService({ ...repos, commands, claimGateway: new CommandClaimGateway(commands), runService, clock, ids });
+  // The gate merges only for a repository with `repo_gate.enabled`, which is false until a person turns it on.
+  const gateService = new DefaultGateService({
+    gate: repos.gate,
+    repos: repos.repos,
+    host: new GhGitHost({ runner: commands, ghBin: opts.ghBin ?? 'gh' }),
+    workspace: new GitGateWorkspace({ runner: commands, root: join(tmpdir(), 'castraferrum-gate') }),
+    commands,
+    clock,
+    ids,
+    sleep: async (ms, signal) => {
+      await delay(ms, undefined, { signal });
+    },
+  });
   const testDirs = opts.testMode ? new OverridableDirectoryProbe(new NodeDirectoryProbe()) : null;
   const repoService = new DefaultRepoService({ repos: repos.repos, directories: testDirs ?? new NodeDirectoryProbe(), clock, ids });
   const testFolders = opts.testMode ? new OverridableFolderBrowser(new NodeFolderBrowser()) : null;
@@ -151,6 +170,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
   let recovery: RecoveryReport;
   try {
     recovery = await new DefaultRecoveryService({ ...repos, clock }).recover();
+    await repos.gate.requeueRunning(clock.now()); // decision 37: a restart cannot leave the queue stopped
   } catch (err) {
     await lock.release();
     await db.close();
@@ -158,7 +178,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
   }
 
   // Services that can wait on a slow command. Each has its own in-flight promise, so none of them holds back the schedule tick or another.
-  const background: BackgroundService[] = [probeService];
+  const background: BackgroundService[] = [probeService, gateService];
   let ticker: Ticker | null = null;
   let backgroundTicker: BackgroundTicker | null = null;
   let ticks = 0;
@@ -194,9 +214,11 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
         folders: testFolders,
         async reset() {
           const wasTicking = ticker !== null;
+          await gateService.stop();
           await stopTickers();
           await drainRuns();
           await truncateAll(db.pool);
+          gateService.resume();
           testClock.reset();
           testDirs.clear();
           testFolders.clear();
@@ -215,6 +237,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
       live,
       transcripts,
       probes: probeService,
+      gate: gateService,
       notices,
       processEvents: processService,
       now: () => clock.now(),
@@ -234,6 +257,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
     },
     shutdown() {
       closing ??= (async () => {
+        await gateService.stop();
         await stopTickers();
         await app.close();
         await drainRuns();

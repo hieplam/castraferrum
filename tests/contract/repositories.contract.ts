@@ -1182,6 +1182,16 @@ export function repositoryContract(env: () => ContractEnv): void {
       expect((await r.gate.takeNext(at(8)))?.id).toBe(next.id);
     });
 
+    it('requeueRunning moves each running job to queued and leaves the others', async () => {
+      const running = await enqueue({ sec: 1 });
+      const queued = await enqueue({ prNumber: 8, sec: 2 });
+      await r.gate.takeNext(at(3));
+      expect(await r.gate.requeueRunning(at(4))).toBe(1);
+      expect(await r.gate.get(running.id)).toMatchObject({ state: 'queued', startedAt: null });
+      expect(await r.gate.get(queued.id)).toMatchObject({ state: 'queued' });
+      expect(await r.gate.requeueRunning(at(5))).toBe(0);
+    });
+
     it('ratify moves needs_ratification back to queued and keeps its place in the queue', async () => {
       const { id } = await enqueue({ sec: 1 });
       await r.gate.takeNext(at(2));

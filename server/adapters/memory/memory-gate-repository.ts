@@ -64,6 +64,12 @@ export class MemoryGateRepository implements GateRepository {
     return true;
   }
 
+  async requeueRunning(_at: Date): Promise<number> {
+    const running = [...this.#db.gateJobs.values()].filter((j) => j.state === 'running');
+    for (const row of running) this.#db.writeGateJob({ ...row, state: 'queued', startedAt: null });
+    return running.length;
+  }
+
   async appendStep(step: GateStep): Promise<void> {
     this.#db.insertGateStep(step);
   }

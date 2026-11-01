@@ -17,6 +17,8 @@ export interface GateRepository {
   finish(id: string, input: { state: GateFinalState; failedStep: GateStepName | null; at: Date }): Promise<GateJob | null>;
   /** Moves a `needs_ratification` job back to `queued`. `false` for any other state. */
   ratify(id: string, at: Date): Promise<boolean>;
+  /** Decision 37: at start-up, moves each `running` job to `queued`. Gives the number of jobs moved. */
+  requeueRunning(at: Date): Promise<number>;
   appendStep(step: GateStep): Promise<void>;
   /** By `seq`. */
   listSteps(jobId: string): Promise<GateStep[]>;

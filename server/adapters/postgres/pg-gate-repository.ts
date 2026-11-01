@@ -115,6 +115,11 @@ export class PgGateRepository implements GateRepository {
     return res.rowCount === 1;
   }
 
+  async requeueRunning(_at: Date): Promise<number> {
+    const res = await this.#pool.query(`UPDATE gate_jobs SET state = 'queued', started_at = NULL WHERE state = 'running'`);
+    return res.rowCount ?? 0;
+  }
+
   async appendStep(step: GateStep): Promise<void> {
     await this.#pool.query(
       'INSERT INTO gate_steps (job_id, seq, step, status, exit_code, ms, output_tail) VALUES ($1, $2, $3, $4, $5, $6, $7)',
