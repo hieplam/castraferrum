@@ -196,10 +196,8 @@ async function firstPassReal(o) {
   const rules = loadRules(o.rules ?? DEFAULT_RULES);
   const rows = await readRealRows(until);
   const { taken, rest } = split(rows.map((r) => ({ text: rowText(r) })), rules);
-  rules.forEach((r, i) => process.stdout.write(`real ${r.id} ${taken[i].length}
-`));
-  process.stdout.write(`real rest ${rest.length}
-`);
+  rules.forEach((r, i) => process.stdout.write(`real ${r.id} ${taken[i].length}\n`));
+  process.stdout.write(`real rest ${rest.length}\n`);
 }
 
 function loadFirstPass(file) {
@@ -229,8 +227,7 @@ async function modelRunCommand(o) {
     return { rest: rest.map((e, i) => ({ ...e, id: `r${String(i + 1).padStart(3, '0')}` })), ruleIds };
   };
   const [{ query }, { runModelCommand }] = await Promise.all([import('@anthropic-ai/claude-agent-sdk'), import('./process-review/model-run.mjs')]);
-  process.exitCode = await runModelCommand(o, { query, readRest, print: (line) => process.stdout.write(`${line}
-`) });
+  process.exitCode = await runModelCommand(o, { query, readRest, print: (line) => process.stdout.write(`${line}\n`) });
 }
 
 function assemble(o) {
