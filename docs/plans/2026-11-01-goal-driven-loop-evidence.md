@@ -1097,3 +1097,12 @@ Goal: a test that starts a real process does not fail on the 5 s limit under loa
 - Green (`testTimeout: 30_000` on the unit project, same command, same load): `Test Files  1 passed (1)`, `Tests  46 passed (46)`.
 - Stub check: the setting removed is the Red run above; the time-out returns.
 - Ratchet, false time-out failures in the file under load: 2 before, 0 after.  `npm run test:unit`: `Test Files  53 passed | 1 skipped (54)`, `Tests  587 passed | 2 skipped (589)`. No assertion changed, no retry added.
+
+## 303
+
+Goal: G13, a failing pass opens an issue on a repository that has no `standing-goal` label.
+
+- Red (the fake `gh` refuses an unknown label on `issue create`, as the real one does; no fix yet): `npx vitest run --project api tests/api/standing-goals.test.ts` printed `Tests  9 failed | 1 passed (10)`, each failure a `GitHostError: gh issue create failed: exit 1` from `GhGitHost.openIssue`.
+- Green (new `GitHost.ensureLabel`, `gh label create --force`, called before `openIssue`; same command): `Tests  11 passed (11)`.
+- Stub check: the service change stashed, the same command printed `Tests  10 failed | 1 passed (11)`. Restored, 11 passed again.
+- Ratchet, tests of the standing-goal file that refuse on a missing label: 9 failed before the fix, 0 after. Other suites that used labels (`tests/tools/fake-gh.test.ts`, `server/adapters/github/gh-git-host.test.ts`) now seed their labels; `npx vitest run --project unit server/adapters/github tests/tools` printed `Tests  249 passed (249)`.

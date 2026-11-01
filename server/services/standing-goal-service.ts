@@ -87,6 +87,8 @@ export class DefaultStandingGoalService implements StandingGoalService {
     }
 
     if (!mayOpen) return 'deferred';
+    // `gh issue create --label` refuses a label that the repository does not have, and any repository can be a target.
+    await git.ensureLabel(repo, LABEL);
     const issue = await git.openIssue(repo, { title: `standing goal ${row.id}: ${row.outcome}`, body: body(1), labels: [LABEL] });
     await goals.open({ ...stored, issueNumber: issue.number });
     await goals.saveGoal(failed);

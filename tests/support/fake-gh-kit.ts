@@ -7,6 +7,7 @@
 //   Seed by writing the world file BEFORE the code under test runs:
 //     const w = gh.read();                 // parsed world
 //     w.issues.push({ number: 1, title: 'T', body: 'B', state: 'OPEN', labels: [{ name: 'x' }], comments: [], ... });
+//     w.labels.push('x');                  // or gh.seedLabels('x'): a label that an issue uses must exist
 //     w.checkRuns[sha] = [{ name: 'ci', status: 'completed', conclusion: 'success' }];  // keyed by commit sha
 //     writeFileSync(gh.world, JSON.stringify(w));
 //   Issues and pull requests share one number sequence (as on GitHub): the next number is max(all)+1.
@@ -68,6 +69,8 @@ export interface FakeStatus {
 export interface FakeWorld {
   bare: string | null;
   issues: FakeIssue[];
+  /** The names of the labels that the repository has. `issue create --label` refuses any other name. */
+  labels: string[];
   prs: FakePr[];
   statuses: Record<string, FakeStatus[]>;
   checkRuns: Record<string, Record<string, unknown>[]>;
@@ -83,6 +86,8 @@ export interface FakeGh {
   /** `LOOPS_GH_BIN` and `FAKE_GH_WORLD`, ready to merge into a child environment. */
   env: { LOOPS_GH_BIN: string; FAKE_GH_WORLD: string };
   read(): FakeWorld;
+  /** Adds labels to the repository, as `gh label create` does. */
+  seedLabels(...names: string[]): void;
   dispose(): void;
 }
 
@@ -91,7 +96,7 @@ export const FAKE_GH_SCRIPT = join(dirname(fileURLToPath(import.meta.url)), 'fak
 export function createFakeGh(bare?: BareRepo): FakeGh {
   const dir = mkdtempSync(join(tmpdir(), 'lc-fake-gh-'));
   const world = join(dir, 'world.json');
-  const empty: FakeWorld = { bare: bare?.bare ?? null, issues: [], prs: [], statuses: {}, checkRuns: {}, calls: [] };
+  const empty: FakeWorld = { bare: bare?.bare ?? null, issues: [], labels: [], prs: [], statuses: {}, checkRuns: {}, calls: [] };
   writeFileSync(world, JSON.stringify(empty, null, 2));
 
   let bin: string;
@@ -109,6 +114,11 @@ export function createFakeGh(bare?: BareRepo): FakeGh {
     world,
     env: { LOOPS_GH_BIN: bin, FAKE_GH_WORLD: world },
     read: () => JSON.parse(readFileSync(world, 'utf8')) as FakeWorld,
+    seedLabels: (...names) => {
+      const w = JSON.parse(readFileSync(world, 'utf8')) as FakeWorld;
+      for (const n of names) if (!w.labels.includes(n)) w.labels.push(n);
+      writeFileSync(world, JSON.stringify(w, null, 2));
+    },
     dispose: () => rmSync(dir, { recursive: true, force: true }),
   };
 }

@@ -110,6 +110,10 @@ export class GhGitHost implements GitHost {
     await this.gh(['issue', 'comment', String(issue), '-R', repo, '--body', body.slice(0, MAX_COMMENT)]);
   }
 
+  async ensureLabel(repo: string, name: string): Promise<void> {
+    await this.gh(['label', 'create', name, '-R', repo, '--force']);
+  }
+
   async openIssue(repo: string, issue: { title: string; body: string; labels: string[] }): Promise<IssueRef> {
     const out = await this.gh([
       'issue',
