@@ -1287,7 +1287,7 @@ Green, the same command after the rebase:
     Test Files  1 passed (1)
     Tests  14 passed (14)
 
-`npx vitest run --project contract -t goal_runs`: `Tests  4 passed | 206 skipped (210)`. `npx vitest run --project unit server/adapters/github`: `Tests  18 passed (18)`, 16 before. `npm run verify`: exit 0, last line `UCs with a green e2e: 34/34`, e2e `116 passed`.
+`npx vitest run --project contract -t goal_runs`: `Tests  4 passed | 206 skipped (210)`. `npx vitest run --project unit server/adapters/github`: `Tests  18 passed (18)`, 16 before. `npm run verify`: exit 0, last line `UCs with a green e2e: 35/35`, e2e `123 passed`.
 
 Nightly rows after a merge: the test `a nightly row does not run after a merge` records each row that ran. The log is `['A', 'B']`, not `N`, and the command is `node scripts/goal-check.mjs goals/g.json --json --cadence merge`.
 
