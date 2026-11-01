@@ -296,12 +296,12 @@ Pages open from a `.cell.is-link`. The tab bar stays.
 3. Issue 212: one limit holds every loop. Epic decision 4 wins: a hold covers probe loops only.
 4. A claim has one owner, a run or the gate, so G4 holds.
 5. The run-end signal does not use `summary`: `cut()` keeps 500 characters, and 0 of 167 real summaries hold the JSON line. K10 corrects `tick.md`.
-6. A status `held`, not a flag: old code ignores it.
+6. A status `held`, not a flag: old code skips it.
 7. A table `loop_probes`, not columns on `loops`: `version` stays. A probe loop has `next_run_at` null, so `findDue` skips it, and Start skips `startFirst`.
 8. Issue 214 writes tasks late, and issue 213 guards `goals/`. So a plan PR may add keys, never change one.
 9. Ratify is a console route: owner and worker share one `gh` login. The hook also refuses `gh api` calls that merge or set the status.
-10. Goal results live in `loop-goals:` comments, because `epic.mjs` has no database.
-11. The model groups, a script files, so G14 has a stable recorded test.
+10. Goal results live in `loop-goals:` comments: `epic.mjs` has no database.
+11. The model groups, a script files, so G14 has a stable test.
 12. The goal writer waits for K11 and T5, not pages.
 13. `resetsAt` is in epoch seconds (checked on session `464e9f06`). It sits in `rate_limit_info` and is optional.
 14. Real rows hold Vietnamese. S5 writes English lines, and F0 prints no loop name.
