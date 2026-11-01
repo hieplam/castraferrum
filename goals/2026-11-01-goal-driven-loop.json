@@ -196,7 +196,7 @@
       "outcome": "A repeated cause opens one issue with no owner message",
       "checks": [
         {
-          "run": "npx vitest run --project api tests/api/process-review.test.ts --reporter verbose",
+          "run": "npx vitest run --project api tests/api/process-review-replay.test.ts --reporter verbose",
           "expect": [
             "process-review",
             "passed"
