@@ -587,8 +587,8 @@ Stub check: the `upsert` call in `DefaultProbeService.save` replaced by a fake r
 
 Ratchet (`npm run test:contract`):
 
-    before: memory: 50 passed · postgres: 50 passed
-    after:  memory: 56 passed · postgres: 56 passed
+    before: memory: 50 passed Â· postgres: 50 passed
+    after:  memory: 56 passed Â· postgres: 56 passed
 
 Verify: `npm run verify` exit 0 (unit 595 passed, contract 126, 115 e2e passed, `phone overflow: 0/12`, `UCs with a green e2e: 33/33`).
 
