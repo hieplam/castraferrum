@@ -14,11 +14,12 @@
 // `-R <owner/name>` and `--repo` are accepted and ignored: the fake holds one repository.
 //   pr create --head --base --title --body        prints https://github.com/fake/repo/pull/<n>
 //   pr list --json <fields>        pr view <n> --json <fields>
+//   (a pull request has `closingIssuesReferences`: [{ number }], read from "Closes #n" in its body at `pr create`; a test can seed it)
 //   pr merge <n> --squash [--match-head-commit <sha>]
 //       real git in the bare repository `world.bare`; a wrong sha prints
 //       `fake-gh: head commit does not match` and exits 1
 //   api [-X POST] repos/fake/repo/statuses/<sha> -f state= -f context= -f description=
-//   api repos/fake/repo/commits/<sha>/status
+//   api [-X GET] repos/fake/repo/commits/<sha>/status
 //   api repos/fake/repo/commits/<sha>/check-runs
 // `--json` takes comma-separated GitHub field names. Every call, a failed one too, is appended to `calls`.
 import { execFileSync } from 'node:child_process';
@@ -164,6 +165,12 @@ function issueCmd(w, sub, rest) {
   return true;
 }
 
+/** GitHub links a PR to the issues that its body closes ("Closes #7", "Fixes #7", "Resolves #7"). */
+function closingIssues(body) {
+  const found = [...body.matchAll(/\b(?:close[sd]?|fix(?:es|ed)?|resolve[sd]?)\s+#(\d+)/gi)].map((m) => ({ number: Number(m[1]) }));
+  return found.filter((x, i) => found.findIndex((y) => y.number === x.number) === i);
+}
+
 function prCmd(w, sub, rest) {
   const { flags, positional } = parse(rest);
   const json = one(flags, 'json');
@@ -187,6 +194,7 @@ function prCmd(w, sub, rest) {
       baseRefName: String(one(flags, 'base') ?? 'main'),
       headRefOid: oid,
       mergeCommit: null,
+      closingIssuesReferences: closingIssues(String(one(flags, 'body') ?? '')),
       url: `${REPO_URL}/pull/${n}`,
       createdAt: now(),
       mergedAt: null,
@@ -235,7 +243,7 @@ function apiCmd(w, rest) {
     };
     (w.statuses[m[1]] ??= []).push(status);
     print({ sha: m[1], ...status });
-  } else if ((m = path.match(/^repos\/fake\/repo\/commits\/([0-9a-f]+)\/status$/)) && !flags.method) {
+  } else if ((m = path.match(/^repos\/fake\/repo\/commits\/([0-9a-f]+)\/status$/)) && (!flags.method || flags.method === 'GET')) {
     const latest = new Map();
     for (const s of w.statuses[m[1]] ?? []) latest.set(s.context, s);
     const statuses = [...latest.values()];
@@ -248,7 +256,7 @@ function apiCmd(w, rest) {
           ? 'pending'
           : 'success';
     print({ sha: m[1], state, total_count: statuses.length, statuses });
-  } else if ((m = path.match(/^repos\/fake\/repo\/commits\/([0-9a-f]+)\/check-runs$/)) && !flags.method) {
+  } else if ((m = path.match(/^repos\/fake\/repo\/commits\/([0-9a-f]+)\/check-runs$/)) && (!flags.method || flags.method === 'GET')) {
     const runs = w.checkRuns[m[1]] ?? [];
     print({ total_count: runs.length, check_runs: runs });
   } else return false;
