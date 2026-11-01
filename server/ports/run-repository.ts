@@ -28,6 +28,8 @@ export type RunRecord = {
   /** The `result` word and the pull request of the run-end signal (spec 2.3). */
   endResult: string | null;
   endPr: string | null;
+  /** How many times the run went on after a hold. */
+  resumeCount: number;
 };
 
 /** Snapshot of the prompt + executor at run time: editing the loop later does not change history. `id` is issued by the service. */
@@ -87,8 +89,16 @@ export interface RunRepository {
   /** A `skipped` run: no iteration number, no counter increment, finishes immediately. */
   recordSkipped(input: SkippedRunInput): Promise<RunRecord>;
   setSession(id: string, sessionId: string): Promise<void>;
-  /** Only a `running` run changes; a finished run keeps its first outcome (first to arrive wins). Throws `RUN_NOT_FOUND`. */
+  /** Only a `running` or `held` run changes; a finished run keeps its first outcome (first to arrive wins). Throws `RUN_NOT_FOUND`. */
   finish(id: string, outcome: RunOutcome): Promise<RunRecord>;
+  /** `running` -> `held`, with no end time. A null `costUsd` keeps the stored cost, and a value replaces it. A run in any other status gives `null` and no change. */
+  hold(id: string, costUsd: number | null): Promise<RunRecord | null>;
+  /** `held` -> `running`, with a new deadline and one more resume. The session stays. A run in any other status gives `null` and no change. */
+  resume(id: string, deadlineAt: Date | null): Promise<RunRecord | null>;
+  /** Every `held` run of the loop, oldest first (started_at, id). */
+  listHeld(loopId: string): Promise<RunRecord[]>;
+  /** Every `held` run of every loop, oldest first (started_at, id). */
+  listAllHeld(): Promise<RunRecord[]>;
   /** The latest `finished_at` of the loop's runs, with no `skipped` rows. No finished run -> null. */
   latestFinishedAt(loopId: string): Promise<Date | null>;
   /** Oldest first (started_at ascending). */
@@ -114,4 +124,6 @@ export interface RunRepository {
    * (the last heartbeat — when the run actually stopped), never negative, never beyond `now`. Returns the number of runs changed.
    */
   markAllRunningInterrupted(now: Date, aliveUntil?: Date): Promise<number>;
+  /** Recovery: every `held` run of a loop outside `keepLoopIds` -> `interrupted`, with the duration rule above. Returns the number of runs changed. */
+  markHeldInterrupted(now: Date, aliveUntil: Date, keepLoopIds: string[]): Promise<number>;
 }

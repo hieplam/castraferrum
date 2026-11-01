@@ -5,6 +5,7 @@ import { PgExecutionRepository } from './pg-execution-repository';
 import { PgGateRepository } from './pg-gate-repository';
 import { PgGoalRepository } from './pg-goal-repository';
 import { PgHeartbeatRepository } from './pg-heartbeat-repository';
+import { PgHoldRepository } from './pg-hold-repository';
 import { PgLoopProbeRepository } from './pg-loop-probe-repository';
 import { PgLoopRepository } from './pg-loop-repository';
 import { PgNoticeRepository } from './pg-notice-repository';
@@ -25,5 +26,6 @@ export function createPgRepositories(pool: pg.Pool): Repositories {
     goals: new PgGoalRepository(pool),
     claims: new PgClaimRepository(pool),
     gate: new PgGateRepository(pool),
+    holds: new PgHoldRepository(pool),
   };
 }

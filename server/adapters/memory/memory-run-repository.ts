@@ -71,7 +71,7 @@ export class MemoryRunRepository implements RunRepository {
   async finish(id: string, outcome: RunOutcome): Promise<RunRecord> {
     const run = this.#db.runs.get(id);
     if (!run) throw new DomainError('RUN_NOT_FOUND', `No run ${id}`);
-    if (run.status !== 'running') return clone(run);
+    if (run.status !== 'running' && run.status !== 'held') return clone(run);
     const done: RunRecord = {
       ...run,
       status: outcome.status,
@@ -85,6 +85,30 @@ export class MemoryRunRepository implements RunRepository {
     };
     this.#db.writeRun(done, false);
     return clone(done);
+  }
+
+  async hold(id: string, costUsd: number | null): Promise<RunRecord | null> {
+    const run = this.#db.runs.get(id);
+    if (run?.status !== 'running') return null;
+    const held: RunRecord = { ...run, status: 'held', costUsd: costUsd ?? run.costUsd };
+    this.#db.writeRun(held, false);
+    return clone(held);
+  }
+
+  async resume(id: string, deadlineAt: Date | null): Promise<RunRecord | null> {
+    const run = this.#db.runs.get(id);
+    if (run?.status !== 'held') return null;
+    const resumed: RunRecord = { ...run, status: 'running', deadlineAt, resumeCount: run.resumeCount + 1 };
+    this.#db.writeRun(resumed, false);
+    return clone(resumed);
+  }
+
+  async listHeld(loopId: string): Promise<RunRecord[]> {
+    return listHeld(this.#db).filter((r) => r.loopId === loopId).map(clone);
+  }
+
+  async listAllHeld(): Promise<RunRecord[]> {
+    return listHeld(this.#db).map(clone);
   }
 
   async listByExecution(executionId: string): Promise<RunRecord[]> {
@@ -189,6 +213,22 @@ export class MemoryRunRepository implements RunRepository {
       return n;
     });
   }
+
+  async markHeldInterrupted(now: Date, aliveUntil: Date, keepLoopIds: string[]): Promise<number> {
+    const db = this.#db;
+    const until = Math.min(aliveUntil.getTime(), now.getTime());
+    let n = 0;
+    for (const r of db.runs.values()) {
+      if (r.status !== 'held' || keepLoopIds.includes(r.loopId)) continue;
+      db.writeRun({ ...r, status: 'interrupted', finishedAt: now, durationMs: Math.max(0, until - r.startedAt.getTime()) }, false);
+      n++;
+    }
+    return n;
+  }
+}
+
+function listHeld(db: MemoryDb): RunRecord[] {
+  return [...db.runs.values()].filter((r) => r.status === 'held').sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime() || cmp(a.id, b.id));
 }
 
 function blankRun(input: StartRunInput | SkippedRunInput): RunRecord {
@@ -216,6 +256,7 @@ function blankRun(input: StartRunInput | SkippedRunInput): RunRecord {
     slot: 'slot' in input ? (input.slot ?? null) : null,
     endResult: null,
     endPr: null,
+    resumeCount: 0,
   };
 }
 

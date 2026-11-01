@@ -155,8 +155,10 @@ network. Component tests plug `FakeLoopsApi` and `FakeLiveEvents` into the same 
 
 - `LoopService`: `list`, `get`, `create` (always Stopped), `update` (with `version`), `start`, `stop`,
   `duplicate`, `archive`, `restore`, `listExecutions`, `getExecution`, `executors`.
-- `RunService`: `startFirst`, `startScheduled` (busy gives a skipped run), `cancel`, `expireOverdue`, `get`,
+- `RunService`: `startFirst`, `startScheduled` (busy gives a skipped run), `startClaimed`, `resumeHeld`, `cancel`, `expireOverdue`, `get`,
   `listByLoop`, `logs`.
+- `HoldService`: `tick()`, which the background ticker calls each second. It closes the holds that ended and resumes the
+  held runs. It calls `RunService` and no other service.
 - `ProbeService`: `get`, `save`, `remove` for the settings of a loop's probe, and `tick()`, which the background
   ticker calls every second.
 - `SchedulingService.tick()` is called every second; `RecoveryService.recover()` once at startup;
@@ -255,15 +257,18 @@ Start gives it `next_run_at` null and no first run, so `findDue` skips it. A loo
 
 ```
 if the previous tick has not finished: return           // no overlap
-for each open run_claims row whose run is not running:  // also of a stopped loop; a row with no run counts
+for each open run_claims row whose run is neither running nor held:  // also of a stopped loop; a row with no run counts
     release (a failed command keeps the row, next try 60 s later), then close
 for each loop_probes row, at the same time, each caught alone:
     skip a loop that is not active, or is archived
+    skip a loop in an open plan-window hold             // no call; it stores the state `held` once, the last line stays
     skip until 60 s after last_probe_at, or until a run ended after last_probe_at
-    skip a loop with no free lane                       // running runs >= max_concurrent
+    skip a loop with no free lane                       // running + held runs >= max_concurrent
     commands.run({ argv, cwd: repo.path, timeoutMs: 30000 }), then parseProbeLine
     probes.record(state, lastLine, the tick's now)      // a run that ends during the call gives a new probe
+    a hold line opens that hold
     for each task of a take, until the free lanes end:
+        skip a task that lists a resource with an open hold
         claims.open                                     // `taken` goes to the next task
         claimGateway.claim                              // a refusal closes the row and goes to the next task
         runService.startClaimed                         // a skipped run gives an excused release and a close
@@ -275,9 +280,40 @@ tick, which has its own ticker. Exit 0 with a valid line sets the state of the a
 a bad line sets `probe_failed`.
 
 The order `open`, `claim`, run means that a claim on a task always has its row, so a claim cannot outlive its run. The
-close reason is `run <status>[ <end word>]`. A release is excused for `interrupted`, `skipped`, a row with no run and
-`RESOURCE_DOWN`, because none of them is a failure of the task. Each release carries `--if-claimed`, because a plain
+close reason is `run <status>[ <end word>]`. A release is excused for `interrupted`, `skipped`, a row with no run,
+`RESOURCE_DOWN` and `USAGE_LIMIT`, because none of them is a failure of the task. Each release carries `--if-claimed`, because a plain
 release reopens a closed issue. `RunService` writes the run-end signal of the final text to `end_result` and `end_pr`.
+
+### Holds (every second, `HoldService.tick`)
+
+A hold is a stop on a resource, with one row in `resource_holds` and at most one open row for each resource. So one root
+cause gives one hold and one notice, however many runs report it. `openHold` in `server/services/hold-open.ts` is the
+one place that opens a hold, because `RunService` cannot call `HoldService`.
+
+A usage limit on a run with trigger `probe` opens `plan-window`, which stops every probe loop. The run becomes `held`: it
+has no process, it keeps its session id, its claim, its lane and its slot, it has no deadline check, and it writes no
+`run.finished`. A run with no session id cannot resume, so it fails with `end_result` `USAGE_LIMIT`, and its release is
+excused. A loop with no probe writes `failed`, as it did before holds.
+
+```
+if the previous tick has not finished: return           // no overlap
+for each open hold, each caught alone:
+    plan-window with until: close at until + 60 s
+    plan-window with no until:
+        the trial is running: wait
+        the trial has any status other than running or held: close
+        each 30 minutes from checked_at ?? opened_at:
+            no held run: close
+            resume the oldest held run as the trial, write checked_at
+    a named hold: close at until, or when the check of a probe `resources` entry exits 0, run each everySec
+    a named hold with no check and no until: close 30 minutes after opened_at
+no plan-window hold is open: resume every held run, oldest first over all loops
+```
+
+A resume sets `running` and a new `deadline_at`, adds 1 to `resume_count`, and calls the executor with `resumeSessionId`
+and the resume message of spec 2.7. The env comes again from `runs.slot`. The cost of a resumed run replaces the stored
+cost, because the session reports a cumulative cost. A limit with no cost keeps the stored cost. Stop cancels held runs
+as well, and recovery makes them `interrupted`, because every loop stops at a restart.
 
 ### One run (`RunService`)
 
@@ -328,7 +364,7 @@ sequenceDiagram
 ### Startup recovery (`RecoveryService`, before the ticker and HTTP)
 
 `t = heartbeat.last() ?? now`. Every `running` run becomes `interrupted` (its executor lived in the dead
-process); its duration is measured up to `t`. Every open execution closes as `server_down` at `max(t,
+process), and so does every `held` run, because its loop stops; the duration is measured up to `t`. Every open execution closes as `server_down` at `max(t,
 startedAt)`, which is within 10 seconds of the real stop. Then all loops are set to Stopped and a heartbeat is
 written. No loop restarts by itself: running again is always a person pressing Start.
 
@@ -518,8 +554,9 @@ is committed and applied at startup):
 | `repos` | registered repositories: id, name, path | unique lower(name); unique path (real path at registration) |
 | `loops` | configuration, status, `next_run_at`, counters (`run_counter`, `execution_counter`), `version`, `max_concurrent`, `timeout_sec` (null = no limit), `archived_at` | unique live name; `archived_at` only when stopped; `next_run_at` only when active; FK to `repos` |
 | `loop_executions` | one Start-to-Stop span: `seq`, `started_at`, `ended_at`, `end_reason` (`stopped` or `server_down`) | unique (loop, seq); at most one open per loop |
-| `runs` | one firing: `iteration`, `trigger` (`start`, `schedule` or `probe`), `status`, `skip_reason`, timestamps, `deadline_at`, `duration_ms`, prompt and executor snapshot, `summary`, `error`, `cost_usd`, `session_id`, `task_key`, `slot`, `end_result`, `end_pr` | trigger `runs_max_concurrent_per_loop` (lock the loop row, count `running`, reject at `max_concurrent`); unique (loop, iteration) |
+| `runs` | one firing: `iteration`, `trigger` (`start`, `schedule` or `probe`), `status`, `skip_reason`, timestamps, `deadline_at`, `duration_ms`, prompt and executor snapshot, `summary`, `error`, `cost_usd`, `session_id`, `task_key`, `slot`, `end_result`, `end_pr`, `resume_count` | trigger `runs_max_concurrent_per_loop` (lock the loop row, count `running`, reject at `max_concurrent`); unique (loop, iteration) |
 | `run_logs` | lines of a run: `seq`, `at`, `level`, `message`, `data` | primary key (run, seq) |
+| `resource_holds` | a stop on a resource: `resource`, `reason`, `opened_at`, `until` (null when the end is not known), `checked_at`, `closed_at`, `opened_by_run_id`, `trial_run_id` (no FK: a hold outlives its run) | primary key `id`; partial unique index: one open row for each `resource` |
 | `run_claims` | the claim of a task for one run: `task_key`, `run_id` (no FK: the row comes before the run), `opened_at`, `closed_at`, `close_reason`, `owner` (`run` or `gate`, decision 4), `gate_job_id` (set when the gate owns the row) | primary key `id`; FK to `loops` and to `gate_jobs`; partial unique index: one open row for each `loop_id` and `task_key`; a row has `gate_job_id` exactly when its owner is `gate` |
 | `loop_probes` | the probe of a loop: argv commands (`command`, `claim`, `release`), `resources`, lane settings, `restart_policy`, `state`, `last_line`, `last_probe_at` | primary key `loop_id`; FK to `loops` |
 | `repo_gate` | the merge gate of a repository: `enabled` (default false: the gate is off until a person turns it on), `github_repo`, `check_command` (argv), `updated_at` | primary key `repo_id`; FK to `repos` (deleted with it) |
@@ -527,7 +564,7 @@ is committed and applied at startup):
 | `gate_steps` | one step of a job: `seq`, `step`, `status`, `exit_code`, `ms`, `output_tail` | primary key (job, seq); FK to `gate_jobs` |
 | `server_heartbeat` | a single row written every 10 seconds | `id` is a fixed boolean |
 
-Run states: `running`, `succeeded`, `failed`, `cancelled`, `timed_out`, `interrupted`, `skipped`.
+Run states: `running`, `succeeded`, `failed`, `cancelled`, `timed_out`, `interrupted`, `skipped`, `held`.
 
 `RunRepository.start` is one transaction: bump `loops.run_counter`, insert the `running` run with the new
 `iteration`; a rejection by the trigger rolls back (the counter does not move) and returns `busy` with the runs
@@ -605,7 +642,7 @@ The decision records that matter most have their own files in [adr/](adr/). The 
 | Smallest schedule unit is a minute | enough for agent loops and avoids burning money |
 | An execution entity (Start to Stop) groups runs, and every run stores its session id | measures how long a loop has run and groups session ids for analysis, cancelled runs included |
 | Restart closes executions as `server_down` at the last heartbeat and stops every loop | running again must be a person's choice; the heartbeat bounds the error to 10 seconds |
-| Only Start and Stop; Stop cancels running runs | simplicity: no pause or resume, no one-off runs |
+| Only Start and Stop; Stop cancels running and held runs | simplicity: a hold pauses runs for a resource, and a person has no pause or resume and no one-off runs |
 | Cancellation writes the database first, signals second | Stop is `cancelled` within 5 seconds regardless of the executor |
 | Composition root split in two (`compose.ts`, `main.ts`) | API tests must run the real wiring without importing `main.ts` |
 | Server runs TypeScript directly with `tsx` | Vitest, Vite and the server read the same sources; migrations sit next to them |
