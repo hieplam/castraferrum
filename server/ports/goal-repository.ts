@@ -2,7 +2,7 @@ import type { GoalRunRecord, StandingGoalRecord, StandingIssueRecord, StandingSc
 
 export type NewStandingIssueRecord = Pick<StandingIssueRecord, 'id' | 'repo' | 'rowId' | 'fingerprint' | 'issueNumber' | 'openedAt'>;
 
-/** Standing goals (tables `standing_goals`, `standing_issues` and `standing_schedule`). */
+/** Standing goals and goal rows (tables `standing_goals`, `standing_issues`, `standing_schedule` and `goal_runs`). */
 export interface GoalRepository {
   getGoal(repo: string, rowId: string): Promise<StandingGoalRecord | null>;
   /** Inserts the row, or replaces the row of the same repository and row id. */
