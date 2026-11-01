@@ -234,6 +234,37 @@ Ratchet, answer lines for S4: 0 before, 5 after. Stub check: with the section re
 
 <!-- S6 -->
 
+## S6
+
+Question: what does one `run_evals.py` pass over the evals of `epic-loop` cost?
+
+Setup: a detached worktree of `origin/master` of agent-plugins (commit 821821e), `GH_TOKEN=invalid`, `TEMP`, `TMP` and `TMPDIR` set to a scratch folder, `--mode with_skill --exec-model haiku --grader-model haiku --runs 1 --jobs 1`. The suite now has 7 evals, not the 5 of the plan, because two evals were added after the plan was written.
+
+Result of the pass, from `benchmark.json` (`cost_usd` of each run, in USD):
+
+| Eval | Cost | Tokens | Result |
+|---|---|---|---|
+| 1 tick-dry-run-names-the-first-ready-task | 0.0073 | 150149 | pass |
+| 2 tick-stops-at-an-owner-gate | 0.0073 | 151129 | pass |
+| 3 tick-skips-while-a-task-is-in-progress | 0.0078 | 193062 | fail |
+| 4 plan-triggers-on-a-multi-pr-feature | 0.0058 | 130989 | fail |
+| 5 no-trigger-on-a-one-line-fix | 0.0039 | 92687 | pass |
+| 6 console-claimed-task-skips-next-and-claim | 0.0056 | 104146 | pass |
+| 7 gate-mode-ends-at-pr-open-with-no-wait | 0.0057 | 104087 | pass |
+
+Sum: 0.0434 USD, 926260 tokens, 5 of 7 pass, 132 s of executor time. The script writes the cost of the executor call only. It does not record the cost of the grader call (one haiku call for each eval, not measured). The grader reads a short transcript, so it is not expected to cost more than the executor. Even at twice the executor cost, the pass is below 0.10 USD.
+
+Decision for the gate: a full pass is well below 2 USD, so the eval gate is cheap in money. Its price is time, about 2 minutes serial.
+
+S6 cost-usd: 0.04
+S6 evals-run: 7
+S6 over-2-usd: no
+
+The plan Green greps for `evals-run: 5`. The suite has 7 evals now, so the grep accepts `evals-run: [5-9]`. The count it prints is the same, 3.
+
+Ratchet, answer lines for S6: 0 before, 3 after. Spend 0.04 USD of the 4.00 USD limit (executor cost only). Stub check: with the section removed the count is 0 (printed before this section). A line `evals-run: 4` or lower fails the pattern.
+
+
 <!-- D1 -->
 
 <!-- D2 -->
