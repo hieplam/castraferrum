@@ -3,13 +3,15 @@
 // { bare, issues, prs, statuses, checkRuns, calls }. See fake-gh-kit.ts for how to seed and read the world.
 //
 // Supported commands (anything else prints `fake-gh: unsupported: <args>` and exits 64):
-//   issue create --title --body [--label]...      prints https://github.com/fake/repo/issues/<n>
+//   issue create --title --body|--body-file [--label]...      prints https://github.com/fake/repo/issues/<n>
 //   issue list [--state open|closed|all] [--search] [--label]... --json <fields>
 //       search = substring of title or body (case-insensitive); `in:body` and quotes are stripped
 //   issue view <n> --json <fields>
 //   issue comment <n> --body
 //   issue edit <n> [--add-label]... [--remove-label]...
 //   issue close <n>
+//   issue reopen <n>
+// `-R <owner/name>` and `--repo` are accepted and ignored: the fake holds one repository.
 //   pr create --head --base --title --body        prints https://github.com/fake/repo/pull/<n>
 //   pr list --json <fields>        pr view <n> --json <fields>
 //   pr merge <n> --squash [--match-head-commit <sha>]
@@ -55,6 +57,8 @@ function parse(list) {
       const kv = String(list[++i] ?? '');
       const eq = kv.indexOf('=');
       fields[kv.slice(0, eq)] = kv.slice(eq + 1);
+    } else if (a === '-R') {
+      i++;
     } else if (a === '-X') {
       flags.method = String(list[++i] ?? '').toUpperCase();
     } else if (a.startsWith('--')) {
@@ -106,7 +110,7 @@ function issueCmd(w, sub, rest) {
     w.issues.push({
       number: n,
       title: String(one(flags, 'title') ?? ''),
-      body: String(one(flags, 'body') ?? ''),
+      body: String(one(flags, 'body-file') ? readFileSync(one(flags, 'body-file'), 'utf8') : (one(flags, 'body') ?? '')),
       state: 'OPEN',
       labels: (flags.label ?? []).map((name) => ({ name })),
       comments: [],
@@ -150,6 +154,12 @@ function issueCmd(w, sub, rest) {
     i.state = 'CLOSED';
     i.closedAt = i.updatedAt = now();
     console.log(`Closed issue #${i.number}`);
+  } else if (sub === 'reopen') {
+    const i = find(w.issues, positional[0], 'issue');
+    i.state = 'OPEN';
+    i.closedAt = null;
+    i.updatedAt = now();
+    console.log(`Reopened issue #${i.number}`);
   } else return false;
   return true;
 }

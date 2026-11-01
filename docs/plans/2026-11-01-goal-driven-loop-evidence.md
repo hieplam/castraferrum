@@ -547,6 +547,21 @@ Goal: G9, a PR cannot lower its bar. Issue 251, amends spec 2.9 (Decisions, item
 
 <!-- R3 -->
 
+## R3
+
+Red (before building): `npx vitest run --project unit tests/tools/process-file-issues.test.ts`
+```
+ Test Files  1 failed (1)
+      Tests  15 failed (15)
+```
+Green (after the rebase): same command, plus `tests/tools/fake-gh.test.ts` (the fake gained `issue reopen`, `-R`, `--body-file`)
+```
+ Test Files  2 passed (2)
+      Tests  26 passed (26)
+```
+Stub check: scripts with only `process.exit(0)` give `Tests  15 failed (15)`. A script that always creates (lookup removed) gives `Tests  2 failed | 13 passed (15)`: both repeat tests fail.
+Ratchet: tests in `process-file-issues.test.ts`, 0 before, 15 after (the plan said 14; one more test proves that a bad cluster at the end of the file writes nothing). `causes-found` (G14): not measured yet (D7).
+
 <!-- R4 -->
 
 <!-- R5 -->

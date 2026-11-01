@@ -1,0 +1,24 @@
+{
+  "v": 1,
+  "from": "2026-10-19",
+  "to": "2026-10-22",
+  "clusters": [
+    {
+      "id": "smart-app-control",
+      "cause": "cause of smart-app-control",
+      "events": 1,
+      "runIds": [
+        1
+      ],
+      "firstAt": "2026-10-19T08:00:00.000Z",
+      "lastAt": "2026-10-22T09:30:00.000Z",
+      "repo": "fake/repo",
+      "fingerprint": "cccccccccccc",
+      "check": {
+        "kind": "hook",
+        "name": "hooks/smart-app-control.mjs",
+        "replay": "node hooks/smart-app-control.mjs --replay"
+      }
+    }
+  ]
+}
