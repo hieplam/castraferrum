@@ -479,13 +479,13 @@ Red, before building (`npx vitest run --project api tests/api/notices-api.test.t
      Test Files  1 failed (1)
           Tests  5 failed (5)
 
-Green, after the rebase on origin/main:
+Green, after the rebase on origin/main (P3 took migration 0004, mine is 0005_notices):
 
     npx vitest run --project api tests/api/notices-api.test.ts          Tests  5 passed (5)
     npx vitest run --project unit server/adapters/notify/notifier.test.ts   Tests  6 passed (6)
-    npx vitest run --project contract -t notices                        Tests  10 passed | 114 skipped (124)
+    npx vitest run --project contract -t notices                        Tests  10 passed | 126 skipped (136)
     npm run typecheck                                                   exit 0
-    npx vitest run --project api tests/api/notices-api.test.ts tests/api/api-surface.test.ts   Tests  37 passed (37)
+    npx vitest run --project api tests/api/notices-api.test.ts tests/api/api-surface.test.ts   Tests  35 passed (35)
 
 Stub check, run for real and restored: `StoreNotifier.send` with an empty body.
 
@@ -494,9 +494,9 @@ Stub check, run for real and restored: `StoreNotifier.send` with an empty body.
 
 Ratchet:
 
-    npm run test:contract:  memory 50 -> 55, postgres 50 -> 55 (each side +5)
-    unit tests passed:      587 -> 595 (+8: 6 notifier, 2 config)
-    api-surface routes:     27 -> 29
+    npm run test:contract:  memory 56 -> 61, postgres 56 -> 61 (each side +5, on the base after P3)
+    unit tests passed:      783 -> 791 (+8: 6 notifier, 2 config)
+    api-surface routes:     30 -> 32
 
 Webhook safety: the only post in any test goes to a server that the test starts on 127.0.0.1. `LOOPS_NOTIFY_WEBHOOK` is unset by default. The case "gives up on a webhook that never answers" proves that `send` resolves when the server hangs.
 
