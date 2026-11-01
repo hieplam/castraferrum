@@ -139,10 +139,10 @@ export class PgLoopRepository implements LoopRepository {
     return res.rowCount === 1;
   }
 
-  async stopAll(now: Date): Promise<number> {
+  async stopAll(now: Date, keepLoopIds: string[] = []): Promise<number> {
     const res = await this.#pool.query(
-      `UPDATE loops SET status = 'stopped', next_run_at = NULL, updated_at = $1 WHERE status = 'active'`,
-      [now],
+      `UPDATE loops SET status = 'stopped', next_run_at = NULL, updated_at = $1 WHERE status = 'active' AND NOT (id = ANY($2::uuid[]))`,
+      [now, keepLoopIds],
     );
     return res.rowCount ?? 0;
   }

@@ -59,6 +59,8 @@ export class DefaultProbeService implements ProbeService {
   #busy = false;
   /** Claim id -> the time of the next try, after a failed release. In memory: a restart only gives an earlier try. */
   readonly #retryAt = new Map<string, number>();
+  /** Decision 45: `last_probe_at` survives a restart, and a restart must not wait up to 60 s. So the first tick of a process treats each probe as due. */
+  #firstTick = true;
 
   constructor(deps: ProbeServiceDeps) {
     this.#d = deps;
@@ -91,14 +93,16 @@ export class DefaultProbeService implements ProbeService {
       await this.#releaseOrphans(now, report); // first, so that a probe sees the tasks that this tick freed
       const [probes, holds] = await Promise.all([this.#d.probes.list(), this.#d.holds.listOpen()]);
       // Together, so a hung probe delays no other loop: the command runner ends each call in 30 s.
-      await Promise.all(probes.map((p) => this.#probeLoop(p, holds, now, report)));
+      const first = this.#firstTick;
+      this.#firstTick = false;
+      await Promise.all(probes.map((p) => this.#probeLoop(p, holds, now, report, first)));
       return report;
     } finally {
       this.#busy = false;
     }
   }
 
-  async #probeLoop(probe: ProbeRecord, holds: HoldRecord[], now: Date, report: ProbeTickReport): Promise<void> {
+  async #probeLoop(probe: ProbeRecord, holds: HoldRecord[], now: Date, report: ProbeTickReport, first: boolean): Promise<void> {
     const d = this.#d;
     try {
       const loop = await d.loops.findById(probe.loopId);
@@ -108,7 +112,7 @@ export class DefaultProbeService implements ProbeService {
         if (probe.state !== 'held') await d.probes.record(loop.id, { state: 'held', lastLine: probe.lastLine, at: probe.lastProbeAt ?? now });
         return;
       }
-      if (!(await this.#isDue(probe, now))) return;
+      if (!first && !(await this.#isDue(probe, now))) return;
       if ((await this.#lanesInUse(loop.id)).length >= loop.maxConcurrent) return; // no free lane: the answer cannot be used
       const repo = await d.repos.findById(loop.repoId);
       if (!repo) throw new Error(`Loop points at repo ${loop.repoId} which does not exist`);

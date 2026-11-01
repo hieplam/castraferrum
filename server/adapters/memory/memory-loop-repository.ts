@@ -102,11 +102,11 @@ export class MemoryLoopRepository implements LoopRepository {
     return true;
   }
 
-  async stopAll(now: Date): Promise<number> {
+  async stopAll(now: Date, keepLoopIds: string[] = []): Promise<number> {
     return this.#db.transaction(() => {
       let n = 0;
       for (const l of this.#db.loops.values()) {
-        if (l.status !== 'active') continue;
+        if (l.status !== 'active' || keepLoopIds.includes(l.id)) continue;
         this.#db.writeLoop({ ...l, status: 'stopped', nextRunAt: null, updatedAt: now });
         n++;
       }

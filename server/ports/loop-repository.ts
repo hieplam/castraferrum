@@ -84,5 +84,5 @@ export interface LoopRepository {
   /** Compare-and-set: only changes when the loop is still active and next_run_at equals `expected` exactly. */
   advanceNextRun(id: string, expected: Date, next: Date | null): Promise<boolean>;
   /** Recovery: every active loop → stopped, next_run_at = null. Returns the number of loops changed. */
-  stopAll(now: Date): Promise<number>;
+  stopAll(now: Date, keepLoopIds?: string[]): Promise<number>;
 }

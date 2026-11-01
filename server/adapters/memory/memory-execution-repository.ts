@@ -81,12 +81,12 @@ export class MemoryExecutionRepository implements ExecutionRepository {
     return { items, nextCursor: rows.length > limit && last ? encodeExecutionCursor(last.seq) : null };
   }
 
-  async closeAllOpen(reason: 'server_down', endedAt: Date): Promise<number> {
+  async closeAllOpen(reason: 'server_down', endedAt: Date, keepLoopIds: string[] = []): Promise<number> {
     const db = this.#db;
     return db.transaction(() => {
       let n = 0;
       for (const e of db.executions.values()) {
-        if (e.endedAt !== null) continue;
+        if (e.endedAt !== null || keepLoopIds.includes(e.loopId)) continue;
         db.writeExecution({ ...e, endedAt, endReason: reason }, false);
         n++;
       }
