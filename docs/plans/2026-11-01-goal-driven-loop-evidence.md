@@ -722,6 +722,22 @@ Goal: G9, a PR cannot lower its bar. Issue 251, amends spec 2.9 (Decisions, item
 
 <!-- K9 -->
 
+## K9
+
+Red: `npx vitest run --project unit tests/tools/merge-audit.test.ts`
+```
+ Test Files  1 failed (1)
+      Tests  7 failed (7)
+```
+Green: same command, after the rebase
+```
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+```
+Stub check: a script that prints `merge-audit: 0 incidents in 0 merged PRs` and exits 0 gives `Tests  7 failed (7)`. The real script was restored and gives `Tests  7 passed (7)`.
+Ratchet (`npm run test:unit`, Tests passed): 828 before, 835 after.
+Light verify: `grep -rn "merge-audit" server web` prints nothing.
+
 <!-- K10 -->
 
 <!-- K11 -->
