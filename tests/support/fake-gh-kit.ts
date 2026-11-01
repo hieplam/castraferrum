@@ -53,6 +53,8 @@ export interface FakePr {
   baseRefName: string;
   headRefOid: string;
   mergeCommit: { oid: string } | null;
+  /** The issues that the body closes; `pr create` fills it from "Closes #n". */
+  closingIssuesReferences?: { number: number }[];
   url: string;
   createdAt: string;
   mergedAt: string | null;

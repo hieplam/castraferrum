@@ -16,6 +16,8 @@ export type Config = {
    * or with `LOOPS_MOCK_EXECUTOR=1` (api-smoke runs the normal build) — both only with a DB named *_test.
    */
   mockExecutor: boolean;
+  /** The `gh` program of the Git host. `LOOPS_GH_BIN` replaces it (tests point it at the fake gh), only with a DB named *_test. */
+  ghBin: string;
   /** The UI build (vite build) that Fastify serves. */
   webRoot: string;
   /**
@@ -67,11 +69,16 @@ export function loadConfig(env: Env = process.env): Config {
   if (mockFlag && !dbName.endsWith('_test')) {
     throw new Error(`LOOPS_MOCK_EXECUTOR=1 may only run against a DB named *_test, but it points at "${dbName}"`);
   }
+  const ghBin = env.LOOPS_GH_BIN;
+  if (ghBin && !dbName.endsWith('_test')) {
+    throw new Error(`LOOPS_GH_BIN may only run against a DB named *_test, but it points at "${dbName}"`);
+  }
   return {
     port: readPort(env, 'LOOPS_PORT', 7070),
     databaseUrl: url,
     testMode,
     mockExecutor: testMode || mockFlag,
+    ghBin: ghBin || 'gh',
     webRoot: join(ROOT, 'dist', 'web'),
     ...(env.LOOPS_NOTIFY_WEBHOOK ? { notifyWebhook: webhookUrl(env.LOOPS_NOTIFY_WEBHOOK) } : {}),
     ...(testMode && env.LOOPS_TRANSCRIPT_PAGE ? { transcriptPage: transcriptPage(env.LOOPS_TRANSCRIPT_PAGE) } : {}),

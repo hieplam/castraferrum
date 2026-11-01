@@ -16,6 +16,17 @@ describe('config', () => {
     expect(() => loadConfig({ LOOPS_MOCK_EXECUTOR: '1' })).toThrow(/LOOPS_MOCK_EXECUTOR=1 may only run against a DB named \*_test/);
   });
 
+  it('LOOPS_GH_BIN replaces the gh program, and gh is the default', () => {
+    expect(loadConfig({}).ghBin).toBe('gh');
+    expect(loadConfig({ LOOPS_GH_BIN: 'fake-gh.mjs', DATABASE_URL: 'postgres://u:p@127.0.0.1:55432/loops_x_test' }).ghBin).toBe('fake-gh.mjs');
+  });
+
+  it('LOOPS_GH_BIN is refused unless the DB is named *_test', () => {
+    expect(() => loadConfig({ LOOPS_GH_BIN: 'fake-gh.mjs' })).toThrow(
+      /LOOPS_GH_BIN may only run against a DB named \*_test/,
+    );
+  });
+
   it('LOOPS_TRANSCRIPT_PAGE only takes effect in test mode and must be an integer ≥ 1', () => {
     expect(loadConfig({ LOOPS_TEST_MODE: '1', LOOPS_TRANSCRIPT_PAGE: '3' }).transcriptPage).toEqual({ minEntries: 3, maxBytes: 4 * 1024 * 1024 });
     expect(loadConfig({ LOOPS_TEST_MODE: '1' }).transcriptPage).toBeUndefined();

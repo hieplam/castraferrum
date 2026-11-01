@@ -710,6 +710,40 @@ Goal: G9, a PR cannot lower its bar. Issue 251, amends spec 2.9 (Decisions, item
 
 <!-- K3 -->
 
+## K3
+
+Goal G6: the console reads a PR, marks it, and merges only the commit that it checked.
+
+Red (before building): `npx vitest run --project unit server/adapters/github/gh-git-host.test.ts`
+
+    Error: Cannot find module '../../ports/git-host' imported from <worktree>/server/adapters/github/gh-git-host.test.ts
+
+(The test file imports the port before the adapter, so the port is the first missing module. Same failure class as the plan.)
+
+Green:
+
+    $ npx vitest run --project unit server/adapters/github/gh-git-host.test.ts
+          Tests  9 passed (9)
+    $ npx vitest run --project unit server/config.test.ts -t LOOPS_GH_BIN
+          Tests  2 passed | 8 skipped (10)
+    $ npm run arch
+    dependency-cruiser: 0 violations
+    arch-fixtures: 25/25 violations caught
+
+Stub check: `--match-head-commit` removed from the `pr merge` call in `GhGitHost.merge`.
+
+    Tests  2 failed | 7 passed (9)
+    x merge squashes the pull request into main when the sha is the head that was checked
+    x merge with a sha that is not the head throws and merges nothing   (promise resolved instead of rejecting)
+
+Restored, 9 passed again.
+
+Ratchet (unit test count, `npx vitest list --project unit | wc -l`): before 595 (origin/main at the rebase point), after 606. Rise of 11.
+
+Fake gh change (`tests/support/fake-gh.mjs`): reads `-R <repo>`, `pr create` fills `closingIssuesReferences` from "Closes #n", `api -X GET` is accepted. The `pullRequest` test builds its PR through the fake `pr create`, so these are covered.
+
+Verify: full `npm run verify` on the lane database, two runs on a saturated machine. Run 1 stopped at `test:api` (db-migrate 5 s time-out, sse-api); both pass when re-run alone (9 passed). Run 2 passed unit 794, contract 126, api 125, build, and 113 e2e; two e2e tests failed (form UC-09, system UC-15) and both pass when re-run alone (2 passed). `phone:check` gave `phone overflow: 0/12`. No file that these tests cover is reached by this change (the new code is not imported by any server file yet).
+
 <!-- K4 -->
 
 <!-- K5 -->
