@@ -212,3 +212,29 @@ Wave 3 adds K4, K5 and K6. The contracts are decisions 31 to 41 of the spec. **A
 **Stub check:** no comment: the literal test fails. Release in the job: the retry test fails. Search with no OPEN filter: the closed-issue test fails. Merge on red: the first red test fails. Ratify that skips `green`: the failing-green test fails. Run them.
 
 **Ratchet:** unit count rises by 19, api by 3, contract by 2 per side. Metric `merged-on-red`: decision 7.
+
+Wave 4 adds K7. The rules are decision 47 of the spec. It needs K5, K6, K8, P8 and P10 merged.
+
+## K7 - Run-end handover to the gate
+
+**Files:** `probe-service.ts`, `hold-service.ts`, `run-service.ts`, `gate-service.ts`, `contracts.ts`; `server/ports/claims.ts`, claim adapters; `shared/domain/goal-loop.ts` and test; `compose.ts`; `service-kit.ts`; new `server/services/gate-handover.test.ts`, `tests/api/gate-handover.test.ts`; `docs/ARCHITECTURE.md`.
+
+**Steps:**
+1. Kit first: `k.gateQueue`, a fake `Pick<GateService, 'queue'>` that records calls.
+2. `OrphanedClaim` gains `endPr`. `ClaimedStart` and `resumeHeld` gain `gateGuard?: boolean`, passed to `ExecutionInput`, no key when off.
+3. Deps of `DefaultProbeService` and `DefaultHoldService`: `gate: Pick<GateRepository, 'getRepoGate'>`. Probe also `gateQueue`. Compose: build `gateService` before `probeService`.
+4. `laneEnvOf(settings, slot, gateOn = false)`, and the hand-over: decision 47.
+5. `gate-service.ts`, settle: a `plan` row only closes.
+6. `ARCHITECTURE.md`, One run: the hand-over.
+7. Tests, `describe('gate_handover')`, 15: `PR_OPEN`, gate on: 1 `queue` with `{ repoId, prNumber, taskKey }`, owner `gate`, 0 releases; gate off: release, 0 `queue`; env and guard on; off: no key; no-probe loop: no key; null `end_pr`: release; other repository: release; `queue` throws: try at +60 s, 1 hand-over; null `jobId`: the same; `DONE`, on: release; `failed`, on: release; resume keeps env and guard; plan run: `queue`, 0 gateway calls; next tick 0 releases; failed job on a `plan` row closes, 0 releases.
+8. API, 3, `composeServer` with `ghBin: FAKE_GH_SCRIPT`, prompt `[run-end:PR_OPEN:https://github.com/fake/repo/pull/7]`, no ticker: run `succeeded`, a `queued` job with `queued_at` at or after `finished_at`, label kept; gate off: label released, 0 jobs; `[echo-env]` shows `CASTRAFERRUM_GATE`.
+
+**Goal:** G4, G8. A run ends at `PR_OPEN` and does not wait. The gate owns the claim. With the gate off nothing changes.
+
+**Red:** `npx vitest run --project unit server/services/gate-handover.test.ts` prints `Tests  8 failed | 7 passed (15)`. The passes: gate off, off env, no-probe, null `end_pr`, other repository, `DONE`, `failed`. `npx vitest run --project api tests/api/gate-handover.test.ts` prints `Tests  2 failed | 1 passed (3)`.
+
+**Green:** the same commands print `Tests  15 passed (15)` and `gate-handover`, `Tests  3 passed (3)`. `npx vitest run --project unit server/services/probe-claims.test.ts` exits 0 with its case `PR_OPEN with no gate` unchanged. `npm run verify` exits 0.
+
+**Stub check:** never read `repo_gate`: on-cases fail. Set the env only in `#take`: resume fails. No repository test: other repository fails. Release before `queue`: 0 releases fails. Run all.
+
+**Ratchet:** unit +15, api +3. Metric `poll-share`: decision 7.
