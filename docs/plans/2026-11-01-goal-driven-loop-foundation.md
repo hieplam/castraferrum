@@ -163,28 +163,29 @@ Rules for every section: `LOG` means `docs/plans/2026-11-01-goal-driven-loop-evi
 1. Fixture: 40 events `{id:"e01".., at, loop:"loop-a", status, text}`. All 12 usage-limit failures (keep the English error text), 14 rows that name Smart App Control (write one English line for each), 14 neutral rows. No loop name, no Vietnamese, no real id.
 2. Three haiku runs, read-only: ask for a JSON list of `{cause, ids}`. A try is `both` when one cluster holds at least 10 usage-limit ids and one holds at least 10 Smart App Control ids; `one` or `none` otherwise.
 3. If the tries are not 3 of 3, run three sonnet tries the same way.
-4. Sandbox: folder `lc-real-claude-s5`, no write tools, `GH_TOKEN=invalid`. Spend limit: 3.00 USD in total.
+4. Honest check, because the builder wrote the fixture knowing the answer: one more haiku try, read-only, on the real rows of the same window (`started_at < 2026-10-23T00:00:00Z`). Read them from the database `loops` at run time (read-only, as F0 does) and keep them in memory only. Never commit them and never write them to the log: they hold Vietnamese text. Grade it as in step 2 and write `S5 real-rows: both|one|none`. `one` or `none` does not fail the spike. It is the answer that the design needs.
+5. Sandbox: folder `lc-real-claude-s5`, no write tools, `GH_TOKEN=invalid`. Spend limit: 3.00 USD in total, this try included.
 
 **Goal:** G14. The review can group causes.
 
 **Red:** not applicable, because there is no code. The Green command prints `0` now.
 
 **Green:** with `LOG=docs/plans/2026-11-01-goal-driven-loop-evidence.md`:
-- `grep -cP '^S5 (try-[123]-haiku: (both|one|none)|tries-naming-both: [0-3]|sonnet-tries-naming-both: ([0-3]|not-run)|fixture-events: 40|spend-usd: ([0-2]\.[0-9]{2}|3\.00))\r?$' $LOG` prints `7`.
+- `grep -cP '^S5 (try-[123]-haiku: (both|one|none)|tries-naming-both: [0-3]|sonnet-tries-naming-both: ([0-3]|not-run)|real-rows: (both|one|none)|fixture-events: 40|spend-usd: ([0-2]\.[0-9]{2}|3\.00))\r?$' $LOG` prints `8`.
 - `test "$(grep -c '^S5 try-.-haiku: both' $LOG)" = "$(sed -n 's/^S5 tries-naming-both: //p' $LOG | tr -d '\r')" && echo consistent` prints `consistent`.
 - `node scripts/lang-scan.mjs --check-baseline` exits 0.
 - `node -e "console.log(JSON.parse(require('fs').readFileSync('tests/fixtures/process-review/events.json','utf8')).length)"` prints `40`.
 
 **Stub check:** no fixture fails the last line. A log with an answer that disagrees with its tries fails the second line.
 
-**Ratchet:** answer lines for S5, 0 to 7. Spend at most 3.00 USD.
+**Ratchet:** answer lines for S5, 0 to 8. Spend at most 3.00 USD.
 
 ## S6 - cost of an eval pass
 
 **Files:** append `## S6` to the evidence log `docs/plans/2026-11-01-goal-driven-loop-evidence.md`. The pull request is in castraferrum. It only reads agent-plugins.
 
 **Steps:** question: what does one `run_evals.py` pass over the 5 evals of `epic-loop` cost?
-1. Worktree: `git -C ../agent-plugins worktree add --detach ../agent-plugins-s6 origin/main`.
+1. Worktree: `git -C ../agent-plugins worktree add --detach ../agent-plugins-s6 origin/master`.
 2. Make `C:\...\Temp\lc-real-claude-s6`. Run with `TEMP`, `TMP`, `TMPDIR` set to it and `GH_TOKEN=invalid`: `python scripts/evals/run_evals.py --evals plugins/epic-loop/skills/epic-loop/evals/evals.json --mode with_skill --exec-model haiku --grader-model haiku --runs 1 --jobs 1 --out-dir <that folder>/out`. Read `total_cost_usd` of all cases.
 3. Spend limit: 4.00 USD. Kill the process that you started if the total passes it, and write `S6 evals-run` with the cases that ended.
 4. Remove the worktree after.
@@ -224,13 +225,13 @@ Rules for every section: `LOG` means `docs/plans/2026-11-01-goal-driven-loop-evi
 
 **Who:** the owner. The issue has `loop:needs-human`, and a loop never works on it. It needs D1.
 
-**Steps:** the owner pulls `main`, runs `npm ci` and `npm run design:shots -- --design design/ds --dry`, and opens `design/ds/preview/index.html`. The owner looks at the 11 states and their phone twins, light and dark: `probe-waiting`, `probe-held`, `probe-blocked`, `probe-complete`, `run-held`, `gate-queue`, `gate-failed`, `goal-rows`, `scoreboard`, `card-two-way`, `card-one-way`. The owner also reads the new rows of the Statuses table in `design/ds/SYSTEM.md` and the Vietnamese words in `shared/i18n/vi.ts`. The owner answers on this issue. On approval, the owner or a session that the owner names adds the entry `## the goal-loop screens - <date>` to `design/APPROVED.md`, quotes the owner in English, and the owner closes this issue. A change request is a comment, and D1 is reopened.
+**Steps:** the owner runs no command. The coordinator publishes the 44 shots of D1 on one private page and gives the owner the link. The owner looks at the 11 states and their phone twins, light and dark: `probe-waiting`, `probe-held`, `probe-blocked`, `probe-complete`, `run-held`, `gate-queue`, `gate-failed`, `goal-rows`, `scoreboard`, `card-two-way`, `card-one-way`. The page also shows the new rows of the Statuses table and the Vietnamese words of the 19 states. The owner answers in the session chat or on this issue. On approval, the coordinator adds the entry `## the goal-loop screens - <date>` to `design/APPROVED.md` through a PR, quotes the owner in English, and closes this issue. A change request is a comment, and D1 is reopened.
 
 **Goal:** G11, G28. The owner accepts the preview that P15, K12, T6, R9 and W7 build against.
 
 **Red:** not applicable, because approval is a human decision.
 
-**Green:** `grep -c '^## the goal-loop screens' design/APPROVED.md` prints `1`, and `gh issue view <this issue> --json state -q .state` prints `CLOSED`.
+**Green:** `grep -c '^## the goal-loop screens' design/APPROVED.md` prints `1`, and `gh issue view <this issue> --json state -q .state` prints `CLOSED`. The coordinator closes the issue after the owner's answer.
 
 **Stub check:** with no owner action the count is 0 and the state is `OPEN`. A session cannot approve unless the owner delegates it in writing on this issue.
 
