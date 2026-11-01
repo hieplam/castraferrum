@@ -1162,9 +1162,9 @@ export function repositoryContract(env: () => ContractEnv): void {
       const { id } = await claimWithRun('succeeded');
       const loop = await r.loops.insert(newLoop());
       const lost = await openClaim(loop.id, '200', 7);
-      expect((await r.claims.findOrphaned(10)).map((c) => [c.id, c.runStatus, c.endResult])).toEqual([
-        [id, 'succeeded', 'PR_OPEN'],
-        [lost.id, null, null],
+      expect((await r.claims.findOrphaned(10)).map((c) => [c.id, c.runStatus, c.endResult, c.endPr])).toEqual([
+        [id, 'succeeded', 'PR_OPEN', 'https://x/pull/7'],
+        [lost.id, null, null, null],
       ]);
     });
 

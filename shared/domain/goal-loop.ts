@@ -239,6 +239,7 @@ export function laneEnvOf(settings: Pick<ProbeSettings, 'laneEnv' | 'laneBasePor
     env[name] = port === null ? filled : filled.split('{port}').join(port);
   }
   env.CASTRAFERRUM_SLOT = String(slot);
+  delete env.CASTRAFERRUM_GATE;
   if (gateOn) env.CASTRAFERRUM_GATE = '1';
   return env;
 }

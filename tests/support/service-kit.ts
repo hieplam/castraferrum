@@ -147,7 +147,7 @@ export class ScriptedExecutor implements LoopExecutor {
 /** A fake `Pick<GateService, 'queue'>` that records calls. By default each call writes a new job row, because a claim row points at its job. `answer` replaces that, and a throw stands for a failed `gh`. */
 export class FakeGateQueue implements Pick<GateService, 'queue'> {
   readonly calls: GateQueueInput[] = [];
-  answer: ((input: GateQueueInput) => GateQueueResult) | null = null;
+  answer: ((input: GateQueueInput) => GateQueueResult | Promise<GateQueueResult>) | null = null;
 
   constructor(private readonly gate: Pick<GateRepository, 'enqueue'>) {}
 

@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { describe, expect, test } from 'vitest';
 import architecture from '../../docs/ARCHITECTURE.md?raw';
-import { claimedLine, laneEnvOf, lowestFreeSlot, parseProbeLine, RESUME_LINE } from './goal-loop';
+import { claimedLine, laneEnvOf, lowestFreeSlot, parseProbeLine, prNumberOf, RESUME_LINE } from './goal-loop';
 
 const base = {
   v: 1,
@@ -150,6 +150,35 @@ describe('lanes', () => {
   test('laneEnvOf: no lane env gives only the slot, and a lane env cannot set the slot itself', () => {
     expect(laneEnvOf({ laneEnv: {}, laneBasePort: null }, 1)).toEqual({ CASTRAFERRUM_SLOT: '1' });
     expect(laneEnvOf({ laneEnv: { CASTRAFERRUM_SLOT: '9' }, laneBasePort: null }, 1)).toEqual({ CASTRAFERRUM_SLOT: '1' });
+  });
+
+  test('laneEnvOf: the gate adds CASTRAFERRUM_GATE, off gives no key, and a lane env cannot set it', () => {
+    expect(laneEnvOf({ laneEnv: {}, laneBasePort: null }, 1, true)).toEqual({ CASTRAFERRUM_SLOT: '1', CASTRAFERRUM_GATE: '1' });
+    expect(laneEnvOf({ laneEnv: {}, laneBasePort: null }, 1)).toEqual({ CASTRAFERRUM_SLOT: '1' });
+    expect(laneEnvOf({ laneEnv: { CASTRAFERRUM_GATE: '0' }, laneBasePort: null }, 1, true).CASTRAFERRUM_GATE).toBe('1');
+    expect(laneEnvOf({ laneEnv: { CASTRAFERRUM_GATE: '1' }, laneBasePort: null }, 1)).toEqual({ CASTRAFERRUM_SLOT: '1' });
+  });
+
+  test('prNumberOf: a link of the repository gives its number, with no regard to case', () => {
+    expect(prNumberOf('https://github.com/o/r/pull/7', 'o/r')).toBe(7);
+    expect(prNumberOf('https://GitHub.com/O/R/pull/2147483647', 'o/r')).toBe(2147483647);
+  });
+
+  test.each([
+    [null],
+    [''],
+    ['7'],
+    ['https://github.com/o/other/pull/7'],
+    ['https://github.com/o/r/pull/7/files'],
+    ['https://github.com/o/r/pull/7#issuecomment-1'],
+    ['https://github.com/o/r/issues/7'],
+    ['https://github.com/o/r/pull/0'],
+    ['https://github.com/o/r/pull/2147483648'],
+    ['http://github.com/o/r/pull/7'],
+    ['https://github.example/o/r/pull/7'],
+    ['https://evil.test/https://github.com/o/r/pull/7'],
+  ])('prNumberOf: %s gives null', (link) => {
+    expect(prNumberOf(link, 'o/r')).toBeNull();
   });
 
   test('claimedLine: the prompt line of spec 2.7, with the key and the action', () => {
