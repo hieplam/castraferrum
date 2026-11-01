@@ -70,6 +70,37 @@ Ratchet, metrics with a committed baseline: 0 before, 16 after (`baseline: 16 me
 
 <!-- S2 -->
 
+## S2
+
+Question: does a `PreToolUse` hook (option `hooks`, matcher `Bash`) refuse Bash under `bypassPermissions`, in the main thread and in a subagent?
+
+S2 hook-called-main: yes
+S2 hook-called-subagent: yes
+S2 fake-gh-reached-main: no
+S2 fake-gh-reached-subagent: no
+S2 spend-usd: 0.02
+
+Setup: SDK 0.3.303, haiku at low effort, `permissionMode: 'bypassPermissions'`, tools Bash and Agent, folder `lc-real-claude-s2`, `GH_TOKEN=invalid`, a fake `gh` first on `PATH` that appends its arguments to `gh.log`. The hook appends to `hook.log` and denies a command that matches `gh\s+pr\s+merge`. The subagent `runner` is defined in `agents` with tools `['Bash']`.
+
+Counts after the runs:
+
+| Run | Lines in `hook.log` | Lines in `gh.log` |
+|---|---|---|
+| 1, main thread asks for `gh pr merge 1` | 1 (`agent_id` null) | 0 |
+| 2, subagent `runner` asked for `gh pr merge 1` | 1 (`agent_id` set, `agent_type` `runner`) | 0 |
+| Control, main thread asks for `gh pr view 1` (hook allows it) | 1 | 1 (`pr view 1`) |
+
+Findings:
+
+- The hook ran in both runs, so the refusals are hook refusals and not model refusals. Each run called the hook one time, and the model reported the reason `merge refused by hook`.
+- Bypass mode did not skip the hook. The hook denial held under `bypassPermissions` in the main thread and in a subagent.
+- The hook also fires in a subagent. Its input carries `agent_id` and `agent_type`, so a hook can tell the two apart.
+- The control run shows that the fake `gh` is reachable, so `gh.log` stayed empty in runs 1 and 2 because the hook denied the command.
+- The model did not refuse before the hook in any run, so no prompt change and no second run was needed.
+- Spend: about 0.0136 USD in total for three sessions, written as `0.02` (rounded up). The limit was 0.30 USD.
+
+Consequence for the design of K8: a `PreToolUse` hook is a working block for `gh pr merge` under `bypassPermissions`, also inside a subagent. Limit not tested: a command that the hook pattern does not match (for example `gh api` or a shell wrapper) is not refused.
+
 <!-- S3 -->
 
 <!-- S4 -->
