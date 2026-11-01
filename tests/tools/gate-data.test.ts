@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { matchesGlob, parseGateConfig, parseVerifyFile, verifyEntryFiles } from '../../shared/domain/scope-guard';
+import { checkScope, matchesGlob, parseGateConfig, parseVerifyFile, verifyEntryFiles } from '../../shared/domain/scope-guard';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const read = (path: string) => readFileSync(`${root}/${path}`, 'utf8');
@@ -21,20 +21,42 @@ function specBlock(): { guarded: string[]; testGlobs: string[] } {
 const EXTENSIONS = ['', '.mjs', '.mts', '.ts', '.js', '.json', '/index.mjs', '/index.ts', '/index.js'];
 const IMPORT = /(?:\bfrom|\bimport|\brequire)\s*\(?\s*['"](\.{1,2}\/[^'"]+)['"]/g;
 
-/** Every file that the entry files import with a relative path, followed to the end. Throws on an import that does not resolve. */
-function importClosure(entries: string[]): string[] {
+/** Product code is exercised by `verify` itself, so it is not part of the bar and the guard does not cover it (spec 2.9, amendment of issue 251). */
+const PRODUCT = /^(server|shared|web)\//;
+
+/** The lifecycle scripts that `npm ci` runs, with the one text of each that has no script file. Any other text is read as a command line. */
+const LIFECYCLE: Record<string, string | undefined> = {
+  preinstall: undefined,
+  install: undefined,
+  postinstall: undefined,
+  prepublish: undefined,
+  preprepare: undefined,
+  prepare: 'git config core.hooksPath .githooks || true',
+  postprepare: undefined,
+};
+
+/** The config file that each tool of `verify` reads. `.npmrc` changes how `npm run` itself works. */
+const TOOL_CONFIGS = ['vite.config.ts', 'tsconfig.json', 'vitest.config.ts', 'playwright.config.ts', '.npmrc'];
+
+interface Tree {
+  read(path: string): string;
+  isFile(path: string): boolean;
+}
+
+const diskTree: Tree = { read, isFile: (path) => existsSync(`${root}/${path}`) && !isDirectory(path) };
+
+/** Every file that the entry files import with a relative path, followed to the end (product code excepted). Throws on an import that does not resolve. */
+function importClosure(entries: string[], tree: Tree = diskTree): string[] {
   const seen = new Set<string>();
   const queue = [...entries];
   while (queue.length > 0) {
     const file = posix.normalize(queue.pop()!);
     if (seen.has(file)) continue;
     seen.add(file);
-    if (!/\.(mjs|mts|ts|js)$/.test(file)) continue;
-    // A test file is covered by the stub check, so the closure stops there (a follow-up issue covers tests/support).
-    if (matchesGlob(file, gate.testGlobs) && !matchesGlob(file, gate.guarded)) continue;
-    for (const match of read(file).matchAll(IMPORT)) {
+    if (!/\.(mjs|mts|ts|js)$/.test(file) || PRODUCT.test(file)) continue;
+    for (const match of tree.read(file).matchAll(IMPORT)) {
       const target = posix.join(posix.dirname(file), match[1]!);
-      const found = EXTENSIONS.map((ext) => target + ext).find((candidate) => existsSync(`${root}/${candidate}`) && !isDirectory(candidate));
+      const found = EXTENSIONS.map((ext) => target + ext).find((candidate) => tree.isFile(candidate));
       if (found === undefined) throw new Error(`${file} imports ${match[1]!}, which does not resolve`);
       queue.push(found);
     }
@@ -50,9 +72,22 @@ function isDirectory(path: string): boolean {
   }
 }
 
-/** The files that no entry of `guarded` matches. A file in `testGlobs` is a test: the stub check covers it, not the guard. */
+/** The script files that `npm ci` runs through its lifecycle scripts. Throws on a command that it does not know. */
+function lifecycleFiles(scripts: Record<string, string>): string[] {
+  return Object.entries(LIFECYCLE).flatMap(([name, noFile]) => {
+    if (!Object.hasOwn(scripts, name) || scripts[name] === noFile) return [];
+    return verifyEntryFiles(scripts, name);
+  });
+}
+
+/** The entry files of the bar: what `verify` and `npm ci` run, and the config of each tool that `verify` calls. */
+function barEntries(scriptMap: Record<string, string>, tree: Tree = diskTree): string[] {
+  return [...verifyEntryFiles(scriptMap), ...lifecycleFiles(scriptMap), ...TOOL_CONFIGS.filter((file) => tree.isFile(file))];
+}
+
+/** The files that no entry of `guarded` matches. Test support files that a script reaches count: no exemption by `testGlobs`. */
 function unguarded(files: string[]): string[] {
-  return files.filter((file) => !matchesGlob(file, gate.guarded) && !matchesGlob(file, gate.testGlobs));
+  return files.filter((file) => !matchesGlob(file, gate.guarded) && !PRODUCT.test(file));
 }
 
 describe('goals data files', () => {
@@ -71,10 +106,44 @@ describe('goals data files', () => {
     expect(gate.verify).toEqual(['npm run verify']);
   });
 
-  it('every script file that npm run verify reaches, and every file that these import, is guarded', () => {
-    const entries = verifyEntryFiles(scripts);
+  it('every file that npm run verify and npm ci reach, and every file that these import, is guarded', () => {
+    const entries = barEntries(scripts);
     expect(entries.length).toBeGreaterThan(5);
-    expect(unguarded(importClosure(entries))).toEqual([]);
+    expect(entries).toEqual(expect.arrayContaining(['scripts/install-webkit.mjs', 'scripts/phone-check.mts', 'vite.config.ts']));
+    const closure = importClosure(entries);
+    expect(closure).toEqual(expect.arrayContaining(['tests/support/server-process.ts', 'tests/support/test-repo.ts']));
+    expect(unguarded(closure)).toEqual([]);
+  });
+
+  it('a PR that changes one of these files gets the verdict guarded', () => {
+    for (const path of ['tests/support/server-process.ts', 'tests/support/test-repo.ts', 'tests/support/tcp-proxy.ts', 'scripts/install-webkit.mjs', 'vite.config.ts', '.npmrc']) {
+      expect(checkScope({ changed: [{ status: 'M', path }], guarded: gate.guarded, verifyChanges: [] }).verdict, path).toBe('guarded');
+    }
+  });
+
+  it('a task PR that adds a test support file that no script reaches passes', () => {
+    expect(checkScope({ changed: [{ status: 'A', path: 'tests/support/fake-gh-kit.ts' }], guarded: gate.guarded, verifyChanges: [] }).verdict).toBe('pass');
+  });
+
+  it('a fixture: a script that imports a new tests/support file is not guarded', () => {
+    const files: Record<string, string> = {
+      'scripts/phone-check.mts': "import { Helper } from '../tests/support/new-helper.ts';",
+      'tests/support/new-helper.ts': "import { x } from '../../server/config';",
+      'server/config.ts': "import { y } from './not-followed';",
+    };
+    const tree: Tree = { read: (path) => files[path] ?? '', isFile: (path) => path in files };
+    const closure = importClosure(['scripts/phone-check.mts'], tree);
+    expect(closure).toEqual(expect.arrayContaining(['tests/support/new-helper.ts']));
+    expect(unguarded(closure)).toEqual(['tests/support/new-helper.ts']);
+  });
+
+  it('a fixture: a new postinstall script file is not guarded', () => {
+    const files = lifecycleFiles({ postinstall: 'node scripts/new-setup.mjs', prepare: 'git config core.hooksPath .githooks || true' });
+    expect(unguarded(files)).toEqual(['scripts/new-setup.mjs']);
+  });
+
+  it('a fixture: a changed prepare script is read as a command line and throws', () => {
+    expect(() => lifecycleFiles({ prepare: 'git config core.hooksPath .githooks || node scripts/evil.mjs' })).toThrow(/shell syntax|unknown command/);
   });
 
   it('a verify line with node scripts/evil.mjs is not guarded', () => {

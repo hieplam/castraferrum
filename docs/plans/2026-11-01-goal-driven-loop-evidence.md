@@ -494,6 +494,19 @@ Goal: G9, a PR cannot lower its bar, and a plan PR only adds keys. Issue 242, PR
 - Ratchet: `npx vitest list --project unit | wc -l` went 438 -> 532 (rebased base). The list counts an `it.each` once, so +94 here is not the plan's +84 (which counts each case).
 - Decisions: the plan said 33 entries, spec 2.9 holds 29, so 4 near-miss tests fill the 33. The import check in `gate-data.test.ts` stops at test files (issue 251 covers `tests/support`, `postinstall`, `vite.config.ts`, `.npmrc`).
 
+<!-- 251 -->
+
+## 251
+
+Goal: G9, a PR cannot lower its bar. Issue 251, amends spec 2.9 (Decisions, item 20).
+
+- Red (before building): `npx vitest run --project unit tests/tools/gate-data.test.ts` printed `Tests  2 failed | 9 passed (11)`. The closure test showed the unguarded files `vite.config.ts`, `scripts/install-webkit.mjs`, `tests/support/test-repo.ts`, `tests/support/server-process.ts`, `tests/support/tcp-proxy.ts`. The scope test showed `Expected: "guarded"  Received: "pass"` for `tests/support/server-process.ts`.
+- Green: the same command printed `Tests  11 passed (11)`. `npx vitest run --project unit tests/tools/gate-data.test.ts shared/domain` printed `Test Files  6 passed (6)`, `Tests  347 passed (347)`.
+- Stub check: `goals/gate.json` restored to the base commit (entries removed) printed `Tests  3 failed | 8 passed (11)`: the closure test, the verdict test and the spec equality test.
+- Fixtures that must fail: a fixture tree with a script that imports a new `tests/support` file, and a `postinstall` that runs a new script, both give an unguarded file. A `prepare` with a changed text throws.
+- Ratchet: `npx vitest list --project unit | wc -l` went 587 -> 592.
+- Decisions: `tests/support/` stays unguarded as a directory, because task PRs add files there; only the 3 reached files are listed. `server/config.ts` (imported by `server-process.ts`) is product code that `verify` exercises, so the closure stops at `server/`, `shared/` and `web/`. `.npmrc` does not exist in the tree: it is listed so that a PR that adds it is stopped.
+
 <!-- K2 -->
 
 <!-- K3 -->
