@@ -66,4 +66,7 @@ export interface GitHost {
    * host gives 1000 issues, because the list can be cut off.
    */
   loopComments(repo: string, since: Date): Promise<LoopComment[]>;
+  issueState(repo: string, number: number): Promise<'OPEN' | 'CLOSED'>;
+  /** Adds `child` to the sub-issues of `parent`. */
+  addSubIssue(repo: string, parent: number, child: number): Promise<void>;
 }

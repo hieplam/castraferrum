@@ -26,6 +26,22 @@ export type StandingIssueRecord = {
   closedAt: Date | null;
 };
 
+export type GoalCadence = 'merge' | 'nightly';
+
+/** The last result of one row of a goal manifest (decision 42). `manifest` is the path of the file, for example `goals/x.json`. */
+export type GoalRunRecord = {
+  repo: string;
+  manifest: string;
+  rowId: string;
+  pass: boolean;
+  value: number | null;
+  of: number | null;
+  line: string;
+  cadence: GoalCadence;
+  sha: string;
+  at: Date;
+};
+
 /** When the standing goals of a repository ran last and run next. `nextAt` is `null` when the cron has no later time. */
 export type StandingScheduleRecord = {
   repo: string;

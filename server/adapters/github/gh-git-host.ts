@@ -186,4 +186,14 @@ export class GhGitHost implements GitHost {
         .map((c) => ({ issue: i.number, id: c.id, at: new Date(c.createdAt), body: c.body })),
     );
   }
+
+  async issueState(repo: string, number: number): Promise<'OPEN' | 'CLOSED'> {
+    return (await this.json<{ state: 'OPEN' | 'CLOSED' }>(['issue', 'view', String(number), '-R', repo, '--json', 'state'])).state;
+  }
+
+  /** The API takes the id of the child, which is not its number. `-F` sends it as a number. */
+  async addSubIssue(repo: string, parent: number, child: number): Promise<void> {
+    const { id } = await this.json<{ id: number }>(['api', `repos/${repo}/issues/${child}`]);
+    await this.gh(['api', '-X', 'POST', `repos/${repo}/issues/${parent}/sub_issues`, '-F', `sub_issue_id=${id}`]);
+  }
 }

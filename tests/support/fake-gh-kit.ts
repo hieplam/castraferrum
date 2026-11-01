@@ -74,6 +74,8 @@ export interface FakeWorld {
   prs: FakePr[];
   statuses: Record<string, FakeStatus[]>;
   checkRuns: Record<string, Record<string, unknown>[]>;
+  /** The numbers of the sub-issues of each parent. */
+  subIssues: Record<string, number[]>;
   calls: { args: string[]; exit: number }[];
 }
 export interface FakeGh {
@@ -96,7 +98,7 @@ export const FAKE_GH_SCRIPT = join(dirname(fileURLToPath(import.meta.url)), 'fak
 export function createFakeGh(bare?: BareRepo): FakeGh {
   const dir = mkdtempSync(join(tmpdir(), 'lc-fake-gh-'));
   const world = join(dir, 'world.json');
-  const empty: FakeWorld = { bare: bare?.bare ?? null, issues: [], labels: [], prs: [], statuses: {}, checkRuns: {}, calls: [] };
+  const empty: FakeWorld = { bare: bare?.bare ?? null, issues: [], labels: [], prs: [], statuses: {}, checkRuns: {}, subIssues: {}, calls: [] };
   writeFileSync(world, JSON.stringify(empty, null, 2));
 
   let bin: string;

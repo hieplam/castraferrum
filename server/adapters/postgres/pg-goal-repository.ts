@@ -1,6 +1,7 @@
 import type pg from 'pg';
-import type { StandingGoalRecord, StandingGoalState, StandingIssueRecord, StandingScheduleRecord } from '../../../shared/domain/standing-goal';
+import type { GoalCadence, GoalRunRecord, StandingGoalRecord, StandingGoalState, StandingIssueRecord, StandingScheduleRecord } from '../../../shared/domain/standing-goal';
 import type { GoalRepository, NewStandingIssueRecord } from '../../ports/goal-repository';
+import { withTx } from './pg-util';
 
 type Row = Record<string, unknown>;
 
@@ -30,6 +31,21 @@ function toIssue(r: Row): StandingIssueRecord {
 
 function toSchedule(r: Row): StandingScheduleRecord {
   return { repo: r.repo as string, lastAt: r.last_at as Date, nextAt: (r.next_at as Date | null) ?? null };
+}
+
+function toRun(r: Row): GoalRunRecord {
+  return {
+    repo: r.repo as string,
+    manifest: r.manifest as string,
+    rowId: r.row_id as string,
+    pass: r.pass as boolean,
+    value: (r.value as number | null) ?? null,
+    of: (r.of as number | null) ?? null,
+    line: r.line as string,
+    cadence: r.cadence as GoalCadence,
+    sha: r.sha as string,
+    at: r.at as Date,
+  };
 }
 
 export class PgGoalRepository implements GoalRepository {
@@ -101,5 +117,23 @@ export class PgGoalRepository implements GoalRepository {
        ON CONFLICT (repo) DO UPDATE SET last_at = EXCLUDED.last_at, next_at = EXCLUDED.next_at`,
       [s.repo, s.lastAt, s.nextAt],
     );
+  }
+
+  async saveRows(rows: GoalRunRecord[]): Promise<void> {
+    await withTx(this.#pool, async (c) => {
+      for (const r of rows) {
+        await c.query(
+          `INSERT INTO goal_runs (repo, manifest, row_id, pass, value, "of", line, cadence, sha, at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+           ON CONFLICT (repo, manifest, row_id) DO UPDATE SET pass = EXCLUDED.pass, value = EXCLUDED.value, "of" = EXCLUDED."of", line = EXCLUDED.line,
+             cadence = EXCLUDED.cadence, sha = EXCLUDED.sha, at = EXCLUDED.at`,
+          [r.repo, r.manifest, r.rowId, r.pass, r.value, r.of, r.line, r.cadence, r.sha, r.at],
+        );
+      }
+    });
+  }
+
+  async listRows(repo: string, manifest: string): Promise<GoalRunRecord[]> {
+    const { rows } = await this.#pool.query('SELECT * FROM goal_runs WHERE repo = $1 AND manifest = $2 ORDER BY row_id COLLATE "C"', [repo, manifest]);
+    return rows.map(toRun);
   }
 }

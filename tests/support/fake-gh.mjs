@@ -25,6 +25,8 @@
 //   api [-X POST] repos/fake/repo/statuses/<sha> -f state= -f context= -f description=
 //   api [-X GET] repos/fake/repo/commits/<sha>/status
 //   api repos/fake/repo/commits/<sha>/check-runs
+//   api repos/fake/repo/issues/<n>                         prints { id, number }; `id` is not the number, as on GitHub
+//   api -X POST repos/fake/repo/issues/<n>/sub_issues -F sub_issue_id=<id>      adds the child number to `world.subIssues[n]`
 // `--json` takes comma-separated GitHub field names. Every call, a failed one too, is appended to `calls`.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -46,7 +48,7 @@ function loadWorld() {
   if (!worldPath) throw new Exit(2, 'fake-gh: FAKE_GH_WORLD is not set');
   const w = JSON.parse(readFileSync(worldPath, 'utf8'));
   for (const k of ['issues', 'prs', 'calls', 'labels']) w[k] ??= [];
-  for (const k of ['statuses', 'checkRuns']) w[k] ??= {};
+  for (const k of ['statuses', 'checkRuns', 'subIssues']) w[k] ??= {};
   w.bare ??= null;
   return w;
 }
@@ -105,6 +107,8 @@ function git(cwd, gitArgs) {
     { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
   ).trim();
 }
+
+const ISSUE_ID_BASE = 9000;
 
 function issueCmd(w, sub, rest) {
   const { flags, positional } = parse(rest);
@@ -283,6 +287,13 @@ function apiCmd(w, rest) {
   } else if ((m = path.match(/^repos\/fake\/repo\/commits\/([0-9a-f]+)\/check-runs$/)) && (!flags.method || flags.method === 'GET')) {
     const runs = w.checkRuns[m[1]] ?? [];
     print({ total_count: runs.length, check_runs: runs });
+  } else if ((m = path.match(/^repos\/fake\/repo\/issues\/(\d+)$/)) && (!flags.method || flags.method === 'GET')) {
+    const issue = find(w.issues, m[1], 'issue');
+    print({ id: ISSUE_ID_BASE + issue.number, number: issue.number });
+  } else if ((m = path.match(/^repos\/fake\/repo\/issues\/(\d+)\/sub_issues$/)) && flags.method === 'POST') {
+    const child = find(w.issues, Number(fields.sub_issue_id) - ISSUE_ID_BASE, 'issue');
+    (w.subIssues[m[1]] ??= []).push(child.number);
+    print({ number: child.number });
   } else return false;
   return true;
 }

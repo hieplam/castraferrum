@@ -1,8 +1,8 @@
-import type { StandingGoalRecord, StandingIssueRecord, StandingScheduleRecord } from '../../shared/domain/standing-goal';
+import type { GoalRunRecord, StandingGoalRecord, StandingIssueRecord, StandingScheduleRecord } from '../../shared/domain/standing-goal';
 
 export type NewStandingIssueRecord = Pick<StandingIssueRecord, 'id' | 'repo' | 'rowId' | 'fingerprint' | 'issueNumber' | 'openedAt'>;
 
-/** Standing goals (tables `standing_goals`, `standing_issues` and `standing_schedule`). */
+/** Standing goals and goal rows (tables `standing_goals`, `standing_issues`, `standing_schedule` and `goal_runs`). */
 export interface GoalRepository {
   getGoal(repo: string, rowId: string): Promise<StandingGoalRecord | null>;
   /** Inserts the row, or replaces the row of the same repository and row id. */
@@ -20,4 +20,8 @@ export interface GoalRepository {
   getSchedule(repo: string): Promise<StandingScheduleRecord | null>;
   /** Inserts the row, or replaces the row of the same repository. */
   saveSchedule(schedule: StandingScheduleRecord): Promise<void>;
+  /** Inserts each row, or replaces the row of the same repository, manifest and row id. */
+  saveRows(rows: GoalRunRecord[]): Promise<void>;
+  /** The last result of each row of a manifest, by row id. */
+  listRows(repo: string, manifest: string): Promise<GoalRunRecord[]>;
 }

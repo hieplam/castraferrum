@@ -37,6 +37,7 @@ import { startTicker, type Ticker } from './scheduler/ticker';
 import type { BackgroundService, RecoveryReport } from './services/contracts';
 import { DefaultFolderService } from './services/folder-service';
 import { DefaultGateService } from './services/gate-service';
+import { DefaultGoalService } from './services/goal-service';
 import { DefaultHealthService } from './services/health-service';
 import { DefaultHoldService } from './services/hold-service';
 import { DefaultLiveService } from './services/live-service';
@@ -144,11 +145,14 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
   const holdService = new DefaultHoldService({ ...repos, commands, runService, clock });
   // The gate merges only for a repository with `repo_gate.enabled`, which is false until a person turns it on.
   const gitHost = new GhGitHost({ runner: commands, ghBin: opts.ghBin ?? 'gh' });
+  const gateWorkspace = new GitGateWorkspace({ runner: commands, root: join(tmpdir(), 'castraferrum-gate') });
+  const goalService = new DefaultGoalService({ goals: repos.goals, repos: repos.repos, gate: repos.gate, host: gitHost, workspace: gateWorkspace, clock, ids });
   const gateService = new DefaultGateService({
     gate: repos.gate,
     repos: repos.repos,
     host: gitHost,
-    workspace: new GitGateWorkspace({ runner: commands, root: join(tmpdir(), 'castraferrum-gate') }),
+    workspace: gateWorkspace,
+    goals: goalService,
     commands,
     claims: repos.claims,
     probes: repos.probes,

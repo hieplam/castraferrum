@@ -78,6 +78,13 @@
       "when": 1793559946771,
       "tag": "0010_useful_hannibal_king",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793565589790,
+      "tag": "0011_tranquil_the_twelve",
+      "breakpoints": true
     }
   ]
 }

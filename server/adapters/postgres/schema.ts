@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import {
   boolean,
   check,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -370,6 +371,24 @@ export const standingIssues = pgTable(
     closedAt: ts('closed_at'),
   },
   (t) => [uniqueIndex('standing_issues_one_open_per_fingerprint').on(t.repo, t.fingerprint).where(sql`${t.closedAt} IS NULL`)],
+);
+
+/** The last result of each row of a goal manifest (decision 42), so `loop-goals:` counts every row of the manifest. */
+export const goalRuns = pgTable(
+  'goal_runs',
+  {
+    repo: text('repo').notNull(),
+    manifest: text('manifest').notNull(),
+    rowId: text('row_id').notNull(),
+    pass: boolean('pass').notNull(),
+    value: doublePrecision('value'),
+    of: doublePrecision('of'),
+    line: text('line').notNull(),
+    cadence: text('cadence').notNull(),
+    sha: text('sha').notNull(),
+    at: ts('at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.repo, t.manifest, t.rowId] }), check('goal_runs_cadence', sql`${t.cadence} IN ('merge','nightly')`)],
 );
 
 /** When the standing goals of a repository ran last and run next. `next_at` is empty when the cron has no later time. */

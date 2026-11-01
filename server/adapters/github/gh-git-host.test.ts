@@ -195,6 +195,23 @@ describe('GhGitHost on the fake gh and a bare repository', () => {
     expect((err as GitHostError).message).toContain('cut off');
   });
 
+  it('issueState gives OPEN, then CLOSED', async () => {
+    await host.openIssue(REPO, { title: 'T', body: 'B', labels: [] });
+    expect(await host.issueState(REPO, 1)).toBe('OPEN');
+    await host.closeIssue(REPO, 1);
+    expect(await host.issueState(REPO, 1)).toBe('CLOSED');
+  });
+
+  it('addSubIssue reads the id of the child and posts it to the parent', async () => {
+    await host.openIssue(REPO, { title: 'parent', body: '', labels: [] });
+    await host.openIssue(REPO, { title: 'child', body: '', labels: [] });
+    await host.addSubIssue(REPO, 1, 2);
+    expect(gh.read().subIssues).toEqual({ 1: [2] });
+    const calls = gh.read().calls.map((c) => c.args).filter((args) => args[0] === 'api');
+    expect(calls[0]).toEqual(['api', 'repos/fake/repo/issues/2']);
+    expect(calls[1]?.slice(1, 5)).toEqual(['-X', 'POST', 'repos/fake/repo/issues/1/sub_issues', '-F']);
+  });
+
   it('a gh call that exits 1 throws a GitHostError with the exit code and the stderr', async () => {
     const err = await host.pullRequest(REPO, 99).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(GitHostError);
