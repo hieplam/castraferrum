@@ -345,6 +345,20 @@ environment minus `ANTHROPIC_API_KEY` (the login is used, not a key). It does no
 it only logs lifecycle lines (start with session id, finish with state and cost) and records the final text as
 the summary and the SDK's cost. Tool calls and thoughts stay in Claude Code's own transcript.
 
+### The review tool profile
+
+A process-review run uses the tool profile `review`. The run service reads it from the variable
+`CASTRAFERRUM_TOOL_PROFILE` of the lane env: no variable or `full` gives a run exactly as before, `review` gives
+`ExecutionInput.toolProfile = 'review'`, and any other word fails the run before the executor with
+`Unknown tool profile "<value>"`. For `review` the Claude executor passes `tools: ['Read','Grep','Glob','Bash','Write']`
+and adds one `PreToolUse` hook (matcher `.*`, after the merge guard entry if there is one). The hook calls
+`checkReviewTool` (`shared/domain/review-guard.ts`) for every call, also in a subagent. `Write` is allowed only
+inside `reports/process-review/` of the run folder. `Bash` is allowed only for `scripts/process-review.mjs`,
+`scripts/process-file-issues.mjs` and `scripts/process-review-due.mjs`, with a value of `--out` inside that folder.
+Every other tool, `mcp__*` too, is refused. A scratch folder cannot be the limit, because it holds no session
+(issue 311): the hook is the only limit. Limit: a script on the allowed list is trusted, and a link inside the
+folder that points outside is not resolved.
+
 ### A run ends when Claude Code exits, not at the first result
 
 The first `result` message is not the end of a run. When the agent starts a background command and ends its

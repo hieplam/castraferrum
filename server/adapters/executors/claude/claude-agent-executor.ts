@@ -1,8 +1,10 @@
 import { stat } from 'node:fs/promises';
+import { join } from 'node:path';
 import { query as sdkQuery, type HookCallback, type Options, type SDKMessage, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
 import { formatUsd, REPO_MISSING_PREFIX } from '../../../../shared/domain/cost';
 import { checkMergeCommand } from '../../../../shared/domain/merge-guard';
+import { checkReviewTool, REVIEW_TOOLS } from '../../../../shared/domain/review-guard';
 import { parseRunEnd, type RunEnd } from '../../../../shared/domain/run-end';
 import type { ExecutionEvent, ExecutionInput, ExecutorDescriptor, LoopExecutor } from '../../../ports/executor';
 
@@ -84,6 +86,8 @@ export type ClaudeAgentExecutorOptions = {
   cleanupMs?: number;
   /** How long the executor reads on after the first usage-limit trigger (default 5 seconds), so a hung stream cannot hang a run. */
   limitSettleMs?: number;
+  /** Called by the hook of a `review` run for each tool call, allowed or denied. Tests count the calls, because a model that wrote nothing proves nothing. */
+  onGuard?: (event: { tool: string; deny: boolean; rule?: string }) => void;
 };
 
 const SUMMARY_MAX = 500;
@@ -164,6 +168,18 @@ const mergeGuardHook: HookCallback = async (hookInput) => {
   return { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: check.reason } };
 };
 
+/** The `PreToolUse` hook of a run with the `review` tool profile (decision 49): every tool call goes through `checkReviewTool`. */
+function reviewGuardHook(reviewDir: string, onGuard: ClaudeAgentExecutorOptions['onGuard']): HookCallback {
+  return async (hookInput) => {
+    const { tool_name: toolName, tool_input: toolInput } = hookInput as { tool_name?: unknown; tool_input?: unknown };
+    const tool = typeof toolName === 'string' ? toolName : '';
+    const check = checkReviewTool(tool, toolInput, reviewDir);
+    onGuard?.(check.deny ? { tool, deny: true, rule: check.rule } : { tool, deny: false });
+    if (!check.deny) return {};
+    return { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: check.reason } };
+  };
+}
+
 export class ClaudeAgentExecutor implements LoopExecutor {
   readonly kind = 'claude';
   readonly #query: QueryFn;
@@ -173,6 +189,7 @@ export class ClaudeAgentExecutor implements LoopExecutor {
   readonly #settleMs: number;
   readonly #cleanupMs: number;
   readonly #limitSettleMs: number;
+  readonly #onGuard: ClaudeAgentExecutorOptions['onGuard'];
 
   constructor(opts: ClaudeAgentExecutorOptions = {}) {
     this.#query = opts.query ?? (sdkQuery as QueryFn);
@@ -182,6 +199,7 @@ export class ClaudeAgentExecutor implements LoopExecutor {
     this.#settleMs = opts.settleMs ?? SETTLE_MS;
     this.#cleanupMs = opts.cleanupMs ?? CLEANUP_MS;
     this.#limitSettleMs = opts.limitSettleMs ?? LIMIT_SETTLE_MS;
+    this.#onGuard = opts.onGuard;
   }
 
   describe(): ExecutorDescriptor {
@@ -241,6 +259,11 @@ export class ClaudeAgentExecutor implements LoopExecutor {
       wakeInput?.();
     };
 
+    // The merge guard entry (K8) stays as it is. The review entry comes after it, with the matcher `.*`.
+    const preToolUse = [
+      ...(input.gateGuard ? [{ matcher: 'Bash|PowerShell|mcp__.*', hooks: [mergeGuardHook] }] : []),
+      ...(input.toolProfile === 'review' ? [{ matcher: '.*', hooks: [reviewGuardHook(join(input.cwd, 'reports', 'process-review'), this.#onGuard)] }] : []),
+    ];
     const handle = this.#query({
       prompt: userInput(),
       options: {
@@ -253,7 +276,8 @@ export class ClaudeAgentExecutor implements LoopExecutor {
         env,
         abortController: abort,
         ...(input.resumeSessionId ? { resume: input.resumeSessionId } : {}),
-        ...(input.gateGuard ? { hooks: { PreToolUse: [{ matcher: 'Bash|PowerShell|mcp__.*', hooks: [mergeGuardHook] }] } } : {}),
+        ...(input.toolProfile === 'review' ? { tools: [...REVIEW_TOOLS] } : {}),
+        ...(input.gateGuard || input.toolProfile === 'review' ? { hooks: { PreToolUse: preToolUse } } : {}),
       },
     });
     const messages = handle[Symbol.asyncIterator]();
