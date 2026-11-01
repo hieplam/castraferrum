@@ -88,6 +88,11 @@ export class GhGitHost implements GitHost {
     ]);
   }
 
+  async gateStatus(repo: string, sha: string): Promise<StatusState | null> {
+    const raw = await this.json<{ statuses?: { context: string; state: StatusState }[] }>(['api', '-X', 'GET', `repos/${repo}/commits/${sha}/status`]);
+    return (raw.statuses ?? []).find((s) => s.context === STATUS_CONTEXT)?.state ?? null;
+  }
+
   async checks(repo: string, sha: string): Promise<CheckRun[]> {
     // `-X GET` is needed: `gh api` switches to POST when it gets `-f` fields.
     const raw = await this.json<{ check_runs?: { name: string; status: string; conclusion: string | null }[] }>([

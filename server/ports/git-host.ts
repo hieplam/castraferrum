@@ -46,6 +46,8 @@ export interface GitHost {
   pullRequest(repo: string, number: number): Promise<PullRequest>;
   /** Sets the commit status `castraferrum/gate` on `sha`. */
   setStatus(repo: string, sha: string, status: { state: StatusState; description: string }): Promise<void>;
+  /** The state of the commit status `castraferrum/gate` on `sha`, or `null` when the commit has none. */
+  gateStatus(repo: string, sha: string): Promise<StatusState | null>;
   checks(repo: string, sha: string): Promise<CheckRun[]>;
   /** Squash-merges the PR only if its head is still `headSha`. Throws a `GitHostError` otherwise. */
   merge(repo: string, number: number, headSha: string): Promise<void>;
