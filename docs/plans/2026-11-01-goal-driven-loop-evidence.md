@@ -570,6 +570,48 @@ Ratchet, tests in `goal-check.test.ts`: 11 before, 25 after.
 
 <!-- R1 -->
 
+## R1
+
+Red (test file only, tool and baseline moved away):
+
+    $ npx vitest run --project unit tests/tools/rule-lint.test.ts
+     Test Files  1 failed (1)
+          Tests  10 failed (10)
+
+Green:
+
+    $ npx vitest run --project unit tests/tools/rule-lint.test.ts
+     Test Files  1 passed (1)
+          Tests  10 passed (10)
+    $ npm run rule-lint -- --base main
+    rule-lint: ok (rule lines 13, without a check 7, new 0)
+
+Stub check (run for real):
+
+    scripts/rule-lint.mjs = "process.exit(0);"  ->  Tests  10 failed (10)
+    every rule line counted as unchecked        ->  Tests  6 failed (10): count, ok, new-linked, growth, write-baseline, repository
+
+Ratchet (`node scripts/rule-lint.mjs --count`, same tool before and after; the tool did not exist before this task):
+
+    before: no tool
+    after (commit 32252ca, the commit the plan measured): rule lines: 13, without a check: 7
+    after (main at this task): rule lines: 13, without a check: 7
+
+The plan expected `without a check 8`. CLAUDE.md and CONTRIBUTING.md are byte-identical between 32252ca and main, and the tool measured 7 on both trees. The measured number wins: the first measure of G16 is 7. The ratchet only falls.
+
+Full `npm run verify` after the last rebase (lane database `loops_r1_test`, port 7210, heavy-command slot):
+
+    ratchets: ok
+    rule-lint: ok (rule lines 13, without a check 7, new 0)
+    Tests  607 passed | 2 skipped (609)      (unit)
+    Tests  114 passed (114)                 (contract)
+    Tests  115 passed (115)                 (api)
+    run 1, test:e2e: 1 failed, 114 passed   UC-15 killed server: Expected <= 10000, Received 11762
+    run 2, test:e2e re-run once: 5 failed, 109 passed, 1 did not run (32.1 min on a loaded machine)
+      G9 light and dark, UC-15 graceful, UC-34 phone, loop.visual active periods (180 s timeout)
+
+The e2e failures are timing failures of tests that this task does not touch (it changes no server or web code). Issue 272 already tracks the same tests (UC-15, G9) on a tests-only branch; a comment with this evidence was added there. Pull request CI (typecheck, arch, ratchets, rule-lint, unit, build, contract, lang-scan) is green.
+
 <!-- R2 -->
 
 <!-- R3 -->
