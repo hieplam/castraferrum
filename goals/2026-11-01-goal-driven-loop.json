@@ -1,5 +1,8 @@
 {
-  "setup": [],
+  "setup": [
+    "npm run build",
+    "git clone --depth 1 https://github.com/hieplam/agent-plugins.git agent-plugins-checkout || git -C agent-plugins-checkout pull --ff-only"
+  ],
   "epic": 217,
   "opened": {
     "at": "2026-11-01T00:00:00Z",
@@ -135,7 +138,7 @@
       "outcome": "A new epic shows a failing goal check before any build task",
       "checks": [
         {
-          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G10: \" ../agent-plugins/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
+          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G10: \" agent-plugins-checkout/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
           "expect": [
             "✔ G10: ",
             "ℹ fail 0"
@@ -155,7 +158,7 @@
           ]
         },
         {
-          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G11: \" ../agent-plugins/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
+          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G11: \" agent-plugins-checkout/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
           "expect": [
             "✔ G11: ",
             "ℹ fail 0"
@@ -232,10 +235,12 @@
       "outcome": "A loop tool change cannot make the loop worse",
       "checks": [
         {
-          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G17: \" ../agent-plugins/plugins/epic-loop/skills/epic-loop/scripts/evals/eval-gate.test.mjs",
+          "run": "python3 -m unittest discover -v -s agent-plugins-checkout/scripts/evals/tests -p test_eval_gate.py",
           "expect": [
-            "✔ G17: ",
-            "ℹ fail 0"
+            "test_five_of_five_to_two_of_five_is_refused ... ok",
+            "test_verify_result_passes_on_the_committed_tree ... ok",
+            "Ran 13 tests",
+            "OK"
           ]
         }
       ]
@@ -342,7 +347,7 @@
           ]
         },
         {
-          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G25: \" ../agent-plugins/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
+          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G25: \" agent-plugins-checkout/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
           "expect": [
             "✔ G25: ",
             "ℹ fail 0"
@@ -355,7 +360,7 @@
       "outcome": "An epic closes on the check, not on an empty list",
       "checks": [
         {
-          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G26: \" ../agent-plugins/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
+          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G26: \" agent-plugins-checkout/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
           "expect": [
             "✔ G26: ",
             "ℹ fail 0"
@@ -394,7 +399,7 @@
       "outcome": "A task that ships a screen carries its own acceptance, not a last-day task",
       "checks": [
         {
-          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G29: \" ../agent-plugins/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
+          "run": "node --test --test-reporter=spec --test-name-pattern=\"^G29: \" agent-plugins-checkout/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs",
           "expect": [
             "✔ G29: ",
             "ℹ fail 0"
