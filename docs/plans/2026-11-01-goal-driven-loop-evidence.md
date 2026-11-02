@@ -2088,3 +2088,23 @@ Goal row: G6 and G9. Two services that fetch one repository at the same time bot
 - Green (with the fix): same file, `Tests  27 passed (27)`. `npx vitest run --project api tests/api/gate-scope.test.ts`: `Tests  44 passed (44)`.
 - Stub check: `#serial` made to call `fn()` directly: the same 2 tests fail (`2 failed | 25 passed`). Restored afterwards.
 - Ratchet: failures of `gate-scope` in full verify runs, 3 of the last 4 before, 0 after in the focused run (the full-verify count is for the coordinator to confirm).
+
+## 401
+
+The folder picker test drew its `show hidden` switch only when the opened folder held a hidden entry. The picker opens at the parent of the test repository, and since PR 388 that parent (`castraferrum-test-temp`) holds none. The test now makes one entry `.lc-picker-hidden` there before the page opens (the server counts a name that starts with a dot as hidden on every system, `node-folder-browser.ts`) and removes it in `finally`. No picker, server or `test-temp.ts` change.
+
+**Red**, on main (from the evidence of the issue, and the focused run on the branch of P15): `folder-show-hidden: not rendered`, on `chromium` and `webkit-phone`.
+
+**Green**:
+
+    $ npx playwright test tests/e2e/phone.spec.ts -g "folder picker" --reporter list
+      2 passed (8.7s)                 (chromium and webkit-phone)
+
+The test also asserts that the switch is visible, so it states its own precondition.
+
+**Stub check**: the line that makes the entry removed, then restored:
+
+    expect(locator).toBeVisible() failed ... getByTestId('folder-show-hidden') ... Timeout: 5000ms
+      2 failed (chromium and webkit-phone)
+
+**Light verify** (a change in one test file): `npm run typecheck` clean, `node scripts/lang-scan.mjs --check-baseline` `baseline check: ok`.

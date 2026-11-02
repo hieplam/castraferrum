@@ -4,9 +4,9 @@
 // the page must not scroll sideways, every visible button, link and form control must be at least 44 by 44 (`--size-touch`),
 // and on the tab roots the tab bar sits at the bottom of the screen. It runs in Chromium at 390 by 844 with
 // touch (project chromium) and in WebKit as an emulated iPhone 15 (project webkit-phone). The loop is checked in the DB.
-import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { api, closeDb, fill, loopRows, pickRepo, reset } from '../support/form-kit';
 import { box, offUiFont, textLeft } from '../support/frame-probe';
@@ -187,11 +187,20 @@ test.describe('the phone frame', () => {
   });
 
   test('the folder picker: every control uses the UI font, and Cancel starts on the gutter', async ({ page }) => {
-    await page.goto('/repos');
-    await page.getByTestId('repo-add').tap();
-    await page.locator('[data-testid="folder-list"][data-loading="false"]:not([data-path=""])').waitFor();
-    await expect(page.getByTestId('folder-place').first()).toBeVisible();
-    expect(await offUiFont(page, ['folder-cancel', 'folder-place', 'folder-go', 'folder-show-hidden', 'repo-submit'])).toEqual([]);
+    // The switch "show hidden" is drawn only when the opened folder holds a hidden entry. The picker opens at the parent of the test
+    // repository, so the test puts one entry that starts with a dot there (the server counts such a name as hidden on every system).
+    const hidden = join(dirname(TEST_REPO.path), `.${'lc-picker-hidden'}`);
+    mkdirSync(hidden, { recursive: true });
+    try {
+      await page.goto('/repos');
+      await page.getByTestId('repo-add').tap();
+      await page.locator('[data-testid="folder-list"][data-loading="false"]:not([data-path=""])').waitFor();
+      await expect(page.getByTestId('folder-place').first()).toBeVisible();
+      await expect(page.getByTestId('folder-show-hidden')).toBeVisible();
+      expect(await offUiFont(page, ['folder-cancel', 'folder-place', 'folder-go', 'folder-show-hidden', 'repo-submit'])).toEqual([]);
+    } finally {
+      rmSync(hidden, { recursive: true, force: true });
+    }
     // The pressed state replaces the tap highlight in the sheet too (SYSTEM.md, iOS). Chromium computes the property; the WebKit
     // build Playwright runs on this machine does not expose it.
     if (test.info().project.name === 'chromium') {
