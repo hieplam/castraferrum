@@ -1963,6 +1963,54 @@ Goal G18 (task W2): when a goal ends, the probe asks for one writing run, with n
 
 <!-- W3 -->
 
+## W3
+
+Pull request: https://github.com/hieplam/agent-plugins/pull/23 (repository `hieplam/agent-plugins`, branch `epic-loop/goal-writer`). It also closes issue 397. Goal G18. Commands run in the skill folder `SK`, `plugins/epic-loop/skills/epic-loop`.
+
+Red, before the build, `node --test --test-reporter=tap scripts/tests/epic.test.mjs scripts/tests/check-card.test.mjs`:
+
+```
+# tests 99
+# pass 79
+# fail 20
+```
+
+Green, final code, same command:
+
+```
+# tests 100
+# pass 100
+# fail 0
+```
+
+**Changed Green command.** The plan says `--grader-model haiku`. The command that ran is `python3 scripts/evals/run_evals.py --evals SK/evals/evals.json --eval-id 8,9,10 --mode with_skill --exec-model haiku --grader-model sonnet --runs 5 --jobs 1 --out-dir <dir>`, in slot-1, with `PYTHONUTF8=1`. Reason, decided by the coordinator in issue 397: the haiku grader refused runs for reasons that the rubric excludes, a stronger grader is not a weaker exam, and the rubric did not change. The machine check and the rubric must both still pass.
+
+Green, evals, final text:
+
+```
+eval 8 4/5 -> 4/5 ok
+eval 9 5/5 -> 5/5 ok
+eval 10 5/5 -> 5/5 ok
+verdict: pass
+verify-result: ok
+```
+
+| Run | Machine check, evals 8, 9, 10 | Gate count, evals 8, 9, 10 |
+|---|---|---|
+| haiku grader, before the fixes | 5/5, 5/5, 3/5 | 0/5, 1/5, 2/5 |
+| sonnet grader, first try | 4/5, 5/5, 4/5 | 2/5, 5/5, 4/5 |
+| sonnet grader, second try, final text | 5/5, 5/5, 5/5 | 4/5, 5/5, 5/5 |
+
+Stub check:
+
+- `goal-writer.md` emptied, same command, eval 8: `eval 8 0/5 -> 0/5 ok`. Each run fails the machine check with `0 new goal cards, expected 1`.
+- A `tidy` that ignores the exit code: `not ok - tidy: a command that exits 3 refuses and leaves the issue open, with no write`, 1 failure.
+- `tidy` with no owner check: `not ok - tidy: an issue by another author refuses, the command does not run, and --rewrite writes nothing`, 1 failure.
+
+Ratchet: tests 79 to 100, which is N+21 and not N+20, because the owner rule of 2026-11-02 added one `tidy:` test. Evals 7 to 10.
+
+`docker ps -a` showed no change after each eval run. The grader cost is not recorded, so the total model cost is not verified.
+
 <!-- W4 -->
 
 <!-- W5 -->
