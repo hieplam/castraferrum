@@ -1,4 +1,5 @@
 import type { CommandRunner } from '../../ports/command-runner';
+import { NO_LOGIN_PROMPT_ENV } from '../process/no-login-prompt';
 import {
   GitHostError,
   PullRequestNotFoundError,
@@ -39,7 +40,7 @@ export class GhGitHost implements GitHost {
   private async gh(args: string[]): Promise<string> {
     const { runner, ghBin, cwd = process.cwd() } = this.opts;
     const argv = ghBin.endsWith('.mjs') ? [process.execPath, ghBin, ...args] : [ghBin, ...args];
-    const r = await runner.run({ argv, cwd, timeoutMs: TIMEOUT_MS });
+    const r = await runner.run({ argv, cwd, env: { ...NO_LOGIN_PROMPT_ENV }, timeoutMs: TIMEOUT_MS });
     if (r.exitCode !== 0) {
       const why = r.timedOut ? 'timed out' : (r.error ?? `exit ${r.exitCode}`);
       throw new GitHostError(`gh ${args.slice(0, 2).join(' ')} failed: ${why}`, r.exitCode, r.stderr);

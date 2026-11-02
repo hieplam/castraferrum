@@ -3,6 +3,7 @@ import { writeFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createBareRepo, type BareRepo } from '../../../tests/support/bare-repo';
 import { createFakeGh, FAKE_GH_SCRIPT, type FakeGh } from '../../../tests/support/fake-gh-kit';
+import type { CommandRunner } from '../../ports/command-runner';
 import { GitHostError, PullRequestNotFoundError } from '../../ports/git-host';
 import { NodeCommandRunner } from '../process/node-command-runner';
 import { GhGitHost } from './gh-git-host';
@@ -40,6 +41,22 @@ afterEach(() => {
   else process.env.FAKE_GH_WORLD = saved;
   gh.dispose();
   bare.dispose();
+});
+
+describe('GhGitHost login prompts', () => {
+  it('runs every gh call with the variables that stop a login prompt', async () => {
+    const envs: (Record<string, string> | undefined)[] = [];
+    const runner: CommandRunner = {
+      async run(req) {
+        envs.push(req.env);
+        return { exitCode: 1, stdout: '', stderr: 'no', timedOut: false, error: null };
+      },
+    };
+    const fake = new GhGitHost({ runner, ghBin: 'gh' });
+    await fake.pullRequest(REPO, 1).catch(() => undefined);
+    expect(envs).toHaveLength(1);
+    expect(envs[0]).toEqual({ GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', GH_PROMPT_DISABLED: '1' });
+  });
 });
 
 describe('GhGitHost on the fake gh and a bare repository', () => {
