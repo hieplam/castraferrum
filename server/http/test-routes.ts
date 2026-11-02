@@ -2,7 +2,7 @@
 // named `*_test` (config.ts enforces this). A normal run has no such routes → 404 like any unknown path.
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { testFoldersBody, type TestFoldersBody } from '../../shared/contracts/folders';
-import { testClockBody, testClockDto, testDirsBody } from '../../shared/contracts/loops';
+import { testClockBody, testClockDto, testDirsBody, testRepoGateBody, type TestRepoGateBody } from '../../shared/contracts/loops';
 
 /** What the composition root supplies in test mode. Structural type — the HTTP layer does not know which adapter is behind it. */
 export type TestHooks = {
@@ -11,6 +11,8 @@ export type TestHooks = {
   directories: { set(paths: Record<string, boolean>): void };
   /** Replaces the "machine" behind the "Browse…" box with a fake folder world; `null` = the real machine. Reset goes back to the real machine. */
   folders: { set(world: TestFoldersBody['world']): void };
+  /** Writes the `repo_gate` row of a repository. */
+  repoGate(input: TestRepoGateBody): Promise<void>;
   /** Stops every running run, wipes all data, and puts the clock back to real time. */
   reset(): Promise<void>;
 };
@@ -28,6 +30,11 @@ export const testRoutes: FastifyPluginAsyncZod<{ hooks: TestHooks }> = async (ap
 
   app.post('/api/__test/folders', { schema: { body: testFoldersBody } }, async (req, reply) => {
     hooks.folders.set(req.body.world);
+    return reply.code(204).send();
+  });
+
+  app.post('/api/__test/repo-gate', { schema: { body: testRepoGateBody } }, async (req, reply) => {
+    await hooks.repoGate(req.body);
     return reply.code(204).send();
   });
 

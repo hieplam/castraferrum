@@ -272,6 +272,39 @@ export const repoGate = pgTable('repo_gate', {
 });
 
 /**
+ * Goal cards (spec 2.13). Each card is one `goal-card` issue. Two unique indexes keep the rules in the database: at most one `proposed` card
+ * for each repository, and one row for each issue. `loop_id` has no foreign key: the row keeps the record of the start.
+ */
+export const goalCards = pgTable(
+  'goal_cards',
+  {
+    id: uuid('id').primaryKey(),
+    repoId: uuid('repo_id')
+      .notNull()
+      .references(() => repos.id, { onDelete: 'cascade' }),
+    githubRepo: text('github_repo').notNull(),
+    issueNumber: integer('issue_number').notNull(),
+    title: text('title').notNull(),
+    door: text('door').notNull(),
+    card: jsonb('card').notNull(),
+    state: text('state').notNull().default('proposed'),
+    startAfter: ts('start_after'),
+    changed: boolean('changed').notNull().default(false),
+    epicNumber: integer('epic_number'),
+    prNumber: integer('pr_number'),
+    loopId: uuid('loop_id'),
+    createdAt: ts('created_at').notNull(),
+    decidedAt: ts('decided_at'),
+  },
+  (t) => [
+    check('goal_cards_state', sql`${t.state} IN ('proposed','accepted','refused','started')`),
+    check('goal_cards_door', sql`${t.door} IN ('one-way','two-way')`),
+    uniqueIndex('goal_cards_one_proposed').on(t.repoId).where(sql`${t.state} = 'proposed'`),
+    uniqueIndex('goal_cards_one_per_issue').on(t.repoId, t.issueNumber),
+  ],
+);
+
+/**
  * Gate jobs (spec 2.8). Two partial unique indexes keep the rules in the database: at most one `running` job, and at most one
  * `queued` or `running` row for each repository, PR and head commit.
  */

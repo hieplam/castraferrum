@@ -28,6 +28,8 @@ export class GateWorkspaceError extends Error {
 export interface GateWorkspace {
   /** Updates `origin/main` and `refs/gate/head`. `headMatches` is false when the branch moved away from `headSha`. */
   fetch(repoPath: string, head: { headRef: string; headSha: string }): Promise<{ mainSha: string; headMatches: boolean }>;
+  /** Updates only `origin/main`, and gives its commit. */
+  fetchMain(repoPath: string): Promise<string>;
   /** The text of a file in the commit, or `null` when the commit holds no such file. */
   readAt(repoPath: string, sha: string, path: string): Promise<string | null>;
   /** The names of the `.json` files directly in `dir` of the commit, sorted. */

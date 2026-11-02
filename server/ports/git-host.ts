@@ -28,6 +28,9 @@ export type CheckRun = {
 
 export type IssueRef = { number: number; url: string };
 
+/** An open issue with its text. */
+export type LabeledIssue = { number: number; title: string; body: string };
+
 export type IssueHit = { number: number; title: string; state: 'OPEN' | 'CLOSED'; url: string };
 
 /** A call to the Git host that did not succeed. `exitCode` is `null` when the program did not start or timed out. */
@@ -75,6 +78,9 @@ export interface GitHost {
    */
   loopComments(repo: string, since: Date): Promise<LoopComment[]>;
   issueState(repo: string, number: number): Promise<'OPEN' | 'CLOSED'>;
+  /** The open issues that have the label. */
+  issuesWithLabel(repo: string, label: string): Promise<LabeledIssue[]>;
+  issueBody(repo: string, number: number): Promise<string>;
   /** Adds `child` to the sub-issues of `parent`. */
   addSubIssue(repo: string, parent: number, child: number): Promise<void>;
 }

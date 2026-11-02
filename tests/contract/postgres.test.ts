@@ -14,7 +14,7 @@ describe('postgres', () => {
     env = {
       ...createPgRepositories(db.pool),
       reset: async () => {
-        await db.pool.query('TRUNCATE run_logs, runs, run_claims, resource_holds, gate_steps, gate_jobs, repo_gate, loop_executions, loop_probes, loops, repos, server_heartbeat, notices, standing_goals, standing_issues, standing_schedule, goal_runs');
+        await db.pool.query('TRUNCATE run_logs, runs, run_claims, resource_holds, gate_steps, gate_jobs, repo_gate, goal_cards, loop_executions, loop_probes, loops, repos, server_heartbeat, notices, standing_goals, standing_issues, standing_schedule, goal_runs');
       },
       // Raw SQL, bypassing PgGateRepository: only the partial unique indexes can block it.
       rawInsertGateJob: async (row) => {
