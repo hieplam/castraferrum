@@ -1486,6 +1486,15 @@ Stub results, each run for real, then restored: `GET /api/repos/:id/gate` answer
 
 Ratchet after: pairs in `results/gate.json` 0 to 8 (worst ratio 0.00035); api tests +9; contract +2 per side; unit +0 (the uc-coverage test changed its numbers); `e2e expects` 885 to 929 (18 of them are K12, the rest came with other merged tasks); `UCs with a green e2e` 35 to 36 (new UC-37, `--min` 35 to 36); API routes 3 more in `docs/API.md`.
 
+No network (after the owner's rules): the seeded origin is a local bare repository, the row says `hieplam/tribe`, and every seeded run (visual and e2e) starts its console on the fake `gh`. A seeded gate never changes while a page is read: `takeNext` takes a job only when no job is `running`, the seeded job is `running`, and `requeueRunning` runs only at start-up, before the seed. The final run (gate and repos visual `8 passed`, `8 true`, worst ratio 0.00034549; `gate-pages.spec.ts` `4 passed`) ended with `Get-Process git-credential-manager` giving `count: 0`. Earlier hangs came from old seeds with a real github origin that stayed in the lane database; the lane databases were recreated. `grep -rnE "https://github.com/[A-Za-z0-9_-]+/[A-Za-z0-9_.-]+\.git" tests`:
+
+```
+tests/api/gate-pages-api.test.ts:160:    const https = await repoWithOrigin('https://github.com/hieplam/tribe.git');
+tests/api/gate-pages-api.test.ts:180:    const id = await repoWithOrigin('https://github.com/hieplam/tribe.git');
+```
+
+(Both lines are strings that the api test parses; its console has no ticker and runs no `git`.)
+
 Decisions (standing rules of the epic, no question to the owner):
 - `gate_jobs.title` (text, null) and `GateRepository.enqueue` takes `title`. A job with no title shows `PR #n` alone.
 - A new port method `listByRepo(repoId, states, limit)` reads the jobs of one repo, so the page of a repo does not depend on how many newer jobs other repos have.
