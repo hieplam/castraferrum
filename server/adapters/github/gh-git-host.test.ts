@@ -57,8 +57,20 @@ describe('GhGitHost on the fake gh and a bare repository', () => {
       url: 'https://github.com/fake/repo/pull/1',
       mergedAt: null,
       closingIssues: [7],
+      fromFork: false,
     });
     expect(gh.read().calls[0]?.args).toContain('-R');
+  });
+
+  it('pullRequest gives fromFork true for a PR whose head lives in a fork, and false when the field is false', async () => {
+    seedPr();
+    const w = gh.read();
+    w.prs[0]!.isCrossRepository = true;
+    writeFileSync(gh.world, JSON.stringify(w));
+    expect((await host.pullRequest(REPO, 1)).fromFork).toBe(true);
+    w.prs[0]!.isCrossRepository = false;
+    writeFileSync(gh.world, JSON.stringify(w));
+    expect((await host.pullRequest(REPO, 1)).fromFork).toBe(false);
   });
 
   it('setStatus posts the state under the context castraferrum/gate and cuts the description at 140 characters', async () => {
@@ -160,20 +172,39 @@ describe('GhGitHost on the fake gh and a bare repository', () => {
 
   it('loopComments gives the loop-release comments updated since the date, and no other comment', async () => {
     const world = gh.read();
-    const issue = (number: number, updatedAt: string, comments: { id: string; createdAt: string; body: string }[]) =>
+    const issue = (number: number, updatedAt: string, comments: { id: string; createdAt: string; body: string; authorAssociation?: string }[]) =>
       ({ number, title: 't', body: 'b', state: 'OPEN', labels: [], comments, url: '', createdAt: updatedAt, updatedAt, closedAt: null }) as never;
     world.issues.push(
       issue(5, '2026-10-20T10:00:00.000Z', [
         { id: 'IC_a', createdAt: '2026-10-20T09:00:00.000Z', body: 'loop-attempt: 1' },
-        { id: 'IC_b', createdAt: '2026-10-20T10:00:00.000Z', body: 'loop-release: reason\n\nBack in the queue' },
+        { id: 'IC_b', createdAt: '2026-10-20T10:00:00.000Z', body: 'loop-release: reason\n\nBack in the queue', authorAssociation: 'OWNER' },
       ]),
-      issue(6, '2026-10-01T10:00:00.000Z', [{ id: 'IC_c', createdAt: '2026-10-01T10:00:00.000Z', body: 'loop-release: too old' }]),
+      issue(6, '2026-10-01T10:00:00.000Z', [{ id: 'IC_c', createdAt: '2026-10-01T10:00:00.000Z', body: 'loop-release: too old', authorAssociation: 'OWNER' }]),
     );
     writeFileSync(gh.world, JSON.stringify(world));
     expect(await host.loopComments(REPO, new Date('2026-10-19T15:00:00Z'))).toEqual([
       { issue: 5, id: 'IC_b', at: new Date('2026-10-20T10:00:00.000Z'), body: 'loop-release: reason\n\nBack in the queue' },
     ]);
   });
+
+  it.each(['OWNER', 'MEMBER', 'COLLABORATOR'])('loopComments keeps a loop-release comment of a person with the association %s', async (association) => {
+    const world = gh.read();
+    const at = '2026-10-20T10:00:00.000Z';
+    world.issues.push({ number: 5, title: 't', body: 'b', state: 'OPEN', labels: [], comments: [{ id: 'IC_a', createdAt: at, body: 'loop-release: r', authorAssociation: association }], url: '', createdAt: at, updatedAt: at, closedAt: null });
+    writeFileSync(gh.world, JSON.stringify(world));
+    expect((await host.loopComments(REPO, new Date('2026-10-19T00:00:00Z'))).map((c) => c.id)).toEqual(['IC_a']);
+  });
+
+  it.each(['NONE', 'CONTRIBUTOR', 'FIRST_TIME_CONTRIBUTOR', 'FIRST_TIMER', 'MANNEQUIN', 'bogus', undefined])(
+    'loopComments drops a loop-release comment of a stranger (association %s), because a model reads the result',
+    async (association) => {
+      const world = gh.read();
+      const at = '2026-10-20T10:00:00.000Z';
+      world.issues.push({ number: 5, title: 't', body: 'b', state: 'OPEN', labels: [], comments: [{ id: 'IC_a', createdAt: at, body: 'loop-release: r', authorAssociation: association }], url: '', createdAt: at, updatedAt: at, closedAt: null });
+      writeFileSync(gh.world, JSON.stringify(world));
+      expect(await host.loopComments(REPO, new Date('2026-10-19T00:00:00Z'))).toEqual([]);
+    },
+  );
 
   it('loopComments throws a GitHostError when the list holds 1000 issues, because it can be cut off', async () => {
     const world = gh.read();

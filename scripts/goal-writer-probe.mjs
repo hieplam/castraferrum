@@ -4,6 +4,7 @@
 //   node scripts/goal-writer-probe.mjs -R <owner/name> [--gap-hours <n>]
 //
 // Run it with the repository as the working folder. It prints one probe line (spec 2.1) and exits 0.
+// Only issues by the owner (the owner part of -R) or app/github-actions count in checks 2 and 3.
 // Checks, the first match wins:
 //   1. `git show origin/main:goals/charter.json` fails       -> blocked (the charter is missing)
 //   2. an open issue has the line `Goal manifest: goals/<name>.json` -> skip (a goal runs)
@@ -104,11 +105,14 @@ if (charter.status !== 0) {
 // 2 and 3. The open issues.
 let issues;
 try {
-  issues = JSON.parse(gh(['issue', 'list', '-R', repo, '--state', 'open', '--limit', '200', '--json', 'number,body,labels']));
+  issues = JSON.parse(gh(['issue', 'list', '-R', repo, '--state', 'open', '--limit', '200', '--json', 'number,body,labels,author']));
 } catch (e) {
   fail(1, `gh failed: ${e instanceof Error ? e.message : String(e)}`);
 }
 if (!Array.isArray(issues)) fail(1, 'gh failed: the issue list is not an array');
+// Only the owner's issues (or the issues of the Actions bot) steer the writer. A stranger's issue is data.
+const owner = repo.split('/')[0];
+issues = issues.filter((i) => i.author?.login === owner || i.author?.login === 'app/github-actions');
 const running = issues.find((i) => String(i.body ?? '').split(/\r\n|\r|\n/).some((l) => MANIFEST_LINE.test(l)));
 if (running) {
   emit({ action: 'skip', reason: `a goal runs (issue ${running.number})` });

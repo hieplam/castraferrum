@@ -50,9 +50,9 @@ function writeWorld(issues: Json[]): void {
   world.issues = issues as never;
   writeFileSync(gh.world, JSON.stringify(world));
 }
-type SeedComment = { id: string; createdAt: string; body: string };
+type SeedComment = { id: string; createdAt: string; body: string; authorAssociation?: string };
 function issue(number: number, comments: SeedComment[], updatedAt = '2026-10-20T00:00:00.000Z'): Json {
-  return { number, title: 't', body: 'b', state: 'OPEN', labels: [], comments, url: `https://github.com/${REPO}/issues/${number}`, createdAt: updatedAt, updatedAt, closedAt: null };
+  return { number, title: 't', body: 'b', state: 'OPEN', labels: [], comments: comments.map((c) => ({ authorAssociation: 'OWNER', ...c })), url: `https://github.com/${REPO}/issues/${number}`, createdAt: updatedAt, updatedAt, closedAt: null };
 }
 /** A gate job that ends in `state` at `finishedAt`, with one failing step. */
 async function endJob(state: 'failed' | 'needs_ratification' | 'merged', finishedAt: string, step: GateStepName, tail: string): Promise<string> {

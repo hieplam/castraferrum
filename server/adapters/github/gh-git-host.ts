@@ -20,7 +20,10 @@ const ISSUE_LIST_LIMIT = 1000;
 const LABELED_ISSUE_LIMIT = 200;
 /** The text that `gh pr view <n>` prints on stderr for a pull request that does not exist. */
 const PR_MISSING = /Could not resolve to a PullRequest with the number of/;
-const PR_FIELDS = 'number,headRefOid,headRefName,baseRefName,state,title,body,url,mergedAt,closingIssuesReferences';
+const PR_FIELDS = 'number,headRefOid,headRefName,baseRefName,state,title,body,url,mergedAt,closingIssuesReferences,isCrossRepository';
+
+/** The `authorAssociation` values of a person with a role in the repository. Every other value is a stranger. */
+const TRUSTED_ASSOCIATIONS = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
 
 export type GhGitHostOptions = {
   runner: CommandRunner;
@@ -65,6 +68,7 @@ export class GhGitHost implements GitHost {
       url: string;
       mergedAt: string | null;
       closingIssuesReferences: { number: number }[] | null;
+      isCrossRepository?: boolean;
     }>(['pr', 'view', String(number), '-R', repo, '--json', PR_FIELDS]).catch((err: unknown) => {
       if (err instanceof GitHostError && PR_MISSING.test(err.stderr)) throw new PullRequestNotFoundError(number, err.exitCode, err.stderr);
       throw err;
@@ -80,6 +84,7 @@ export class GhGitHost implements GitHost {
       url: raw.url,
       mergedAt: raw.mergedAt ?? null,
       closingIssues: (raw.closingIssuesReferences ?? []).map((i) => i.number),
+      fromFork: raw.isCrossRepository === true,
     };
   }
 
@@ -173,7 +178,7 @@ export class GhGitHost implements GitHost {
   }
 
   async loopComments(repo: string, since: Date): Promise<LoopComment[]> {
-    const issues = await this.json<{ number: number; comments: { id: string; createdAt: string; body: string }[] | null }[]>([
+    const issues = await this.json<{ number: number; comments: { id: string; createdAt: string; body: string; authorAssociation?: string }[] | null }[]>([
       'issue',
       'list',
       '-R',
@@ -190,7 +195,8 @@ export class GhGitHost implements GitHost {
     if (issues.length >= ISSUE_LIST_LIMIT) throw new GitHostError(`gh issue list gave ${ISSUE_LIST_LIMIT} issues: the list can be cut off`, 0, '');
     return issues.flatMap((i) =>
       (i.comments ?? [])
-        .filter((c) => c.body.startsWith('loop-release:'))
+        // A comment of a stranger is data, not an order: the process review sends the result to a model. No association means dropped.
+        .filter((c) => TRUSTED_ASSOCIATIONS.has(c.authorAssociation ?? '') && c.body.startsWith('loop-release:'))
         .map((c) => ({ issue: i.number, id: c.id, at: new Date(c.createdAt), body: c.body })),
     );
   }
