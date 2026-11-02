@@ -66,7 +66,7 @@ function parse(list) {
       const eq = kv.indexOf('=');
       fields[kv.slice(0, eq)] = kv.slice(eq + 1);
     } else if (a === '-R') {
-      i++;
+      flags.repo = [list[++i]];
     } else if (a === '-X') {
       flags.method = String(list[++i] ?? '').toUpperCase();
     } else if (a.startsWith('--')) {
@@ -89,7 +89,7 @@ const now = () => new Date().toISOString();
 function pick(obj, jsonFlag) {
   if (jsonFlag === undefined) return obj;
   const out = {};
-  for (const f of String(jsonFlag).split(',')) if (f) out[f] = obj[f] ?? null;
+  for (const f of String(jsonFlag).split(',')) if (f) out[f] = obj[f] ?? (f === 'isCrossRepository' ? false : null);
   return out;
 }
 function print(value) {
@@ -125,6 +125,7 @@ function issueCmd(w, sub, rest) {
       state: 'OPEN',
       labels: (flags.label ?? []).map((name) => ({ name })),
       comments: [],
+      author: { login: String(one(flags, 'repo') ?? 'fake/repo').split('/')[0] },
       url: `${REPO_URL}/issues/${n}`,
       createdAt: t,
       updatedAt: t,
@@ -156,7 +157,7 @@ function issueCmd(w, sub, rest) {
     print(pick(find(w.issues, positional[0], 'issue'), json));
   } else if (sub === 'comment') {
     const i = find(w.issues, positional[0], 'issue');
-    i.comments.push({ id: `IC_${i.number}_${i.comments.length + 1}`, createdAt: now(), body: String(one(flags, 'body') ?? '') });
+    i.comments.push({ id: `IC_${i.number}_${i.comments.length + 1}`, createdAt: now(), body: String(one(flags, 'body') ?? ''), authorAssociation: 'OWNER' });
     i.updatedAt = now();
     console.log(`${i.url}#issuecomment-${i.comments.length}`);
   } else if (sub === 'edit') {

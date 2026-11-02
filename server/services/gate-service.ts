@@ -115,6 +115,9 @@ type Attempt = {
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const firstLine = (text: string) => text.split(/\r?\n/).find((line) => line.trim() !== '') ?? text;
 const combined = (result: CommandResult) => [result.stdout, result.stderr, result.error].filter(Boolean).join('\n');
+/** Gives the reason when the PR comes from a fork, else null. A fork PR ends as `failed`, so nobody can ratify it. */
+export const forkRefusal = (pr: { fromFork: boolean }): string | null => (pr.fromFork ? 'a pull request from a fork needs a person' : null);
+
 const fail = (line: string, output = line, exitCode: number | null = null): StepEnd => ({ status: 'fail', exitCode, output, line });
 
 /** Decision 38: a check run that ended with a conclusion that is not a pass. Pending is not bad. */
@@ -396,10 +399,13 @@ export class DefaultGateService implements GateService {
     return again;
   }
 
+  /** The owner's rule: "DO NOT AUTO APPROVE ANY FORKED DOWNSTREAM PR, this need human to approve". It comes before every other rule of the gate. */
   private async scope(run: JobRun, state: Attempt): Promise<StepEnd> {
     const { host, workspace } = this.deps;
     const { job, repoPath, setting } = run;
     const pr = await host.pullRequest(setting.githubRepo, job.prNumber);
+    const refusal = forkRefusal(pr);
+    if (refusal !== null) return fail(refusal);
     if (pr.state !== 'OPEN') return fail(`the PR is ${pr.state}`);
     if (pr.baseRef !== 'main') return fail(`the PR targets ${pr.baseRef}, not main`);
     if (pr.headSha !== job.headSha) return fail('the head of the PR moved after the job was queued');

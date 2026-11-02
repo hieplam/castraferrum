@@ -2108,3 +2108,12 @@ The test also asserts that the switch is visible, so it states its own precondit
       2 failed (chromium and webkit-phone)
 
 **Light verify** (a change in one test file): `npm run typecheck` clean, `node scripts/lang-scan.mjs --check-baseline` `baseline check: ok`.
+
+## 398
+
+- Goal: G6, G9, G18. A pull request from a fork never runs a step of its code and never merges. A stranger's text steers nothing.
+- Red (before the code, `npx vitest run server/adapters/github/gh-git-host.test.ts tests/tools/goal-writer-probe.test.ts`): `Tests  12 failed | 35 passed (47)`. The failures: `pullRequest` gave no `fromFork`; seven `loopComments drops a loop-release comment of a stranger (association NONE ... undefined)` tests received the comment; the stranger probe tests gave `skip`.
+- Green: `npx vitest run tests/tools/test-addresses.test.ts tests/api/gate-fork.test.ts tests/api/process-signals-api.test.ts --project api --project unit`: `Tests  13 passed (13)`. The fork PR ends `failed` at `scope` with the reason `a pull request from a fork needs a person`, the step rows hold only `scope`, 0 merge calls, `main` unchanged, and `POST /api/gate/jobs/:id/ratify` answers 409 `GATE_JOB_NOT_RATIFIABLE`. The control (`isCrossRepository` false) merges.
+- Stub check: the fork refusal, the association filter and the author filter were each removed in one run: `Tests  11 failed | 38 passed (49)`. After the restore: `Tests  49 passed (49)`.
+- Ratchet: tests of outside input, 0 before, 19 after (2 fork API, 1 host fork, 10 loopComments cases, 4 probe, 2 addresses).
+- Decisions: `GOAL_CARD` and `issuesWithLabel` need no change, because `goal-card` is a label and setting a label needs triage rights. `GateService.queue` still keeps the job, so the refusal has a record. The fake `gh` gives `OWNER` to a comment made with `issue comment` and the owner of `-R` to an issue made with `issue create`; a seeded comment or issue with none is read as a stranger's.

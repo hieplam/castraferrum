@@ -14,6 +14,8 @@ export type PullRequest = {
   mergedAt: string | null;
   /** Numbers of the issues that the PR closes. */
   closingIssues: number[];
+  /** True when the head branch lives in another repository (a fork). The gate never passes such a PR by itself. */
+  fromFork: boolean;
 };
 
 export type StatusState = 'pending' | 'success' | 'failure' | 'error';
@@ -73,7 +75,7 @@ export interface GitHost {
   closeIssue(repo: string, number: number): Promise<void>;
   editIssueBody(repo: string, number: number, body: string): Promise<void>;
   /**
-   * The comments that start with `loop-release:`, on the issues updated on or after the day of `since`. Throws a `GitHostError` when the
+   * The comments that start with `loop-release:` and that come from the OWNER, a MEMBER or a COLLABORATOR, on the issues updated on or after the day of `since`. Throws a `GitHostError` when the
    * host gives 1000 issues, because the list can be cut off.
    */
   loopComments(repo: string, since: Date): Promise<LoopComment[]>;
