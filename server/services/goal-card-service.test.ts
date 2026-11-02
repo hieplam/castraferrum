@@ -20,10 +20,15 @@ class FakeHost {
   issues: LabeledIssue[] = [];
   calls: string[] = [];
   failClose = false;
+  failList = false;
 
-  async issuesWithLabel(): Promise<LabeledIssue[]> {
+  /** Open issues of a repository other than `o/r`. */
+  elsewhere: LabeledIssue[] = [];
+
+  async issuesWithLabel(repo: string): Promise<LabeledIssue[]> {
+    if (this.failList) throw new GitHostError('gh issue list failed', 1, 'down');
     this.calls.push('list');
-    return this.issues;
+    return repo === 'o/r' ? this.issues : this.elsewhere;
   }
   async issueBody(_repo: string, number: number): Promise<string> {
     return this.issues.find((i) => i.number === number)!.body;
@@ -135,8 +140,84 @@ describe('goal_card_service', () => {
 
     await service.tick();
 
-    expect((await row()).state).toBe('proposed');
+    expect((await row()).state).toBe('refused');
     expect(starts).toEqual([]);
+  });
+
+  it('a proposed card whose issue a person closed becomes refused, and the next card gets a row in the same tick', async () => {
+    host.issues = [{ number: 1, title: 'Card', body: bodyOf('First') }];
+    await service.tick();
+    host.issues = [{ number: 2, title: 'Card', body: bodyOf('Second') }];
+    wind(MIN);
+
+    await service.tick();
+
+    const rows = await repos.goalCards.list(repoId);
+    expect(rows.find((r) => r.issueNumber === 1)).toMatchObject({ state: 'refused' });
+    expect(rows.find((r) => r.issueNumber === 1)?.decidedAt?.getTime()).toBeGreaterThanOrEqual(T0.getTime() + MIN);
+    expect(rows.find((r) => r.issueNumber === 2)?.state).toBe('proposed');
+    expect(host.calls.filter((c) => c.startsWith('comment') || c.startsWith('close'))).toEqual([]);
+  });
+
+  it('a second card in the same tick is refused while the freed place is taken by the first', async () => {
+    host.issues = [{ number: 1, title: 'Card', body: bodyOf('First') }];
+    await service.tick();
+    host.issues = [
+      { number: 2, title: 'Card', body: bodyOf('Second') },
+      { number: 3, title: 'Card', body: bodyOf('Third') },
+    ];
+    wind(MIN);
+
+    await service.tick();
+
+    const rows = await repos.goalCards.list(repoId);
+    expect(rows.map((r) => [r.issueNumber, r.state]).sort()).toEqual([[1, 'refused'], [2, 'proposed']]);
+    expect(host.calls).toContain('comment 3: Goal card refused: goal card 2 is still proposed');
+  });
+
+  it('a read that fails changes no row', async () => {
+    host.issues = [{ number: 1, title: 'Card', body: bodyOf('First') }];
+    await service.tick();
+    host.failList = true;
+    wind(MIN);
+
+    const report = await service.tick();
+
+    expect(report.errors).toHaveLength(1);
+    expect((await row()).state).toBe('proposed');
+  });
+
+  it('a row that moved this way never starts: accept gives GOAL_CARD_NOT_OPEN, and the window and the starter see refused', async () => {
+    host.issues = [{ number: 1, title: 'Card', body: bodyOf('First') }];
+    await service.tick();
+    const { id } = await row();
+    host.issues = [];
+    wind(9 * HOUR);
+
+    await service.tick();
+
+    expect((await row()).state).toBe('refused');
+    await expect(service.accept(id)).rejects.toMatchObject({ code: 'GOAL_CARD_NOT_OPEN' });
+    wind(30 * 24 * HOUR);
+    await service.tick();
+    expect((await row()).state).toBe('refused');
+    expect(starts).toEqual([]);
+  });
+
+  it('a row of another repository does not change', async () => {
+    const other = (await repos.repos.insert({ id: new RandomIdGenerator().newId(), name: 'o', path: '/o', createdAt: T0 })).id;
+    await repos.gate.setRepoGate(other, { enabled: false, githubRepo: 'o/other', checkCommand: [] }, T0);
+    await repos.goalCards.insert({ id: 'other-row', repoId: other, githubRepo: 'o/other', issueNumber: 7, title: 'Other', door: 'one-way', card: card('Other') as never, startAfter: null, createdAt: T0 });
+    host.elsewhere = [{ number: 7, title: 'Other', body: bodyOf('Other') }];
+    host.issues = [{ number: 1, title: 'Card', body: bodyOf('First') }];
+    await service.tick();
+    host.issues = [];
+    wind(MIN);
+
+    await service.tick();
+
+    expect((await repos.goalCards.list(repoId))[0]?.state).toBe('refused');
+    expect((await repos.goalCards.get('other-row'))?.state).toBe('proposed');
   });
 
   it('a card edited into a bad body is refused at the yes, so it never starts', async () => {

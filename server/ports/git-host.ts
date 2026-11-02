@@ -78,7 +78,7 @@ export interface GitHost {
    */
   loopComments(repo: string, since: Date): Promise<LoopComment[]>;
   issueState(repo: string, number: number): Promise<'OPEN' | 'CLOSED'>;
-  /** The open issues that have the label. */
+  /** The open issues that have the label. Throws a `GitHostError` when the host gives 200 issues, because the list can be cut off. */
   issuesWithLabel(repo: string, label: string): Promise<LabeledIssue[]>;
   issueBody(repo: string, number: number): Promise<string>;
   /** Adds `child` to the sub-issues of `parent`. */

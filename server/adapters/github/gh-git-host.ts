@@ -200,7 +200,10 @@ export class GhGitHost implements GitHost {
   }
 
   async issuesWithLabel(repo: string, label: string): Promise<LabeledIssue[]> {
-    return this.json<LabeledIssue[]>(['issue', 'list', '-R', repo, '--state', 'open', '--label', label, '--limit', String(LABELED_ISSUE_LIMIT), '--json', 'number,title,body']);
+    const issues = await this.json<LabeledIssue[]>(['issue', 'list', '-R', repo, '--state', 'open', '--label', label, '--limit', String(LABELED_ISSUE_LIMIT), '--json', 'number,title,body']);
+    // A cut-off list would look like closed issues to a caller that frees the rows of the missing ones.
+    if (issues.length >= LABELED_ISSUE_LIMIT) throw new GitHostError(`gh issue list gave ${LABELED_ISSUE_LIMIT} issues: the list can be cut off`, 0, '');
+    return issues;
   }
 
   async issueBody(repo: string, number: number): Promise<string> {

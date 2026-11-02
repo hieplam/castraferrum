@@ -223,6 +223,26 @@ describe('GhGitHost on the fake gh and a bare repository', () => {
     expect(await host.issueBody(REPO, number)).toBe('The body');
   });
 
+  it('issuesWithLabel throws a GitHostError when the list holds 200 issues, because it can be cut off', async () => {
+    const world = gh.read();
+    world.issues = Array.from({ length: 200 }, (_, i) => ({
+      number: i + 1,
+      title: 't',
+      body: 'b',
+      state: 'OPEN' as const,
+      labels: [{ name: 'goal-card' }],
+      comments: [],
+      url: '',
+      createdAt: '2026-10-20T00:00:00.000Z',
+      updatedAt: '2026-10-20T00:00:00.000Z',
+      closedAt: null,
+    }));
+    writeFileSync(gh.world, JSON.stringify(world));
+    const err = await host.issuesWithLabel(REPO, 'goal-card').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(GitHostError);
+    expect((err as GitHostError).message).toContain('cut off');
+  });
+
   it('a gh call that exits 1 throws a GitHostError with the exit code and the stderr, and it is not a missing pull request', async () => {
     const err = await host.merge(REPO, 99, 'a'.repeat(40)).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(GitHostError);
