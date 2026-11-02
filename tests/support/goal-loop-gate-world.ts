@@ -7,6 +7,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type pg from 'pg';
+import { createBareRepo } from './bare-repo';
 import { type TestApi } from './goal-loop-score-world';
 import { DS_DATA_JS, previewData, pvTime, PREVIEW_NOW, repoId, seedPreviewWorld, uuid } from './preview-world';
 
@@ -26,11 +27,16 @@ const headOf = (pr: number, sha?: string): string => (sha ?? `${pr}`.padStart(7,
 const MINUTE = 60_000;
 const GITHUB_REPO = 'acme/api';
 
-/** A git repository in a temp folder whose `origin` is the repository of the gate. */
+/**
+ * A git repository in a temp folder whose `origin` is a LOCAL bare repository. No test reaches the network: a real address as origin makes
+ * every `git fetch` of the gate tick or the goal-card tick open a credential window on the machine. The row `repo_gate` still says
+ * `acme/api`, which is what the pages show.
+ */
 function makeOriginRepo(): string {
   const dir = mkdtempSync(join(tmpdir(), 'lc-gate-repo-'));
+  const origin = createBareRepo();
   execFileSync('git', ['init', '-q'], { cwd: dir, stdio: 'ignore' });
-  execFileSync('git', ['remote', 'add', 'origin', `https://github.com/${GITHUB_REPO}.git`], { cwd: dir, stdio: 'ignore' });
+  execFileSync('git', ['remote', 'add', 'origin', origin.bare], { cwd: dir, stdio: 'ignore' });
   return dir;
 }
 

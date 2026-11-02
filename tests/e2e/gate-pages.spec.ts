@@ -20,6 +20,9 @@ async function registerRepo(request: APIRequestContext, origin: string | null): 
   const dir = realpathSync(mkdtempSync(join(tmpdir(), 'lc-gate-pages-')));
   execFileSync('git', ['init', '-q'], { cwd: dir, stdio: 'ignore' });
   if (origin) execFileSync('git', ['remote', 'add', 'origin', origin], { cwd: dir, stdio: 'ignore' });
+  // The gate is turned on for this repo, so the ticks of the console fetch from its origin. The origin has the github.com form that the
+  // switch needs, so this repo can reach no network: every http request goes to a closed local port, and no credential helper runs.
+  if (origin) for (const [key, value] of [['http.proxy', 'http://127.0.0.1:9'], ['credential.helper', '']]) execFileSync('git', ['config', key, value], { cwd: dir, stdio: 'ignore' });
   const res = await api<{ id: string }>(request, 'POST', '/api/repos', { path: dir, name: 'gate pages' });
   expect(res.status).toBe(201);
   return res.body.id;
