@@ -1368,6 +1368,85 @@ Light verify: `grep -rn "merge-audit" server web` prints nothing.
 
 <!-- K11 -->
 
+## K11
+
+Limit (issue 339): `gate-scope` proves what the gate does after a ratification, not who may call the route. G9 is not closed on that point. A run can post to the route from a script file, and the merge guard reads only the command text. The second layer for that point is the `ratified` list of `scripts/merge-audit.mjs`, and the ratify control of `gate-scope` proves that this list holds the merge.
+
+Red, before the build:
+
+```
+node scripts/goal-check.mjs goals/2026-11-01-goal-driven-loop.json --only G6
+G6 FAIL: run `npx vitest run --project api tests/api/gate-red.test.ts --reporter verbose`: exit 1, expected 0; missing "passed"
+goals passed: 0/1
+node scripts/goal-check.mjs goals/2026-11-01-goal-driven-loop.json --only G7
+G7 FAIL: run `npx vitest run --project api tests/api/gate-stub.test.ts --reporter verbose`: exit 1, expected 0; missing "passed"
+goals passed: 0/1
+node scripts/goal-check.mjs goals/2026-11-01-goal-driven-loop.json --only G9
+G9 FAIL: run `npx vitest run --project api tests/api/gate-scope.test.ts --reporter verbose`: exit 1, expected 0; missing "passed"
+goals passed: 0/1
+```
+
+Green, after the last rebase on f160856:
+
+```
+npx vitest run --project api tests/api/gate-red.test.ts
+      Tests  18 passed (18)
+npx vitest run --project api tests/api/gate-stub.test.ts
+      Tests  7 passed (7)
+npx vitest run --project api tests/api/gate-scope.test.ts
+      Tests  43 passed (43)
+node scripts/goal-check.mjs goals/2026-11-01-goal-driven-loop.json --only G6
+G6 pass
+goals passed: 1/1
+node scripts/goal-check.mjs goals/2026-11-01-goal-driven-loop.json --only G7
+G7 pass
+goals passed: 1/1
+node scripts/goal-check.mjs goals/2026-11-01-goal-driven-loop.json --only G9
+G9 pass
+goals passed: 1/1
+```
+
+Light verify, because the task changes only tests. Each step exited 0:
+
+```
+npm run design:states; npm run typecheck; node scripts/lang-scan.mjs --check-baseline; npm run arch
+npm run ratchets -- --base main; npm run rule-lint -- --base main
+npm run test:unit
+      Tests  1225 passed | 3 skipped (1228)
+npm run test:contract
+      Tests  252 passed (252)
+npm run test:api
+      Tests  380 passed | 2 skipped (382)
+npm run api-smoke; npm run build
+git diff --stat origin/main -- server shared web
+(empty)
+grep -rn gate-api-world server web shared
+(empty, exit 1)
+```
+
+Stub check. Each mutant was one edit of `server/services/gate-service.ts`, then the three files, then `git checkout` of that file. The mutants ran before the last rebase, on the same gate service. Each run has 68 tests:
+
+```
+if (false) { for the guarded verdict                 planned 39: Tests  39 failed | 29 passed (68)
+const bad = undefined; in ci                         planned  6: Tests  6 failed | 62 passed (68)
+const bad: never[] = []; in redMain                  planned  3: Tests  3 failed | 65 passed (68)
+if (true) return for isRealRed in stub               planned  2: Tests  2 failed | 66 passed (68)
+const exam: VerifyTask = { green: [], stub: ... }    planned  6: Tests  8 failed | 60 passed (68)
+host.merge with 'f'.repeat(40)                       planned 16: Tests  16 failed | 52 passed (68)
+```
+
+The exam mutant fails 8, not the planned 6. The 6 planned tests fail, and the 2 controls of `gate-stub` also fail. These controls assert more than the plan asks: the `stub` row of `GOOD_FILES` is `pass`, and the output of the `stub` row of the `stub.none` entry is `nothing to stub`. The mutant replaces the exam, so both assertions see the exam of the mutant. The tests stay as written.
+
+Ratchet: `npx vitest list --project api 2>/dev/null | wc -l` printed 194 at Red and 223 after the build, a rise of 29, not the planned 68. The reason: `vitest list` prints one line for an `it.each`, with the `%s` not filled in, so the 35 guarded paths of `gate-scope` are 1 line, and the 7 tests of the two `it.each` of `gate-red` are 2 lines. That is 39 lines less than 68. A run counts every test: 18 + 7 + 43 = 68 new tests pass, and `npm run test:api` reports 382 tests. Files changed under `server/ shared/ web/`: 0. Metrics `merged-on-red`, `stub-share`: decision 7, not measured yet.
+
+Decisions:
+
+- The two red-main controls that close the issue use an issue that `gh issue create` made, with the exact title of the gate, not an issue from a first refused PR. So a control depends on no refusal, and mutant `redMain` fails only the 3 refusals. The refused tests prove that the gate opens that issue and finds it again.
+- The second PR of a red-main control has its own task and files. Main already holds the files of task 141 after the first merge, so the same files have nothing to stub.
+- `expectMerged` reads the rows of the last attempt, because a ratified job keeps the rows of its first stop.
+- The ratify control also runs the audit: 0 incidents, and the PR is in `ratified`.
+
+
 <!-- K12 -->
 
 <!-- T1 -->
