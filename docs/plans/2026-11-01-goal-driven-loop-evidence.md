@@ -2035,3 +2035,17 @@ Goal: G9, a ratification that a run makes through a script file cannot stay unse
 - Green: `npx playwright test tests/e2e/repo.spec.ts -g "UC-23" --workers 1 --repeat-each 5` passed twice in a row, `5 passed` each time.
 - Stub check: the fix pinned to the 56th second, with the same read delay, fails again with `Expected: 2` and `Received: 3`.
 - Ratchet: UC-23 failures under the late-read condition, 1 before, 0 after. UC-11 is not changed: a measurement of 386 TCP connections showed no leak.
+
+## 387
+
+Issue 387, the gate-scope failure in a full verify.
+
+Cause of the mass failure (measured): Storage Sense removes an empty folder in the user temp folder at any age when free disk space is low. `StoragePoliciesLastTrigger` read 2026-11-02 08:54:20 local time. Run 2 of the repeat loop started at 08:52:59 and lost `TEST_REPO_DIR` (`lc-api-repo-*`, an empty folder) in that minute.
+
+Cause of the first failure (one case, state `failed` at `scope`): not verified. Removal of each empty folder of a fresh bare repository and clone did not break `git fetch` (exit 0). After `pack-refs --all` it did: `does not appear to be a git repository`, exit 128. A world in a test does not pack its refs. The text of that failure was not kept. `expectRefused` now prints the last step, so a next failure names it.
+
+- Goal: the 37 guarded-path cases give the same result on a loaded machine, also when the temp cleaner runs.
+- Red (old code, a lane folder as `TEMP`, a script that removes each empty folder in it from second 45 on): `injected: removed lc-api-repo-*`, `injected: removed lc-gate-root-*`, `Error: POST /api/repos -> 400 ... No such folder`, `Tests  38 failed | 5 passed (43)`, exit 1.
+- Green (same injection and same `TEMP`, new code): `Tests  43 passed (43)`, exit 0, 0 lines from the injection, because `os.tmpdir()` is not in that folder. Two more runs after `goals/gate.json` gained one guarded path: `Tests  44 passed (44)`, exit 0, 278 s and 285 s. Load in all three: both heavy slots held by other lanes.
+- Stub check: `useTestTemp()` removed from `vitest.config.ts`, `TEMP` on the lane folder: `Tests  1 failed | 3 passed (4)` in `tests/tools/test-temp.test.ts`, with `Received` the lane folder. Restored: `Tests  4 passed (4)`.
+- Ratchet: failures of this file caused by the temp cleaner under the injection, 38 before, 0 after. The issue's number, flaky failures of the file in a full verify, was 1 before, and the coordinator reads the after value from its next verifies.
