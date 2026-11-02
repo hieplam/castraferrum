@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { isRealRed } from '../../../shared/domain/gate-commands';
 import { createBareRepo, type BareRepo } from '../../../tests/support/bare-repo';
+import type { CommandRunner } from '../../ports/command-runner';
 import type { GateTree } from '../../ports/gate-workspace';
 import { NodeCommandRunner } from '../process/node-command-runner';
 import { GitGateWorkspace } from './git-gate-workspace';
@@ -386,5 +387,68 @@ describe('gate_workspace', { timeout: 60_000 }, () => {
     await ws.remove(repoPath, JOB);
     expect(readdirSync(root)).toEqual([]);
     expect(worktreeCount()).toBe(1);
+  });
+
+  it('fetch and fetchMain on one folder at the same time both succeed, round after round, while main moves', async () => {
+    const head = openPr({ 'feature.txt': 'x' });
+    for (let round = 0; round < 12; round++) {
+      const main = commitMain({ [`round-${round}.txt`]: String(round) });
+      const [pr, only] = await Promise.all([fetchPr(head), ws.fetchMain(repoPath), ws.fetchMain(repoPath)]);
+      expect(pr.mainSha).toBe(main);
+      expect(only).toBe(main);
+    }
+  });
+
+  describe('fetches of one folder', () => {
+    type Probe = { starts: string[]; maxActive: Map<string, number>; maxTotal: number; fail: Set<number> };
+
+    /** A runner that holds each `git fetch` open for a while and records how many are open for one folder. */
+    function probedWorkspace(): { probe: Probe; ws: GitGateWorkspace } {
+      const probe: Probe = { starts: [], maxActive: new Map(), maxTotal: 0, fail: new Set() };
+      const active = new Map<string, number>();
+      let calls = 0;
+      const runner: CommandRunner = {
+        async run(req) {
+          const index = calls++;
+          const isFetch = req.argv.includes('fetch');
+          if (isFetch) {
+            probe.starts.push(req.cwd);
+            active.set(req.cwd, (active.get(req.cwd) ?? 0) + 1);
+            probe.maxActive.set(req.cwd, Math.max(probe.maxActive.get(req.cwd) ?? 0, active.get(req.cwd)!));
+            probe.maxTotal = Math.max(probe.maxTotal, [...active.values()].reduce((a, b) => a + b, 0));
+            await new Promise((resolve) => setTimeout(resolve, 20));
+            active.set(req.cwd, active.get(req.cwd)! - 1);
+          }
+          const failed = isFetch && probe.fail.has(index);
+          return { exitCode: failed ? 1 : 0, stdout: 'abc', stderr: failed ? 'boom' : '', timedOut: false, error: null };
+        },
+      };
+      return { probe, ws: new GitGateWorkspace({ runner, root }) };
+    }
+
+    it('never overlap for one folder', async () => {
+      const { probe, ws: fake } = probedWorkspace();
+      await Promise.all([fake.fetchMain('/repo/a'), fake.fetch('/repo/a', { headRef: 'x', headSha: 'abc' }), fake.fetchMain('/repo/a')]);
+      expect(probe.starts).toHaveLength(3);
+      expect(probe.maxActive.get('/repo/a')).toBe(1);
+    });
+
+    it('do overlap for two folders', async () => {
+      const { probe, ws: fake } = probedWorkspace();
+      await Promise.all([fake.fetchMain('/repo/a'), fake.fetchMain('/repo/b')]);
+      expect(probe.maxActive.get('/repo/a')).toBe(1);
+      expect(probe.starts).toHaveLength(2);
+      expect(probe.maxTotal).toBe(2);
+    });
+
+    it('go on after a call that failed', async () => {
+      const { probe, ws: fake } = probedWorkspace();
+      probe.fail.add(0);
+      const first = fake.fetchMain('/repo/a');
+      const second = fake.fetchMain('/repo/a');
+      await expect(first).rejects.toThrow(/git fetch failed/);
+      await expect(second).resolves.toBe('abc');
+      expect(probe.starts).toHaveLength(2);
+    });
   });
 });

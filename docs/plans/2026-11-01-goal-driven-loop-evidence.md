@@ -2075,3 +2075,16 @@ Cause of the first failure (one case, state `failed` at `scope`): not verified. 
 - Stub check: the service file restored from `origin/main` (rows stay `proposed`): `Tests  5 failed | 6 passed (11)`. The five are the changed closed-card test and four new tests. Restored: 11 passed.
 - Decisions: the service does not comment on or close the issue (a person already closed it, and an open issue that only lost its label stays as it is). `issuesWithLabel` now throws a `GitHostError` when it gives 200 issues (the `--limit`), so a cut-off list never frees a row. A failed `gh` call already throws, so no row changes (test `a read that fails changes no row`).
 - Ratchet: unit tests in the two files, 26 before, 32 after (goal-card-service 6 to 11, gh-git-host 20 to 21).
+
+## 391
+
+Goal row: G6 and G9. Two services that fetch one repository at the same time both succeed.
+
+- Cause (proved in the issue): `GateService` and `GoalCardService` share one `GitGateWorkspace` (one instance in `server/compose.ts`). The ticker runs both at once, and `fetch` and `fetchMain` write the same ref `refs/remotes/origin/main`.
+- Fix: a private serial queue for each repository folder (`#serial` in `server/adapters/git/git-gate-workspace.ts`). `fetch` and `fetchMain` run their whole body, `rev-parse` calls included, in it. A failed call does not stop the next call. The map entry goes away when the queue is empty. No retry, no catch of `cannot lock ref`, no sleep.
+- Red (old code, `npx vitest run server/adapters/git/git-gate-workspace.test.ts`): 2 failed, 25 passed.
+  - `GateWorkspaceError: git fetch failed: error: cannot lock ref 'refs/remotes/origin/main': is at 49e50ed... but expected a4df4c9...` (real git, 12 rounds with `main` moved before each round).
+  - `AssertionError: expected 3 to be 1` (fake runner: three fetches of one folder overlapped).
+- Green (with the fix): same file, `Tests  27 passed (27)`. `npx vitest run --project api tests/api/gate-scope.test.ts`: `Tests  44 passed (44)`.
+- Stub check: `#serial` made to call `fn()` directly: the same 2 tests fail (`2 failed | 25 passed`). Restored afterwards.
+- Ratchet: failures of `gate-scope` in full verify runs, 3 of the last 4 before, 0 after in the focused run (the full-verify count is for the coordinator to confirm).
