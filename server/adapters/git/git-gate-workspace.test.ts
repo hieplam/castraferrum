@@ -83,12 +83,10 @@ afterEach(async () => {
 
 describe('gate_workspace', { timeout: 60_000 }, () => {
   it('fetchMain moves only origin/main to the new commit, with no pull request to fetch', async () => {
-    const sha = commitMain({ 'goals/charter.json': '{}
-' });
+    const sha = commitMain({ 'goals/charter.json': '{}' });
 
     expect(await ws.fetchMain(repoPath)).toBe(sha);
-    expect(await ws.readAt(repoPath, sha, 'goals/charter.json')).toBe('{}
-');
+    expect(await ws.readAt(repoPath, sha, 'goals/charter.json')).toBe('{}');
   });
 
   it('readAt gives the text of main while the PR changes the file and the checkout and the worktree hold the PR text', async () => {
