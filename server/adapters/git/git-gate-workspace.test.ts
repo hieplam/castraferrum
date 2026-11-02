@@ -1,5 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -449,6 +451,56 @@ describe('gate_workspace', { timeout: 60_000 }, () => {
       await expect(first).rejects.toThrow(/git fetch failed/);
       await expect(second).resolves.toBe('abc');
       expect(probe.starts).toHaveLength(2);
+    });
+  });
+
+  describe('login prompts', () => {
+    it('every git call of the class runs with the variables that stop a login window', async () => {
+      const seen: { argv: string[]; env: Record<string, string> | undefined }[] = [];
+      const runner: CommandRunner = {
+        async run(req) {
+          seen.push({ argv: req.argv, env: req.env });
+          return { exitCode: 0, stdout: 'abc', stderr: '', timedOut: false, error: null };
+        },
+      };
+      const fake = new GitGateWorkspace({ runner, root });
+      const tree: GateTree = { dir: join(root, 'tree'), baseSha: 'b', rebasedSha: 'r' };
+      await fake.fetch('/repo/a', { headRef: 'x', headSha: 'abc' });
+      await fake.fetchMain('/repo/a');
+      await fake.readAt('/repo/a', 'abc', 'file.txt');
+      await fake.listAt('/repo/a', 'abc', 'dir');
+      await fake.changed('/repo/a', 'abc', 'def');
+      await fake.prepare('/repo/a', 'job-p', 'abc', 'def');
+      await fake.stubRestore(tree, [], []);
+      await fake.stubUndo(tree);
+      await fake.remove('/repo/a', 'job-p');
+      const gitCalls = seen.filter((call) => call.argv[0] === 'git');
+      expect(gitCalls.length).toBeGreaterThan(12);
+      for (const call of gitCalls) {
+        expect(call.env, call.argv.join(' ')).toMatchObject({ GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' });
+      }
+    });
+
+    it('a fetch from an address that asks for a login fails at once and opens no prompt', async () => {
+      const server = createServer((_req, res) => {
+        res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="gate-test"' });
+        res.end();
+      });
+      await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
+      const saved = { askpass: process.env.GIT_ASKPASS, sshAskpass: process.env.SSH_ASKPASS };
+      delete process.env.GIT_ASKPASS;
+      delete process.env.SSH_ASKPASS;
+      try {
+        const { port } = server.address() as AddressInfo;
+        git(repoPath, ['remote', 'set-url', 'origin', `http://127.0.0.1:${port}/acme/api.git`]);
+        const started = Date.now();
+        await expect(ws.fetchMain(repoPath)).rejects.toThrow(/git fetch failed/);
+        expect(Date.now() - started).toBeLessThan(10_000);
+      } finally {
+        if (saved.askpass !== undefined) process.env.GIT_ASKPASS = saved.askpass;
+        if (saved.sshAskpass !== undefined) process.env.SSH_ASKPASS = saved.sshAskpass;
+        await new Promise((done) => server.close(done));
+      }
     });
   });
 });

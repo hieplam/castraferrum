@@ -2117,3 +2117,14 @@ The test also asserts that the switch is visible, so it states its own precondit
 - Stub check: the fork refusal, the association filter and the author filter were each removed in one run: `Tests  11 failed | 38 passed (49)`. After the restore: `Tests  49 passed (49)`.
 - Ratchet: tests of outside input, 0 before, 19 after (2 fork API, 1 host fork, 10 loopComments cases, 4 probe, 2 addresses).
 - Decisions: `GOAL_CARD` and `issuesWithLabel` need no change, because `goal-card` is a label and setting a label needs triage rights. `GateService.queue` still keeps the job, so the refusal has a record. The fake `gh` gives `OWNER` to a comment made with `issue comment` and the owner of `-R` to an issue made with `issue create`; a seeded comment or issue with none is read as a stranger's.
+
+## 395
+
+Goal row: G6. A background git call that needs a login fails at once and opens no window.
+
+- Fix: `GitGateWorkspace.git()` (the one private method that builds each git call) passes `NO_LOGIN_PROMPT_ENV` from `server/adapters/process/no-login-prompt.ts`: `GIT_TERMINAL_PROMPT=0`, `GCM_INTERACTIVE=never`, `GH_PROMPT_DISABLED=1`. No `credential.helper` is unset, so a stored login still works. `GhGitHost.gh()` passes the same env. `windowsHide` and the retry rules are unchanged.
+- Other `git` or `gh` runs found in `server/`: `scoreboard-service` runs `git log` (local only, no network, no login). `command-claim-gateway`, `hold-service`, `probe-service`, `standing-goal-service` and the gate `checkCommand` run commands that the repository owner configured, not git or gh calls of the console. They are left unchanged.
+- Red (old `git-gate-workspace.ts`, new tests): `2 failed | 27 passed`. The env test fails because the git call has no `GIT_TERMINAL_PROMPT`. The real-git test (a local HTTP server that answers 401) hangs until the 60 s test limit, and a `git-credential-manager get` process stays alive.
+- Green: `git-gate-workspace.test.ts` and `server/adapters/github`: `Tests  61 passed (61)`. `tests/api/gate-scope.test.ts` and `gate-fork.test.ts`: `Tests  46 passed (46)`. `tests/tools`: `Tests  290 passed (290)`. `rule-lint: ok`. After the runs, `Get-Process git-credential-manager` shows 0 processes.
+- Stub check: the Red run is the stub check. It used the file with no env, and both new tests failed.
+- Ratchet: `git-credential-manager` windows during test runs: 1 left running after the Red run, 0 after Green. The count of 9 for `gate.visual.ts` and `gate-pages.spec.ts` is not measured here (CI stands in for the e2e run).
