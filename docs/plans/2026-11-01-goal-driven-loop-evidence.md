@@ -1923,6 +1923,24 @@ Full `npm run verify` after the last rebase (lane database `loops_r9_test`, port
 
 <!-- W1 -->
 
+## W1
+
+Red, before building: `npx vitest run --project unit shared/domain/goal-card.test.ts` and `npx vitest run --project api tests/api/goal-cards.test.ts` each printed `Test Files  1 failed (1)`, `Tests  no tests`.
+
+Green, on 89ac229 after the rebase on `origin/main`: unit `Tests  12 passed (12)`; api `Tests  17 passed (17)`; `npx vitest run --project contract -t goal_cards` `Tests  6 passed | 252 skipped (258)`; `npm run goal:check` `--only G19` `G19 pass`, `goals passed: 1/1`; `--only G20` `G20 pass`, `goals passed: 1/1`.
+
+`npm run verify` on 89ac229: exit 0. Literal lines: `ratchets: ok`; unit `Tests  1256 passed | 3 skipped (1259)`; `memory: 120 passed · postgres: 120 passed`; api `Tests  400 passed | 2 skipped (402)`; e2e `126 passed (15.6m)`; `UCs with a green e2e: 35/35`.
+
+Two earlier verifies, both recorded:
+- b941f56: 1 failed in `server/http/errors.test.ts`, which pins each status. W1 added the two codes in 5000b08.
+- 5000b08: api `Tests  1 failed | 399 passed | 2 skipped (402)`, `gate-scope: refused: a PR that changes scripts/design-lint.mjs`, `expected 'failed' to be 'needs_ratification'`. W1 cannot reach it. It passed alone (`Tests  1 passed | 42 skipped (43)`) and in the third verify. Filed as issue 387.
+
+Stub check, run for real and restored:
+- A plain timer: no refusal check, no door check, `start_after` with the window off: `Tests  7 failed | 10 passed (17)`. The failures hold the refused test and the default test `window off by default: with no yes, a card stays proposed after 30 days`.
+- No door check in the insert: with `-t 'one-way|neverAlone'`, `Tests  2 failed | 1 passed | 14 skipped (17)`. The 2 are the stored-door test and `a one-way card has no start time and stays proposed past the window`.
+
+Ratchet: unit tests +20 (12 card, 6 service, 1 host, 1 workspace; `vitest list` 1024 to 1044 before the rebase). Api tests +20 (17 cards, 3 surface rows), 402 after. Contract 117 to 120 per side, +3. `refused-started`: 0. `one-way-started`: 0.
+
 <!-- W2 -->
 
 ## W2
