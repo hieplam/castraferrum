@@ -111,8 +111,10 @@ export async function startGateApi() {
 
     /** A refusal: the job stops at `step`, nothing merges, and the status says why. */
     expectRefused(c: GateCase, pr: WorldPr, run: JobResult, step: GateStepName) {
-      expect(run.job.failedStep).toBe(step);
-      expect(run.job.state).toBe(step === 'scope' ? 'needs_ratification' : 'failed');
+      // The output of the last step goes in the message: a throw in a step ends as `failed`, and only its row holds the thrown text.
+      const output = `the last step: ${JSON.stringify(run.steps.at(-1) ?? null)}`;
+      expect(run.job.failedStep, output).toBe(step);
+      expect(run.job.state, output).toBe(step === 'scope' ? 'needs_ratification' : 'failed');
       expect(run.steps.at(-1)).toMatchObject({ step, status: 'fail' });
       expect(mergesOf(c, pr)).toEqual([]);
       expect(c.world.bare.sha('main')).toBe(c.mainBefore);

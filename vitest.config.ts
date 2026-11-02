@@ -1,7 +1,9 @@
 import { defineConfig } from 'vitest/config';
 import { loadDotEnv } from './server/config.ts';
+import { useTestTemp } from './tests/support/test-temp.ts';
 
 loadDotEnv();
+useTestTemp();
 const dbSetup = ['tests/support/db-global-setup.ts'];
 
 // Three groups, run one after another (groupOrder) because contract + api share the loops_test DB.

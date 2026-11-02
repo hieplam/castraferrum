@@ -1,7 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 import { databaseUrl, loadDotEnv, readPort } from './server/config.ts';
+import { useTestTemp } from './tests/support/test-temp.ts';
 
 loadDotEnv();
+const tempEnv = useTestTemp();
 // A separate port for e2e so it never collides with the real instance on 7070.
 const port = readPort(process.env, 'LOOPS_E2E_PORT', 7071);
 
@@ -31,6 +33,7 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 60_000,
     env: {
+      ...tempEnv,
       LOOPS_PORT: String(port),
       LOOPS_TEST_MODE: '1',
       // 4-item transcript pages: even the small transcript of a haiku turn must scroll up and load several pages (UC-27)
