@@ -1925,6 +1925,24 @@ Full `npm run verify` after the last rebase (lane database `loops_r9_test`, port
 
 <!-- W2 -->
 
+## W2
+
+Goal G18 (task W2): when a goal ends, the probe asks for one writing run, with no model and no owner message. Files: `scripts/goal-writer-probe.mjs`, `tests/tools/goal-writer-probe.test.ts`.
+
+**Red** (script moved away, before building): `npx vitest run --project unit tests/tools/goal-writer-probe.test.ts` printed `Tests  11 failed (11)`.
+
+**Green** (after the last rebase onto `origin/main` 46d36e9): the same command printed `Tests  11 passed (11)`. `node scripts/goal-writer-probe.mjs` prints `goal-writer-probe: -R <owner/name> is required` and exits 2 (test `exits 2 and names the missing -R`).
+
+**Stub check** (each variant run for real, then the script was restored):
+- always prints `plan`: `Tests  7 failed | 4 passed (11)`
+- always prints `skip`: `Tests  8 failed | 3 passed (11)`
+- no stamp written: `Tests  2 failed | 9 passed (11)`
+- a failed `gh` call read as "nothing open": `Tests  1 failed | 10 passed (11)`
+
+**Ratchet** (unit tests, up only): before `Tests  1225 passed | 3 skipped (1228)`, after `Tests  1236 passed | 3 skipped (1239)`.
+
+**Light verify** (slot-1, lane database `loops_w2_test`, 10 steps, all exit 0): `design:states`, `typecheck`, `lang-scan --check-baseline` (`baseline check: ok`, `coupling: 0`), `arch`, `ratchets -- --base main` (`ratchets: ok`), `test:unit` (`1236 passed | 3 skipped (1239)`), `test:contract` (`252 passed (252)`), `test:api` (`380 passed | 2 skipped (382)`), `api-smoke` (ok), `build`. `test:e2e` and `phone:check` were skipped by the light-verify rule: no existing file under `server/` or `web/` changed, and `grep -rn "goal-writer-probe" server web` prints nothing.
+
 <!-- W3 -->
 
 <!-- W4 -->
