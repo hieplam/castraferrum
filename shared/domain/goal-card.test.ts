@@ -1,6 +1,6 @@
 // The charter and the goal card (spec 2.13, plan rules 3, 4, 10): what a repository allows, and what one card says.
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import charterFile from '../../goals/charter.json';
 import { effectiveDoor, parseCharter, parseGoalCard, windowOn, type Charter, type GoalCard } from './goal-card';
 
 const CHARTER: Charter = {
@@ -23,7 +23,7 @@ const block = (value: unknown) => `\`\`\`json\n${JSON.stringify(value)}\n\`\`\``
 
 describe('goal_card', () => {
   it('the real charter parses, with the window off', () => {
-    const charter = parseCharter(readFileSync('goals/charter.json', 'utf8'));
+    const charter = parseCharter(JSON.stringify(charterFile));
 
     expect(charter.refusalWindow).toEqual({ enabled: false, hours: 8 });
     expect(charter.acceptedWithNoChange).toBe(0);
