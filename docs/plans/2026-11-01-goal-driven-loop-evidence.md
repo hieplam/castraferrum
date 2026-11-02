@@ -1965,6 +1965,48 @@ Goal G18 (task W2): when a goal ends, the probe asks for one writing run, with n
 
 <!-- W4 -->
 
+## W4
+
+Issue: [347](https://github.com/hieplam/castraferrum/issues/347). Goal G21: a lower rank cannot take the window from a higher rank. With default ranks nothing changes.
+
+**Red** (before the build, a one-line test file that imports `./rank`), `npx vitest run --project unit server/services/rank.test.ts`:
+
+```
+ Test Files  1 failed (1)
+      Tests  no tests
+```
+
+**Green** (after the rebase on main at release 0.6.0):
+
+```
+npx vitest run --project unit server/services/rank.test.ts --reporter verbose
+      Tests  15 passed (15)
+npx vitest run --project unit server/adapters/executors/claude/claude-plan-window.test.ts
+      Tests  7 passed (7)
+node scripts/goal-check.mjs goals/2026-11-01-goal-driven-loop.json --only G21
+G21 pass
+goals passed: 1/1
+```
+
+**Stub check** (each mutation ran `rank.test.ts`, then the file was restored):
+
+| Mutation | Result |
+|---|---|
+| `mayStart` returns true | `Tests  8 failed` of 15 |
+| `<= 45` in place of `< 45` | `1 failed`: exactly 45 min |
+| `<= 90` in place of `< 90` | `1 failed`: exactly 90 % |
+| window read with no higher loop live | `1 failed`: a stopped higher loop |
+| window read with no smaller rank | `3 failed`, also the rank 100 test |
+| budget check removed | `1 failed`: a reached budget |
+| one list for all ranks, no new read | `3 failed`: both print `take` in one tick |
+| rank check after the probe call | `1 failed`: the 0-calls test |
+
+**One real read** through the SDK, with no user message and no model turn: `real-read {"utilization":79,"resetsAt":"2026-11-02T05:59:59.713Z"} 3491 ms`. The test oracle uses a fake `query`, so this read proves the adapter on the real SDK, with `settingSources: []` too.
+
+**Ratchet.** `rank-stops`: not measured, as the plan says. Added test cases, counted in the diff: unit +25 (rank 15, plan window 7, executor 2, resume 1; the plan asks +24), api +2, contract +2 per side.
+
+**Full verify.** Run 1 stopped at one test, `save: stores the settings`, that needed the two new fields. Run 2 passed `test:unit` (`1285 passed | 3 skipped (1288)`) and `test:contract` (`262 passed (262)`). It stopped at one case of `tests/api/gate-scope.test.ts`, `control: a package.json with a new dependency merges`, `expected 'failed' to be 'merged'`. That case passed 2 of 2 alone. Issue 391 holds the proved cause, which is not in this change. The last full verify runs after that fix is merged.
+
 <!-- W5 -->
 
 <!-- W6 -->
