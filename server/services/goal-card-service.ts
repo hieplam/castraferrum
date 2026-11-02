@@ -95,7 +95,15 @@ export class DefaultGoalCardService implements GoalCardService {
 
   async #ingest(repo: RepoRecord, githubRepo: string, charter: Charter, issues: LabeledIssue[], now: Date): Promise<void> {
     const rows = await this.d.cards.list(repo.id);
-    const proposed = rows.find((row) => row.state === 'proposed');
+    // Rule 2: the issues come from a read that finished (a failed or cut-off read throws before this point). A person who closed a proposed card, or
+    // took its label, said no: the row moves to `refused` now, with no comment and no close, so the next card can take the place in this tick.
+    const freed = new Set<string>();
+    for (const row of rows) {
+      if (row.state !== 'proposed' || issues.some((issue) => issue.number === row.issueNumber)) continue;
+      const refused = await this.d.cards.update(row.id, 'proposed', { ...decisionOf(row), state: 'refused', decidedAt: now });
+      if (refused) freed.add(row.id);
+    }
+    const proposed = rows.find((row) => row.state === 'proposed' && !freed.has(row.id));
     let waiting = proposed?.issueNumber ?? null;
     for (const issue of [...issues].sort((a, b) => a.number - b.number)) {
       const row = rows.find((candidate) => candidate.issueNumber === issue.number);
