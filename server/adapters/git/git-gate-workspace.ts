@@ -1,6 +1,6 @@
 import { rmSync } from 'node:fs';
 import { devNull } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { shellArgv } from '../../../shared/domain/gate-commands';
 import { matchesGlob, type ChangedFile } from '../../../shared/domain/scope-guard';
 import type { CommandResult, CommandRunner } from '../../ports/command-runner';
@@ -33,6 +33,7 @@ function parseTree(stdout: string): { type: string; object: string; path: string
 export class GitGateWorkspace implements GateWorkspace {
   private readonly runner: CommandRunner;
   private readonly root: string;
+  readonly #queues = new Map<string, Promise<unknown>>();
 
   constructor(deps: { runner: CommandRunner; root: string }) {
     this.runner = deps.runner;
@@ -66,16 +67,39 @@ export class GitGateWorkspace implements GateWorkspace {
     return result.stdout;
   }
 
-  async fetch(repoPath: string, head: { headRef: string; headSha: string }): Promise<{ mainSha: string; headMatches: boolean }> {
-    await this.must(repoPath, ['fetch', '--no-tags', 'origin', `+refs/heads/main:${MAIN_REF}`, `+refs/heads/${head.headRef}:${HEAD_REF}`]);
-    const mainSha = (await this.must(repoPath, ['rev-parse', MAIN_REF])).trim();
-    const fetchedHead = (await this.must(repoPath, ['rev-parse', HEAD_REF])).trim();
-    return { mainSha, headMatches: fetchedHead === head.headSha };
+  /**
+   * Runs `fn` after every earlier call for the same folder has ended, pass or fail.
+   * Two fetches into the same refs of one repository must not overlap: git then fails with `cannot lock ref`.
+   */
+  #serial<T>(repoPath: string, fn: () => Promise<T>): Promise<T> {
+    const key = resolve(repoPath);
+    const previous = this.#queues.get(key) ?? Promise.resolve();
+    const run = previous.then(fn, fn);
+    const tail = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    this.#queues.set(key, tail);
+    void tail.then(() => {
+      if (this.#queues.get(key) === tail) this.#queues.delete(key);
+    });
+    return run;
   }
 
-  async fetchMain(repoPath: string): Promise<string> {
-    await this.must(repoPath, ['fetch', '--no-tags', 'origin', `+refs/heads/main:${MAIN_REF}`]);
-    return (await this.must(repoPath, ['rev-parse', MAIN_REF])).trim();
+  fetch(repoPath: string, head: { headRef: string; headSha: string }): Promise<{ mainSha: string; headMatches: boolean }> {
+    return this.#serial(repoPath, async () => {
+      await this.must(repoPath, ['fetch', '--no-tags', 'origin', `+refs/heads/main:${MAIN_REF}`, `+refs/heads/${head.headRef}:${HEAD_REF}`]);
+      const mainSha = (await this.must(repoPath, ['rev-parse', MAIN_REF])).trim();
+      const fetchedHead = (await this.must(repoPath, ['rev-parse', HEAD_REF])).trim();
+      return { mainSha, headMatches: fetchedHead === head.headSha };
+    });
+  }
+
+  fetchMain(repoPath: string): Promise<string> {
+    return this.#serial(repoPath, async () => {
+      await this.must(repoPath, ['fetch', '--no-tags', 'origin', `+refs/heads/main:${MAIN_REF}`]);
+      return (await this.must(repoPath, ['rev-parse', MAIN_REF])).trim();
+    });
   }
 
   async readAt(repoPath: string, sha: string, path: string): Promise<string | null> {
