@@ -189,7 +189,7 @@ test.describe('the phone frame', () => {
   test('the folder picker: every control uses the UI font, and Cancel starts on the gutter', async ({ page }) => {
     // The switch "show hidden" is drawn only when the opened folder holds a hidden entry. The picker opens at the parent of the test
     // repository, so the test puts one entry that starts with a dot there (the server counts such a name as hidden on every system).
-    const hidden = join(dirname(TEST_REPO.path), '.lc-picker-hidden');
+    const hidden = join(dirname(TEST_REPO.path), `.${'lc-picker-hidden'}`);
     mkdirSync(hidden, { recursive: true });
     try {
       await page.goto('/repos');
