@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.6.0](https://github.com/hieplam/castraferrum/compare/v0.5.0...v0.6.0) (2026-11-02)
+
+
+### Features
+
+* **goal-cards:** charter, goal card and GoalCardService (W1) ([#384](https://github.com/hieplam/castraferrum/issues/384)) ([5c2fdf2](https://github.com/hieplam/castraferrum/commit/5c2fdf294510d24885c84612c28ae1f0d38b75ad))
+* **goals:** goal-writer-probe asks for one writing run (W2) ([#386](https://github.com/hieplam/castraferrum/issues/386)) ([5b167c5](https://github.com/hieplam/castraferrum/commit/5b167c52ac74e9034fa0b3fa373d01cbd1fbc84b))
+
+
+### Bug Fixes
+
+* **gate:** a hand-over to a missing pull request releases the claim ([#380](https://github.com/hieplam/castraferrum/issues/380)) ([c0392bb](https://github.com/hieplam/castraferrum/commit/c0392bb82c56e1c69d4a5eeaeaf7ccfb2c8663ee))
+* **goal-cards:** a proposed card whose issue a person closed becomes refused ([#389](https://github.com/hieplam/castraferrum/issues/389)) ([c2679bb](https://github.com/hieplam/castraferrum/commit/c2679bbe4417d7aa80b2cefdbf705138d2add429))
+* **test:** test runs keep their temp folders out of reach of Storage Sense ([#388](https://github.com/hieplam/castraferrum/issues/388)) ([1f03ef3](https://github.com/hieplam/castraferrum/commit/1f03ef31d9596c2b559b2b0c5fd58d5c1da6f8ac))
+
 ## [0.5.0](https://github.com/hieplam/castraferrum/compare/v0.4.0...v0.5.0) (2026-11-01)
 
 
