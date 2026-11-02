@@ -476,8 +476,11 @@ describe('gate_workspace', { timeout: 60_000 }, () => {
       await fake.remove('/repo/a', 'job-p');
       const gitCalls = seen.filter((call) => call.argv[0] === 'git');
       expect(gitCalls.length).toBeGreaterThan(12);
+      for (const verb of ['fetch', 'ls-tree', 'merge-base', 'worktree']) {
+        expect(gitCalls.some((call) => call.argv.includes(verb)), verb).toBe(true);
+      }
       for (const call of gitCalls) {
-        expect(call.env, call.argv.join(' ')).toMatchObject({ GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' });
+        expect(call.env, call.argv.join(' ')).toEqual({ GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', GH_PROMPT_DISABLED: '1' });
       }
     });
 
