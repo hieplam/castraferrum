@@ -7,6 +7,7 @@ import type { ErrorCode } from '../../shared/domain/errors';
 import type { GateJobState, GateStep } from '../../shared/domain/gate';
 import type { ProbeSettings } from '../../shared/domain/goal-loop';
 import type { GoalRunRecord } from '../../shared/domain/standing-goal';
+import type { GoalCardRecord, GoalCardUpdate, NewGoalCardRecord } from '../../server/ports/goal-card-repository';
 import type { NewStandingIssueRecord } from '../../server/ports/goal-repository';
 import type { NewLoopRecord } from '../../server/ports/loop-repository';
 import type { NewNoticeRecord } from '../../server/ports/notice-repository';
@@ -1504,6 +1505,67 @@ export function repositoryContract(env: () => ContractEnv): void {
       await r.gate.finish(live, { state: 'needs_ratification', failedStep: 'scope', at: at(7) });
       expect(await r.gate.ratify(waiting, at(8))).toBe('ratified');
       expect(await r.gate.get(live)).toMatchObject({ state: 'needs_ratification', ratifiedAt: null });
+    });
+  });
+
+  describe('goal_cards', () => {
+    const CARD = { v: 1, title: 'Goal', rows: [{ id: 'G1', outcome: 'It works', oracle: 'node c.mjs', threshold: 'ok' }], size: { planWindows: 0.5 }, door: 'two-way', next: ['Then'] } as const;
+    const newCard = (issueNumber: number, sec: number): NewGoalCardRecord => ({
+      id: randomUUID(),
+      repoId,
+      githubRepo: 'o/r',
+      issueNumber,
+      title: 'Goal',
+      door: 'two-way',
+      card: { ...CARD, rows: [...CARD.rows], next: [...CARD.next] },
+      startAfter: at(sec + 3600),
+      createdAt: at(sec),
+    });
+    const refused = (row: GoalCardRecord): GoalCardUpdate => ({ state: 'refused', title: row.title, door: row.door, card: row.card, startAfter: row.startAfter, changed: row.changed, decidedAt: at(9) });
+
+    it('an inserted card reads back as proposed, the list is newest first, and the card goes with its repository', async () => {
+      const first = newCard(1, 1);
+      expect(await r.goalCards.insert(first)).toBe('inserted');
+      await r.goalCards.update(first.id, 'proposed', refused((await r.goalCards.get(first.id))!));
+      const second = newCard(2, 2);
+      await r.goalCards.insert(second);
+      const otherRepo = await r.repos.insert(newRepo({ name: 'other', path: '/repo/other' }));
+      const other = { ...newCard(1, 3), repoId: otherRepo.id };
+      await r.goalCards.insert(other);
+
+      expect(await r.goalCards.get(second.id)).toEqual({ ...second, state: 'proposed', changed: false, epicNumber: null, prNumber: null, loopId: null, decidedAt: null });
+      expect(await r.goalCards.get(randomUUID())).toBeNull();
+      expect((await r.goalCards.list(repoId)).map((c) => c.issueNumber)).toEqual([2, 1]);
+      expect((await r.goalCards.list(null)).map((c) => c.id)).toEqual([other.id, second.id, first.id]);
+
+      await r.repos.delete(otherRepo.id);
+      expect(await r.goalCards.get(other.id)).toBeNull();
+    });
+
+    it('a repository holds one proposed card and one row for each issue, and a decision frees the proposed place', async () => {
+      const first = newCard(1, 1);
+      await r.goalCards.insert(first);
+
+      expect(await r.goalCards.insert(newCard(2, 2))).toBe('taken');
+      await r.goalCards.update(first.id, 'proposed', refused((await r.goalCards.get(first.id))!));
+
+      expect(await r.goalCards.insert(newCard(1, 3))).toBe('taken');
+      expect(await r.goalCards.insert(newCard(2, 3))).toBe('inserted');
+      expect(await r.goalCards.list(repoId)).toHaveLength(2);
+    });
+
+    it('update changes a row only in the state that it names', async () => {
+      const input = newCard(1, 1);
+      await r.goalCards.insert(input);
+      const row = (await r.goalCards.get(input.id))!;
+
+      expect(await r.goalCards.update(input.id, 'accepted', refused(row))).toBeNull();
+      expect((await r.goalCards.get(input.id))!.state).toBe('proposed');
+      expect(await r.goalCards.update(randomUUID(), 'proposed', refused(row))).toBeNull();
+
+      const edited = { ...refused(row), state: 'accepted' as const, title: 'New', door: 'one-way' as const, card: { ...row.card, title: 'New' }, startAfter: null, changed: true };
+      expect(await r.goalCards.update(input.id, 'proposed', edited)).toEqual({ ...row, ...edited });
+      expect(await r.goalCards.update(input.id, 'proposed', refused(row))).toBeNull();
     });
   });
 

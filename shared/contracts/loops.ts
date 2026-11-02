@@ -227,5 +227,9 @@ export const testClockBody = z.union([
 ]);
 export const testClockDto = z.object({ now: isoDate });
 
+/** `POST /__test/repo-gate`: writes the `repo_gate` row of a repository. */
+export const testRepoGateBody = z.object({ repoId: z.string(), enabled: z.boolean(), githubRepo: z.string().min(1), checkCommand: z.array(z.string()).optional() }).strict();
+export type TestRepoGateBody = z.output<typeof testRepoGateBody>;
+
 /** `POST /__test/dirs`: force a folder to exist (`true`) / be missing (`false`) for exactly that path string. */
 export const testDirsBody = z.object({ paths: z.record(z.string(), z.boolean()) }).strict();

@@ -3,6 +3,7 @@ import type { Repositories } from '../../ports/repositories';
 import { PgClaimRepository } from './pg-claim-repository';
 import { PgExecutionRepository } from './pg-execution-repository';
 import { PgGateRepository } from './pg-gate-repository';
+import { PgGoalCardRepository } from './pg-goal-card-repository';
 import { PgGoalRepository } from './pg-goal-repository';
 import { PgHeartbeatRepository } from './pg-heartbeat-repository';
 import { PgHoldRepository } from './pg-hold-repository';
@@ -26,6 +27,7 @@ export function createPgRepositories(pool: pg.Pool): Repositories {
     goals: new PgGoalRepository(pool),
     claims: new PgClaimRepository(pool),
     gate: new PgGateRepository(pool),
+    goalCards: new PgGoalCardRepository(pool),
     holds: new PgHoldRepository(pool),
   };
 }

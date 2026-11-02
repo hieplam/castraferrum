@@ -1,6 +1,7 @@
 import type { ClaimRepository } from './claims';
 import type { ExecutionRepository } from './execution-repository';
 import type { GateRepository } from './gate-repository';
+import type { GoalCardRepository } from './goal-card-repository';
 import type { GoalRepository } from './goal-repository';
 import type { HeartbeatRepository } from './heartbeat-repository';
 import type { HoldRepository } from './hold-repository';
@@ -25,4 +26,5 @@ export type Repositories = {
   claims: ClaimRepository;
   gate: GateRepository;
   holds: HoldRepository;
+  goalCards: GoalCardRepository;
 };

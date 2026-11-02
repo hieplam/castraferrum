@@ -1,6 +1,8 @@
 import { PROBE_STATES, RESTART_POLICIES, type ProbeRecord } from '../../../shared/domain/goal-loop';
 import { RUN_STATUSES } from '../../../shared/domain/run';
 import { STANDING_GOAL_STATES, type GoalRunRecord, type StandingGoalRecord, type StandingIssueRecord, type StandingScheduleRecord } from '../../../shared/domain/standing-goal';
+import { GOAL_CARD_DOORS, GOAL_CARD_STATES } from '../../../shared/domain/goal-card';
+import type { GoalCardRecord } from '../../ports/goal-card-repository';
 import { GATE_JOB_STATES, GATE_STEPS, GATE_STEP_STATUSES, type GateJob, type GateStep, type RepoGate } from '../../../shared/domain/gate';
 import type { ClaimRecord } from '../../ports/claims';
 import type { ExecutionRecord } from '../../ports/execution-repository';
@@ -62,6 +64,7 @@ export class MemoryDb {
   readonly standingIssues = new Map<string, StandingIssueRecord>();
   readonly standingSchedules = new Map<string, StandingScheduleRecord>();
   readonly goalRuns = new Map<string, GoalRunRecord>();
+  readonly goalCards = new Map<string, GoalCardRecord>();
 
   /** Wipe everything (like TRUNCATE in tests). */
   reset(): void {
@@ -82,6 +85,7 @@ export class MemoryDb {
     this.standingIssues.clear();
     this.standingSchedules.clear();
     this.goalRuns.clear();
+    this.goalCards.clear();
   }
 
   /** Run `fn` atomically: an error midway → every table returns to its previous state (ROLLBACK). `fn` must be synchronous. */
@@ -104,6 +108,7 @@ export class MemoryDb {
       standingIssues: clone(this.standingIssues),
       standingSchedules: clone(this.standingSchedules),
       goalRuns: clone(this.goalRuns),
+      goalCards: clone(this.goalCards),
     };
     try {
       return fn();
@@ -125,6 +130,7 @@ export class MemoryDb {
       restore(this.standingIssues, before.standingIssues);
       restore(this.standingSchedules, before.standingSchedules);
       restore(this.goalRuns, before.goalRuns);
+      restore(this.goalCards, before.goalCards);
       throw err;
     }
   }
@@ -150,6 +156,9 @@ export class MemoryDb {
       if (j.repoId === id) throw new ConstraintViolation('foreign_key', 'gate_jobs_repo_id_repos_id_fk');
     }
     this.repoGates.delete(id);
+    for (const c of this.goalCards.values()) {
+      if (c.repoId === id) this.goalCards.delete(c.id);
+    }
     this.repos.delete(id);
   }
 
@@ -220,6 +229,21 @@ export class MemoryDb {
       }
     }
     this.claims.set(row.id, clone(row));
+  }
+
+  // ------------------------------------------------------------------ goal_cards
+
+  /** INSERT or UPDATE one goal_cards row. The unique indexes goal_cards_one_proposed and goal_cards_one_per_issue live here. */
+  writeGoalCard(row: GoalCardRecord): void {
+    if (!this.repos.has(row.repoId)) throw new ConstraintViolation('foreign_key', 'goal_cards_repo_id_repos_id_fk');
+    if (!(GOAL_CARD_STATES as readonly string[]).includes(row.state)) throw new ConstraintViolation('check', 'goal_cards_state');
+    if (!(GOAL_CARD_DOORS as readonly string[]).includes(row.door)) throw new ConstraintViolation('check', 'goal_cards_door');
+    for (const other of this.goalCards.values()) {
+      if (other.id === row.id || other.repoId !== row.repoId) continue;
+      if (other.issueNumber === row.issueNumber) throw new ConstraintViolation('unique', 'goal_cards_one_per_issue');
+      if (row.state === 'proposed' && other.state === 'proposed') throw new ConstraintViolation('unique', 'goal_cards_one_proposed');
+    }
+    this.goalCards.set(row.id, clone(row));
   }
 
   // ------------------------------------------------------------------ repo_gate, gate_jobs, gate_steps

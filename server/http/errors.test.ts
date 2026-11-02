@@ -26,6 +26,8 @@ describe('toErrorReply — error → HTTP status + { error: { code, message, det
       GIT_HOST_FAILED: 502,
       GATE_JOB_NOT_FOUND: 404,
       GATE_JOB_NOT_RATIFIABLE: 409,
+      GOAL_CARD_NOT_FOUND: 404,
+      GOAL_CARD_NOT_OPEN: 409,
     });
     for (const code of Object.keys(STATUS_OF) as ErrorCode[]) {
       expect(API_ERROR_CODES).toContain(code);

@@ -26,7 +26,10 @@ export type ErrorCode =
   /** A call to the Git host (GitHub) failed, so a list that needs it cannot be complete. */
   | 'GIT_HOST_FAILED'
   | 'GATE_JOB_NOT_FOUND'
-  | 'GATE_JOB_NOT_RATIFIABLE';
+  | 'GATE_JOB_NOT_RATIFIABLE'
+  | 'GOAL_CARD_NOT_FOUND'
+  /** A yes or a no reached a card that is not `proposed`. */
+  | 'GOAL_CARD_NOT_OPEN';
 
 export class DomainError extends Error {
   readonly code: ErrorCode;

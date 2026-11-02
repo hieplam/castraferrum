@@ -3,6 +3,7 @@ import { MemoryDb } from './memory-db';
 import { MemoryClaimRepository } from './memory-claim-repository';
 import { MemoryExecutionRepository } from './memory-execution-repository';
 import { MemoryGateRepository } from './memory-gate-repository';
+import { MemoryGoalCardRepository } from './memory-goal-card-repository';
 import { MemoryGoalRepository } from './memory-goal-repository';
 import { MemoryHeartbeatRepository } from './memory-heartbeat-repository';
 import { MemoryHoldRepository } from './memory-hold-repository';
@@ -28,6 +29,7 @@ export function createMemoryRepositories(db: MemoryDb = new MemoryDb()): Reposit
     goals: new MemoryGoalRepository(db),
     claims: new MemoryClaimRepository(db),
     gate: new MemoryGateRepository(db),
+    goalCards: new MemoryGoalCardRepository(db),
     holds: new MemoryHoldRepository(db),
   };
 }

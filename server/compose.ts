@@ -37,6 +37,7 @@ import { startTicker, type Ticker } from './scheduler/ticker';
 import type { BackgroundService, RecoveryReport } from './services/contracts';
 import { DefaultFolderService } from './services/folder-service';
 import { DefaultGateService } from './services/gate-service';
+import { DefaultGoalCardService } from './services/goal-card-service';
 import { DefaultGoalService } from './services/goal-service';
 import { DefaultHealthService } from './services/health-service';
 import { DefaultHoldService } from './services/hold-service';
@@ -162,6 +163,8 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
     },
   });
   const probeService = new DefaultProbeService({ ...repos, commands, claimGateway, gateQueue: gateService, runService, loopService, clock, ids, notifier });
+  // W5 replaces this starter with the one that opens the epic, the manifest PR and the loop.
+  const goalCardService = new DefaultGoalCardService({ cards: repos.goalCards, repos: repos.repos, gate: repos.gate, host: gitHost, workspace: gateWorkspace, notifier, starter: { start: async () => {} }, clock, ids });
   const holdService = new DefaultHoldService({ ...repos, commands, runService, clock });
   const testDirs = opts.testMode ? new OverridableDirectoryProbe(new NodeDirectoryProbe()) : null;
   const repoService = new DefaultRepoService({ repos: repos.repos, directories: testDirs ?? new NodeDirectoryProbe(), clock, ids });
@@ -192,7 +195,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
   }
 
   // Services that can wait on a slow command. Each has its own in-flight promise, so none of them holds back the schedule tick or another.
-  const background: BackgroundService[] = [probeService, gateService, holdService];
+  const background: BackgroundService[] = [probeService, gateService, holdService, goalCardService];
   let ticker: Ticker | null = null;
   let backgroundTicker: BackgroundTicker | null = null;
   let ticks = 0;
@@ -226,6 +229,9 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
         clock: testClock,
         directories: testDirs,
         folders: testFolders,
+        async repoGate({ repoId, ...input }) {
+          await repos.gate.setRepoGate(repoId, { ...input, checkCommand: input.checkCommand ?? [] }, clock.now());
+        },
         async reset() {
           const wasTicking = ticker !== null;
           await gateService.stop();
@@ -252,6 +258,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
       transcripts,
       probes: probeService,
       gate: gateService,
+      goalCards: goalCardService,
       notices,
       processEvents: processService,
       scoreboard: scoreboardService,
