@@ -42,6 +42,8 @@ export const STATUS_OF: Record<ErrorCode, number> = {
   GIT_HOST_FAILED: 502,
   GATE_JOB_NOT_FOUND: 404,
   GATE_JOB_NOT_RATIFIABLE: 409,
+  GOAL_CARD_NOT_FOUND: 404,
+  GOAL_CARD_NOT_OPEN: 409,
 };
 
 export type ErrorReply = { status: number; body: ErrorBody };

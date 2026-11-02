@@ -2,6 +2,7 @@
 // never the Default… classes — the rule lives in .dependency-cruiser.cjs.
 // Dependencies inside the service layer are one-way too: LoopService → RunService, SchedulingService → RunService, HoldService → RunService; RunService calls
 // no other service (ARCHITECTURE.md § Layers). The Default… classes only know each other through the interfaces here.
+import type { GoalCardRecord } from '../ports/goal-card-repository';
 import type { DomainEvent, EventFilter } from '../../shared/domain/events';
 import type { ProbeRecord, ProbeResource, RestartPolicy } from '../../shared/domain/goal-loop';
 import type { ExecutionEndReason, ExecutionStats, LogLine, LoopStatus, RunStatus } from '../../shared/domain/run';
@@ -465,6 +466,31 @@ export interface GateService extends BackgroundService {
   stop(): Promise<void>;
   /** After `stop`, lets `tick` take jobs again. The reset of test mode uses it. */
   resume(): void;
+}
+
+export type GoalCardList = {
+  /** Newest first. */
+  items: GoalCardRecord[];
+  /** The count of `items` that are accepted or started with `changed` false. */
+  acceptedWithNoChange: number;
+};
+/** `errors[].loopId` holds the id of the repository. */
+export type GoalCardTickReport = { errors: { loopId: string; message: string }[] };
+
+/** Turns an accepted card into a running goal. A throw keeps the card `accepted`, and the service calls `start` again. */
+export interface GoalCardStarter {
+  start(card: GoalCardRecord): Promise<void>;
+}
+
+export interface GoalCardService extends BackgroundService {
+  /** Serves each repository with a `repo_gate` row and a charter on `main`, at most once in 60 s. */
+  tick(): Promise<GoalCardTickReport>;
+  /** `null` lists the cards of every repository. */
+  list(repoId: string | null): Promise<GoalCardList>;
+  /** The one-word yes. Throws GOAL_CARD_NOT_FOUND, GOAL_CARD_NOT_OPEN, GIT_HOST_FAILED. */
+  accept(id: string): Promise<GoalCardRecord>;
+  /** The no. It closes the issue. Throws GOAL_CARD_NOT_FOUND, GOAL_CARD_NOT_OPEN, GIT_HOST_FAILED. */
+  refuse(id: string): Promise<GoalCardRecord>;
 }
 
 /** Result of one hold tick. An error names the loop of the run, or the hold id for a hold. */

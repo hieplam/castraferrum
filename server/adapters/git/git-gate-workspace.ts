@@ -73,6 +73,11 @@ export class GitGateWorkspace implements GateWorkspace {
     return { mainSha, headMatches: fetchedHead === head.headSha };
   }
 
+  async fetchMain(repoPath: string): Promise<string> {
+    await this.must(repoPath, ['fetch', '--no-tags', 'origin', `+refs/heads/main:${MAIN_REF}`]);
+    return (await this.must(repoPath, ['rev-parse', MAIN_REF])).trim();
+  }
+
   async readAt(repoPath: string, sha: string, path: string): Promise<string | null> {
     const entries = parseTree(await this.must(repoPath, ['ls-tree', '-z', sha, '--', path]));
     const blob = entries.find((entry) => entry.path === path && entry.type === 'blob');

@@ -1,0 +1,17 @@
+{
+  "v": 1,
+  "purpose": "Run a coding goal to done with no owner stop, and propose the next goal as a card.",
+  "mayStartAlone": [],
+  "neverAlone": [
+    "history rewrite",
+    "force push",
+    "deleting user data",
+    "branch deletion",
+    "creating tokens",
+    "spending money",
+    "a public release",
+    "deleting a feature"
+  ],
+  "refusalWindow": { "enabled": false, "hours": 8 },
+  "acceptedWithNoChange": 0
+}

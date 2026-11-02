@@ -212,6 +212,17 @@ describe('GhGitHost on the fake gh and a bare repository', () => {
     expect(calls[1]?.slice(1, 5)).toEqual(['-X', 'POST', 'repos/fake/repo/issues/1/sub_issues', '-F']);
   });
 
+  it('issuesWithLabel gives the open issues of the label with their bodies, and issueBody reads one body', async () => {
+    gh.seedLabels('goal-card');
+    const { number } = await host.openIssue(REPO, { title: 'Card', body: 'The body', labels: ['goal-card'] });
+    await host.openIssue(REPO, { title: 'No label', body: 'Other', labels: [] });
+    const closed = await host.openIssue(REPO, { title: 'Closed', body: 'Done', labels: ['goal-card'] });
+    await host.closeIssue(REPO, closed.number);
+
+    expect(await host.issuesWithLabel(REPO, 'goal-card')).toEqual([{ number, title: 'Card', body: 'The body' }]);
+    expect(await host.issueBody(REPO, number)).toBe('The body');
+  });
+
   it('a gh call that exits 1 throws a GitHostError with the exit code and the stderr, and it is not a missing pull request', async () => {
     const err = await host.merge(REPO, 99, 'a'.repeat(40)).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(GitHostError);

@@ -6,6 +6,7 @@ import {
   type GitHost,
   type IssueHit,
   type IssueRef,
+  type LabeledIssue,
   type LoopComment,
   type PullRequest,
   type StatusState,
@@ -16,6 +17,7 @@ const STATUS_CONTEXT = 'castraferrum/gate';
 const MAX_DESCRIPTION = 140;
 const MAX_COMMENT = 20_000;
 const ISSUE_LIST_LIMIT = 1000;
+const LABELED_ISSUE_LIMIT = 200;
 /** The text that `gh pr view <n>` prints on stderr for a pull request that does not exist. */
 const PR_MISSING = /Could not resolve to a PullRequest with the number of/;
 const PR_FIELDS = 'number,headRefOid,headRefName,baseRefName,state,title,body,url,mergedAt,closingIssuesReferences';
@@ -195,6 +197,14 @@ export class GhGitHost implements GitHost {
 
   async issueState(repo: string, number: number): Promise<'OPEN' | 'CLOSED'> {
     return (await this.json<{ state: 'OPEN' | 'CLOSED' }>(['issue', 'view', String(number), '-R', repo, '--json', 'state'])).state;
+  }
+
+  async issuesWithLabel(repo: string, label: string): Promise<LabeledIssue[]> {
+    return this.json<LabeledIssue[]>(['issue', 'list', '-R', repo, '--state', 'open', '--label', label, '--limit', String(LABELED_ISSUE_LIMIT), '--json', 'number,title,body']);
+  }
+
+  async issueBody(repo: string, number: number): Promise<string> {
+    return (await this.json<{ body: string }>(['issue', 'view', String(number), '-R', repo, '--json', 'body'])).body;
   }
 
   /** The API takes the id of the child, which is not its number. `-F` sends it as a number. */
