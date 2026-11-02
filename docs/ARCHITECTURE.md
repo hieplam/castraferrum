@@ -216,6 +216,12 @@ recovery (before the ticker and before HTTP); build the HTTP app; then `startTic
 `startTicker()` starts the schedule ticker and the background ticker. The array `background` in `compose.ts`
 lists the services of the background ticker.
 
+An accepted goal card becomes a goal in `DefaultGoalCardStarter` (`server/services/goal-card-starter.ts`). It opens the epic, publishes the
+manifest on the branch `goal/card-<issue>` and opens its pull request, then makes the loop with the probe of `epic.mjs`. With `repo_gate.enabled`
+it queues the pull request last. Each step stores its result on the row before the next step, so a retry after a throw makes no second epic, pull
+request or loop. The manifest reaches `main` only through that pull request: `goals/**` is guarded, so a gate job ends at `needs_ratification`.
+`LOOPS_EPIC_SCRIPT` replaces the path of `epic.mjs`, and the default is the script of the epic-loop skill.
+
 Graceful shutdown: stop the tickers (wait for the running ticks; a hung probe adds at most its 30 second limit
 and the 1 second kill grace), `app.close()` (a `preClose` hook aborts every
 SSE stream, otherwise Fastify waits forever), abort every running run **without writing a result**, wait for

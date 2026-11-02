@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -18,6 +19,8 @@ export type Config = {
   mockExecutor: boolean;
   /** The `gh` program of the Git host. `LOOPS_GH_BIN` replaces it (tests point it at the fake gh), only with a DB named *_test. */
   ghBin: string;
+  /** The `epic.mjs` that the loop of a started goal card runs. `LOOPS_EPIC_SCRIPT` replaces it. */
+  epicScript: string;
   /** The UI build (vite build) that Fastify serves. */
   webRoot: string;
   /**
@@ -28,6 +31,9 @@ export type Config = {
   /** `LOOPS_NOTIFY_WEBHOOK`: a URL that gets one JSON post for each new notice. Unset (the default) = nothing is pushed. */
   notifyWebhook?: string;
 };
+
+/** Where the epic-loop skill keeps its script. */
+export const defaultEpicScript = (): string => join(homedir(), '.claude', 'skills', 'epic-loop', 'scripts', 'epic.mjs');
 
 /** Loads .env if present; environment variables that are already set are left untouched. */
 export function loadDotEnv(): void {
@@ -79,6 +85,7 @@ export function loadConfig(env: Env = process.env): Config {
     testMode,
     mockExecutor: testMode || mockFlag,
     ghBin: ghBin || 'gh',
+    epicScript: env.LOOPS_EPIC_SCRIPT || defaultEpicScript(),
     webRoot: join(ROOT, 'dist', 'web'),
     ...(env.LOOPS_NOTIFY_WEBHOOK ? { notifyWebhook: webhookUrl(env.LOOPS_NOTIFY_WEBHOOK) } : {}),
     ...(testMode && env.LOOPS_TRANSCRIPT_PAGE ? { transcriptPage: transcriptPage(env.LOOPS_TRANSCRIPT_PAGE) } : {}),

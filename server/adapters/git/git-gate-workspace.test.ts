@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { isRealRed } from '../../../shared/domain/gate-commands';
 import { createBareRepo, type BareRepo } from '../../../tests/support/bare-repo';
 import type { CommandRunner } from '../../ports/command-runner';
-import type { GateTree } from '../../ports/gate-workspace';
+import { GateWorkspaceError, type GateTree } from '../../ports/gate-workspace';
 import { NodeCommandRunner } from '../process/node-command-runner';
 import { GitGateWorkspace } from './git-gate-workspace';
 
@@ -376,6 +376,72 @@ describe('gate_workspace', { timeout: 60_000 }, () => {
     const tree = await preparedTree(openPr({ 'pr.txt': 'x' }));
     const result = await ws.run(tree, { line: 'node -e "process.exit(3)"', env: {}, timeoutMs: RUN_MS });
     expect(result.exitCode).toBe(3);
+  });
+
+  it('publishFile commits one file on a new branch from origin/main, and main, the checkout and the worktree list do not change', async () => {
+    const later = commitMain({ 'later-on-main.txt': 'x' });
+    const worktrees = worktreeCount();
+
+    await ws.publishFile(repoPath, { branch: 'goal/card-7', path: 'goals/a/b.json', text: '{}\n', message: 'add the manifest' });
+
+    expect(bare.sha('main')).toBe(later);
+    expect(bare.show('goal/card-7', 'goals/a/b.json')).toBe('{}\n');
+    expect(bare.show('goal/card-7', 'later-on-main.txt')).toBe('x');
+    expect(git(repoPath, ['status', '--porcelain'])).toBe('');
+    expect(existsSync(join(repoPath, 'goals'))).toBe(false);
+    expect(worktreeCount()).toBe(worktrees);
+    expect(readdirSync(root)).toEqual([]);
+  });
+
+  it('publishFile and fetches of one folder at the same time all end, with no overlap of git calls', async () => {
+    const main = commitMain({ 'later-on-main.txt': 'x' });
+
+    const [, fetched, again] = await Promise.all([
+      ws.publishFile(repoPath, { branch: 'goal/card-7', path: 'a.json', text: '{}\n', message: 'x' }),
+      ws.fetchMain(repoPath),
+      ws.fetch(repoPath, { headRef: 'goal/card-7', headSha: 'after the publish' }),
+    ]);
+
+    expect(fetched).toBe(main);
+    expect(again.mainSha).toBe(main);
+    expect(bare.show('goal/card-7', 'a.json')).toBe('{}\n');
+  });
+
+  it('a second publishFile after main moved replaces the branch', async () => {
+    await ws.publishFile(repoPath, { branch: 'goal/card-7', path: 'a.json', text: 'one\n', message: 'first' });
+    commitMain({ 'later-on-main.txt': 'x' });
+
+    await ws.publishFile(repoPath, { branch: 'goal/card-7', path: 'a.json', text: 'two\n', message: 'second' });
+
+    expect(bare.show('goal/card-7', 'a.json')).toBe('two\n');
+    expect(bare.show('goal/card-7', 'later-on-main.txt')).toBe('x');
+    expect(git(bare.bare, ['rev-list', '--count', `main..${'goal/card-7'}`]).trim()).toBe('1');
+  });
+
+  it.each(['main', 'master'])('publishFile refuses the branch %s, and main does not move', async (branch) => {
+    const before = bare.sha('main');
+
+    await expect(ws.publishFile(repoPath, { branch, path: 'a.json', text: '{}\n', message: 'x' })).rejects.toBeInstanceOf(GateWorkspaceError);
+
+    expect(bare.sha('main')).toBe(before);
+  });
+
+  it('publishFile runs no hook of core.hooksPath, and a failed push leaves no folder', async () => {
+    const hooks = mkdtempSync(join(root, '..', 'lc-gate-hooks-'));
+    const marker = join(hooks, 'hook-ran.txt');
+    for (const name of ['pre-commit', 'commit-msg', 'post-commit', 'pre-push']) writeFileSync(join(hooks, name), `#!/bin/sh\necho ran >> "${marker.replace(/\\/g, '/')}"\nexit 1\n`, { mode: 0o755 });
+    try {
+      git(repoPath, ['config', 'core.hooksPath', hooks.replace(/\\/g, '/')]);
+      await ws.publishFile(repoPath, { branch: 'goal/card-7', path: 'a.json', text: '{}\n', message: 'x' });
+      expect(existsSync(marker)).toBe(false);
+      expect(bare.show('goal/card-7', 'a.json')).toBe('{}\n');
+
+      git(repoPath, ['remote', 'set-url', 'origin', join(root, 'no-such-remote')]);
+      await expect(ws.publishFile(repoPath, { branch: 'goal/card-8', path: 'a.json', text: '{}\n', message: 'x' })).rejects.toBeInstanceOf(GateWorkspaceError);
+      expect(readdirSync(root)).toEqual([]);
+    } finally {
+      rmSync(hooks, { recursive: true, force: true, maxRetries: 3 });
+    }
   });
 
   it('remove takes the folder and the worktree away, and a second remove does no harm', async () => {

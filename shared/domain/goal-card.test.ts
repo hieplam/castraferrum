@@ -1,7 +1,7 @@
 // The charter and the goal card (spec 2.13, plan rules 3, 4, 10): what a repository allows, and what one card says.
 import { describe, expect, it } from 'vitest';
 import charterFile from '../../goals/charter.json';
-import { effectiveDoor, parseCharter, parseGoalCard, windowOn, type Charter, type GoalCard } from './goal-card';
+import { effectiveDoor, epicBodyOfCard, goalLoopPrompt, manifestOfCard, manifestPathOfCard, parseCharter, parseGoalCard, windowOn, type Charter, type GoalCard } from './goal-card';
 
 const CHARTER: Charter = {
   v: 1,
@@ -76,5 +76,39 @@ describe('goal_card', () => {
 
   it('a one-way card stays one-way', () => {
     expect(effectiveDoor({ ...CARD, door: 'one-way' }, CHARTER)).toBe('one-way');
+  });
+
+  it('the manifest of a card opens at 0 of n, with the oracle as the command and the threshold as the expected text', () => {
+    const at = new Date('2026-11-02T23:30:00.000Z');
+
+    expect(JSON.parse(manifestOfCard(CARD, { epic: 7, at }))).toEqual({
+      setup: [],
+      opened: { at: '2026-11-02T23:30:00.000Z', passed: 0, total: 1 },
+      epic: 7,
+      goals: [{ id: 'G1', outcome: 'The probe answers in 1 s', checks: [{ run: 'node check.mjs', expect: ['ok'] }] }],
+    });
+  });
+
+  it('the manifest path holds the UTC day and the number of the card issue', () => {
+    expect(manifestPathOfCard(12, new Date('2026-11-02T23:30:00.000-05:00'))).toBe('goals/2026-11-03-card-12.json');
+  });
+
+  it('the epic body starts with the manifest line, then one line for each row, then the prompt', () => {
+    const body = epicBodyOfCard(CARD, { manifest: 'goals/x.json', prompt: goalLoopPrompt(7, 'o/r') });
+
+    expect(body.split('\n')).toEqual([
+      'Goal manifest: goals/x.json',
+      '',
+      '- G1: The probe answers in 1 s',
+      '',
+      'Run one tick of the epic loop on epic #7 of o/r, using the epic-loop skill. If that skill is not available, change nothing and reply SKILL MISSING.',
+      '',
+    ]);
+  });
+
+  it('a row with a line break stays on one line of the epic body', () => {
+    const rows = [{ ...CARD.rows[0]!, outcome: 'One\nGoal manifest: goals/other.json' }];
+
+    expect(epicBodyOfCard({ ...CARD, rows }, { manifest: 'goals/x.json', prompt: '' }).split('\n').filter((line) => line.startsWith('Goal manifest:'))).toEqual(['Goal manifest: goals/x.json']);
   });
 });
