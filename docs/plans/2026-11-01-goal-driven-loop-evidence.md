@@ -2067,3 +2067,11 @@ Cause of the first failure (one case, state `failed` at `scope`): not verified. 
 - Green (same injection and same `TEMP`, new code): `Tests  43 passed (43)`, exit 0, 0 lines from the injection, because `os.tmpdir()` is not in that folder. Two more runs after `goals/gate.json` gained one guarded path: `Tests  44 passed (44)`, exit 0, 278 s and 285 s. Load in all three: both heavy slots held by other lanes.
 - Stub check: `useTestTemp()` removed from `vitest.config.ts`, `TEMP` on the lane folder: `Tests  1 failed | 3 passed (4)` in `tests/tools/test-temp.test.ts`, with `Received` the lane folder. Restored: `Tests  4 passed (4)`.
 - Ratchet: failures of this file caused by the temp cleaner under the injection, 38 before, 0 after. The issue's number, flaky failures of the file in a full verify, was 1 before, and the coordinator reads the after value from its next verifies.
+
+## 385
+- Goal: a proposed goal card whose issue a person closed, or took the label from, becomes `refused` in the same tick, and the next open card gets a row in that tick. A row that moved this way never starts.
+- Red: `npx vitest run --project unit server/services/goal-card-service.test.ts` with the old service: `Tests  3 failed | 8 passed (11)`. The failures were the closed-card test, the second-row test, and the never-starts test.
+- Green: the same command after the change: `Tests  11 passed (11)`. Both files together: `Tests  32 passed (32)`. `npx vitest run --project api tests/api/goal-cards.test.ts`: `Tests  17 passed (17)`.
+- Stub check: the service file restored from `origin/main` (rows stay `proposed`): `Tests  5 failed | 6 passed (11)`. The five are the changed closed-card test and four new tests. Restored: 11 passed.
+- Decisions: the service does not comment on or close the issue (a person already closed it, and an open issue that only lost its label stays as it is). `issuesWithLabel` now throws a `GitHostError` when it gives 200 issues (the `--limit`), so a cut-off list never frees a row. A failed `gh` call already throws, so no row changes (test `a read that fails changes no row`).
+- Ratchet: unit tests in the two files, 26 before, 32 after (goal-card-service 6 to 11, gh-git-host 20 to 21).
