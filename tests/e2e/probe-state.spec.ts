@@ -1,4 +1,4 @@
-// E2E UC-37 (goal G28), the loop page of a loop with a probe on the real build: a fake probe (tests/support/fake-probe.mjs) prints the line that a
+// E2E UC-38 (goal G28), the loop page of a loop with a probe on the real build: a fake probe (tests/support/fake-probe.mjs) prints the line that a
 // file holds, the console calls it (the test clock winds on 61 s for a second call), and the page says what the line says: its own word for each
 // action, the list of its state, and the last probe line. All real: browser, build, Fastify, Postgres (test mode); no model, no GitHub.
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -28,7 +28,7 @@ async function startedProbeLoop(request: APIRequestContext, line: string | null)
 
 const wait = { v: 1, action: 'wait', reason: 'Task 18 needs the staging login.' };
 
-test('UC-37: action wait shows Waiting for you, the reason and the last probe line', { tag: '@UC-37' }, async ({ page, request }) => {
+test('UC-38: action wait shows Waiting for you, the reason and the last probe line', { tag: '@UC-38' }, async ({ page, request }) => {
   const { loop } = await startedProbeLoop(request, JSON.stringify(wait));
   await page.goto(`/loops/${loop.id}`);
   await expect(page.getByTestId('loop-status')).toHaveText('Waiting for you');
@@ -38,7 +38,7 @@ test('UC-37: action wait shows Waiting for you, the reason and the last probe li
   await expect(page.getByTestId('loop-stop')).toBeVisible();
 });
 
-test('UC-37: action blocked with blockers shows each issue with its title, the tasks it blocks and its link', { tag: '@UC-37' }, async ({ page, request }) => {
+test('UC-38: action blocked with blockers shows each issue with its title, the tasks it blocks and its link', { tag: '@UC-38' }, async ({ page, request }) => {
   const blocked = {
     v: 1,
     action: 'blocked',
@@ -64,17 +64,17 @@ test('UC-37: action blocked with blockers shows each issue with its title, the t
   await expect(page.getByTestId('probe-line')).not.toContainText('blockers');
 });
 
-test('UC-37: action blocked with only issue keys shows a plain cell for each, with no link', { tag: '@UC-37' }, async ({ page, request }) => {
+test('UC-38: action blocked with only issue keys shows a plain cell for each, with no link', { tag: '@UC-38' }, async ({ page, request }) => {
   const { loop } = await startedProbeLoop(request, JSON.stringify({ v: 1, action: 'blocked', reason: 'A failed task blocks the rest.', issues: ['31'] }));
   await page.goto(`/loops/${loop.id}`);
   await expect(page.getByTestId('loop-status')).toHaveText('Blocked');
   await expect(page.getByTestId('blocker-row')).toHaveCount(1);
   await expect(page.getByTestId('blocker-row')).toHaveText('Issue 31');
   await expect(page.locator('a[data-testid="blocker-row"]')).toHaveCount(0);
-  await expect(page.getByTestId('blocker-list').locator('.chev')).toHaveCount(0);
+  await expect(page.getByTestId('blocker-list').locator('svg')).toHaveCount(0);
 });
 
-test('UC-37: action hold shows Held, the hold banner and the open hold', { tag: '@UC-37' }, async ({ page, request }) => {
+test('UC-38: action hold shows Held, the hold banner and the open hold', { tag: '@UC-38' }, async ({ page, request }) => {
   const until = new Date(Date.now() + 2 * 3_600_000).toISOString();
   const hold = { v: 1, action: 'hold', resource: 'plan-window', reason: 'The usage limit is reached.', until };
   const { loop } = await startedProbeLoop(request, JSON.stringify(hold));
@@ -85,7 +85,7 @@ test('UC-37: action hold shows Held, the hold banner and the open hold', { tag: 
   await expect(page.getByTestId('now-card')).toContainText('Held on plan-window');
 });
 
-test('UC-37: action done shows Goal met, the closed active period and Start', { tag: '@UC-37' }, async ({ page, request }) => {
+test('UC-38: action done shows Goal met, the closed active period and Start', { tag: '@UC-38' }, async ({ page, request }) => {
   const { loop } = await startedProbeLoop(request, JSON.stringify({ v: 1, action: 'done', goals: { passed: 8, total: 8 } }));
   await page.goto(`/loops/${loop.id}`);
   await expect(page.getByTestId('loop-status')).toHaveText('Goal met');
@@ -94,7 +94,7 @@ test('UC-37: action done shows Goal met, the closed active period and Start', { 
   await expect(page.getByTestId('loop-start')).toBeVisible();
 });
 
-test('UC-37: a probe that stops answering shows Probe failed after the next call', { tag: '@UC-37' }, async ({ page, request }) => {
+test('UC-38: a probe that stops answering shows Probe failed after the next call', { tag: '@UC-38' }, async ({ page, request }) => {
   const { loop, file, dir } = await startedProbeLoop(request, JSON.stringify(wait));
   rmSync(file); // the fake probe now exits 1
   expect((await api(request, 'POST', '/api/__test/clock', { advanceMs: 61_000 })).status).toBe(200);
@@ -105,7 +105,7 @@ test('UC-37: a probe that stops answering shows Probe failed after the next call
   rmSync(dir, { recursive: true, force: true });
 });
 
-test('UC-37: opening the loop page marks the notice of the loop read', { tag: '@UC-37' }, async ({ page, request }) => {
+test('UC-38: opening the loop page marks the notice of the loop read', { tag: '@UC-38' }, async ({ page, request }) => {
   const { loop } = await startedProbeLoop(request, JSON.stringify(wait));
   const unread = async () => ((await api<{ items: unknown[] }>(request, 'GET', '/api/notices')).body.items ?? []).length;
   expect(await unread()).toBe(1);

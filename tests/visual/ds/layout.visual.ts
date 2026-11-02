@@ -379,7 +379,7 @@ test.describe("phone notes and cards after a captioned group (castraferrum#205)"
       [
         "edit loop (repo note, schedule preview)",
         () => page.goto(`${ctx.sp.baseUrl}/loops/${pilot}/edit`).then(() => {}),
-        ["group-note", "card is-pad#sched-out"],
+        ["group-note", "card is-pad#sched-out", "group-note#probe-stop-first"],
       ],
       [
         "new loop, mock agent (its note)",
