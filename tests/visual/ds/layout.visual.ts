@@ -290,7 +290,7 @@ test.describe("phone section captions (castraferrum#202)", () => {
         [],
       ],
       ["/loops/new", ["Details", "Prompt", "Schedule", "Agent"], ["Details"]],
-      [`/loops/${pilot}/edit`, ["Details", "Prompt", "Schedule", "Agent"], []],
+      [`/loops/${pilot}/edit`, ["Details", "Prompt", "Schedule", "Agent", "Probe"], []],
       ["/settings", ["Appearance", "Connection", "This device", "About"], []],
     ];
     const gap = await (async () => {
