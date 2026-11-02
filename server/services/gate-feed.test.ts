@@ -49,7 +49,7 @@ async function setup() {
     executorConfig: { durationSec: 1, failRate: 0 },
     createdAt: clock.now(),
   });
-  await repos.probes.upsert(loopId, { command: ['probe'], claim: ['claim', '{key}'], release: ['release', '{key}', '{reason}'], resources: [], laneEnv: {}, laneBasePort: 7200, restartPolicy: 'resume' });
+  await repos.probes.upsert(loopId, { command: ['probe'], claim: ['claim', '{key}'], release: ['release', '{key}', '{reason}'], resources: [], laneEnv: {}, laneBasePort: 7200, restartPolicy: 'resume', rank: 100, tokenBudget: null });
   const service = new DefaultGateService({
     gate: repos.gate,
     repos: repos.repos,

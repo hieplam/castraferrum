@@ -56,7 +56,7 @@ describe('GET /api/loops/:id/probe', () => {
     await call('PUT', `/api/loops/${id}/probe`, body);
     const res = await call('GET', `/api/loops/${id}/probe`);
     expect(res.status).toBe(200);
-    expect(res.body.probe).toEqual({ loopId: id, ...body, state: 'active', lastLine: null, lastProbeAt: null });
+    expect(res.body.probe).toEqual({ loopId: id, ...body, rank: 100, tokenBudget: null, state: 'active', lastLine: null, lastProbeAt: null });
     const [row] = await rows(id);
     expect(row).toMatchObject({ command: body.command, lane_base_port: 7200, restart_policy: 'resume', state: 'active' });
   });
@@ -70,6 +70,26 @@ describe('PUT /api/loops/:id/probe', () => {
     expect(res.body.probe).toMatchObject({ loopId: id, command: body.command, restartPolicy: 'resume', state: 'active' });
     const [row] = await rows(id);
     expect(row).toMatchObject({ loop_id: id, claim: body.claim, release: body.release, resources: body.resources, lane_env: body.laneEnv });
+  });
+
+  it('200 stores `rank` and `tokenBudget`, and the row has them; an omitted field gives rank 100 and no budget', async () => {
+    const id = await createLoop();
+    const res = await call('PUT', `/api/loops/${id}/probe`, { ...body, rank: 5, tokenBudget: 5_000_000_000 });
+    expect(res.status).toBe(200);
+    expect(res.body.probe).toMatchObject({ rank: 5, tokenBudget: 5_000_000_000 });
+    expect((await call('GET', `/api/loops/${id}/probe`)).body.probe).toMatchObject({ rank: 5, tokenBudget: 5_000_000_000 });
+    const [row] = await rows(id);
+    expect(row).toMatchObject({ rank: 5, token_budget: '5000000000' });
+    expect((await call('PUT', `/api/loops/${id}/probe`, body)).body.probe).toMatchObject({ rank: 100, tokenBudget: null });
+  });
+
+  it('400 VALIDATION_FAILED for a rank out of range or a budget under 1, and no row', async () => {
+    const id = await createLoop();
+    const res = await call('PUT', `/api/loops/${id}/probe`, { ...body, rank: -1, tokenBudget: 0 });
+    expect(res.status).toBe(400);
+    expect(res.body.error.details.issues.map((i: Json) => `${i.field}:${i.code}`)).toEqual(['rank:outOfRange', 'tokenBudget:outOfRange']);
+    expect((await call('PUT', `/api/loops/${id}/probe`, { ...body, rank: 1_000_001 })).status).toBe(400);
+    expect(await rows(id)).toHaveLength(0);
   });
 
   it('a second PUT replaces the settings, keeps one row, and an omitted field takes its default', async () => {

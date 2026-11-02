@@ -30,6 +30,7 @@ import { DefaultSchedulingService } from '../../server/services/scheduling-servi
 import { FakeClaimGateway } from './fake-claim-gateway';
 import { fakeQuery } from './fake-claude-query';
 import { FakeCommandRunner } from './fake-command-runner';
+import { FakePlanWindow } from './fake-plan-window';
 
 /** 08:00 Vietnam time. The default schedule `*\/5 * * * *` -> the next run is 08:05 (01:05Z). */
 export const T0 = new Date('2026-10-18T01:00:00.000Z');
@@ -69,6 +70,10 @@ export class ScriptedRun {
   /** A success with the run-end signal of spec 2.3. */
   succeedWith(end: { result: string; pr?: string | null; resource?: string | null }): this {
     return this.#push({ type: 'result', outcome: 'succeeded', summary: 'done', end: { result: end.result, pr: end.pr ?? null, resource: end.resource ?? null } });
+  }
+  /** A success with the tokens of the run. */
+  succeedWithTokens(tokens: number): this {
+    return this.#push({ type: 'result', outcome: 'succeeded', summary: 'done', tokens });
   }
   fail(error = 'broken'): this {
     return this.#push({ type: 'result', outcome: 'failed', error });
@@ -210,7 +215,8 @@ export function makeKit(opts: { db?: MemoryDb; clock?: OffsetClock; mock?: MockE
   const commands = new FakeCommandRunner();
   const claimGateway = new FakeClaimGateway();
   const gateQueue = new FakeGateQueue(repos.gate);
-  const probeService = new DefaultProbeService({ ...repos, commands, claimGateway, gateQueue, runService, loopService, clock, ids, notifier });
+  const planWindow = new FakePlanWindow();
+  const probeService = new DefaultProbeService({ ...repos, commands, claimGateway, gateQueue, runService, loopService, clock, ids, notifier, planWindow });
   const holdService = new DefaultHoldService({ ...repos, commands, runService, clock });
   const recovery = new DefaultRecoveryService({ ...repos, clock });
   const live = new DefaultLiveService({ runs: repos.runs, logs: repos.logs, source: bus });
@@ -251,6 +257,7 @@ export function makeKit(opts: { db?: MemoryDb; clock?: OffsetClock; mock?: MockE
     loopService,
     scheduling,
     commands,
+    planWindow,
     claimGateway,
     gateQueue,
     notifier,

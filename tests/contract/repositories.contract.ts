@@ -901,6 +901,8 @@ export function repositoryContract(env: () => ContractEnv): void {
       laneEnv: { PORT: '{port}' },
       laneBasePort: 7200,
       restartPolicy: 'resume',
+      rank: 100,
+      tokenBudget: null,
       ...over,
     });
 
@@ -930,6 +932,13 @@ export function repositoryContract(env: () => ContractEnv): void {
       const missing = randomUUID();
       await expectCode(r.probes.upsert(missing, settings()), 'LOOP_NOT_FOUND');
       expect(await r.probes.get(missing)).toBeNull();
+    });
+
+    it('rank and token budget round-trip, also past the range of an integer, and upsert replaces them', async () => {
+      const loop = await r.loops.insert(newLoop());
+      expect(await r.probes.upsert(loop.id, settings({ rank: 7, tokenBudget: 5_000_000_000 }))).toMatchObject({ rank: 7, tokenBudget: 5_000_000_000 });
+      expect(await r.probes.get(loop.id)).toMatchObject({ rank: 7, tokenBudget: 5_000_000_000 });
+      expect(await r.probes.upsert(loop.id, settings())).toMatchObject({ rank: 100, tokenBudget: null });
     });
 
     it('list returns every probe ordered by loop id', async () => {
@@ -1032,6 +1041,21 @@ export function repositoryContract(env: () => ContractEnv): void {
       await r.runs.resume(run.id, null);
       expect(await r.runs.hold(run.id, null)).toMatchObject({ status: 'held', costUsd: 0.5 });
       expect(await r.runs.hold(run.id, 0.75)).toBeNull(); // already held
+    });
+
+    it('sumTokens adds the stored tokens of one loop: no run gives 0, a run with no value counts 0, a bigint total stays exact', async () => {
+      const { loop, run } = await runningRun();
+      expect(await r.runs.sumTokens(loop.id)).toBe(0);
+      expect((await r.runs.finish(run.id, { status: 'succeeded', finishedAt: at(70), tokens: 5_000_000_000 })).tokens).toBe(5_000_000_000);
+      const execution = await r.executions.findOpen(loop.id);
+      const second = await started(loop.id, execution!.id, { trigger: 'probe' });
+      await r.runs.finish(second.id, { status: 'failed', finishedAt: at(80) });
+      const third = await started(loop.id, execution!.id, { trigger: 'probe' });
+      await r.runs.finish(third.id, { status: 'succeeded', finishedAt: at(90), tokens: 7 });
+      const { loop: other, run: otherRun } = await runningRun();
+      await r.runs.finish(otherRun.id, { status: 'succeeded', finishedAt: at(95), tokens: 1 });
+      expect(await r.runs.sumTokens(loop.id)).toBe(5_000_000_007);
+      expect(await r.runs.sumTokens(other.id)).toBe(1);
     });
 
     it('resume: a held run is running again, with a new deadline and one more resume, and any other run gives null', async () => {

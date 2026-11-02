@@ -1,6 +1,7 @@
 import { DomainError } from '../../shared/domain/errors';
 import {
   cutBytes,
+  DEFAULT_RANK,
   laneEnvOf,
   lowestFreeSlot,
   parseProbeLine,
@@ -23,10 +24,12 @@ import type { HoldRecord } from '../ports/hold-repository';
 import type { IdGenerator } from '../ports/ids';
 import type { LoopRecord } from '../ports/loop-repository';
 import type { Notifier } from '../ports/notifier';
+import type { PlanWindow } from '../ports/plan-window';
 import type { Repositories } from '../ports/repositories';
 import type { RunRecord } from '../ports/run-repository';
 import type { GateService, LoopService, ProbeInput, ProbeService, ProbeTickReport, ProbeView, RunService, ValidationIssue } from './contracts';
 import { openHold } from './hold-open';
+import { higherRankLive, mayStart } from './rank';
 
 export type ProbeServiceDeps = Pick<Repositories, 'claims' | 'executions' | 'holds' | 'loops' | 'probes' | 'repos' | 'runs'> & {
   commands: CommandRunner;
@@ -38,6 +41,7 @@ export type ProbeServiceDeps = Pick<Repositories, 'claims' | 'executions' | 'hol
   clock: Clock;
   ids: IdGenerator;
   notifier: Notifier;
+  planWindow: PlanWindow;
 };
 
 const PROBE_EVERY_MS = 60_000;
@@ -49,6 +53,8 @@ const BASE_PORT_MIN = 1024;
 const BASE_PORT_MAX = 65_000;
 const EVERY_SEC_MIN = 1;
 const EVERY_SEC_MAX = 86_400;
+const RANK_MIN = 0;
+const RANK_MAX = 1_000_000;
 
 /**
  * The probe of a loop: validates and stores its settings, and calls it on the tick (decision 22). The console reads one word and a
@@ -93,17 +99,22 @@ export class DefaultProbeService implements ProbeService {
       report.ran = true;
       await this.#releaseOrphans(now, report); // first, so that a probe sees the tasks that this tick freed
       const [probes, holds] = await Promise.all([this.#d.probes.list(), this.#d.holds.listOpen()]);
-      // Together, so a hung probe delays no other loop: the command runner ends each call in 30 s.
       const first = this.#firstTick;
       this.#firstTick = false;
-      await Promise.all(probes.map((p) => this.#probeLoop(p, holds, now, report, first)));
+      // Higher ranks first, then a new read: a lower rank must see the line that a higher rank printed in this tick, or both start in one tick.
+      const ranks = [...new Set(probes.map((p) => p.rank))].sort((a, b) => a - b);
+      for (const rank of ranks) {
+        const current = ranks.length === 1 ? probes : await this.#d.probes.list();
+        // Together, so a hung probe delays no other loop of its rank: the command runner ends each call in 30 s.
+        await Promise.all(current.filter((p) => p.rank === rank).map((p) => this.#probeLoop(p, current, holds, now, report, first)));
+      }
       return report;
     } finally {
       this.#busy = false;
     }
   }
 
-  async #probeLoop(probe: ProbeRecord, holds: HoldRecord[], now: Date, report: ProbeTickReport, first: boolean): Promise<void> {
+  async #probeLoop(probe: ProbeRecord, probes: ProbeRecord[], holds: HoldRecord[], now: Date, report: ProbeTickReport, first: boolean): Promise<void> {
     const d = this.#d;
     try {
       const loop = await d.loops.findById(probe.loopId);
@@ -115,6 +126,12 @@ export class DefaultProbeService implements ProbeService {
       }
       if (!first && !(await this.#isDue(probe, now))) return;
       if ((await this.#lanesInUse(loop.id)).length >= loop.maxConcurrent) return; // no free lane: the answer cannot be used
+      if (probe.tokenBudget !== null && (await d.runs.sumTokens(loop.id)) >= probe.tokenBudget) {
+        // Spec 2.14: no probe call and no run. The last line and the last call stay, as in a hold, so a raised budget probes at once.
+        if (probe.state !== 'budget_limited') await d.probes.record(loop.id, { state: 'budget_limited', lastLine: probe.lastLine, at: probe.lastProbeAt ?? now });
+        return;
+      }
+      if (!(await this.#rankAllows(probe, probes, now))) return; // rule 6: before the call, so a refused loop spends no process and no stamp of the probe
       const repo = await d.repos.findById(loop.repoId);
       if (!repo) throw new Error(`Loop points at repo ${loop.repoId} which does not exist`);
       const result = await d.commands.run({ argv: probe.command, cwd: repo.path, timeoutMs: PROBE_TIMEOUT_MS });
@@ -132,6 +149,16 @@ export class DefaultProbeService implements ProbeService {
     } catch (err) {
       report.errors.push({ loopId: probe.loopId, message: err instanceof Error ? err.message : String(err) });
     }
+  }
+
+  /** Rule 6. With no probe of a smaller rank this reads nothing, so at the default rank the console never reads the plan window. */
+  async #rankAllows(probe: ProbeRecord, probes: ProbeRecord[], now: Date): Promise<boolean> {
+    const d = this.#d;
+    const higher = probes.filter((p) => p.rank < probe.rank);
+    if (higher.length === 0) return true;
+    const loops = (await Promise.all(higher.map((p) => d.loops.findById(p.loopId)))).filter((l) => l !== null);
+    const higherLive = higherRankLive(probe, higher, loops);
+    return mayStart({ higherLive, window: higherLive ? await d.planWindow.read() : null, now });
   }
 
   /**
@@ -339,6 +366,8 @@ function clean(input: ProbeInput): { settings: ProbeSettings; issues: Validation
     laneEnv: input.laneEnv ?? {},
     laneBasePort: input.laneBasePort ?? null,
     restartPolicy: input.restartPolicy ?? 'stop',
+    rank: input.rank ?? DEFAULT_RANK,
+    tokenBudget: input.tokenBudget ?? null,
   };
   const has = (argv: string[], placeholder: string) => argv.some((a) => a.includes(placeholder));
   const empty = (argv: string[]) => argv.length === 0 || argv.some((a) => a === '');
@@ -370,6 +399,12 @@ function clean(input: ProbeInput): { settings: ProbeSettings; issues: Validation
   const port = settings.laneBasePort;
   if (port !== null && (port < BASE_PORT_MIN || port > BASE_PORT_MAX)) {
     issues.push({ field: 'laneBasePort', code: 'outOfRange', message: `The base port must be ${BASE_PORT_MIN}-${BASE_PORT_MAX}` });
+  }
+  if (settings.rank < RANK_MIN || settings.rank > RANK_MAX) {
+    issues.push({ field: 'rank', code: 'outOfRange', message: `The rank must be ${RANK_MIN}-${RANK_MAX}` });
+  }
+  if (settings.tokenBudget !== null && settings.tokenBudget < 1) {
+    issues.push({ field: 'tokenBudget', code: 'outOfRange', message: 'The token budget must be 1 or more' });
   }
   return { settings, issues };
 }

@@ -16,6 +16,8 @@ function toProbe(r: Row): ProbeRecord {
     laneEnv: r.lane_env as Record<string, string>,
     laneBasePort: (r.lane_base_port as number | null) ?? null,
     restartPolicy: r.restart_policy as ProbeRecord['restartPolicy'],
+    rank: r.rank as number,
+    tokenBudget: r.token_budget === null || r.token_budget === undefined ? null : Number(r.token_budget), // pg gives a bigint as a string
     state: r.state as ProbeState,
     lastLine: (r.last_line as string | null) ?? null,
     lastProbeAt: (r.last_probe_at as Date | null) ?? null,
@@ -42,13 +44,13 @@ export class PgLoopProbeRepository implements LoopProbeRepository {
   async upsert(loopId: string, s: ProbeSettings): Promise<ProbeRecord> {
     try {
       const { rows } = await this.#pool.query(
-        `INSERT INTO loop_probes (loop_id, command, claim, release, resources, lane_env, lane_base_port, restart_policy)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `INSERT INTO loop_probes (loop_id, command, claim, release, resources, lane_env, lane_base_port, restart_policy, rank, token_budget)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          ON CONFLICT (loop_id) DO UPDATE SET command = EXCLUDED.command, claim = EXCLUDED.claim, release = EXCLUDED.release,
            resources = EXCLUDED.resources, lane_env = EXCLUDED.lane_env, lane_base_port = EXCLUDED.lane_base_port,
-           restart_policy = EXCLUDED.restart_policy
+           restart_policy = EXCLUDED.restart_policy, rank = EXCLUDED.rank, token_budget = EXCLUDED.token_budget
          RETURNING *`,
-        [loopId, json(s.command), json(s.claim), json(s.release), json(s.resources), json(s.laneEnv), s.laneBasePort, s.restartPolicy],
+        [loopId, json(s.command), json(s.claim), json(s.release), json(s.resources), json(s.laneEnv), s.laneBasePort, s.restartPolicy, s.rank, s.tokenBudget],
       );
       return toProbe(rows[0]);
     } catch (err) {

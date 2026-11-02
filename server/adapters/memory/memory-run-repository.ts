@@ -80,6 +80,7 @@ export class MemoryRunRepository implements RunRepository {
       summary: outcome.summary ?? null,
       error: outcome.error ?? null,
       costUsd: outcome.costUsd ?? null,
+      tokens: outcome.tokens ?? null,
       endResult: outcome.endResult ?? null,
       endPr: outcome.endPr ?? null,
     };
@@ -128,6 +129,12 @@ export class MemoryRunRepository implements RunRepository {
   async findById(id: string): Promise<RunRecord | null> {
     const run = this.#db.runs.get(id);
     return run ? clone(run) : null;
+  }
+
+  async sumTokens(loopId: string): Promise<number> {
+    let total = 0;
+    for (const r of this.#db.runs.values()) if (r.loopId === loopId) total += r.tokens ?? 0;
+    return total;
   }
 
   async latestFinishedAt(loopId: string): Promise<Date | null> {
@@ -251,6 +258,7 @@ function blankRun(input: StartRunInput | SkippedRunInput): RunRecord {
     summary: null,
     error: null,
     costUsd: null,
+    tokens: null,
     sessionId: null,
     taskKey: input.taskKey ?? null,
     slot: 'slot' in input ? (input.slot ?? null) : null,
