@@ -43,6 +43,8 @@ describe('ProbeService', () => {
       laneEnv: {},
       laneBasePort: null,
       restartPolicy: 'stop',
+      rank: 100,
+      tokenBudget: null,
       state: 'active',
       lastLine: null,
       lastProbeAt: null,
