@@ -1,5 +1,5 @@
 // The world of the gate pages (goal G6): the sample of `goalLoop.gate` in design/ds/preview/data.js, built for real. The repo `api` gets
-// the gate (on, `acme/api`) and five jobs: 44 running with three passed steps, 45 queued, 46 needs_ratification, 43 merged, and 41 failed
+// the gate (on, `hieplam/tribe`) and five jobs: 44 running with three passed steps, 45 queued, 46 needs_ratification, 43 merged, and 41 failed
 // at `green` with the eight steps and the output of the sample. The pages of this world must equal the approved `gate-queue` and
 // `gate-failed` shots. Z2 imports both seeds.
 import { execFileSync } from 'node:child_process';
@@ -25,12 +25,12 @@ export const gateJobId = (pr: number): string => uuid(`gate job ${pr}`);
 const headOf = (pr: number, sha?: string): string => (sha ?? `${pr}`.padStart(7, 'b')).padEnd(40, '0');
 
 const MINUTE = 60_000;
-const GITHUB_REPO = 'acme/api';
+const GITHUB_REPO = 'hieplam/tribe';
 
 /**
  * A git repository in a temp folder whose `origin` is a LOCAL bare repository. No test reaches the network: a real address as origin makes
  * every `git fetch` of the gate tick or the goal-card tick open a credential window on the machine. The row `repo_gate` still says
- * `acme/api`, which is what the pages show.
+ * `hieplam/tribe`, which is what the pages show.
  */
 function makeOriginRepo(): string {
   const dir = mkdtempSync(join(tmpdir(), 'lc-gate-repo-'));
@@ -60,7 +60,7 @@ async function insertStep(db: pg.Pool, pr: number, seq: number, step: string, st
 
 /**
  * Resets the console, sets its clock to `PREVIEW_NOW`, seeds the world of the preview, turns the gate of the repo `api` on, then inserts
- * the jobs of the sample. It returns the folder of the repo `api`, a git repository with the origin `acme/api`.
+ * the jobs of the sample. It returns the folder of the repo `api`, a git repository with the origin `hieplam/tribe`.
  */
 async function seedGate(sp: TestApi, db: pg.Pool): Promise<{ path: string }> {
   expectOk(await sp.api('POST', '/api/__test/reset'));

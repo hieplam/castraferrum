@@ -4,6 +4,7 @@
 // at `green` with its output), the clocks at PREVIEW_NOW. The regions are the page, and on the phone the navigation bar. No mask.
 import { expect, test, type Page } from '@playwright/test';
 import pg from 'pg';
+import { createFakeGh, type FakeGh } from '../../support/fake-gh-kit';
 import { gateJobId, seedGateFailed, seedGateQueue } from '../../support/goal-loop-gate-world';
 import { liveDbUrl, ServerProcess } from '../../support/server-process';
 import { PREVIEW_NOW, repoId } from '../../support/preview-world';
@@ -25,9 +26,11 @@ async function still(page: Page, mouse: { x: number; y: number }) {
 
 /** One server and one pool for a describe block; `world()` builds the gate world on an empty database. */
 function useServer() {
-  const ctx = {} as { sp: ServerProcess; db: pg.Pool; world(page: Page, seed: typeof seedGateQueue): Promise<void> };
+  const ctx = {} as { gh: FakeGh; sp: ServerProcess; db: pg.Pool; world(page: Page, seed: typeof seedGateQueue): Promise<void> };
   test.beforeAll(async () => {
-    ctx.sp = await ServerProcess.launch();
+    // The seeded gate is on, so its ticks call `gh`: they run on the fake one, never on the real `gh` of this machine.
+    ctx.gh = createFakeGh();
+    ctx.sp = await ServerProcess.launch({ env: { LOOPS_GH_BIN: ctx.gh.script, FAKE_GH_WORLD: ctx.gh.world } });
     ctx.db = new pg.Pool({ connectionString: liveDbUrl(), max: 2 });
     ctx.world = async (page, seed) => {
       // Leave the app first: its reads would race the reset's TRUNCATE (castraferrum#170).
@@ -39,6 +42,7 @@ function useServer() {
   test.afterAll(async () => {
     await ctx.sp?.stop();
     await ctx.db?.end();
+    ctx.gh?.dispose();
   });
   return ctx;
 }

@@ -38,7 +38,7 @@ beforeAll(async () => {
     headRefOid: HEAD,
     mergeCommit: null,
     closingIssuesReferences: [{ number: 141 }],
-    url: 'https://github.com/fake/repo/pull/7',
+    url: 'https://github.com/hieplam/tribe/pull/7',
     createdAt: new Date(0).toISOString(),
     mergedAt: null,
   });
@@ -62,7 +62,7 @@ beforeEach(async () => {
 const getGate = (id = repoId) => server.app.inject({ method: 'GET', url: `/api/repos/${id}/gate` });
 const putGate = (enabled: boolean, id = repoId) => server.app.inject({ method: 'PUT', url: `/api/repos/${id}/gate`, payload: { enabled } });
 const repositories = () => createPgRepositories(pool);
-const gateOn = () => repositories().gate.setRepoGate(repoId, { enabled: true, githubRepo: 'acme/api', checkCommand: [] }, new Date());
+const gateOn = () => repositories().gate.setRepoGate(repoId, { enabled: true, githubRepo: 'hieplam/tribe', checkCommand: [] }, new Date());
 
 type Insert = { prNumber: number; state: string; queued: number; started?: number; finished?: number; failedStep?: string; ratified?: number; title?: string | null };
 /** One job row with SQL, so a state and its times are exactly what the test says. */
@@ -126,7 +126,7 @@ describe('GET /api/repos/:id/gate', { timeout: 30_000 }, () => {
     await insertStep(running, 3, 'setup', 'pass', 41_200);
     const body = (await getGate()).json();
     expect(body.enabled).toBe(true);
-    expect(body.githubRepo).toBe('acme/api');
+    expect(body.githubRepo).toBe('hieplam/tribe');
     expect(body.queue.map((j: { id: string }) => j.id)).toEqual([running, queued1, queued2, ratify1, ratify2]);
     expect(body.queue.map((j: { step: string | null }) => j.step)).toEqual(['green', null, null, 'scope', 'scope']);
     expect(body.queue[0]).toMatchObject({ prNumber: 4, title: 'PR 4 title', taskKey: '4', state: 'running', startedAt: at(10).toISOString(), finishedAt: null, ratifiedAt: null });
@@ -157,13 +157,13 @@ describe('POST /api/gate/jobs stores the title', { timeout: 30_000 }, () => {
 
 describe('PUT /api/repos/:id/gate', { timeout: 30_000 }, () => {
   it('the first enable reads the origin remote, in the https form and in the ssh form', async () => {
-    const https = await repoWithOrigin('https://github.com/acme/api.git');
+    const https = await repoWithOrigin('https://github.com/hieplam/tribe.git');
     const first = await putGate(true, https);
     expect(first.statusCode).toBe(200);
-    expect(first.json()).toEqual({ enabled: true, githubRepo: 'acme/api', queue: [], record: [] });
-    expect(await repositories().gate.getRepoGate(https)).toMatchObject({ enabled: true, githubRepo: 'acme/api', checkCommand: [] });
-    const ssh = await repoWithOrigin('git@github.com:acme/web.git');
-    expect((await putGate(true, ssh)).json().githubRepo).toBe('acme/web');
+    expect(first.json()).toEqual({ enabled: true, githubRepo: 'hieplam/tribe', queue: [], record: [] });
+    expect(await repositories().gate.getRepoGate(https)).toMatchObject({ enabled: true, githubRepo: 'hieplam/tribe', checkCommand: [] });
+    const ssh = await repoWithOrigin('git@github.com:hieplam/tribe.git');
+    expect((await putGate(true, ssh)).json().githubRepo).toBe('hieplam/tribe');
   });
 
   it('a repo with no origin, or an origin that is not on github.com, gives 409 GATE_NO_REMOTE and writes no row', async () => {
@@ -172,18 +172,18 @@ describe('PUT /api/repos/:id/gate', { timeout: 30_000 }, () => {
     expect(refused.statusCode).toBe(409);
     expect(refused.json().error.code).toBe('GATE_NO_REMOTE');
     expect(await repositories().gate.getRepoGate(none)).toBeNull();
-    const elsewhere = await repoWithOrigin('https://example.com/acme/api.git');
+    const elsewhere = await repoWithOrigin('ssh://git@localhost/hieplam/tribe.git');
     expect((await putGate(true, elsewhere)).json().error.code).toBe('GATE_NO_REMOTE');
   });
 
   it('turning the gate off keeps the row and its repository, and turning it on again keeps them', async () => {
-    const id = await repoWithOrigin('https://github.com/acme/api.git');
+    const id = await repoWithOrigin('https://github.com/hieplam/tribe.git');
     await putGate(true, id);
     const off = await putGate(false, id);
     expect(off.statusCode).toBe(200);
-    expect(off.json()).toMatchObject({ enabled: false, githubRepo: 'acme/api' });
-    expect(await repositories().gate.getRepoGate(id)).toMatchObject({ enabled: false, githubRepo: 'acme/api' });
-    expect((await putGate(true, id)).json()).toMatchObject({ enabled: true, githubRepo: 'acme/api' });
+    expect(off.json()).toMatchObject({ enabled: false, githubRepo: 'hieplam/tribe' });
+    expect(await repositories().gate.getRepoGate(id)).toMatchObject({ enabled: false, githubRepo: 'hieplam/tribe' });
+    expect((await putGate(true, id)).json()).toMatchObject({ enabled: true, githubRepo: 'hieplam/tribe' });
     expect((await putGate(false, randomUUID())).json().error.code).toBe('REPO_NOT_FOUND');
   });
 });
