@@ -39,6 +39,16 @@ describe('fake gh', { timeout: 60_000 }, () => {
     expect(JSON.parse(l.out)).toEqual([{ number: 1, title: 'First', labels: [{ name: 'a' }, { name: 'b' }], state: 'OPEN' }]);
   });
 
+  it('failNext makes the next such call fail, one time', () => {
+    const { gh, run } = setup();
+    writeFileSync(gh.world, JSON.stringify({ ...gh.read(), failNext: ['issue create'] }));
+
+    expect(run('issue', 'create', '--title', 'T', '--body', 'B').status).toBe(1);
+    expect(gh.read().issues).toEqual([]);
+    expect(run('issue', 'create', '--title', 'T', '--body', 'B').status).toBe(0);
+    expect(gh.read().issues).toHaveLength(1);
+  });
+
   it('issue create refuses a label that does not exist, and label create adds it', () => {
     const { gh, run } = setup();
     const refused = run('issue', 'create', '--title', 'T', '--body', 'B', '--label', 'missing');

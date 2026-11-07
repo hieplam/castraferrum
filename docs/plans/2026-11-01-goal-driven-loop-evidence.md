@@ -2071,6 +2071,26 @@ Ratchet: tests 79 to 100, which is N+21 and not N+20, because the owner rule of 
 
 <!-- W5 -->
 
+## W5
+
+Goal G18 (task W5): an accepted card becomes one epic, one manifest PR and one loop. Nothing merges by itself, and a retry never doubles them.
+
+**Red** (before building): `npx vitest run --project api tests/api/goal-card-start.test.ts` printed `Test Files  1 failed (1)`.
+
+**Green** (after the rebase on `origin/main` d7cfd66): the same command printed `Tests  10 passed (10)`. `tests/api/goal-cards.test.ts` printed `Tests  17 passed (17)` on 5c2fdf2 plus this change. Its run after the last rebase was stopped by the order of the owner, so it has no result there.
+
+**Stub check** (each run for real, then restored):
+- a starter that does nothing: `Tests  9 failed | 1 passed (10)`
+- no stored results: `Tests  4 failed | 6 passed (10)`, with both retry tests in the failures
+- a direct push to `main`: `Tests  3 failed | 7 passed (10)`, with both gate tests in the failures
+- `opened.passed` set to `total`: `Tests  2 failed | 8 passed (10)`
+
+**Ratchet:** api 401 to 411. Unit 1270 to 1289. Contract 120 to 121 per side. `idle-days`: `idle-days 10 days runs` before, decision 7, not measured yet after.
+
+**Verify** (slot-1, on 2ab7fbe): `test:unit` `Tests  1289 passed | 3 skipped (1292)`, `test:api` `Tests  411 passed | 2 skipped (413)`, `test:e2e` `3 failed`, `123 passed (12.0m)`. The 3 failures are the known issue 401: `phone.spec.ts:189` in `chromium` and `webkit-phone` with `folder-show-hidden: not rendered`, and `acceptance.iphone.spec.ts:43`. After the rebase on d7cfd66, in slot-1: the folder picker test exit 0, the acceptance spec `2 passed (47.2s)`, `phone overflow: 0/12`, `UCs with a green e2e: 35/35`.
+
+An earlier verify failed `goal-service.test.ts > the comment comes before the first command of the next job` with `Test timed out in 240000ms`. That test does not reach this change. The file printed `Tests  14 passed (14)` alone.
+
 <!-- W6 -->
 
 <!-- W7 -->

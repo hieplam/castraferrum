@@ -291,6 +291,18 @@ describe('GhGitHost on the fake gh and a bare repository', () => {
     expect((err as GitHostError).message).toContain('cut off');
   });
 
+  it('createPullRequest opens a PR of the branch and returns its number and url', async () => {
+    const dir = bare.clone();
+    bare.branch(dir, 'goal/card-7');
+    const sha = bare.commit(dir, { 'a.txt': 'x\n' }, 'add a.txt');
+    bare.push(dir, 'goal/card-7');
+
+    const pr = await host.createPullRequest(REPO, { head: 'goal/card-7', base: 'main', title: 'The title', body: 'The body' });
+
+    expect(pr).toEqual({ number: 1, url: 'https://github.com/fake/repo/pull/1' });
+    expect(gh.read().prs[0]).toMatchObject({ headRefName: 'goal/card-7', baseRefName: 'main', title: 'The title', body: 'The body', state: 'OPEN', headRefOid: sha });
+  });
+
   it('a gh call that exits 1 throws a GitHostError with the exit code and the stderr, and it is not a missing pull request', async () => {
     const err = await host.merge(REPO, 99, 'a'.repeat(40)).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(GitHostError);

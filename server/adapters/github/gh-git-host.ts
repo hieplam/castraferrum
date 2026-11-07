@@ -202,6 +202,14 @@ export class GhGitHost implements GitHost {
     );
   }
 
+  async createPullRequest(repo: string, pr: { head: string; base: string; title: string; body: string }): Promise<{ number: number; url: string }> {
+    const out = await this.gh(['pr', 'create', '-R', repo, '--head', pr.head, '--base', pr.base, '--title', pr.title, '--body', pr.body]);
+    const url = out.trim().split(/\s+/).pop() ?? '';
+    const m = url.match(/\/pull\/(\d+)$/);
+    if (!m) throw new GitHostError('gh pr create printed no pull request url', 0, out.slice(0, 500));
+    return { number: Number(m[1]), url };
+  }
+
   async issueState(repo: string, number: number): Promise<'OPEN' | 'CLOSED'> {
     return (await this.json<{ state: 'OPEN' | 'CLOSED' }>(['issue', 'view', String(number), '-R', repo, '--json', 'state'])).state;
   }
