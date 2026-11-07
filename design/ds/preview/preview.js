@@ -286,7 +286,7 @@
   }
   // o.live = the live output (a cursor at now, data-paused); o.left and o.right = the bar.
   function logBlock(id, lines, o) {
-    const body = lines.map(([at, cls, s], i) => `<span class="log-line" data-seq="${i + 1}"><span class="log-time">${at}</span>${cls ? `<span class="${cls}">${esc(s)}</span>` : esc(s)}</span>`).join('') +
+    const body = lines.map(([at, cls, s], i) => `<span class="log-line" data-seq="${i + 1}">${at ? `<span class="log-time">${at}</span>` : ''}${cls ? `<span class="${cls}">${esc(s)}</span>` : esc(s)}</span>`).join('') +
       (o.live ? `<span class="log-line"><span class="log-time">${D.now}</span><span class="cursor"></span></span>` : '');
     return `<div class="log" data-testid="${id}"${o.live ? ` data-paused="${!!o.paused}"` : ''}><div class="log-bar"><span>${o.left}</span><span>${o.right || ''}</span></div><div class="log-scroll">${body}</div></div>`;
   }
@@ -718,7 +718,7 @@
       `<div class="page-meta">${PHONE ? pill : ''}<span>${esc(j.title)} <span class="keep">· ${t('goalLoop.gate.task', { key: `<span class="data">${esc(j.task)}</span>` })}</span> <span class="keep">· <span class="data">${esc(j.sha)}</span></span></span></div>`;
     const banner = `<div class="banner is-err" data-testid="gate-failed-step" role="status">${icon('alert')}<span class="banner-text">${t('goalLoop.gate.failedAt', { step: `<span class="data">${esc(j.step)}</span>`, t: `<span class="data">${esc(j.at)}</span>`, n: j.exit })}</span></div>`;
     const output = `<div class="section-head"><h2>${t('goalLoop.gate.output', { step: esc(j.step) })}</h2></div>` +
-      logBlock('gate-output', j.output, { left: t('goalLoop.gate.outputTail'), right: t('goalLoop.gate.outputExit', { n: j.exit }) });
+      logBlock('gate-output', j.output.map((line) => ['', '', line]), { left: t('goalLoop.gate.outputTail'), right: t('goalLoop.gate.outputExit', { n: j.exit }) });
     const stepList = `<p class="group-cap">${t('goalLoop.gate.steps')}</p><div class="group" data-testid="gate-steps">${steps}</div>`;
     const page = (PHONE ? '' : backlink(t('goalLoop.gate.title'))) + head + banner +
       (PHONE ? stepList + output + go(t('goalLoop.gate.requeue'), 'gate-requeue')

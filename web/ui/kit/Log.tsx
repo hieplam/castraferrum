@@ -2,7 +2,8 @@
 // its time. A live log ends with a cursor at now and says whether it follows or waits to reconnect (`data-paused`).
 import type { ReactNode } from 'react';
 
-export type LogLine = { seq: number; time: string; tone?: 'head' | 'ok' | 'err'; text: string };
+/** `time` is empty for a line that has none (the output of a gate step is a stored tail with no times). */
+export type LogLine = { seq: number; time?: string; tone?: 'head' | 'ok' | 'err'; text: string };
 
 const TONE = { head: 'log-head', ok: 'log-ok', err: 'log-err' } as const;
 
@@ -29,7 +30,7 @@ export function Log({
       <div className="log-scroll">
         {lines.map((l) => (
           <span className="log-line" data-seq={l.seq} key={l.seq}>
-            <span className="log-time">{l.time}</span>
+            {l.time ? <span className="log-time">{l.time}</span> : null}
             {l.tone ? <span className={TONE[l.tone]}>{l.text}</span> : l.text}
           </span>
         ))}

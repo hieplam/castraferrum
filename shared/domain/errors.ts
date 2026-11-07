@@ -23,6 +23,8 @@ export type ErrorCode =
   /** Marking a notice as read: no notice has this id. */
   | 'NOTICE_NOT_FOUND'
   | 'GATE_OFF'
+  /** Turning the gate on: the folder of the repo has no `origin` remote on github.com. */
+  | 'GATE_NO_REMOTE'
   /** A call to the Git host (GitHub) failed, so a list that needs it cannot be complete. */
   | 'GIT_HOST_FAILED'
   | 'GATE_JOB_NOT_FOUND'
