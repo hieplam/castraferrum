@@ -21,6 +21,7 @@ import type { ProbeDto, ProbeInputBody } from '../../shared/contracts/goal-loop'
 import type { HoldDto } from '../../shared/contracts/holds';
 import type { NoticeDto } from '../../shared/contracts/notices';
 import type { RepoDto, RepoInputBody, RepoListItemDto } from '../../shared/contracts/repos';
+import type { GateJobDetailDto, GateViewDto } from '../../shared/contracts/gate';
 import type { ScoreboardDto } from '../../shared/contracts/scoreboard';
 import type { TranscriptPageDto } from '../../shared/contracts/transcript';
 
@@ -67,6 +68,16 @@ export interface LoopsApi {
   overview(tz?: string, repoId?: string): Promise<OverviewDto>;
   /** `GET /process/scoreboard?tz=` - the repeats of each known cause before and after the date its check merged (spec 2.12); weeks start on Monday in `tz`. */
   scoreboard(tz?: string): Promise<ScoreboardDto>;
+  /** `GET /repos/:id/gate` - the gate setting of a repo with its queue and record (spec 2.8, task K12). */
+  gate(repoId: string): Promise<GateViewDto>;
+  /** `PUT /repos/:id/gate` - turns the gate of a repo on or off. The first turn on reads the repo from `origin`; `GATE_NO_REMOTE` when it has none. */
+  setGateEnabled(repoId: string, enabled: boolean): Promise<GateViewDto>;
+  /** `GET /gate/jobs/:id` - one job with its steps. */
+  gateJob(id: string): Promise<GateJobDetailDto>;
+  /** `POST /gate/jobs/:id/ratify` - the job of a guarded change takes the queue again (spec 2.8). */
+  ratifyGateJob(id: string): Promise<void>;
+  /** `POST /gate/jobs` - queues the PR again. `GATE_OFF` when the gate of the repo is off. */
+  queueGateJob(repoId: string, prNumber: number): Promise<void>;
   /** `GET /loops/:id/probe`: a loop with no probe gives `null`. */
   getProbe(loopId: string): Promise<ProbeDto | null>;
   /** `PUT /loops/:id/probe`: the loop must be stopped. Errors: `VALIDATION_FAILED` (`issues` of the probe fields), `LOOP_IS_ACTIVE`. */

@@ -2,7 +2,7 @@
 // time, runs the steps in order, and stops at the first failure. The exam comes from the `main` commit of the job, never
 // from the PR. A step fails closed: anything that is not a proven pass is a failure.
 import { DomainError } from '../../shared/domain/errors';
-import type { GateFinalState, GateJob, GateStepName, GateStepStatus, RepoGate } from '../../shared/domain/gate';
+import { GATE_STEPS, githubRepoOf, type GateFinalState, type GateJob, type GateJobState, type GateStepName, type GateStepStatus, type RepoGate } from '../../shared/domain/gate';
 import { isRealRed, stubCommandProblem } from '../../shared/domain/gate-commands';
 import { checkScope, normalizePath, parseGateConfig, parseVerifyFile, type ChangedFile, type GateConfig, type VerifyChange, type VerifyTask } from '../../shared/domain/scope-guard';
 import type { ClaimConfig, ClaimGateway, ClaimRecord, ClaimRepository, ReleaseWhy } from '../ports/claims';
@@ -14,7 +14,7 @@ import type { CheckRun, GitHost } from '../ports/git-host';
 import type { IdGenerator } from '../ports/ids';
 import type { LoopProbeRepository } from '../ports/loop-probe-repository';
 import type { RepoRecord, RepoRepository } from '../ports/repo-repository';
-import type { GateQueueInput, GateQueueResult, GateRatified, GateService, GateTickReport, GoalPassReport, GoalService } from './contracts';
+import type { GateJobDetail, GateJobRow, GateQueueInput, GateQueueResult, GateRatified, GateService, GateTickReport, GateView, GoalPassReport, GoalService } from './contracts';
 
 const MINUTE = 60_000;
 const SETUP_MS = 20 * MINUTE;
@@ -30,6 +30,13 @@ const IDLE_ERROR_ID = 'goals';
 const PASSING_CONCLUSIONS = new Set(['success', 'skipped', 'neutral']);
 const OUTPUT_LINES = 60;
 const LIVE_JOBS_READ = 100;
+/** Spec 5, `gate-queue`: the record of a repo shows the last 20 jobs that ended. */
+const RECORD_LIMIT = 20;
+/** The jobs of a repo that are not over. A repo never holds this many. */
+const QUEUE_LIMIT = 500;
+const QUEUE_STATES: readonly GateJobState[] = ['running', 'queued', 'needs_ratification'];
+const QUEUE_RANK: Record<string, number> = { running: 0, queued: 1, needs_ratification: 2 };
+const REMOTE_MS = 10_000;
 const VERIFY_DIR = 'goals/verify';
 const GATE_FILE = 'goals/gate.json';
 /** Decision 40: the last line must survive the 20000-character cut of `GhGitHost.comment`. */
@@ -115,6 +122,9 @@ type Attempt = {
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const firstLine = (text: string) => text.split(/\r?\n/).find((line) => line.trim() !== '') ?? text;
 const combined = (result: CommandResult) => [result.stdout, result.stderr, result.error].filter(Boolean).join('\n');
+/** Gives the reason when the PR comes from a fork, else null. A fork PR ends as `failed`, so nobody can ratify it. */
+export const forkRefusal = (pr: { fromFork: boolean }): string | null => (pr.fromFork ? 'a pull request from a fork needs a person' : null);
+
 const fail = (line: string, output = line, exitCode: number | null = null): StepEnd => ({ status: 'fail', exitCode, output, line });
 
 /** Decision 38: a check run that ended with a conclusion that is not a pass. Pending is not bad. */
@@ -153,7 +163,7 @@ export class DefaultGateService implements GateService {
     // Decision 33. A PR that closes no issue has an empty key, so it can only pass as a plan PR.
     const taskKey = input.taskKey ?? String(pr.closingIssues[0] ?? '');
     const id = ids.newId();
-    const outcome = await gate.enqueue({ id, repoId: input.repoId, prNumber: input.prNumber, headSha: pr.headSha, taskKey, at: clock.now() });
+    const outcome = await gate.enqueue({ id, repoId: input.repoId, prNumber: input.prNumber, headSha: pr.headSha, taskKey, title: pr.title, at: clock.now() });
     if (outcome === 'queued') return { outcome, jobId: id, headSha: pr.headSha, taskKey };
     const live = (await gate.list(LIVE_JOBS_READ)).find(
       (job) => job.repoId === input.repoId && job.prNumber === input.prNumber && job.headSha === pr.headSha && (job.state === 'queued' || job.state === 'running'),
@@ -172,6 +182,65 @@ export class DefaultGateService implements GateService {
       throw new DomainError('GATE_JOB_NOT_RATIFIABLE', `Another job of PR ${job.prNumber} at this head is queued or running. Ratify again after that job ends`);
     }
     throw new DomainError('GATE_JOB_NOT_RATIFIABLE', `Gate job ${id} is ${job.state}, and only a job in needs_ratification can be ratified`);
+  }
+
+  async view(repoId: string): Promise<GateView> {
+    const { gate, repos } = this.deps;
+    if (!(await repos.findById(repoId))) throw new DomainError('REPO_NOT_FOUND', `No repo ${repoId}`);
+    const setting = await gate.getRepoGate(repoId);
+    const live = (await gate.listByRepo(repoId, QUEUE_STATES, QUEUE_LIMIT)).sort(
+      (a, b) => QUEUE_RANK[a.state]! - QUEUE_RANK[b.state]! || a.queuedAt.getTime() - b.queuedAt.getTime() || (a.id < b.id ? -1 : 1),
+    );
+    const ended = await gate.listByRepo(repoId, ['merged', 'failed'], RECORD_LIMIT);
+    return {
+      enabled: setting?.enabled ?? false,
+      githubRepo: setting?.githubRepo ?? null,
+      queue: await Promise.all(live.map((job) => this.row(job))),
+      record: await Promise.all(ended.map((job) => this.row(job))),
+    };
+  }
+
+  async job(id: string): Promise<GateJobDetail> {
+    const { gate } = this.deps;
+    const job = await gate.get(id);
+    if (!job) throw new DomainError('GATE_JOB_NOT_FOUND', `No gate job ${id}`);
+    const steps = await gate.listSteps(id);
+    return { job: this.rowOf(job, steps.at(-1)?.step ?? null), repoId: job.repoId, headSha: job.headSha, steps };
+  }
+
+  async setEnabled(repoId: string, enabled: boolean): Promise<GateView> {
+    const { gate, repos, clock } = this.deps;
+    const repo = await repos.findById(repoId);
+    if (!repo) throw new DomainError('REPO_NOT_FOUND', `No repo ${repoId}`);
+    const current = await gate.getRepoGate(repoId);
+    if (!enabled && !current) return this.view(repoId);
+    // The first turn on reads the repository from the folder. The row keeps it after that, also while the gate is off.
+    const githubRepo = current?.githubRepo || (await this.originOf(repo.path));
+    await gate.setRepoGate(repoId, { enabled, githubRepo, checkCommand: current?.checkCommand ?? [] }, clock.now());
+    return this.view(repoId);
+  }
+
+  /** `owner/name` of the `origin` remote on github.com. Throws GATE_NO_REMOTE for no remote, or a remote on another host. */
+  private async originOf(path: string): Promise<string> {
+    const result = await this.deps.commands.run({ argv: ['git', 'remote', 'get-url', 'origin'], cwd: path, timeoutMs: REMOTE_MS });
+    const found = result.exitCode === 0 ? githubRepoOf(result.stdout) : null;
+    if (found === null) throw new DomainError('GATE_NO_REMOTE', `The folder ${path} has no origin remote on github.com`);
+    return found;
+  }
+
+  /** A job of a list. A running job reads its steps to name the step after the last one stored. */
+  private async row(job: GateJob): Promise<GateJobRow> {
+    const last = job.state === 'running' ? ((await this.deps.gate.listSteps(job.id)).at(-1)?.step ?? null) : null;
+    return this.rowOf(job, last);
+  }
+
+  /** `last`: the step with the highest `seq` of the job; used only for a running job. */
+  private rowOf(job: GateJob, last: GateStepName | null): GateJobRow {
+    let step: GateStepName | null = null;
+    if (job.state === 'failed' || job.state === 'needs_ratification') step = job.failedStep ?? 'scope';
+    else if (job.state === 'running') step = last === null ? 'scope' : GATE_STEPS[Math.min(GATE_STEPS.indexOf(last) + 1, GATE_STEPS.length - 1)]!;
+    const { id, prNumber, title, taskKey, state, queuedAt, startedAt, finishedAt, ratifiedAt } = job;
+    return { id, prNumber, title, taskKey, state, step, queuedAt, startedAt, finishedAt, ratifiedAt };
   }
 
   async tick(): Promise<GateTickReport> {
@@ -396,10 +465,13 @@ export class DefaultGateService implements GateService {
     return again;
   }
 
+  /** The owner's rule: "DO NOT AUTO APPROVE ANY FORKED DOWNSTREAM PR, this need human to approve". It comes before every other rule of the gate. */
   private async scope(run: JobRun, state: Attempt): Promise<StepEnd> {
     const { host, workspace } = this.deps;
     const { job, repoPath, setting } = run;
     const pr = await host.pullRequest(setting.githubRepo, job.prNumber);
+    const refusal = forkRefusal(pr);
+    if (refusal !== null) return fail(refusal);
     if (pr.state !== 'OPEN') return fail(`the PR is ${pr.state}`);
     if (pr.baseRef !== 'main') return fail(`the PR targets ${pr.baseRef}, not main`);
     if (pr.headSha !== job.headSha) return fail('the head of the PR moved after the job was queued');

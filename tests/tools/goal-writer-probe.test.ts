@@ -47,6 +47,7 @@ function world(opts: { charter?: boolean } = {}): World {
       state: 'OPEN',
       labels: [],
       comments: [],
+      author: { login: 'fake' },
       url: `https://github.com/fake/repo/issues/${issue.number}`,
       createdAt: T0,
       updatedAt: T0,
@@ -88,6 +89,39 @@ describe('goal-writer-probe', () => {
     const r = w.run();
     expect((r.line as { action: string }).action).toBe('skip');
     expect(existsSync(join(w.dir, '.git', 'castraferrum-goal-writer.json'))).toBe(false);
+  });
+
+  describe('input of a stranger', () => {
+    const manifest = 'Goal manifest: goals/x.json';
+    it('plans when a stranger opens an issue with the Goal manifest line, and skips for the owner (control)', () => {
+      const stranger = world();
+      stranger.seed({ number: 1, body: manifest, author: { login: 'someone-else' } });
+      expect(stranger.run().out.trim()).toBe(PLAN_LINE);
+      const owner = world();
+      owner.seed({ number: 1, body: manifest, author: { login: 'fake' } });
+      expect((owner.run().line as { action: string }).action).toBe('skip');
+    });
+
+    it('plans when a stranger sets the goal-card label, and skips for the owner (control)', () => {
+      const stranger = world();
+      stranger.seed({ number: 1, labels: [{ name: 'goal-card' }], author: { login: 'someone-else' } });
+      expect(stranger.run().out.trim()).toBe(PLAN_LINE);
+      const owner = world();
+      owner.seed({ number: 1, labels: [{ name: 'goal-card' }], author: { login: 'fake' } });
+      expect((owner.run().line as { action: string }).action).toBe('skip');
+    });
+
+    it('counts an issue of app/github-actions as the owner', () => {
+      const w = world();
+      w.seed({ number: 1, body: manifest, author: { login: 'app/github-actions' } });
+      expect((w.run().line as { action: string }).action).toBe('skip');
+    });
+
+    it('plans when an issue has no author', () => {
+      const w = world();
+      w.seed({ number: 1, body: manifest, author: undefined });
+      expect(w.run().out.trim()).toBe(PLAN_LINE);
+    });
   });
 
   it('plans when a body only quotes the Goal manifest line in backticks', () => {

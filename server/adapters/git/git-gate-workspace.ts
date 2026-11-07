@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path';
 import { shellArgv } from '../../../shared/domain/gate-commands';
 import { matchesGlob, type ChangedFile } from '../../../shared/domain/scope-guard';
 import type { CommandResult, CommandRunner } from '../../ports/command-runner';
+import { NO_LOGIN_PROMPT_ENV } from '../process/no-login-prompt';
 import { GateWorkspaceError, type GateTree, type GateWorkspace, type PrepareResult } from '../../ports/gate-workspace';
 
 const GIT_TIMEOUT_MS = 5 * 60_000;
@@ -56,7 +57,7 @@ export class GitGateWorkspace implements GateWorkspace {
       dir,
       ...args,
     ];
-    return this.runner.run({ argv, cwd: dir, timeoutMs: GIT_TIMEOUT_MS, maxBytes: MAX_OUTPUT_BYTES });
+    return this.runner.run({ argv, cwd: dir, env: { ...NO_LOGIN_PROMPT_ENV }, timeoutMs: GIT_TIMEOUT_MS, maxBytes: MAX_OUTPUT_BYTES });
   }
 
   private async must(dir: string, args: string[]): Promise<string> {

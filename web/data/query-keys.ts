@@ -28,6 +28,9 @@ export const qk = {
   folderPlaces: () => ['folders', 'places'] as const,
   /** The process scoreboard - read when Settings or its page opens; no live event changes it. */
   scoreboard: (tz: string) => ['scoreboard', tz] as const,
+  /** The gate page of a repo and one gate job. They change when a job runs, so the pages read them again every few seconds. */
+  gate: (repoId: string) => ['gate', 'repo', repoId] as const,
+  gateJob: (id: string) => ['gate', 'job', id] as const,
   health: () => ['health'] as const,
   executors: () => ['executors'] as const,
   schedulePreview: (cron: string, tz: string, lang: string) => ['schedule-preview', cron, tz, lang] as const,

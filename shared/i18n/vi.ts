@@ -445,6 +445,7 @@ export const vi: Record<MessageKey, string> = {
   // ── Phase 2: mã lỗi repo + lỗi tại ô của trang Repo / ô repo của form ──
   'error.REPO_NOT_FOUND': 'Không tìm thấy repo',
   'error.GATE_OFF': 'Cổng kiểm tra của repo này đang tắt',
+  'error.GATE_NO_REMOTE': 'Repo này không có remote origin trên GitHub nên chưa bật được cổng kiểm tra',
   'error.GIT_HOST_FAILED': 'GitHub không trả lời lệnh gọi',
   'error.GATE_JOB_NOT_FOUND': 'Không tìm thấy việc của cổng kiểm tra',
   'error.GATE_JOB_NOT_RATIFIABLE': 'Hiện không thể phê chuẩn việc này của cổng kiểm tra',
@@ -888,6 +889,9 @@ export const vi: Record<MessageKey, string> = {
   'goalLoop.gate.output': 'Đầu ra của {step}',
   'goalLoop.gate.outputTail': '60 dòng cuối',
   'goalLoop.gate.outputExit': 'mã thoát {n}',
+  'goalLoop.gate.failedAtNoExit': 'Bước {step} thất bại lúc {t}. Việc đã được trả lại.',
+  'goalLoop.gate.queueEmpty': 'Không có pull request nào đang chờ cổng.',
+  'goalLoop.gate.recordEmpty': 'Chưa có việc nào kết thúc.',
   'goalLoop.step.pass': 'Đạt',
   'goalLoop.step.fail': 'Thất bại',
   'goalLoop.step.skip': 'Chưa chạy',

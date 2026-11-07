@@ -1503,6 +1503,62 @@ Decisions:
 
 <!-- K12 -->
 
+## K12
+
+Goal G6: the owner sees the gate queue, a failed job with the step that failed and its output, and can turn the gate on, ratify and queue again. The pages match the approved `gate-queue` and `gate-failed` shots (desktop, phone, light, dark).
+
+Ratchet before: no `results/gate.json` (0 pairs); `e2e expects: 885`; api tests of the gate pages 0; `states with shots: 142/142`; `UCs with a green e2e: 35/35`.
+
+Red, before the build (the visual and e2e Red ran in a frozen copy of the tree that had the tests and no feature, on the same lane database):
+
+```
+npx vitest run --project api tests/api/gate-pages-api.test.ts:      Tests  9 failed (9)
+npx playwright test tests/visual/ds/gate.visual.ts --project=visual: 4 failed
+npx playwright test tests/e2e/gate-pages.spec.ts --project chromium: 4 failed
+```
+
+Green:
+
+```
+npx vitest run --project api tests/api/gate-pages-api.test.ts:      Tests  9 passed (9)
+npx playwright test tests/visual/ds/gate.visual.ts --project=visual: 4 passed
+node -e "<r.length, worst ratio <= 0.001>" results/gate.json:          8 true  (worst ratio 0.00034549, the phone queue page)
+npx playwright test tests/e2e/gate-pages.spec.ts --project chromium: 4 passed
+npx vitest run --project contract -t gate_tables:                       exit 0, 2 more tests per side (title, listByRepo)
+npm run ratchets:                                                      ratchets: ok, e2e expects: 929
+npm run design:states -- --design design/ds:                           states with shots: 142/142
+tests/visual/ds/repos.visual.ts:                                       4 passed
+npm run design:compare:                                                67 passed, "pairs": 8, "worstRatio": 0.0003454933441723402
+npm run verify (one run, slot-1, lane database loops_k12_test):         exit 0, UCs with a green e2e: 36/36 (run before the last two rebases, which only renumbered the migration and merged the docs)
+  unit Tests  1225 passed | 3 skipped; contract memory: 119 passed, postgres: 119 passed
+  api Tests  324 passed | 2 skipped; e2e and visual 134 passed (16.3m); phone overflow: 0/12
+```
+
+I opened three pairs with Read, side by side: `phone-gate-queue-light`, `phone-gate-failed-dark` and `gate-failed-light`, each app shot next to its approved shot, and the diff of the first. The pages are the same. The only pixels that differ are anti-aliasing at the edges of a few letters of the PR title (the title is a text and a span in the app, one text in the preview): at most 0.035 percent of the page. The other pairs differ by at most 0.011 percent.
+
+Stub results, each run for real, then restored: `GET /api/repos/:id/gate` answering empty lists: 6 of 9 api tests failed (the plan said 6 of 9). `queue` without the title: the title api test failed, and the contract test of the title failed on the Postgres side. `JobCell` returning `null`: 2 of 4 visual tests failed, the two queue pairs (the plan said 4: the failed page does not use `JobCell`, so its tests cannot fail). The failed page with no output block: 2 of 4 failed, `gate-failed` and `phone-gate-failed` (12.45 and 5.06 percent off on the phone page).
+
+Ratchet after: pairs in `results/gate.json` 0 to 8 (worst ratio 0.00035); api tests +9; contract +2 per side; unit +0 (the uc-coverage test changed its numbers); `e2e expects` 885 to 929 (18 of them are K12, the rest came with other merged tasks); `UCs with a green e2e` 35 to 36 (new UC-37, `--min` 35 to 36); API routes 3 more in `docs/API.md`.
+
+No network (after the owner's rules): the seeded origin is a local bare repository, the row says `hieplam/tribe`, and every seeded run (visual and e2e) starts its console on the fake `gh`. A seeded gate never changes while a page is read: `takeNext` takes a job only when no job is `running`, the seeded job is `running`, and `requeueRunning` runs only at start-up, before the seed. The final run (gate and repos visual `8 passed`, `8 true`, worst ratio 0.00034549; `gate-pages.spec.ts` `4 passed`) ended with `Get-Process git-credential-manager` giving `count: 0`. Earlier hangs came from old seeds with a real github origin that stayed in the lane database; the lane databases were recreated. `grep -rnE "https://github.com/[A-Za-z0-9_-]+/[A-Za-z0-9_.-]+\.git" tests`:
+
+```
+tests/api/gate-pages-api.test.ts:160:    const https = await repoWithOrigin('https://github.com/hieplam/tribe.git');
+tests/api/gate-pages-api.test.ts:180:    const id = await repoWithOrigin('https://github.com/hieplam/tribe.git');
+```
+
+(Both lines are strings that the api test parses; its console has no ticker and runs no `git`.)
+
+Decisions (standing rules of the epic, no question to the owner):
+- `gate_jobs.title` (text, null) and `GateRepository.enqueue` takes `title`. A job with no title shows `PR #n` alone.
+- A new port method `listByRepo(repoId, states, limit)` reads the jobs of one repo, so the page of a repo does not depend on how many newer jobs other repos have.
+- The preview of `gate-failed` was re-shot without the time column and the tones of the output (recorded in `design/APPROVED.md`). Every other element is as approved.
+- A new use case UC-37 with the 4 tests of `gate-pages.spec.ts` tagged `@UC-37`, and `uc-coverage --min` 36.
+- The plan's Red command `npx playwright test --project visual <file>` takes the file as a second project name in this Playwright version, so the runs use `<file> --project=visual`.
+- The migration is renumbered on each rebase that brought a lane migration: 0009, then 0011, then 0012, now 0013.
+- Two empty states have a text (`goalLoop.gate.queueEmpty`, `goalLoop.gate.recordEmpty`), built from the existing `.empty`.
+
+
 <!-- T1 -->
 
 ## T1
@@ -2017,6 +2073,54 @@ Goal G18 (task W2): when a goal ends, the probe asks for one writing run, with n
 
 <!-- W3 -->
 
+## W3
+
+Pull request: https://github.com/hieplam/agent-plugins/pull/23 (repository `hieplam/agent-plugins`, branch `epic-loop/goal-writer`). It also closes issue 397. Goal G18. Commands run in the skill folder `SK`, `plugins/epic-loop/skills/epic-loop`.
+
+Red, before the build, `node --test --test-reporter=tap scripts/tests/epic.test.mjs scripts/tests/check-card.test.mjs`:
+
+```
+# tests 99
+# pass 79
+# fail 20
+```
+
+Green, final code, same command:
+
+```
+# tests 100
+# pass 100
+# fail 0
+```
+
+**Changed Green command.** The plan says `--grader-model haiku`. The command that ran is `python3 scripts/evals/run_evals.py --evals SK/evals/evals.json --eval-id 8,9,10 --mode with_skill --exec-model haiku --grader-model sonnet --runs 5 --jobs 1 --out-dir <dir>`, in slot-1, with `PYTHONUTF8=1`. Reason, decided by the coordinator in issue 397: the haiku grader refused runs for reasons that the rubric excludes, a stronger grader is not a weaker exam, and the rubric did not change. The machine check and the rubric must both still pass.
+
+Green, evals, final text:
+
+```
+eval 8 4/5 -> 4/5 ok
+eval 9 5/5 -> 5/5 ok
+eval 10 5/5 -> 5/5 ok
+verdict: pass
+verify-result: ok
+```
+
+| Run | Machine check, evals 8, 9, 10 | Gate count, evals 8, 9, 10 |
+|---|---|---|
+| haiku grader, before the fixes | 5/5, 5/5, 3/5 | 0/5, 1/5, 2/5 |
+| sonnet grader, first try | 4/5, 5/5, 4/5 | 2/5, 5/5, 4/5 |
+| sonnet grader, second try, final text | 5/5, 5/5, 5/5 | 4/5, 5/5, 5/5 |
+
+Stub check:
+
+- `goal-writer.md` emptied, same command, eval 8: `eval 8 0/5 -> 0/5 ok`. Each run fails the machine check with `0 new goal cards, expected 1`.
+- A `tidy` that ignores the exit code: `not ok - tidy: a command that exits 3 refuses and leaves the issue open, with no write`, 1 failure.
+- `tidy` with no owner check: `not ok - tidy: an issue by another author refuses, the command does not run, and --rewrite writes nothing`, 1 failure.
+
+Ratchet: tests 79 to 100, which is N+21 and not N+20, because the owner rule of 2026-11-02 added one `tidy:` test. Evals 7 to 10.
+
+`docker ps -a` showed no change after each eval run. The grader cost is not recorded, so the total model cost is not verified.
+
 <!-- W4 -->
 
 <!-- W5 -->
@@ -2162,3 +2266,24 @@ The test also asserts that the switch is visible, so it states its own precondit
       2 failed (chromium and webkit-phone)
 
 **Light verify** (a change in one test file): `npm run typecheck` clean, `node scripts/lang-scan.mjs --check-baseline` `baseline check: ok`.
+
+## 398
+
+- Goal: G6, G9, G18. A pull request from a fork never runs a step of its code and never merges. A stranger's text steers nothing.
+- Red (before the code, `npx vitest run server/adapters/github/gh-git-host.test.ts tests/tools/goal-writer-probe.test.ts`): `Tests  12 failed | 35 passed (47)`. The failures: `pullRequest` gave no `fromFork`; seven `loopComments drops a loop-release comment of a stranger (association NONE ... undefined)` tests received the comment; the stranger probe tests gave `skip`.
+- Green: `npx vitest run tests/tools/test-addresses.test.ts tests/api/gate-fork.test.ts tests/api/process-signals-api.test.ts --project api --project unit`: `Tests  13 passed (13)`. The fork PR ends `failed` at `scope` with the reason `a pull request from a fork needs a person`, the step rows hold only `scope`, 0 merge calls, `main` unchanged, and `POST /api/gate/jobs/:id/ratify` answers 409 `GATE_JOB_NOT_RATIFIABLE`. The control (`isCrossRepository` false) merges.
+- Stub check: the fork refusal, the association filter and the author filter were each removed in one run: `Tests  11 failed | 38 passed (49)`. After the restore: `Tests  49 passed (49)`.
+- Ratchet: tests of outside input, 0 before, 19 after (2 fork API, 1 host fork, 10 loopComments cases, 4 probe, 2 addresses).
+- Decisions: `GOAL_CARD` and `issuesWithLabel` need no change, because `goal-card` is a label and setting a label needs triage rights. `GateService.queue` still keeps the job, so the refusal has a record. The fake `gh` gives `OWNER` to a comment made with `issue comment` and the owner of `-R` to an issue made with `issue create`; a seeded comment or issue with none is read as a stranger's.
+
+## 395
+
+Goal row: G6. A background git call that needs a login fails at once and opens no window.
+
+- Fix: `GitGateWorkspace.git()` (the one private method that builds each git call) passes `NO_LOGIN_PROMPT_ENV` from `server/adapters/process/no-login-prompt.ts`: `GIT_TERMINAL_PROMPT=0`, `GCM_INTERACTIVE=never`, `GH_PROMPT_DISABLED=1`. No `credential.helper` is unset, so a stored login still works. `GhGitHost.gh()` passes the same env. `windowsHide` and the retry rules are unchanged.
+- Other `git` or `gh` runs found in `server/`: `scoreboard-service` runs `git log` (local only, no network, no login). `command-claim-gateway`, `hold-service`, `probe-service`, `standing-goal-service` and the gate `checkCommand` run commands that the repository owner configured, not git or gh calls of the console. They are left unchanged.
+- Red (old `git-gate-workspace.ts`, new tests): `2 failed | 27 passed`. The env test fails because the git call has no `GIT_TERMINAL_PROMPT`. The real-git test (a local HTTP server that answers 401) hangs until the 60 s test limit, and a `git-credential-manager get` process stays alive.
+- Green: `git-gate-workspace.test.ts` and `server/adapters/github`: `Tests  61 passed (61)`. `tests/api/gate-scope.test.ts` and `gate-fork.test.ts`: `Tests  46 passed (46)`. `tests/tools`: `Tests  290 passed (290)`. `rule-lint: ok`. After the runs, `Get-Process git-credential-manager` shows 0 processes.
+- Stub check: the Red run is the stub check. It used the file with no env, and both new tests failed.
+- Ratchet: `git-credential-manager` windows during test runs: 1 left running after the Red run, 0 after Green. The count of 9 for `gate.visual.ts` and `gate-pages.spec.ts` is not measured here (CI stands in for the e2e run).
+- Follow-up (gaps found by the coordinator): the env test now uses `toEqual` with all three values for every git call (it also checks that `fetch`, `ls-tree`, `merge-base` and `worktree` calls were seen), and `gh-git-host.test.ts` has a test for the env of a `gh` call. Mutation run with the `GCM_INTERACTIVE` line removed from `no-login-prompt.ts`: `Tests  3 failed | 59 passed (62)`. The run started Git Credential Manager, so the owner stopped any further mutation. The mutation that removes the env from `gh-git-host.ts` was started and stopped before it ended: it has no result. Green before the mutations: `Tests  62 passed (62)`. `npm run test:api` did not run.
