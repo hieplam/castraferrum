@@ -27,6 +27,9 @@ export type NewGoalCardRecord = Pick<GoalCardRecord, 'id' | 'repoId' | 'githubRe
 /** What a decision changes. Each field is written, so a caller starts from the row that it read. */
 export type GoalCardUpdate = Pick<GoalCardRecord, 'state' | 'title' | 'door' | 'card' | 'startAfter' | 'changed' | 'decidedAt'>;
 
+/** What the starter stored so far. The fields that a call leaves out keep their value. */
+export type GoalCardResults = Partial<Pick<GoalCardRecord, 'epicNumber' | 'prNumber' | 'loopId'>>;
+
 export interface GoalCardRepository {
   /** `taken`: the repository already has a `proposed` card, or a row of this issue. Nothing changes. */
   insert(card: NewGoalCardRecord): Promise<'inserted' | 'taken'>;
@@ -35,4 +38,6 @@ export interface GoalCardRepository {
   list(repoId: string | null): Promise<GoalCardRecord[]>;
   /** Changes the row only while it is in state `from`. `null` when it is not: another decision came first. */
   update(id: string, from: GoalCardState, change: GoalCardUpdate): Promise<GoalCardRecord | null>;
+  /** Stores the result of one step of the starter. `null` when the row does not exist. */
+  saveResults(id: string, results: GoalCardResults): Promise<GoalCardRecord | null>;
 }

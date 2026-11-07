@@ -1,6 +1,6 @@
 // The goal card service on the real wiring (spec 2.13, plan rules 1 to 4, goal rows G19, G20): a refused goal never starts, a one-way goal
 // needs one yes, and by default every goal needs one yes. A real bare repository holds the charter, the fake `gh` holds the issues, and no
-// ticker runs: the test winds the clock and calls one tick. The starter of this task does nothing, so `started` is the state of the row.
+// ticker runs: the test winds the clock and calls one tick. `started` is the state of the row, and `goal-card-start.test.ts` proves what the starter makes.
 import { writeFileSync } from 'node:fs';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { composeServer, type ComposedServer } from '../../server/compose';

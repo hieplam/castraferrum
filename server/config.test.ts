@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { databaseUrl, loadConfig, readPort, redactUrl } from './config';
+import { databaseUrl, defaultEpicScript, loadConfig, readPort, redactUrl } from './config';
 
 describe('config', () => {
   it('defaults: port 7070, the loops DB on the compose Postgres (55432)', () => {
@@ -19,6 +19,12 @@ describe('config', () => {
   it('LOOPS_GH_BIN replaces the gh program, and gh is the default', () => {
     expect(loadConfig({}).ghBin).toBe('gh');
     expect(loadConfig({ LOOPS_GH_BIN: 'fake-gh.mjs', DATABASE_URL: 'postgres://u:p@127.0.0.1:55432/loops_x_test' }).ghBin).toBe('fake-gh.mjs');
+  });
+
+  it('LOOPS_EPIC_SCRIPT replaces the script of the epic-loop skill', () => {
+    expect(loadConfig({}).epicScript).toBe(defaultEpicScript());
+    expect(defaultEpicScript()).toMatch(/\.claude[\\/]skills[\\/]epic-loop[\\/]scripts[\\/]epic\.mjs$/);
+    expect(loadConfig({ LOOPS_EPIC_SCRIPT: '/x/epic.mjs' }).epicScript).toBe('/x/epic.mjs');
   });
 
   it('LOOPS_GH_BIN is refused unless the DB is named *_test', () => {

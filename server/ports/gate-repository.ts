@@ -1,6 +1,6 @@
-import type { GateFinalState, GateJob, GateStep, GateStepName, RepoGate } from '../../shared/domain/gate';
+import type { GateFinalState, GateJob, GateJobState, GateStep, GateStepName, RepoGate } from '../../shared/domain/gate';
 
-export type EnqueueGateJobInput = { id: string; repoId: string; prNumber: number; headSha: string; taskKey: string; at: Date };
+export type EnqueueGateJobInput = { id: string; repoId: string; prNumber: number; headSha: string; taskKey: string; title?: string | null; at: Date };
 
 export type RepoGateInput = { enabled: boolean; githubRepo: string; checkCommand: string[] };
 
@@ -32,4 +32,6 @@ export interface GateRepository {
   listRefusedBetween(from: Date, to: Date): Promise<GateJob[]>;
   /** Newest first. */
   list(limit: number): Promise<GateJob[]>;
+  /** The jobs of one repository in any of `states`, newest `finished_at` first (a job not finished is last, newest `queued_at` first), at most `limit`. */
+  listByRepo(repoId: string, states: readonly GateJobState[], limit: number): Promise<GateJob[]>;
 }

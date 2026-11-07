@@ -1312,6 +1312,32 @@ export function repositoryContract(env: () => ContractEnv): void {
       expect(await r.gate.getRepoGate(unknown)).toBeNull();
     });
 
+    it('a job stores and returns its title, and a job queued with no title has none', async () => {
+      const titled = randomUUID();
+      expect(await r.gate.enqueue({ ...job({ prNumber: 8 }), id: titled, title: 'Refund report query' })).toBe('queued');
+      expect(await r.gate.get(titled)).toMatchObject({ id: titled, title: 'Refund report query' });
+      expect((await r.gate.list(10)).find((j) => j.id === titled)?.title).toBe('Refund report query');
+      const bare = await enqueue({ prNumber: 9 });
+      expect(await r.gate.get(bare.id)).toMatchObject({ title: null });
+    });
+
+    it('listByRepo gives the jobs of the repository in the states, newest finished first, the unfinished last, at most the limit', async () => {
+      const ended = async (prNumber: number, startSec: number, state: 'merged' | 'failed') => {
+        const { id } = await enqueue({ prNumber, sec: startSec });
+        await r.gate.takeNext(at(startSec + 1));
+        await r.gate.finish(id, { state, failedStep: state === 'failed' ? 'green' : null, at: at(startSec + 2) });
+        return id;
+      };
+      const first = await ended(1, 0, 'merged');
+      const second = await ended(2, 10, 'failed');
+      const waiting = (await enqueue({ prNumber: 3, sec: 20 })).id;
+      expect((await r.gate.listByRepo(repoId, ['merged', 'failed'], 10)).map((j) => j.id)).toEqual([second, first]);
+      expect((await r.gate.listByRepo(repoId, ['merged', 'failed'], 1)).map((j) => j.id)).toEqual([second]);
+      expect((await r.gate.listByRepo(repoId, ['queued'], 10)).map((j) => j.id)).toEqual([waiting]);
+      expect((await r.gate.listByRepo(repoId, ['merged', 'failed', 'queued'], 10)).map((j) => j.id)).toEqual([second, first, waiting]);
+      expect(await r.gate.listByRepo(randomUUID(), ['merged', 'failed', 'queued'], 10)).toEqual([]);
+    });
+
     it('enqueue queues a job with its fields', async () => {
       const first = await enqueue();
       expect(first.answer).toBe('queued');
@@ -1321,6 +1347,7 @@ export function repositoryContract(env: () => ContractEnv): void {
         prNumber: 7,
         headSha: 'a'.repeat(40),
         taskKey: '141',
+        title: null,
         state: 'queued',
         failedStep: null,
         queuedAt: at(0),
@@ -1590,6 +1617,20 @@ export function repositoryContract(env: () => ContractEnv): void {
       const edited = { ...refused(row), state: 'accepted' as const, title: 'New', door: 'one-way' as const, card: { ...row.card, title: 'New' }, startAfter: null, changed: true };
       expect(await r.goalCards.update(input.id, 'proposed', edited)).toEqual({ ...row, ...edited });
       expect(await r.goalCards.update(input.id, 'proposed', refused(row))).toBeNull();
+    });
+
+    it('saveResults stores one result at a time, keeps the others, and a decision does not change them', async () => {
+      const input = newCard(1, 1);
+      await r.goalCards.insert(input);
+      const loop = await r.loops.insert(newLoop({ name: 'goal-card-loop', repoId }));
+
+      await r.goalCards.saveResults(input.id, { epicNumber: 7 });
+      await r.goalCards.saveResults(input.id, { prNumber: 8 });
+      const row = (await r.goalCards.saveResults(input.id, { loopId: loop.id }))!;
+
+      expect(row).toMatchObject({ epicNumber: 7, prNumber: 8, loopId: loop.id });
+      expect(await r.goalCards.update(input.id, 'proposed', refused(row))).toMatchObject({ state: 'refused', epicNumber: 7, prNumber: 8, loopId: loop.id });
+      expect(await r.goalCards.saveResults(randomUUID(), { epicNumber: 9 })).toBeNull();
     });
   });
 

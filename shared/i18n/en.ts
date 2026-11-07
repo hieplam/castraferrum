@@ -424,6 +424,7 @@ export const en = {
   // ── Phase 2 ──
   'error.REPO_NOT_FOUND': 'Repo not found',
   'error.GATE_OFF': 'The gate of this repo is off',
+  'error.GATE_NO_REMOTE': 'This repo has no origin remote on GitHub, so the gate cannot be turned on',
   'error.GIT_HOST_FAILED': 'GitHub did not answer the call',
   'error.GATE_JOB_NOT_FOUND': 'Gate job not found',
   'error.GATE_JOB_NOT_RATIFIABLE': 'This gate job cannot be ratified now',
@@ -867,6 +868,9 @@ export const en = {
   'goalLoop.gate.output': 'Output of {step}',
   'goalLoop.gate.outputTail': 'Last 60 lines',
   'goalLoop.gate.outputExit': 'exit code {n}',
+  'goalLoop.gate.failedAtNoExit': 'Step {step} failed at {t}. The task is released.',
+  'goalLoop.gate.queueEmpty': 'No pull request is waiting for the gate.',
+  'goalLoop.gate.recordEmpty': 'No job has ended yet.',
   'goalLoop.step.pass': 'Passed',
   'goalLoop.step.fail': 'Failed',
   'goalLoop.step.skip': 'Not run',

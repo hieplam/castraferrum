@@ -1,4 +1,5 @@
 import type { CommandRunner } from '../../ports/command-runner';
+import { NO_LOGIN_PROMPT_ENV } from '../process/no-login-prompt';
 import {
   GitHostError,
   PullRequestNotFoundError,
@@ -20,7 +21,10 @@ const ISSUE_LIST_LIMIT = 1000;
 const LABELED_ISSUE_LIMIT = 200;
 /** The text that `gh pr view <n>` prints on stderr for a pull request that does not exist. */
 const PR_MISSING = /Could not resolve to a PullRequest with the number of/;
-const PR_FIELDS = 'number,headRefOid,headRefName,baseRefName,state,title,body,url,mergedAt,closingIssuesReferences';
+const PR_FIELDS = 'number,headRefOid,headRefName,baseRefName,state,title,body,url,mergedAt,closingIssuesReferences,isCrossRepository';
+
+/** The `authorAssociation` values of a person with a role in the repository. Every other value is a stranger. */
+const TRUSTED_ASSOCIATIONS = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
 
 export type GhGitHostOptions = {
   runner: CommandRunner;
@@ -36,7 +40,7 @@ export class GhGitHost implements GitHost {
   private async gh(args: string[]): Promise<string> {
     const { runner, ghBin, cwd = process.cwd() } = this.opts;
     const argv = ghBin.endsWith('.mjs') ? [process.execPath, ghBin, ...args] : [ghBin, ...args];
-    const r = await runner.run({ argv, cwd, timeoutMs: TIMEOUT_MS });
+    const r = await runner.run({ argv, cwd, env: { ...NO_LOGIN_PROMPT_ENV }, timeoutMs: TIMEOUT_MS });
     if (r.exitCode !== 0) {
       const why = r.timedOut ? 'timed out' : (r.error ?? `exit ${r.exitCode}`);
       throw new GitHostError(`gh ${args.slice(0, 2).join(' ')} failed: ${why}`, r.exitCode, r.stderr);
@@ -65,6 +69,7 @@ export class GhGitHost implements GitHost {
       url: string;
       mergedAt: string | null;
       closingIssuesReferences: { number: number }[] | null;
+      isCrossRepository?: boolean;
     }>(['pr', 'view', String(number), '-R', repo, '--json', PR_FIELDS]).catch((err: unknown) => {
       if (err instanceof GitHostError && PR_MISSING.test(err.stderr)) throw new PullRequestNotFoundError(number, err.exitCode, err.stderr);
       throw err;
@@ -80,6 +85,7 @@ export class GhGitHost implements GitHost {
       url: raw.url,
       mergedAt: raw.mergedAt ?? null,
       closingIssues: (raw.closingIssuesReferences ?? []).map((i) => i.number),
+      fromFork: raw.isCrossRepository === true,
     };
   }
 
@@ -173,7 +179,7 @@ export class GhGitHost implements GitHost {
   }
 
   async loopComments(repo: string, since: Date): Promise<LoopComment[]> {
-    const issues = await this.json<{ number: number; comments: { id: string; createdAt: string; body: string }[] | null }[]>([
+    const issues = await this.json<{ number: number; comments: { id: string; createdAt: string; body: string; authorAssociation?: string }[] | null }[]>([
       'issue',
       'list',
       '-R',
@@ -190,9 +196,18 @@ export class GhGitHost implements GitHost {
     if (issues.length >= ISSUE_LIST_LIMIT) throw new GitHostError(`gh issue list gave ${ISSUE_LIST_LIMIT} issues: the list can be cut off`, 0, '');
     return issues.flatMap((i) =>
       (i.comments ?? [])
-        .filter((c) => c.body.startsWith('loop-release:'))
+        // A comment of a stranger is data, not an order: the process review sends the result to a model. No association means dropped.
+        .filter((c) => TRUSTED_ASSOCIATIONS.has(c.authorAssociation ?? '') && c.body.startsWith('loop-release:'))
         .map((c) => ({ issue: i.number, id: c.id, at: new Date(c.createdAt), body: c.body })),
     );
+  }
+
+  async createPullRequest(repo: string, pr: { head: string; base: string; title: string; body: string }): Promise<{ number: number; url: string }> {
+    const out = await this.gh(['pr', 'create', '-R', repo, '--head', pr.head, '--base', pr.base, '--title', pr.title, '--body', pr.body]);
+    const url = out.trim().split(/\s+/).pop() ?? '';
+    const m = url.match(/\/pull\/(\d+)$/);
+    if (!m) throw new GitHostError('gh pr create printed no pull request url', 0, out.slice(0, 500));
+    return { number: Number(m[1]), url };
   }
 
   async issueState(repo: string, number: number): Promise<'OPEN' | 'CLOSED'> {

@@ -43,6 +43,11 @@ export interface GateWorkspace {
   /** Gives the tree back at `rebasedSha`. Ignored files stay. */
   stubUndo(tree: GateTree): Promise<void>;
   run(tree: GateTree, command: { line: string; env: Record<string, string>; timeoutMs: number; signal?: AbortSignal }): Promise<CommandResult>;
+  /**
+   * Commits one file on top of `origin/main` in a temporary worktree, and pushes the commit to `branch`. The branch belongs to the caller: a second call replaces
+   * it. The checkout at `repoPath` does not change. Throws a `GateWorkspaceError` for `main` or `master`, because a change reaches those only through a pull request.
+   */
+  publishFile(repoPath: string, file: { branch: string; path: string; text: string; message: string }): Promise<void>;
   /** Removes the worktree of the job. Safe to call when it does not exist. */
   remove(repoPath: string, jobId: string): Promise<void>;
 }

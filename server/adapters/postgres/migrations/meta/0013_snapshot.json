@@ -1,5 +1,5 @@
 {
-  "id": "4737ca3c-7171-4368-bffb-8a54121e9e3f",
+  "id": "6aaddd8b-1e2a-4a93-b4b8-a7e2c3d826f9",
   "prevId": "73ab189c-03fc-40fa-8956-ab4448379274",
   "version": "7",
   "dialect": "postgresql",
@@ -37,6 +37,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "state": {
           "name": "state",
@@ -688,19 +694,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'stop'"
-        },
-        "rank": {
-          "name": "rank",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 100
-        },
-        "token_budget": {
-          "name": "token_budget",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
         },
         "state": {
           "name": "state",
@@ -1631,12 +1624,6 @@
         "cost_usd": {
           "name": "cost_usd",
           "type": "numeric(12, 6)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "tokens": {
-          "name": "tokens",
-          "type": "bigint",
           "primaryKey": false,
           "notNull": false
         },

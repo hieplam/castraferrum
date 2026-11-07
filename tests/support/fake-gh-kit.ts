@@ -39,7 +39,10 @@ export interface FakeIssue {
   body: string;
   state: 'OPEN' | 'CLOSED';
   labels: { name: string }[];
-  comments: { id: string; createdAt: string; body: string }[];
+  /** `authorAssociation` is the field of `gh issue list --json comments`; a comment with none is read as a stranger's. */
+  comments: { id: string; createdAt: string; body: string; authorAssociation?: string }[];
+  /** Who opened the issue. `issue create` sets the owner part of `-R`. */
+  author?: { login: string };
   url: string;
   createdAt: string;
   updatedAt: string;
@@ -53,6 +56,8 @@ export interface FakePr {
   headRefName: string;
   baseRefName: string;
   headRefOid: string;
+  /** True when the head branch lives in a fork. `pick` gives `false` when it is not set. */
+  isCrossRepository?: boolean;
   mergeCommit: { oid: string } | null;
   /** The issues that the body closes; `pr create` fills it from "Closes #n". */
   closingIssuesReferences?: { number: number }[];
@@ -77,6 +82,8 @@ export interface FakeWorld {
   /** The numbers of the sub-issues of each parent. */
   subIssues: Record<string, number[]>;
   calls: { args: string[]; exit: number }[];
+  /** `<group> <sub>` texts, for example `pr create`. The next such call exits 1, and its text leaves the list. */
+  failNext?: string[];
 }
 export interface FakeGh {
   /** The wrapper: `gh.cmd` on win32, a `gh` shell script elsewhere. */

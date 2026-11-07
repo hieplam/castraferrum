@@ -31,6 +31,7 @@ import { PgDbProbe } from './adapters/postgres/db-probe';
 import { acquireInstanceLock, type InstanceLock } from './adapters/postgres/instance-lock';
 import { createPgRepositories } from './adapters/postgres/repositories';
 import { ClaudeJsonlTranscriptSource } from './adapters/transcripts/claude-jsonl/claude-jsonl-transcript-source';
+import { defaultEpicScript } from './config';
 import { buildHttpApp, type HttpApp, type TestHooks } from './http/app';
 import type { Notifier } from './ports/notifier';
 import { startBackgroundTicker, type BackgroundTicker } from './scheduler/background-ticker';
@@ -39,6 +40,7 @@ import type { BackgroundService, RecoveryReport } from './services/contracts';
 import { DefaultFolderService } from './services/folder-service';
 import { DefaultGateService } from './services/gate-service';
 import { DefaultGoalCardService } from './services/goal-card-service';
+import { DefaultGoalCardStarter } from './services/goal-card-starter';
 import { DefaultGoalService } from './services/goal-service';
 import { DefaultHealthService } from './services/health-service';
 import { DefaultHoldService } from './services/hold-service';
@@ -88,6 +90,8 @@ export type ComposeOptions = {
   notifyWebhook?: string;
   /** The `gh` program of the gate. Defaults to `gh`. A path that ends in `.mjs` runs as a script (the fake `gh` of tests). */
   ghBin?: string;
+  /** The `epic.mjs` of a started goal card. Defaults to the script of the epic-loop skill. */
+  epicScript?: string;
 };
 
 export type ComposedServer = {
@@ -166,8 +170,8 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
   // Test mode refuses the call of the plan window (no real Claude), so a test sees the unknown window of a failed read.
   const planWindow = new ClaudePlanWindow({ clock, ...(opts.testMode ? { query: testModeQuery() } : {}) });
   const probeService = new DefaultProbeService({ ...repos, commands, claimGateway, gateQueue: gateService, runService, loopService, clock, ids, notifier, planWindow });
-  // W5 replaces this starter with the one that opens the epic, the manifest PR and the loop.
-  const goalCardService = new DefaultGoalCardService({ cards: repos.goalCards, repos: repos.repos, gate: repos.gate, host: gitHost, workspace: gateWorkspace, notifier, starter: { start: async () => {} }, clock, ids });
+  const goalCardStarter = new DefaultGoalCardStarter({ cards: repos.goalCards, repos: repos.repos, gate: repos.gate, gateQueue: gateService, host: gitHost, workspace: gateWorkspace, loops: loopService, probes: probeService, epicScript: opts.epicScript ?? defaultEpicScript() });
+  const goalCardService = new DefaultGoalCardService({ cards: repos.goalCards, repos: repos.repos, gate: repos.gate, host: gitHost, workspace: gateWorkspace, notifier, starter: goalCardStarter, clock, ids });
   const holdService = new DefaultHoldService({ ...repos, commands, runService, clock });
   const testDirs = opts.testMode ? new OverridableDirectoryProbe(new NodeDirectoryProbe()) : null;
   const repoService = new DefaultRepoService({ repos: repos.repos, directories: testDirs ?? new NodeDirectoryProbe(), clock, ids });

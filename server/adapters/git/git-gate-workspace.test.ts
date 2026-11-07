@@ -1,12 +1,14 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { isRealRed } from '../../../shared/domain/gate-commands';
 import { createBareRepo, type BareRepo } from '../../../tests/support/bare-repo';
 import type { CommandRunner } from '../../ports/command-runner';
-import type { GateTree } from '../../ports/gate-workspace';
+import { GateWorkspaceError, type GateTree } from '../../ports/gate-workspace';
 import { NodeCommandRunner } from '../process/node-command-runner';
 import { GitGateWorkspace } from './git-gate-workspace';
 
@@ -376,6 +378,72 @@ describe('gate_workspace', { timeout: 60_000 }, () => {
     expect(result.exitCode).toBe(3);
   });
 
+  it('publishFile commits one file on a new branch from origin/main, and main, the checkout and the worktree list do not change', async () => {
+    const later = commitMain({ 'later-on-main.txt': 'x' });
+    const worktrees = worktreeCount();
+
+    await ws.publishFile(repoPath, { branch: 'goal/card-7', path: 'goals/a/b.json', text: '{}\n', message: 'add the manifest' });
+
+    expect(bare.sha('main')).toBe(later);
+    expect(bare.show('goal/card-7', 'goals/a/b.json')).toBe('{}\n');
+    expect(bare.show('goal/card-7', 'later-on-main.txt')).toBe('x');
+    expect(git(repoPath, ['status', '--porcelain'])).toBe('');
+    expect(existsSync(join(repoPath, 'goals'))).toBe(false);
+    expect(worktreeCount()).toBe(worktrees);
+    expect(readdirSync(root)).toEqual([]);
+  });
+
+  it('publishFile and fetches of one folder at the same time all end, with no overlap of git calls', async () => {
+    const main = commitMain({ 'later-on-main.txt': 'x' });
+
+    const [, fetched, again] = await Promise.all([
+      ws.publishFile(repoPath, { branch: 'goal/card-7', path: 'a.json', text: '{}\n', message: 'x' }),
+      ws.fetchMain(repoPath),
+      ws.fetch(repoPath, { headRef: 'goal/card-7', headSha: 'after the publish' }),
+    ]);
+
+    expect(fetched).toBe(main);
+    expect(again.mainSha).toBe(main);
+    expect(bare.show('goal/card-7', 'a.json')).toBe('{}\n');
+  });
+
+  it('a second publishFile after main moved replaces the branch', async () => {
+    await ws.publishFile(repoPath, { branch: 'goal/card-7', path: 'a.json', text: 'one\n', message: 'first' });
+    commitMain({ 'later-on-main.txt': 'x' });
+
+    await ws.publishFile(repoPath, { branch: 'goal/card-7', path: 'a.json', text: 'two\n', message: 'second' });
+
+    expect(bare.show('goal/card-7', 'a.json')).toBe('two\n');
+    expect(bare.show('goal/card-7', 'later-on-main.txt')).toBe('x');
+    expect(git(bare.bare, ['rev-list', '--count', `main..${'goal/card-7'}`]).trim()).toBe('1');
+  });
+
+  it.each(['main', 'master'])('publishFile refuses the branch %s, and main does not move', async (branch) => {
+    const before = bare.sha('main');
+
+    await expect(ws.publishFile(repoPath, { branch, path: 'a.json', text: '{}\n', message: 'x' })).rejects.toBeInstanceOf(GateWorkspaceError);
+
+    expect(bare.sha('main')).toBe(before);
+  });
+
+  it('publishFile runs no hook of core.hooksPath, and a failed push leaves no folder', async () => {
+    const hooks = mkdtempSync(join(root, '..', 'lc-gate-hooks-'));
+    const marker = join(hooks, 'hook-ran.txt');
+    for (const name of ['pre-commit', 'commit-msg', 'post-commit', 'pre-push']) writeFileSync(join(hooks, name), `#!/bin/sh\necho ran >> "${marker.replace(/\\/g, '/')}"\nexit 1\n`, { mode: 0o755 });
+    try {
+      git(repoPath, ['config', 'core.hooksPath', hooks.replace(/\\/g, '/')]);
+      await ws.publishFile(repoPath, { branch: 'goal/card-7', path: 'a.json', text: '{}\n', message: 'x' });
+      expect(existsSync(marker)).toBe(false);
+      expect(bare.show('goal/card-7', 'a.json')).toBe('{}\n');
+
+      git(repoPath, ['remote', 'set-url', 'origin', join(root, 'no-such-remote')]);
+      await expect(ws.publishFile(repoPath, { branch: 'goal/card-8', path: 'a.json', text: '{}\n', message: 'x' })).rejects.toBeInstanceOf(GateWorkspaceError);
+      expect(readdirSync(root)).toEqual([]);
+    } finally {
+      rmSync(hooks, { recursive: true, force: true, maxRetries: 3 });
+    }
+  });
+
   it('remove takes the folder and the worktree away, and a second remove does no harm', async () => {
     const tree = await preparedTree(openPr({ 'pr.txt': 'x' }));
     expect(worktreeCount()).toBe(2);
@@ -449,6 +517,59 @@ describe('gate_workspace', { timeout: 60_000 }, () => {
       await expect(first).rejects.toThrow(/git fetch failed/);
       await expect(second).resolves.toBe('abc');
       expect(probe.starts).toHaveLength(2);
+    });
+  });
+
+  describe('login prompts', () => {
+    it('every git call of the class runs with the variables that stop a login window', async () => {
+      const seen: { argv: string[]; env: Record<string, string> | undefined }[] = [];
+      const runner: CommandRunner = {
+        async run(req) {
+          seen.push({ argv: req.argv, env: req.env });
+          return { exitCode: 0, stdout: 'abc', stderr: '', timedOut: false, error: null };
+        },
+      };
+      const fake = new GitGateWorkspace({ runner, root });
+      const tree: GateTree = { dir: join(root, 'tree'), baseSha: 'b', rebasedSha: 'r' };
+      await fake.fetch('/repo/a', { headRef: 'x', headSha: 'abc' });
+      await fake.fetchMain('/repo/a');
+      await fake.readAt('/repo/a', 'abc', 'file.txt');
+      await fake.listAt('/repo/a', 'abc', 'dir');
+      await fake.changed('/repo/a', 'abc', 'def');
+      await fake.prepare('/repo/a', 'job-p', 'abc', 'def');
+      await fake.stubRestore(tree, [], []);
+      await fake.stubUndo(tree);
+      await fake.remove('/repo/a', 'job-p');
+      const gitCalls = seen.filter((call) => call.argv[0] === 'git');
+      expect(gitCalls.length).toBeGreaterThan(12);
+      for (const verb of ['fetch', 'ls-tree', 'merge-base', 'worktree']) {
+        expect(gitCalls.some((call) => call.argv.includes(verb)), verb).toBe(true);
+      }
+      for (const call of gitCalls) {
+        expect(call.env, call.argv.join(' ')).toEqual({ GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', GH_PROMPT_DISABLED: '1' });
+      }
+    });
+
+    it('a fetch from an address that asks for a login fails at once and opens no prompt', async () => {
+      const server = createServer((_req, res) => {
+        res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="gate-test"' });
+        res.end();
+      });
+      await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
+      const saved = { askpass: process.env.GIT_ASKPASS, sshAskpass: process.env.SSH_ASKPASS };
+      delete process.env.GIT_ASKPASS;
+      delete process.env.SSH_ASKPASS;
+      try {
+        const { port } = server.address() as AddressInfo;
+        git(repoPath, ['remote', 'set-url', 'origin', `http://127.0.0.1:${port}/acme/api.git`]);
+        const started = Date.now();
+        await expect(ws.fetchMain(repoPath)).rejects.toThrow(/git fetch failed/);
+        expect(Date.now() - started).toBeLessThan(10_000);
+      } finally {
+        if (saved.askpass !== undefined) process.env.GIT_ASKPASS = saved.askpass;
+        if (saved.sshAskpass !== undefined) process.env.SSH_ASKPASS = saved.sshAskpass;
+        await new Promise((done) => server.close(done));
+      }
     });
   });
 });

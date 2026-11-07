@@ -28,6 +28,7 @@
 //   api repos/fake/repo/commits/<sha>/check-runs
 //   api repos/fake/repo/issues/<n>                         prints { id, number }; `id` is not the number, as on GitHub
 //   api -X POST repos/fake/repo/issues/<n>/sub_issues -F sub_issue_id=<id>      adds the child number to `world.subIssues[n]`
+// A test makes one call fail: `world.failNext` lists `<group> <sub>` texts, for example `pr create`. The next such call exits 1 and leaves the list without that text.
 // `--json` takes comma-separated GitHub field names. Every call, a failed one too, is appended to `calls`.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -48,7 +49,7 @@ class Exit extends Error {
 function loadWorld() {
   if (!worldPath) throw new Exit(2, 'fake-gh: FAKE_GH_WORLD is not set');
   const w = JSON.parse(readFileSync(worldPath, 'utf8'));
-  for (const k of ['issues', 'prs', 'calls', 'labels']) w[k] ??= [];
+  for (const k of ['issues', 'prs', 'calls', 'labels', 'failNext']) w[k] ??= [];
   for (const k of ['statuses', 'checkRuns', 'subIssues']) w[k] ??= {};
   w.bare ??= null;
   return w;
@@ -66,7 +67,7 @@ function parse(list) {
       const eq = kv.indexOf('=');
       fields[kv.slice(0, eq)] = kv.slice(eq + 1);
     } else if (a === '-R') {
-      i++;
+      flags.repo = [list[++i]];
     } else if (a === '-X') {
       flags.method = String(list[++i] ?? '').toUpperCase();
     } else if (a.startsWith('--')) {
@@ -89,7 +90,7 @@ const now = () => new Date().toISOString();
 function pick(obj, jsonFlag) {
   if (jsonFlag === undefined) return obj;
   const out = {};
-  for (const f of String(jsonFlag).split(',')) if (f) out[f] = obj[f] ?? null;
+  for (const f of String(jsonFlag).split(',')) if (f) out[f] = obj[f] ?? (f === 'isCrossRepository' ? false : null);
   return out;
 }
 function print(value) {
@@ -125,6 +126,7 @@ function issueCmd(w, sub, rest) {
       state: 'OPEN',
       labels: (flags.label ?? []).map((name) => ({ name })),
       comments: [],
+      author: { login: String(one(flags, 'repo') ?? 'fake/repo').split('/')[0] },
       url: `${REPO_URL}/issues/${n}`,
       createdAt: t,
       updatedAt: t,
@@ -156,7 +158,7 @@ function issueCmd(w, sub, rest) {
     print(pick(find(w.issues, positional[0], 'issue'), json));
   } else if (sub === 'comment') {
     const i = find(w.issues, positional[0], 'issue');
-    i.comments.push({ id: `IC_${i.number}_${i.comments.length + 1}`, createdAt: now(), body: String(one(flags, 'body') ?? '') });
+    i.comments.push({ id: `IC_${i.number}_${i.comments.length + 1}`, createdAt: now(), body: String(one(flags, 'body') ?? ''), authorAssociation: 'OWNER' });
     i.updatedAt = now();
     console.log(`${i.url}#issuecomment-${i.comments.length}`);
   } else if (sub === 'edit') {
@@ -307,6 +309,11 @@ let world = null;
 try {
   world = loadWorld();
   const [group, sub, ...rest] = args;
+  const failing = world.failNext.indexOf(`${group} ${sub}`);
+  if (failing !== -1) {
+    world.failNext.splice(failing, 1);
+    throw new Exit(1, `fake-gh: ${group} ${sub} failed, as the test asked`);
+  }
   const handled =
     group === 'issue' ? issueCmd(world, sub, rest) : group === 'pr' ? prCmd(world, sub, rest) : group === 'label' ? labelCmd(world, sub, rest) : group === 'api' ? apiCmd(world, args.slice(1)) : false;
   if (!handled) throw new Exit(64, `fake-gh: unsupported: ${args.join(' ')}`);

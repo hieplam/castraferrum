@@ -18,6 +18,7 @@ import type {
 } from '../../shared/contracts/loops';
 import type { FolderDto, FolderPlacesDto } from '../../shared/contracts/folders';
 import type { RepoDto, RepoInputBody, RepoListItemDto } from '../../shared/contracts/repos';
+import type { GateJobDetailDto, GateViewDto } from '../../shared/contracts/gate';
 import type { ScoreboardDto } from '../../shared/contracts/scoreboard';
 import type { TranscriptPageDto } from '../../shared/contracts/transcript';
 import { ApiError, type LoopListFilter, type LoopsApi, type Page, type PageRequest } from './loops-api';
@@ -203,6 +204,31 @@ export class FakeLoopsApi implements LoopsApi {
   async scoreboard(): Promise<ScoreboardDto> {
     this.calls.push('scoreboard');
     return { figures: { causes: 0, checks: 0, before: 0, after: 0 }, weeks: [], causes: [] };
+  }
+  /** The gate pages of a test: seed `gates` by repo id and `gateJobs` by job id; a repo with no entry has the gate off. */
+  readonly gates = new Map<string, GateViewDto>();
+  readonly gateJobs = new Map<string, GateJobDetailDto>();
+  async gate(repoId: string): Promise<GateViewDto> {
+    this.calls.push('gate');
+    return this.gates.get(repoId) ?? { enabled: false, githubRepo: null, queue: [], record: [] };
+  }
+  async setGateEnabled(repoId: string, enabled: boolean): Promise<GateViewDto> {
+    this.calls.push('setGateEnabled');
+    const view = { ...(await this.gate(repoId)), enabled };
+    this.gates.set(repoId, view);
+    return view;
+  }
+  async gateJob(id: string): Promise<GateJobDetailDto> {
+    this.calls.push('gateJob');
+    const detail = this.gateJobs.get(id);
+    if (!detail) throw new ApiError('GATE_JOB_NOT_FOUND', 404, 'job not found');
+    return detail;
+  }
+  async ratifyGateJob(): Promise<void> {
+    this.calls.push('ratifyGateJob');
+  }
+  async queueGateJob(): Promise<void> {
+    this.calls.push('queueGateJob');
   }
   async listRepos(): Promise<RepoListItemDto[]> {
     this.calls.push('listRepos');

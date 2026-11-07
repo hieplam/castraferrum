@@ -324,6 +324,8 @@ export const gateJobs = pgTable(
     prNumber: integer('pr_number').notNull(),
     headSha: text('head_sha').notNull(),
     taskKey: text('task_key').notNull(),
+    /** The title of the pull request when the job was queued. The pages show it; a job queued before the column existed has none. */
+    title: text('title'),
     state: text('state').notNull().default('queued'),
     failedStep: text('failed_step'),
     queuedAt: ts('queued_at').notNull(),

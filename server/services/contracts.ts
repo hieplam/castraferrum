@@ -7,6 +7,7 @@ import type { DomainEvent, EventFilter } from '../../shared/domain/events';
 import type { ProbeRecord, ProbeResource, RestartPolicy } from '../../shared/domain/goal-loop';
 import type { ExecutionEndReason, ExecutionStats, LogLine, LoopStatus, RunStatus } from '../../shared/domain/run';
 import type { TranscriptEntry, TranscriptPage } from '../../shared/domain/transcript';
+import type { GateJobState, GateStep, GateStepName } from '../../shared/domain/gate';
 import type { ExecutorDescriptor } from '../ports/executor';
 import type { FolderEntry, FolderListing, FolderPlaces } from '../ports/folders';
 import type { LoopFilter } from '../ports/loop-repository';
@@ -458,6 +459,22 @@ export type GateQueueResult = { outcome: 'queued' | 'duplicate'; jobId: string |
 /** `errors[].loopId` holds the id of the gate job. */
 export type GateTickReport = { jobId: string | null; errors: { loopId: string; message: string }[] };
 export type GateRatified = { jobId: string; state: 'queued'; headSha: string };
+/** One job of a list. `step`: the failed step (`scope` when none is stored), the step that runs now, or `null`. */
+export type GateJobRow = {
+  id: string;
+  prNumber: number;
+  title: string | null;
+  taskKey: string;
+  state: GateJobState;
+  step: GateStepName | null;
+  queuedAt: Date;
+  startedAt: Date | null;
+  finishedAt: Date | null;
+  ratifiedAt: Date | null;
+};
+/** The page of one repo: `queue` holds running, queued and needs_ratification jobs; `record` the last 20 merged and failed jobs. */
+export type GateView = { enabled: boolean; githubRepo: string | null; queue: GateJobRow[]; record: GateJobRow[] };
+export type GateJobDetail = { job: GateJobRow; repoId: string; headSha: string; steps: GateStep[] };
 
 export interface GateService extends BackgroundService {
   /** Runs at most one job of the queue to its end. */
@@ -466,6 +483,15 @@ export interface GateService extends BackgroundService {
   queue(input: GateQueueInput): Promise<GateQueueResult>;
   /** Decision 41: the job takes the queue again and skips only `checkScope`. Throws GATE_JOB_NOT_FOUND, GATE_JOB_NOT_RATIFIABLE (wrong state, or a live job of the same head). */
   ratify(id: string): Promise<GateRatified>;
+  /** Throws REPO_NOT_FOUND. A repo with no gate row gives `enabled: false` and empty lists. */
+  view(repoId: string): Promise<GateView>;
+  /** Throws GATE_JOB_NOT_FOUND. */
+  job(id: string): Promise<GateJobDetail>;
+  /**
+   * Turns the gate of a repo on or off and gives the new view. The first turn on reads `githubRepo` from `git remote get-url origin` in the
+   * folder of the repo, and keeps it afterwards. Turning off keeps the row. Throws REPO_NOT_FOUND, GATE_NO_REMOTE.
+   */
+  setEnabled(repoId: string, enabled: boolean): Promise<GateView>;
   /** Decision 37: aborts the running command and waits. The job stays `running`, and `tick` takes nothing. */
   stop(): Promise<void>;
   /** After `stop`, lets `tick` take jobs again. The reset of test mode uses it. */
