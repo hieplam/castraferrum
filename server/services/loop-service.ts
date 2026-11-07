@@ -340,6 +340,7 @@ function executionView(e: ExecutionRecord, stats: Map<string, ExecutionView['sta
       interrupted: 0,
       cancelled: 0,
       skipped: 0,
+      held: 0,
       sessions: 0,
       elapsedMs: 0,
       avgDurationMs: null,

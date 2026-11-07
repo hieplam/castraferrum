@@ -168,7 +168,7 @@ export class MemoryRunRepository implements RunRepository {
       if (!e || out.has(id)) continue;
       const runs = [...this.#db.runs.values()].filter((r) => r.executionId === id);
       const count = (pred: (r: RunRecord) => boolean) => runs.filter(pred).length;
-      const finished = runs.filter((r) => r.status !== 'skipped' && r.status !== 'running' && r.durationMs !== null);
+      const finished = runs.filter((r) => r.status !== 'skipped' && r.status !== 'running' && r.status !== 'held' && r.durationMs !== null);
       out.set(id, {
         runs: count((r) => r.status !== 'skipped'),
         running: count((r) => r.status === 'running'),
@@ -177,6 +177,7 @@ export class MemoryRunRepository implements RunRepository {
         interrupted: count((r) => r.status === 'interrupted'),
         cancelled: count((r) => r.status === 'cancelled'),
         skipped: count((r) => r.status === 'skipped'),
+        held: count((r) => r.status === 'held'),
         sessions: count((r) => r.sessionId !== null),
         elapsedMs: (e.endedAt ?? now).getTime() - e.startedAt.getTime(),
         avgDurationMs: finished.length

@@ -49,6 +49,13 @@ export function previewTranscriptFile(projectsDir: string, key: PreviewTranscrip
   return join(projectsDir, 'C--preview-work-acme-api', `${sid(loop, n)}.jsonl`);
 }
 
+/** Writes `entries` (the shape of `PV.transcripts`) as the JSONL file of session `sessionId` under `projectsDir`. */
+export function writeSessionTranscript(projectsDir: string, sessionId: string, entries: readonly PvEntry[]): void {
+  const file = join(projectsDir, 'C--preview-work-acme-api', `${sessionId}.jsonl`);
+  mkdirSync(join(file, '..'), { recursive: true });
+  writeFileSync(file, entries.map((e, i) => `${JSON.stringify(line(e, i))}\n`).join(''));
+}
+
 export function writePreviewTranscript(projectsDir: string, key: PreviewTranscriptKey, data = DATA_JS): void {
   const entries = (previewData(data) as unknown as { transcripts: Record<string, PvEntry[]> }).transcripts[key];
   if (!entries) throw new Error(`no PV.transcripts.${key}`);

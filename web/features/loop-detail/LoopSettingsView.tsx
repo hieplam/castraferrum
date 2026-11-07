@@ -3,7 +3,10 @@
 // head from 640px). The loop page's side card shows the same settings compactly with the prompt cut after five lines.
 import { Link, useNavigate } from 'react-router';
 import type { LoopDetailDto } from '../../../shared/contracts/loops';
+import type { ProbeDto } from '../../../shared/contracts/goal-loop';
+import { PROBE_EVERY_SEC } from '../../../shared/domain/goal-loop';
 import { useLoop } from '../../data/loops';
+import { useProbe } from '../../data/probe';
 import type { MessageKey } from '../../prefs/messages';
 import { useT } from '../../prefs/prefs';
 import { Button } from '../../ui/kit/Button';
@@ -15,11 +18,14 @@ import { errorTitle, PageNotFound, PageSkeleton, PushedPage } from './PushedPage
 /** One setting. Each text is one string, so it is drawn as one run of text. */
 type Row = { testId?: string; label: MessageKey; value: string; meta?: string };
 
-function useRows(loop: LoopDetailDto): Row[] {
+/** `probe` = the loop's probe, if it has one: the schedule row then names the probe period, with no cron and no time zone. */
+function useRows(loop: LoopDetailDto, probe: ProbeDto | null): Row[] {
   const t = useT();
   return [
     { testId: 'config-repo', label: 'loopSettings.repo', value: loop.repo.name, meta: loop.repo.path },
-    { label: 'loopSettings.schedule', value: scheduleSentence(loop.cron, t.lang), meta: loop.timezone },
+    probe
+      ? { label: 'loopSettings.schedule', value: t('goalLoop.probe.every', { s: PROBE_EVERY_SEC }) }
+      : { label: 'loopSettings.schedule', value: scheduleSentence(loop.cron, t.lang), meta: loop.timezone },
     { testId: 'config-executor', label: 'loopSettings.agent', value: executorSummary(t, loop.executor.kind, loop.executor.config) },
     { testId: 'config-concurrent', label: 'loopSettings.parallel', value: t('loopSettings.atMost', { n: loop.maxConcurrent }) },
     { testId: 'config-timeout', label: 'loopSettings.limit', value: loop.timeoutSec === null ? t('loopSettings.noLimit') : fmtSpan(t, loop.timeoutSec) },
@@ -27,10 +33,10 @@ function useRows(loop: LoopDetailDto): Row[] {
 }
 
 /** The side card of the loop page (from 1024px): compact definitions, the prompt cut after five lines, Edit settings. */
-export function SettingsCard({ loop }: { loop: LoopDetailDto }) {
+export function SettingsCard({ loop, probe }: { loop: LoopDetailDto; probe: ProbeDto | null }) {
   const t = useT();
   const navigate = useNavigate();
-  const rows = useRows(loop);
+  const rows = useRows(loop, probe);
   return (
     <div className="card is-pad">
       <div className="section-head">
@@ -69,11 +75,11 @@ export function SettingsCard({ loop }: { loop: LoopDetailDto }) {
   );
 }
 
-function SettingsBody({ loop }: { loop: LoopDetailDto }) {
+function SettingsBody({ loop, probe }: { loop: LoopDetailDto; probe: ProbeDto | null }) {
   const t = useT();
   const navigate = useNavigate();
   const phone = useLayout() === 'phone';
-  const rows = useRows(loop);
+  const rows = useRows(loop, probe);
   const edit = (
     <Button variant="primary" size={phone ? 'lg' : undefined} block={phone} onClick={() => navigate(`/loops/${loop.id}/edit`)} data-testid="loop-edit">
       {t('loopSettings.edit')}
@@ -99,7 +105,8 @@ function SettingsBody({ loop }: { loop: LoopDetailDto }) {
 export function LoopSettingsView({ id }: { id: string }) {
   const t = useT();
   const q = useLoop(id);
-  if (q.isPending) return <PageSkeleton />;
+  const probe = useProbe(id);
+  if (q.isPending || probe.isPending) return <PageSkeleton />;
   if (q.isError) return <PageNotFound title={errorTitle(t, q.error, 'error.LOOP_NOT_FOUND')} />;
-  return <SettingsBody loop={q.data} />;
+  return <SettingsBody loop={q.data} probe={probe.data ?? null} />;
 }

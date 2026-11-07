@@ -444,6 +444,13 @@ Task R9 built the scoreboard page and compared it with the approved shots. The a
 - **What changed:** only these 4 images: `scoreboard-light`, `scoreboard-dark`, `phone-scoreboard-light` and `phone-scoreboard-dark` in [`ds/preview/shots/`](ds/preview/shots/), re-shot with `npm run design:shots -- --only scoreboard,phone-scoreboard --compress`. No class, token, text or sample number changed.
 - **Decision:** by the standing rule of the epic (the app and the preview differ in the sample only: the preview is re-shot, and the owner is not asked), the preview shots follow the code that draws them.
 
+## the editor shots of a loop that exists, re-shot with the Probe group (task P15), 2026-11-02
+
+Task P15 adds the group "Probe" to the editor of a loop that exists (spec 2.1, goal G28). It is made of the existing `.switch`, `.cell`, `.fcell`, `.input`, `.textarea`, `.seg` and `.hint` classes, so no component was missing. The 4 approved edit states did not draw the group, so the app differed from them by 8 percent of the page.
+
+- **What changed:** only these 8 images in [`ds/preview/shots/`](ds/preview/shots/): `form-edit-running`, `form-conflict`, `form-duplicate` and `form-edit-claude`, light and dark. The preview draws a closed group (the switch off) after Agent; it is disabled, with the hint to stop the loop first, for a loop that is active, and works for a copy. The states of a new loop do not change.
+- **Decision:** by the standing rule of the epic (a screen gains a group that the approved shots could not show, so the preview is re-shot and the owner is not asked), the preview shots follow the code that draws them. The 5 probe states and `run-held` were not re-shot: the app matches them (worst ratio 0.000024 in 20 pairs).
+
 ## the gate-failed shots re-shot without the time column and the tones of the output (task K12), 2026-11-02
 
 Task K12 built the gate pages and compared them with the approved `gate-queue` and `gate-failed` shots. The output block of `gate-failed` drew a time column and the tones `log-head` and `log-err` on its lines. The gate keeps neither: a gate step stores the last 60 lines of its output as plain text (spec 2.8, `gate_steps.output_tail`), so the app cannot give a time or a tone for a line. By the standing rule of the epic (the app's honest behaviour wins, the preview is corrected and re-shot, and the owner is not asked), the preview now draws the stored tail as it is.

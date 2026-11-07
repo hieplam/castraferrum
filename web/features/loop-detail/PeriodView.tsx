@@ -21,6 +21,13 @@ import { RunCell } from './RunCell';
 function PeriodPill({ e }: { e: ExecutionDetailDto }) {
   const t = useT();
   if (!e.endedAt) return <Pill tone="run" testId="period-status">{t('period.pill.active')}</Pill>;
+  if (e.endReason === 'goal_met') {
+    return (
+      <Pill tone="ok" testId="period-status">
+        {t('goalLoop.period.goalMet')}
+      </Pill>
+    );
+  }
   return e.endReason === 'server_down' ? (
     <Pill tone="int" testId="period-status">
       {t('period.pill.byServer')}

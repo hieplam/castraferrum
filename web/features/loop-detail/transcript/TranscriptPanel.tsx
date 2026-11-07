@@ -89,7 +89,8 @@ function toEntry(t: T, e: TranscriptEntryDto, tz: string): TranscriptEntry {
   }
 }
 
-export function TranscriptPanel({ run, tx, tz, now, offline }: { run: RunDto; tx: UseTranscript; tz: string; now: Date; offline: boolean }) {
+/** `heldAt` = when the usage limit held the run (a held run shows its end as that time, and says that it has no process). */
+export function TranscriptPanel({ run, tx, tz, now, offline, heldAt = null }: { run: RunDto; tx: UseTranscript; tz: string; now: Date; offline: boolean; heldAt?: Date | null }) {
   const t = useT();
   const live = run.status === 'running';
   const head = (
@@ -121,16 +122,17 @@ export function TranscriptPanel({ run, tx, tz, now, offline }: { run: RunDto; tx
     );
   const paused = live && (tx.mode === 'paused' || offline);
   const ended = runEndedAt(run);
+  const held = run.status === 'held';
   return (
     <>
       {head}
       <Transcript
         testId="run-transcript"
         left={t.tn('tx.entries', tx.entries.length)}
-        right={live ? t(paused ? 'now.paused' : 'now.following') : t('tx.ended')}
+        right={held ? t('goalLoop.tx.held') : live ? t(paused ? 'now.paused' : 'now.following') : t('tx.ended')}
         entries={tx.entries.map((e) => toEntry(t, e, tz))}
         top={tx.hasMore ? t('tx.loadingOlderEntries') : null}
-        end={ended ? t('tx.end', { t: fmtTime(ended, tz) }) : undefined}
+        end={held ? (heldAt ? t('goalLoop.tx.heldEnd', { t: fmtTime(heldAt, tz) }) : undefined) : ended ? t('tx.end', { t: fmtTime(ended, tz) }) : undefined}
         live={live ? { at: cursorTime(now, tz), paused } : undefined}
         onNearTop={tx.loadOlder}
       />

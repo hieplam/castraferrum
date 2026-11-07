@@ -31,6 +31,9 @@ export const PROBE_KEY = /^[\w.-]{1,100}$/;
 
 export const PROBE_RAW_MAX_BYTES = 2000;
 
+/** How often the console calls the probe of an active loop (decision 22). The loop page names this period. */
+export const PROBE_EVERY_SEC = 60;
+
 // ---------------------------------------------------------------- probe settings (table loop_probes)
 
 export const RESTART_POLICIES = ['stop', 'resume'] as const;
@@ -76,6 +79,14 @@ export interface ProbePlan {
   failing: string[];
 }
 
+/** A blocking issue of a `blocked` line (decision 52): the key, the title, how many tasks it blocks and its link. */
+export interface ProbeBlocker {
+  key: string;
+  title: string;
+  blocks: number;
+  url: string;
+}
+
 export interface ProbeLine {
   v: 1;
   action: ProbeAction;
@@ -85,6 +96,8 @@ export interface ProbeLine {
   until: string | null;
   plan: ProbePlan | null;
   issues: string[];
+  /** Empty when the line has no `blockers` key (a probe that is not `E next --probe`). */
+  blockers: ProbeBlocker[];
   goals: { passed: number; total: number } | null;
 }
 
@@ -138,6 +151,18 @@ function parsePlan(v: unknown): ProbePlan | null {
   return { key: v.key, failing };
 }
 
+function parseBlockers(v: unknown): ProbeBlocker[] | null {
+  if (!Array.isArray(v)) return null;
+  const out: ProbeBlocker[] = [];
+  for (const b of v) {
+    if (!isObject(b) || !isKey(b.key) || typeof b.title !== 'string') return null;
+    if (typeof b.blocks !== 'number' || !Number.isInteger(b.blocks) || b.blocks < 0) return null;
+    if (typeof b.url !== 'string' || !b.url.startsWith('https://')) return null;
+    out.push({ key: b.key, title: b.title, blocks: b.blocks, url: b.url });
+  }
+  return out;
+}
+
 function nonEmptyString(v: unknown): v is string {
   return typeof v === 'string' && v.trim() !== '';
 }
@@ -173,6 +198,8 @@ export function parseProbeLine(stdout: string): ProbeParse {
   if (tasks === null) return fail('invalid tasks');
   const issues = value.issues === undefined ? [] : stringList(value.issues);
   if (issues === null) return fail('invalid issues');
+  const blockers = value.blockers === undefined ? [] : parseBlockers(value.blockers);
+  if (blockers === null) return fail('invalid blockers');
   const plan = value.plan === undefined || value.plan === null ? null : parsePlan(value.plan);
   if (value.plan !== undefined && value.plan !== null && plan === null) return fail('invalid plan');
   const reason = value.reason === undefined || value.reason === null ? '' : value.reason;
@@ -212,6 +239,7 @@ export function parseProbeLine(stdout: string): ProbeParse {
       until,
       plan,
       issues,
+      blockers,
       goals,
     },
   };

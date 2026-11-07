@@ -2,7 +2,10 @@
 // (D20): ISO string -> Date, a wrong shape -> throw early instead of letting a screen break silently.
 import { z } from 'zod';
 import { API_ERROR_CODES, errorBody } from '../../shared/contracts/common';
+import { probeEnvelopeDto, type ProbeInputBody } from '../../shared/contracts/goal-loop';
 import { healthResponse } from '../../shared/contracts/health';
+import { holdListDto } from '../../shared/contracts/holds';
+import { noticeListDto } from '../../shared/contracts/notices';
 import {
   executionDetailDto,
   executionPageDto,
@@ -120,6 +123,27 @@ export class HttpLoopsApi implements LoopsApi {
   }
   async queueGateJob(repoId: string, prNumber: number) {
     await this.#call('POST', '/gate/jobs', { body: { repoId, prNumber } }, z.object({}).passthrough());
+  }
+  getProbe(loopId: string) {
+    return this.#call('GET', `/loops/${enc(loopId)}/probe`, {}, probeEnvelopeDto).then((r) => r.probe);
+  }
+  saveProbe(loopId: string, body: ProbeInputBody) {
+    return this.#call('PUT', `/loops/${enc(loopId)}/probe`, { body }, probeEnvelopeDto).then((r) => {
+      if (!r.probe) throw new ApiError('BAD_REQUEST', 200, 'The server saved no probe');
+      return r.probe;
+    });
+  }
+  async deleteProbe(loopId: string) {
+    await this.#call('DELETE', `/loops/${enc(loopId)}/probe`, {}, null);
+  }
+  listHolds() {
+    return this.#call('GET', '/holds', {}, holdListDto).then((r) => r.holds);
+  }
+  listNotices() {
+    return this.#call('GET', '/notices', {}, noticeListDto).then((r) => r.items);
+  }
+  async markNoticeRead(id: string) {
+    await this.#call('POST', `/notices/${enc(id)}/read`, {}, null);
   }
   listExecutors() {
     return this.#call('GET', '/executors', {}, executorListDto).then((r) => r.items);

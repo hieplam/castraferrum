@@ -290,7 +290,7 @@ test.describe("phone section captions (castraferrum#202)", () => {
         [],
       ],
       ["/loops/new", ["Details", "Prompt", "Schedule", "Agent"], ["Details"]],
-      [`/loops/${pilot}/edit`, ["Details", "Prompt", "Schedule", "Agent"], []],
+      [`/loops/${pilot}/edit`, ["Details", "Prompt", "Schedule", "Agent", "Probe"], []],
       ["/settings", ["Appearance", "Connection", "This device", "About"], []],
     ];
     const gap = await (async () => {
@@ -379,7 +379,7 @@ test.describe("phone notes and cards after a captioned group (castraferrum#205)"
       [
         "edit loop (repo note, schedule preview)",
         () => page.goto(`${ctx.sp.baseUrl}/loops/${pilot}/edit`).then(() => {}),
-        ["group-note", "card is-pad#sched-out"],
+        ["group-note", "card is-pad#sched-out", "group-note#probe-stop-first"],
       ],
       [
         "new loop, mock agent (its note)",

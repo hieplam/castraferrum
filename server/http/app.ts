@@ -6,6 +6,7 @@ import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from 'fas
 import type {
   FolderService,
   HealthService,
+  HoldService,
   LiveService,
   LoopService,
   NoticeService,
@@ -21,6 +22,7 @@ import { folderRoutes } from './folder-routes';
 import { gateRoutes } from './gate-routes';
 import { goalCardRoutes } from './goal-card-routes';
 import { healthRoutes } from './health-routes';
+import { holdRoutes } from './hold-routes';
 import { liveRoutes } from './live-routes';
 import { loopRoutes } from './loop-routes';
 import { noticeRoutes } from './notice-routes';
@@ -56,6 +58,8 @@ export type ApiServices = {
   probes: ProbeService;
   gate: GateService;
   goalCards: GoalCardService;
+  /** The open holds (spec 2.5). */
+  holds: HoldService;
 };
 
 export type HttpDeps = {
@@ -87,12 +91,13 @@ export async function buildHttpApp(deps: HttpDeps) {
 
   await app.register(healthRoutes, { health: deps.health });
   if (deps.api) {
-    const { loops, repos, folders, runs, live, transcripts, now, probes, notices, processEvents, scoreboard, gate, goalCards } = deps.api;
+    const { loops, repos, folders, runs, live, transcripts, now, probes, notices, processEvents, scoreboard, gate, goalCards, holds } = deps.api;
     const sse = { heartbeatMs: deps.sseHeartbeatMs ?? 15_000, shutdown: shutdown.signal };
     await app.register(loopRoutes, { loops, runs });
     await app.register(probeRoutes, { probes });
     await app.register(gateRoutes, { gate });
     await app.register(goalCardRoutes, { goalCards });
+    await app.register(holdRoutes, { holds });
     await app.register(repoRoutes, { repos });
     await app.register(folderRoutes, { folders });
     await app.register(scheduleRoutes, { loops, now });

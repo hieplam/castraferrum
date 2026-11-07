@@ -6,6 +6,7 @@ import {
   parseProbeLine,
   prNumberOf,
   PROBE_ACTION_STATE,
+  PROBE_EVERY_SEC,
   PROBE_RAW_MAX_BYTES,
   RESERVED_RESOURCE,
   USAGE_LIMIT_END,
@@ -40,7 +41,7 @@ export type ProbeServiceDeps = Pick<Repositories, 'claims' | 'executions' | 'hol
   notifier: Notifier;
 };
 
-const PROBE_EVERY_MS = 60_000;
+const PROBE_EVERY_MS = PROBE_EVERY_SEC * 1000;
 const PROBE_TIMEOUT_MS = 30_000;
 const RELEASE_RETRY_MS = 60_000;
 const ORPHANS_PER_TICK = 50;

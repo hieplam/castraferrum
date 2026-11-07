@@ -43,7 +43,7 @@ function execution(id: string, seq: number, startMin: number, end: { min: number
     startedAt: at(startMin),
     endedAt: end ? at(end.min) : null,
     endReason: end ? end.reason : null,
-    stats: { runs: 0, running: 0, succeeded: 0, failed: 0, interrupted: 0, cancelled: 0, skipped: 0, sessions: 0, elapsedMs: 0, avgDurationMs: null, ...stats },
+    stats: { runs: 0, running: 0, succeeded: 0, failed: 0, interrupted: 0, cancelled: 0, skipped: 0, held: 0, sessions: 0, elapsedMs: 0, avgDurationMs: null, ...stats },
   };
 }
 

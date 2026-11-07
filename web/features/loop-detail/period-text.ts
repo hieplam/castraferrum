@@ -18,6 +18,7 @@ export function periodSpanText(t: T, p: { startedAt: Date | null; endedAt: Date 
 /** `still active`, `stopped by you` or `ended: server shut down`. */
 export function periodEndText(t: T, p: { endedAt: Date | null; endReason: ExecutionDto['endReason'] }): string {
   if (!p.endedAt) return t('period.stillActive');
+  if (p.endReason === 'goal_met') return t('goalLoop.period.phrase');
   return t(p.endReason === 'server_down' ? 'period.byServer' : 'period.byYou');
 }
 
@@ -35,6 +36,7 @@ export function countWords(t: T, s: ExecutionDto['stats']): string {
     ['count.cancelled', s.cancelled],
     ['count.skipped', s.skipped],
     ['count.running', s.running],
+    ['goalLoop.count.held', s.held],
   ];
   const out = words.filter(([, n]) => n > 0).map(([k, n]) => t(k, { n }));
   return out.length ? out.join(' · ') : '-';

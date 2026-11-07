@@ -11,6 +11,7 @@ import { formatUsd } from '../../../shared/domain/cost';
 import { useNow, useSharedServerStatus } from '../../data/connection';
 import { useExecution, useRun, useRunLogs } from '../../data/history';
 import { useLoop } from '../../data/loops';
+import { mainHold, useHolds } from '../../data/probe';
 import { useTranscript } from '../../data/transcript';
 import { fmtDateTime, fmtTime } from '../../prefs/format';
 import type { MessageKey } from '../../prefs/messages';
@@ -29,6 +30,9 @@ import { cursorTime, executorSummary, fmtRunDuration, fmtSpan, isRepoMissing, ru
 import { errorTitle, PageNotFound, PageSkeleton, PushedPage } from './PushedPage';
 import { RUN_PILL } from './RunCell';
 import { TranscriptPanel } from './transcript/TranscriptPanel';
+
+/** `14:00`: the hour and minute of an instant in the loop's time zone. */
+const hm = (at: Date, tz: string) => fmtTime(at, tz).slice(0, 5);
 
 const STARTED_BY = { start: 'run.byStart', schedule: 'run.bySchedule', probe: 'run.byProbe' } as const;
 
@@ -85,6 +89,10 @@ function RunBody({ run: r, loop, period }: { run: RunDto; loop: LoopDetailDto; p
   const tz = loop.timezone;
   const running = r.status === 'running';
   const skipped = r.status === 'skipped';
+  const held = r.status === 'held';
+  const holds = useHolds(held);
+  const hold = held ? mainHold(holds.data) : null;
+  const heldAt = hold?.openedAt ?? (r.durationMs !== null ? new Date(r.startedAt.getTime() + r.durationMs) : null);
   const logs = useRunLogs(skipped ? null : r.id);
   const tx = useTranscript(!skipped && (running || r.sessionId) ? r.id : null);
   const k = period.seq;
@@ -101,7 +109,7 @@ function RunBody({ run: r, loop, period }: { run: RunDto; loop: LoopDetailDto; p
   const ended = runEndedAt(r);
   const when: ReactNode = skipped ? (
     `${day} · ${from}`
-  ) : running ? (
+  ) : running || held ? (
     <>
       {`${day} · ${t('period.since', { t: from })} · `}
       {took}
@@ -133,12 +141,14 @@ function RunBody({ run: r, loop, period }: { run: RunDto; loop: LoopDetailDto; p
     timed_out: () => t('run.banner.timedOut', { d: timeout === null ? t('dur.unlimited') : fmtSpan(t, timeout) }),
     cancelled: () => t('run.banner.cancelled', { t: ended ? fmtDateTime(ended, tz) : '-', k }),
     interrupted: () => t('run.banner.interrupted', { t: ended ? fmtDateTime(ended, tz) : '-', r: r.finishedAt ? fmtDateTime(r.finishedAt, tz) : '-' }),
+    // The usage limit held the run: the session is kept, and the run continues by itself after the hold (spec 2.5).
+    held: () => (hold?.until ? t('goalLoop.run.banner', { at: hm(hold.openedAt, tz), until: hm(hold.until, tz) }) : t('goalLoop.run.heldSum')),
   };
   const banner = why[r.status];
   const alert = (
     <>
       {banner ? (
-        <Banner tone={r.status === 'cancelled' ? 'warn' : 'err'} testId="run-banner">
+        <Banner tone={r.status === 'cancelled' || held ? 'warn' : 'err'} testId="run-banner">
           {banner()}
         </Banner>
       ) : null}
@@ -159,7 +169,7 @@ function RunBody({ run: r, loop, period }: { run: RunDto; loop: LoopDetailDto; p
   );
 
   const summary =
-    running || skipped ? null : (
+    running || skipped || held ? null : (
       <>
         <p className="group-cap">{t('run.summary')}</p>
         <div className="card is-pad" data-testid="run-summary">
@@ -192,7 +202,7 @@ function RunBody({ run: r, loop, period }: { run: RunDto; loop: LoopDetailDto; p
   );
   // Resume only once the run has ended (D-UI12), and only a Claude session.
   const resume =
-    sid && !running && r.executorKind === 'claude' ? (
+    sid && !running && !held && r.executorKind === 'claude' ? (
       <>
         <p className="group-cap">{t('run.reopen')}</p>
         <div className="cmd is-wrap" data-testid="run-resume">
@@ -204,7 +214,7 @@ function RunBody({ run: r, loop, period }: { run: RunDto; loop: LoopDetailDto; p
       </>
     ) : null;
 
-  const transcript = <TranscriptPanel run={r} tx={tx} tz={tz} now={now} offline={offline} />;
+  const transcript = <TranscriptPanel run={r} tx={tx} tz={tz} now={now} offline={offline} heldAt={heldAt} />;
   const paused = running && (logs.mode === 'paused' || offline);
   const log = (
     <>

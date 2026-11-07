@@ -18,7 +18,7 @@ export const RUN_PILL: Record<RunDto['status'], readonly [PillTone, MessageKey]>
   timed_out: ['fail', 'status.timedOut'],
   cancelled: ['skip', 'status.cancelled'],
   interrupted: ['int', 'status.interrupted'],
-  held: ['int', 'status.held'],
+  held: ['int', 'goalLoop.run.held'],
   skipped: ['skip', 'status.skipped'],
 };
 
@@ -32,6 +32,8 @@ export function RunCell({ run, tz, now, session }: { run: RunDto; tz: string; no
   const sum =
     run.status === 'running' ? (
       t('runs.stillWorking')
+    ) : run.status === 'held' ? (
+      t('goalLoop.run.heldSum')
     ) : run.status === 'skipped' ? (
       <span data-raw="">{run.skipReason}</span>
     ) : run.summary ? (

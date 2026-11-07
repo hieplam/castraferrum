@@ -25,11 +25,13 @@ export type ExecutionStats = {
   interrupted: number;
   cancelled: number;
   skipped: number;
+  /** Runs that a usage limit holds: the session is kept, and the run continues by itself (spec 2.5). */
+  held: number;
   /** Number of turns with a session id: a turn that fails before opening a session - e.g. "Repo does not exist" - has none. */
   sessions: number;
   /** How long it has run: `(endedAt ?? now) - startedAt`. */
   elapsedMs: number;
-  /** Average duration of the finished turns (skipped excluded); no finished turn yet gives null. */
+  /** Average duration of the finished turns (skipped, running and held excluded); no finished turn yet gives null. */
   avgDurationMs: number | null;
 };
 

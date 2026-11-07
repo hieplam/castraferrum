@@ -918,6 +918,12 @@
         rowFld('f-fail', t('editor.mockFail'), input('f-fail', 0, { type: 'number' }), { hints: [['', t('editor.mockFailHint')]] })
       : segFld('f-model', t('editor.model'), MODELS, v.model) + effortFld(v.effort) + parallel + limit,
     o.mock ? `<p class="note">${t('editor.mockHint')}</p>` : '');
+    // The Probe group of a loop that exists (goal-driven loop, task P15): the switch, off here because the sample loops have no probe. A loop that
+    // works now gets it disabled with the hint to stop it first; a copy is stopped, so its switch works.
+    const probeLocked = edit && D.loops[o.key].status === 'active' && !o.saved;
+    const probe = edit ? section(t('goalLoop.editor.title'),
+      `<div class="cell"><button class="switch" type="button" role="switch" aria-checked="false" data-testid="probe-enabled"${probeLocked ? ' disabled' : ''}><span class="switch-track"></span>${t('goalLoop.editor.enabled')}</button></div>`,
+      probeLocked ? `<p class="group-note" data-testid="probe-stop-first">${t('goalLoop.editor.stopFirst')}</p>` : '') : '';
     const locked = o.saving || o.noRepos || !!SCH.error[s.cron];
     const label = o.saving ? t('form.saving') : t(edit ? 'editor.save' : 'editor.create');
     const submit = `<button class="btn primary${PHONE ? ' lg block' : ''}" type="submit" form="loop-form" data-testid="form-submit"${locked ? ' disabled' : ''}>${label}</button>`;
@@ -925,7 +931,7 @@
     const back = edit ? (o.saved ?? D.loops[o.key].name) : t('nav.loops');
     // The phone's navigation bar holds the heading (Cancel at the start, the title centred); from 640px the page does.
     const page = (PHONE ? '' : backlink(back) + `<div class="page-head"><h1 class="page-title">${title}</h1></div>`) + (o.banner || '') +
-      `<form id="loop-form" data-testid="loop-form" style="display:contents">${details}${prompt}${schedule}${agent}</form>` +
+      `<form id="loop-form" data-testid="loop-form" style="display:contents">${details}${prompt}${schedule}${agent}${probe}</form>` +
       (PHONE ? `<div class="actionbar">${submit}</div>` : `<div class="form-foot"><button class="btn ghost" type="button" data-testid="form-cancel">${t('editor.cancel')}</button>${submit}</div>`);
     const bar = `<nav class="navbar"><a class="navbar-back" href="#" data-testid="form-cancel">${t('editor.cancel')}</a><h1 class="navbar-title">${title}</h1><div class="navbar-actions"></div></nav>`;
     return app({ tab: 'loops', loopCount: D.counts.all, narrow: true, navbar: bar, page, overlay: o.repoPick && PHONE ? repoSheet2() : '' });
