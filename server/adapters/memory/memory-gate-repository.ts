@@ -1,5 +1,5 @@
 import { DomainError } from '../../../shared/domain/errors';
-import type { GateFinalState, GateJob, GateStep, GateStepName, RepoGate } from '../../../shared/domain/gate';
+import type { GateFinalState, GateJob, GateJobState, GateStep, GateStepName, RepoGate } from '../../../shared/domain/gate';
 import type { EnqueueGateJobInput, GateRatifyOutcome, GateRepository, RepoGateInput } from '../../ports/gate-repository';
 import { clone, cmp, ConstraintViolation, type MemoryDb } from './memory-db';
 
@@ -25,9 +25,9 @@ export class MemoryGateRepository implements GateRepository {
   }
 
   async enqueue(input: EnqueueGateJobInput): Promise<'queued' | 'duplicate'> {
-    const { at, ...rest } = input;
+    const { at, title, ...rest } = input;
     try {
-      this.#db.writeGateJob({ ...rest, state: 'queued', failedStep: null, queuedAt: at, startedAt: null, finishedAt: null, ratifiedAt: null });
+      this.#db.writeGateJob({ ...rest, title: title ?? null, state: 'queued', failedStep: null, queuedAt: at, startedAt: null, finishedAt: null, ratifiedAt: null });
       return 'queued';
     } catch (err) {
       if (err instanceof ConstraintViolation && err.constraint === 'gate_jobs_one_live_per_head') return 'duplicate';
@@ -95,6 +95,19 @@ export class MemoryGateRepository implements GateRepository {
     return [...this.#db.gateJobs.values()]
       .filter((j) => (j.state === 'failed' || j.state === 'needs_ratification') && j.finishedAt !== null && j.finishedAt >= from && j.finishedAt < to)
       .sort((a, b) => a.finishedAt!.getTime() - b.finishedAt!.getTime() || cmp(a.id, b.id))
+      .map(clone);
+  }
+
+  async listByRepo(repoId: string, states: readonly GateJobState[], limit: number): Promise<GateJob[]> {
+    // As the SQL: `finished_at DESC NULLS LAST, queued_at DESC, id DESC`.
+    return [...this.#db.gateJobs.values()]
+      .filter((j) => j.repoId === repoId && states.includes(j.state))
+      .sort((a, b) => {
+        if (a.finishedAt && b.finishedAt && a.finishedAt.getTime() !== b.finishedAt.getTime()) return b.finishedAt.getTime() - a.finishedAt.getTime();
+        if (!a.finishedAt !== !b.finishedAt) return a.finishedAt ? -1 : 1;
+        return oldestFirst(b, a);
+      })
+      .slice(0, limit)
       .map(clone);
   }
 

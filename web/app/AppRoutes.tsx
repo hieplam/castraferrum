@@ -2,6 +2,8 @@
 // (Not found). Only add / change paths here.
 import { Route, Routes } from 'react-router';
 import { EditorRoute } from '../pages/EditorRoute';
+import { GateJobRoute } from '../pages/GateJobRoute';
+import { GateRoute } from '../pages/GateRoute';
 import { LoopRoute } from '../pages/LoopRoute';
 import { LoopRunsRoute } from '../pages/LoopRunsRoute';
 import { LoopSettingsRoute } from '../pages/LoopSettingsRoute';
@@ -27,6 +29,8 @@ export function AppRoutes() {
         <Route path="executions/:id" element={<PeriodRoute />} />
         <Route path="runs/:id" element={<RunRoute />} />
         <Route path="repos" element={<ReposRoute />} />
+        <Route path="repos/:id/gate" element={<GateRoute />} />
+        <Route path="repos/:id/gate/jobs/:jobId" element={<GateJobRoute />} />
         <Route path="settings" element={<SettingsRoute />} />
         <Route path="scoreboard" element={<ScoreboardRoute />} />
         <Route path="*" element={<MissingRoute />} />

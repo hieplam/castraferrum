@@ -480,14 +480,15 @@
       failed: {
         pr: 41, title: 'Refund table migration', task: '16', sha: '9c1d4e2', step: 'green', exit: 1, at: '12:18',
         steps: [['scope', 'pass', 4], ['base', 'pass', 812], ['setup', 'pass', 41200], ['green', 'fail', 18650], ['stub', 'skip', null], ['verify', 'skip', null], ['ci', 'skip', null], ['merge', 'skip', null]],
+        // The output is the stored tail of the failed step: plain lines, no time and no tone (the gate keeps neither).
         output: [
-          ['12:17:40', 'log-head', 'npx vitest run tests/api/refunds.test.ts'],
-          ['12:17:52', '', ' ✓ creates a refund for a paid invoice'],
-          ['12:17:53', '', ' ✓ refuses a second refund'],
-          ['12:17:55', 'log-err', ' ✗ migrates an empty table'],
-          ['12:17:55', 'log-err', "   error: column \"refund_id\" of relation \"invoices\" does not exist"],
-          ['12:17:58', '', ' Tests  1 failed | 2 passed (3)'],
-          ['12:17:58', 'log-err', 'exit code 1'],
+          'npx vitest run tests/api/refunds.test.ts',
+          ' ✓ creates a refund for a paid invoice',
+          ' ✓ refuses a second refund',
+          ' ✗ migrates an empty table',
+          "   error: column \"refund_id\" of relation \"invoices\" does not exist",
+          ' Tests  1 failed | 2 passed (3)',
+          'exit code 1',
         ],
       },
     },

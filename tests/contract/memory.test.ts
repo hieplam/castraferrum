@@ -13,6 +13,7 @@ describe('memory', () => {
       repos.db.writeGateJob({
         ...row,
         taskKey: 'raw',
+        title: null,
         failedStep: null,
         queuedAt: new Date('2026-10-18T01:00:00Z'),
         startedAt: null,

@@ -1449,6 +1449,62 @@ Decisions:
 
 <!-- K12 -->
 
+## K12
+
+Goal G6: the owner sees the gate queue, a failed job with the step that failed and its output, and can turn the gate on, ratify and queue again. The pages match the approved `gate-queue` and `gate-failed` shots (desktop, phone, light, dark).
+
+Ratchet before: no `results/gate.json` (0 pairs); `e2e expects: 885`; api tests of the gate pages 0; `states with shots: 142/142`; `UCs with a green e2e: 35/35`.
+
+Red, before the build (the visual and e2e Red ran in a frozen copy of the tree that had the tests and no feature, on the same lane database):
+
+```
+npx vitest run --project api tests/api/gate-pages-api.test.ts:      Tests  9 failed (9)
+npx playwright test tests/visual/ds/gate.visual.ts --project=visual: 4 failed
+npx playwright test tests/e2e/gate-pages.spec.ts --project chromium: 4 failed
+```
+
+Green:
+
+```
+npx vitest run --project api tests/api/gate-pages-api.test.ts:      Tests  9 passed (9)
+npx playwright test tests/visual/ds/gate.visual.ts --project=visual: 4 passed
+node -e "<r.length, worst ratio <= 0.001>" results/gate.json:          8 true  (worst ratio 0.00034549, the phone queue page)
+npx playwright test tests/e2e/gate-pages.spec.ts --project chromium: 4 passed
+npx vitest run --project contract -t gate_tables:                       exit 0, 2 more tests per side (title, listByRepo)
+npm run ratchets:                                                      ratchets: ok, e2e expects: 929
+npm run design:states -- --design design/ds:                           states with shots: 142/142
+tests/visual/ds/repos.visual.ts:                                       4 passed
+npm run design:compare:                                                67 passed, "pairs": 8, "worstRatio": 0.0003454933441723402
+npm run verify (one run, slot-1, lane database loops_k12_test):         exit 0, UCs with a green e2e: 36/36 (run before the last two rebases, which only renumbered the migration and merged the docs)
+  unit Tests  1225 passed | 3 skipped; contract memory: 119 passed, postgres: 119 passed
+  api Tests  324 passed | 2 skipped; e2e and visual 134 passed (16.3m); phone overflow: 0/12
+```
+
+I opened three pairs with Read, side by side: `phone-gate-queue-light`, `phone-gate-failed-dark` and `gate-failed-light`, each app shot next to its approved shot, and the diff of the first. The pages are the same. The only pixels that differ are anti-aliasing at the edges of a few letters of the PR title (the title is a text and a span in the app, one text in the preview): at most 0.035 percent of the page. The other pairs differ by at most 0.011 percent.
+
+Stub results, each run for real, then restored: `GET /api/repos/:id/gate` answering empty lists: 6 of 9 api tests failed (the plan said 6 of 9). `queue` without the title: the title api test failed, and the contract test of the title failed on the Postgres side. `JobCell` returning `null`: 2 of 4 visual tests failed, the two queue pairs (the plan said 4: the failed page does not use `JobCell`, so its tests cannot fail). The failed page with no output block: 2 of 4 failed, `gate-failed` and `phone-gate-failed` (12.45 and 5.06 percent off on the phone page).
+
+Ratchet after: pairs in `results/gate.json` 0 to 8 (worst ratio 0.00035); api tests +9; contract +2 per side; unit +0 (the uc-coverage test changed its numbers); `e2e expects` 885 to 929 (18 of them are K12, the rest came with other merged tasks); `UCs with a green e2e` 35 to 36 (new UC-37, `--min` 35 to 36); API routes 3 more in `docs/API.md`.
+
+No network (after the owner's rules): the seeded origin is a local bare repository, the row says `hieplam/tribe`, and every seeded run (visual and e2e) starts its console on the fake `gh`. A seeded gate never changes while a page is read: `takeNext` takes a job only when no job is `running`, the seeded job is `running`, and `requeueRunning` runs only at start-up, before the seed. The final run (gate and repos visual `8 passed`, `8 true`, worst ratio 0.00034549; `gate-pages.spec.ts` `4 passed`) ended with `Get-Process git-credential-manager` giving `count: 0`. Earlier hangs came from old seeds with a real github origin that stayed in the lane database; the lane databases were recreated. `grep -rnE "https://github.com/[A-Za-z0-9_-]+/[A-Za-z0-9_.-]+\.git" tests`:
+
+```
+tests/api/gate-pages-api.test.ts:160:    const https = await repoWithOrigin('https://github.com/hieplam/tribe.git');
+tests/api/gate-pages-api.test.ts:180:    const id = await repoWithOrigin('https://github.com/hieplam/tribe.git');
+```
+
+(Both lines are strings that the api test parses; its console has no ticker and runs no `git`.)
+
+Decisions (standing rules of the epic, no question to the owner):
+- `gate_jobs.title` (text, null) and `GateRepository.enqueue` takes `title`. A job with no title shows `PR #n` alone.
+- A new port method `listByRepo(repoId, states, limit)` reads the jobs of one repo, so the page of a repo does not depend on how many newer jobs other repos have.
+- The preview of `gate-failed` was re-shot without the time column and the tones of the output (recorded in `design/APPROVED.md`). Every other element is as approved.
+- A new use case UC-37 with the 4 tests of `gate-pages.spec.ts` tagged `@UC-37`, and `uc-coverage --min` 36.
+- The plan's Red command `npx playwright test --project visual <file>` takes the file as a second project name in this Playwright version, so the runs use `<file> --project=visual`.
+- The migration is renumbered on each rebase that brought a lane migration: 0009, then 0011, then 0012, now 0013.
+- Two empty states have a text (`goalLoop.gate.queueEmpty`, `goalLoop.gate.recordEmpty`), built from the existing `.empty`.
+
+
 <!-- T1 -->
 
 ## T1

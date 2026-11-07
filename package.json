@@ -34,7 +34,7 @@
     "rule-lint": "node scripts/rule-lint.mjs",
     "phone:check": "node --import tsx scripts/phone-check.mts",
     "db:generate": "drizzle-kit generate",
-    "verify": "npm run design:states && npm run typecheck && node scripts/lang-scan.mjs --check-baseline && npm run arch && npm run ratchets -- --base main && npm run rule-lint -- --base main && npm run test:unit && npm run test:contract && npm run test:api && npm run api-smoke && npm run build && npm run test:e2e && npm run phone:check -- --max 0 && npm run uc-coverage -- --min 35",
+    "verify": "npm run design:states && npm run typecheck && node scripts/lang-scan.mjs --check-baseline && npm run arch && npm run ratchets -- --base main && npm run rule-lint -- --base main && npm run test:unit && npm run test:contract && npm run test:api && npm run api-smoke && npm run build && npm run test:e2e && npm run phone:check -- --max 0 && npm run uc-coverage -- --min 36",
     "goal:check": "node scripts/goal-check.mjs"
   },
   "dependencies": {

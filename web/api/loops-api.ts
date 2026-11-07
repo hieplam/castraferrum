@@ -18,6 +18,7 @@ import type {
 } from '../../shared/contracts/loops';
 import type { FolderDto, FolderPlacesDto } from '../../shared/contracts/folders';
 import type { RepoDto, RepoInputBody, RepoListItemDto } from '../../shared/contracts/repos';
+import type { GateJobDetailDto, GateViewDto } from '../../shared/contracts/gate';
 import type { ScoreboardDto } from '../../shared/contracts/scoreboard';
 import type { TranscriptPageDto } from '../../shared/contracts/transcript';
 
@@ -64,6 +65,16 @@ export interface LoopsApi {
   overview(tz?: string, repoId?: string): Promise<OverviewDto>;
   /** `GET /process/scoreboard?tz=` - the repeats of each known cause before and after the date its check merged (spec 2.12); weeks start on Monday in `tz`. */
   scoreboard(tz?: string): Promise<ScoreboardDto>;
+  /** `GET /repos/:id/gate` - the gate setting of a repo with its queue and record (spec 2.8, task K12). */
+  gate(repoId: string): Promise<GateViewDto>;
+  /** `PUT /repos/:id/gate` - turns the gate of a repo on or off. The first turn on reads the repo from `origin`; `GATE_NO_REMOTE` when it has none. */
+  setGateEnabled(repoId: string, enabled: boolean): Promise<GateViewDto>;
+  /** `GET /gate/jobs/:id` - one job with its steps. */
+  gateJob(id: string): Promise<GateJobDetailDto>;
+  /** `POST /gate/jobs/:id/ratify` - the job of a guarded change takes the queue again (spec 2.8). */
+  ratifyGateJob(id: string): Promise<void>;
+  /** `POST /gate/jobs` - queues the PR again. `GATE_OFF` when the gate of the repo is off. */
+  queueGateJob(repoId: string, prNumber: number): Promise<void>;
   /** `/api/health` - also returns on 503 (`{ ok: false, db: 'down' }`); only throws when the server cannot be reached. */
   health(): Promise<HealthResponse>;
 }

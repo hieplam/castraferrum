@@ -92,6 +92,13 @@
       "when": 1793581138102,
       "tag": "0012_short_lorna_dane",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793588258939,
+      "tag": "0013_gate_job_title",
+      "breakpoints": true
     }
   ]
 }

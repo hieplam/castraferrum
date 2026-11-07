@@ -23,6 +23,7 @@ describe('toErrorReply — error → HTTP status + { error: { code, message, det
       TRANSCRIPT_NOT_FOUND: 404,
       NOTICE_NOT_FOUND: 404,
       GATE_OFF: 409,
+      GATE_NO_REMOTE: 409,
       GIT_HOST_FAILED: 502,
       GATE_JOB_NOT_FOUND: 404,
       GATE_JOB_NOT_RATIFIABLE: 409,

@@ -20,6 +20,7 @@ import {
 } from '../../shared/contracts/loops';
 import { folderDto, folderPlacesDto } from '../../shared/contracts/folders';
 import { repoDto, repoListDto, type RepoInputBody } from '../../shared/contracts/repos';
+import { gateJobDetailDto, gateViewDto } from '../../shared/contracts/gate';
 import { scoreboardDto } from '../../shared/contracts/scoreboard';
 import { transcriptPageDto } from '../../shared/contracts/transcript';
 import { ApiError, type LoopListFilter, type LoopsApi, type PageRequest } from './loops-api';
@@ -104,6 +105,21 @@ export class HttpLoopsApi implements LoopsApi {
   }
   scoreboard(tz?: string) {
     return this.#call('GET', '/process/scoreboard', { query: { tz } }, scoreboardDto);
+  }
+  gate(repoId: string) {
+    return this.#call('GET', `/repos/${enc(repoId)}/gate`, {}, gateViewDto);
+  }
+  setGateEnabled(repoId: string, enabled: boolean) {
+    return this.#call('PUT', `/repos/${enc(repoId)}/gate`, { body: { enabled } }, gateViewDto);
+  }
+  gateJob(id: string) {
+    return this.#call('GET', `/gate/jobs/${enc(id)}`, {}, gateJobDetailDto);
+  }
+  async ratifyGateJob(id: string) {
+    await this.#call('POST', `/gate/jobs/${enc(id)}/ratify`, {}, z.object({}).passthrough());
+  }
+  async queueGateJob(repoId: string, prNumber: number) {
+    await this.#call('POST', '/gate/jobs', { body: { repoId, prNumber } }, z.object({}).passthrough());
   }
   listExecutors() {
     return this.#call('GET', '/executors', {}, executorListDto).then((r) => r.items);

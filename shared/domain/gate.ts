@@ -24,12 +24,23 @@ export type RepoGate = {
   updatedAt: Date;
 };
 
+/**
+ * The `owner/name` of a remote URL on github.com, in the https form, the ssh form or the `git@` form, with or without `.git`.
+ * `null` for any other host or shape.
+ */
+export function githubRepoOf(remoteUrl: string): string | null {
+  const m = /^(?:https?:\/\/(?:[^@/\s]+@)?|ssh:\/\/(?:[^@/\s]+@)?|git@)github\.com[:/]([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?\/?$/.exec(remoteUrl.trim());
+  return m ? `${m[1]}/${m[2]}` : null;
+}
+
 export type GateJob = {
   id: string;
   repoId: string;
   prNumber: number;
   headSha: string;
   taskKey: string;
+  /** The title of the pull request at the time the job was queued; `null` when the job has none. */
+  title: string | null;
   state: GateJobState;
   failedStep: GateStepName | null;
   queuedAt: Date;
