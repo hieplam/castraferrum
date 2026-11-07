@@ -78,12 +78,17 @@ function portOf(text: string): number | null {
 }
 
 /** The body of the probe `PUT`. `resources` = the resources that the probe has now (the editor has no field for them). */
-export function toProbeBody(v: ProbeFormValues, resources: ProbeDto['resources'] = []): ProbeInputBody {
+/**
+ * The editor shows no field for `resources`, `rank` and `tokenBudget` yet, so a save sends the values of the saved probe:
+ * an omitted field takes its server default, and a save from the editor must not reset a rank set through the API.
+ */
+export function toProbeBody(v: ProbeFormValues, kept?: Pick<ProbeDto, 'resources' | 'rank' | 'tokenBudget'>): ProbeInputBody {
   return {
     command: textToArgv(v.command),
     claim: textToArgv(v.claim),
     release: textToArgv(v.release),
-    resources,
+    resources: kept?.resources ?? [],
+    ...(kept ? { rank: kept.rank, tokenBudget: kept.tokenBudget } : {}),
     laneEnv: textToEnv(v.laneEnv),
     laneBasePort: portOf(v.basePort),
     restartPolicy: v.restart,
