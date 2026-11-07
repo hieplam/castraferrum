@@ -17,6 +17,9 @@ import type {
   SchedulePreviewDto,
 } from '../../shared/contracts/loops';
 import type { FolderDto, FolderPlacesDto } from '../../shared/contracts/folders';
+import type { ProbeDto, ProbeInputBody } from '../../shared/contracts/goal-loop';
+import type { HoldDto } from '../../shared/contracts/holds';
+import type { NoticeDto } from '../../shared/contracts/notices';
 import type { RepoDto, RepoInputBody, RepoListItemDto } from '../../shared/contracts/repos';
 import type { GateJobDetailDto, GateViewDto } from '../../shared/contracts/gate';
 import type { ScoreboardDto } from '../../shared/contracts/scoreboard';
@@ -34,6 +37,10 @@ export class FakeLoopsApi implements LoopsApi {
   readonly logs = new Map<string, LogLineDto[]>();
   /** Transcript pages by `<runId>:<before | end>` (seeded by the test); missing -> `TRANSCRIPT_NOT_FOUND`. */
   readonly transcriptPages = new Map<string, TranscriptPageDto>();
+  /** The probe of each loop (seeded by the test); a loop with no entry has no probe. */
+  readonly probes = new Map<string, ProbeDto>();
+  holds: HoldDto[] = [];
+  notices: NoticeDto[] = [];
   healthState: HealthResponse | 'unreachable' = { ok: true, db: 'up' };
   /** Every call in order (tests read it to assert the web called the right function). */
   readonly calls: string[] = [];
@@ -257,6 +264,47 @@ export class FakeLoopsApi implements LoopsApi {
   async folderPlaces(): Promise<FolderPlacesDto> {
     this.calls.push('folderPlaces');
     return this.places;
+  }
+  async getProbe(loopId: string): Promise<ProbeDto | null> {
+    this.calls.push(`getProbe ${loopId}`);
+    this.#loop(loopId);
+    return this.probes.get(loopId) ?? null;
+  }
+  async saveProbe(loopId: string, body: ProbeInputBody): Promise<ProbeDto> {
+    this.calls.push(`saveProbe ${loopId}`);
+    this.#loop(loopId);
+    const probe: ProbeDto = {
+      loopId,
+      command: body.command,
+      claim: body.claim ?? [],
+      release: body.release ?? [],
+      resources: body.resources ?? [],
+      laneEnv: body.laneEnv ?? {},
+      laneBasePort: body.laneBasePort ?? null,
+      restartPolicy: body.restartPolicy ?? 'stop',
+      state: this.probes.get(loopId)?.state ?? 'active',
+      lastLine: this.probes.get(loopId)?.lastLine ?? null,
+      lastProbeAt: this.probes.get(loopId)?.lastProbeAt ?? null,
+    };
+    this.probes.set(loopId, probe);
+    return probe;
+  }
+  async deleteProbe(loopId: string): Promise<void> {
+    this.calls.push(`deleteProbe ${loopId}`);
+    this.#loop(loopId);
+    this.probes.delete(loopId);
+  }
+  async listHolds(): Promise<HoldDto[]> {
+    this.calls.push('listHolds');
+    return this.holds;
+  }
+  async listNotices(): Promise<NoticeDto[]> {
+    this.calls.push('listNotices');
+    return this.notices;
+  }
+  async markNoticeRead(id: string): Promise<void> {
+    this.calls.push(`markNoticeRead ${id}`);
+    this.notices = this.notices.filter((n) => n.id !== id);
   }
   async health(): Promise<HealthResponse> {
     this.calls.push('health');

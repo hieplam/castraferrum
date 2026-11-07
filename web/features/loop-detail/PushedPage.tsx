@@ -21,6 +21,7 @@ export function PushedPage({
   actions,
   narrow,
   testId,
+  top,
   children,
 }: {
   back: Back;
@@ -28,6 +29,8 @@ export function PushedPage({
   actions?: ReactNode;
   narrow?: boolean;
   testId?: string;
+  /** What comes first in the page, above the way back (the hold banner of a loop with a probe). */
+  top?: ReactNode;
   children: ReactNode;
 }) {
   const phone = useLayout() === 'phone';
@@ -45,6 +48,7 @@ export function PushedPage({
         />
       ) : null}
       <Page narrow={narrow} testId={testId}>
+        {top}
         {!phone && backlink ? (
           <Link className="backlink" to={back.to} data-testid={back.testId}>
             <Icon name="back" />

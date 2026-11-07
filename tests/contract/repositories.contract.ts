@@ -795,6 +795,7 @@ export function repositoryContract(env: () => ContractEnv): void {
         interrupted: 1, // a server shutdown is not a failure of the run
         cancelled: 1,
         skipped: 1,
+        held: 0,
         sessions: 1,
         elapsedMs: 120_000, // still open: now - started_at
         avgDurationMs: Math.round((2 + 4 + 6 + 8 + 10 + 5) * 1000 / 6),
@@ -807,6 +808,7 @@ export function repositoryContract(env: () => ContractEnv): void {
         interrupted: 0,
         cancelled: 0,
         skipped: 0,
+        held: 0,
         sessions: 0,
         elapsedMs: 120_000,
         avgDurationMs: null,
@@ -814,6 +816,17 @@ export function repositoryContract(env: () => ContractEnv): void {
       expect(stats.get(closed.execution.id)).toMatchObject({ runs: 1, failed: 0, interrupted: 1, elapsedMs: 90_000 }); // closed: ended - started
       expect((await r.runs.findById(cr.id))?.status).toBe('interrupted');
       expect((await r.runs.statsByExecution([], at(1))).size).toBe(0);
+    });
+
+    it('statsByExecution: a held run is counted in `runs` and in `held`, and is left out of the average duration', async () => {
+      const { loop, execution } = await activeLoop();
+      const done = await started(loop.id, execution.id, { startedAt: at(10) });
+      await r.runs.finish(done.id, { status: 'succeeded', finishedAt: at(14) }); // 4 s
+      const paused = await started(loop.id, execution.id, { startedAt: at(20) });
+      await r.runs.setSession(paused.id, 'sess-held');
+      expect(await r.runs.hold(paused.id, null)).toMatchObject({ status: 'held' });
+      const stats = (await r.runs.statsByExecution([execution.id], at(60))).get(execution.id);
+      expect(stats).toMatchObject({ runs: 2, running: 0, succeeded: 1, held: 1, avgDurationMs: 4000 });
     });
 
     it('countOverview: running runs; runs started (skipped excluded) since the cutoff; failed runs finished since the cutoff (UC-03)', async () => {

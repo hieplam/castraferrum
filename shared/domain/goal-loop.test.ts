@@ -64,6 +64,35 @@ describe('parseProbeLine: valid actions', () => {
   });
 });
 
+describe('parseProbeLine: blockers (decision 52)', () => {
+  const blocked = (blockers?: unknown) => line({ action: 'blocked', reason: 'red CI', issues: ['31'], ...(blockers === undefined ? {} : { blockers }) });
+  const entry = { key: '31', title: 'Migration 14 fails', blocks: 3, url: 'https://github.com/acme/api/issues/31' };
+
+  test('a missing key gives an empty list', () => {
+    const r = parseProbeLine(blocked());
+    expect(r.ok && r.line.blockers).toEqual([]);
+  });
+
+  test('a valid entry is kept', () => {
+    const r = parseProbeLine(blocked([entry, { ...entry, key: '33', blocks: 0 }]));
+    expect(r.ok && r.line.blockers).toEqual([entry, { ...entry, key: '33', blocks: 0 }]);
+  });
+
+  test('a key with a space fails the line', () => {
+    expect(parseProbeLine(blocked([{ ...entry, key: 'a b' }]))).toMatchObject({ ok: false, reason: 'invalid blockers' });
+  });
+
+  test('a negative or fractional blocks fails the line', () => {
+    expect(parseProbeLine(blocked([{ ...entry, blocks: -1 }]))).toMatchObject({ ok: false, reason: 'invalid blockers' });
+    expect(parseProbeLine(blocked([{ ...entry, blocks: 1.5 }]))).toMatchObject({ ok: false, reason: 'invalid blockers' });
+  });
+
+  test('a url that does not start with https:// fails the line', () => {
+    expect(parseProbeLine(blocked([{ ...entry, url: 'http://github.com/acme/api/issues/31' }]))).toMatchObject({ ok: false, reason: 'invalid blockers' });
+    expect(parseProbeLine(blocked([{ ...entry, title: 7 }]))).toMatchObject({ ok: false, reason: 'invalid blockers' });
+  });
+});
+
 describe('parseProbeLine: other input', () => {
   test('reads the last non-empty line after log lines', () => {
     const r = parseProbeLine(`checking...\n{"not":"this"}\n${line({ action: 'skip' })}\r\n\n  \n`);

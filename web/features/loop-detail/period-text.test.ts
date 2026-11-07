@@ -6,7 +6,7 @@ import { translate, type Lang } from '../../prefs/messages';
 import { countWords } from './period-text';
 
 const stats = (s: Partial<ExecutionDto['stats']>): ExecutionDto['stats'] => ({
-  runs: 0, running: 0, succeeded: 0, failed: 0, interrupted: 0, cancelled: 0, skipped: 0, sessions: 0, elapsedMs: 0, avgDurationMs: null, ...s,
+  runs: 0, running: 0, succeeded: 0, failed: 0, interrupted: 0, cancelled: 0, skipped: 0, held: 0, sessions: 0, elapsedMs: 0, avgDurationMs: null, ...s,
 });
 
 describe('countWords', () => {

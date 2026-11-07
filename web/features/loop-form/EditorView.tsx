@@ -7,10 +7,12 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
+import type { ProbeDto, ProbeInputBody } from '../../../shared/contracts/goal-loop';
 import type { LoopDto } from '../../../shared/contracts/loops';
 import { isApiError, type ApiError } from '../../api/loops-api';
 import { useNow } from '../../data/connection';
 import { useCreateLoop, useExecutors, useLoop, useUpdateLoop } from '../../data/loops';
+import { useProbe, useSaveProbe } from '../../data/probe';
 import { qk } from '../../data/query-keys';
 import { useRepos } from '../../data/repos';
 import { fmtTime } from '../../prefs/format';
@@ -25,6 +27,8 @@ import { useToast } from '../../ui/toast';
 import { errorTitle, PageNotFound } from '../loop-detail/PushedPage';
 import { AgentFields } from './AgentFields';
 import { changedParts, emptyValues, errorsFromIssues, PART_LABEL, sameName, toBody, valuesFromLoop, type FormErrors, type FormField, type FormValues } from './form-model';
+import { probeErrorsFromIssues, probeValuesFrom, toProbeBody, type ProbeErrors, type ProbeField, type ProbeFormValues } from './probe-form';
+import { ProbeFields } from './ProbeFields';
 import { RepoPicker } from './RepoPicker';
 import { evaluateDraft } from './schedule-draft';
 import { ScheduleFields, ScheduleOut } from './ScheduleFields';
@@ -36,6 +40,8 @@ const FORM_ID = 'loop-form';
 const PROMPT_MAX = 20_000;
 
 type SaveFn = (body: ReturnType<typeof toBody>, version: number | null) => Promise<LoopDto>;
+/** The probe `PUT` (a body) or `DELETE` (`null`). */
+type SaveProbeFn = (body: ProbeInputBody | null) => Promise<void>;
 
 /** `/loops/new`. */
 export function NewLoopEditor() {
@@ -60,9 +66,11 @@ export function EditLoopEditor({ id }: { id: string }) {
   const navigate = useNavigate();
   const location = useLocation();
   const loop = useLoop(id);
+  const probe = useProbe(id);
+  const saveProbe = useSaveProbe(id);
   const update = useUpdateLoop(id);
   const duplicated = (location.state as Record<string, unknown> | null)?.[DUPLICATED_STATE] === true;
-  if (loop.isPending) return <EditorSkeleton />;
+  if (loop.isPending || probe.isPending) return <EditorSkeleton />;
   if (loop.isError || !loop.data) return <PageNotFound title={errorTitle(t, loop.error, 'error.LOOP_NOT_FOUND')} testId="form-load-error" />;
   const data = loop.data;
   return (
@@ -70,8 +78,10 @@ export function EditLoopEditor({ id }: { id: string }) {
       key={id}
       base={data}
       latest={data}
+      probe={probe.data ?? null}
+      onSaveProbe={(body) => saveProbe.mutateAsync(body)}
       duplicated={duplicated}
-      saving={update.isPending}
+      saving={update.isPending || saveProbe.isPending}
       onSave={(body, version) => update.mutateAsync({ ...body, version: version ?? data.version })}
       onSaved={(saved) => navigate(`/loops/${saved.id}`)}
       onCancel={() => navigate(`/loops/${id}`)}
@@ -137,6 +147,8 @@ function Section({ title, after, children }: { title: string; after?: ReactNode;
 function Editor({
   base,
   latest = null,
+  probe,
+  onSaveProbe,
   duplicated,
   saving,
   onSave,
@@ -148,6 +160,9 @@ function Editor({
   base: LoopDto | null;
   /** The newest version from the server: only to say "running", it never overwrites what is being typed. */
   latest?: LoopDto | null;
+  /** The probe of the loop (`null` = none yet). `undefined` = a new loop: it has no Probe group until it exists. */
+  probe?: ProbeDto | null;
+  onSaveProbe?: SaveProbeFn;
   duplicated?: boolean;
   saving: boolean;
   onSave: SaveFn;
@@ -164,6 +179,8 @@ function Editor({
   const [opened, setOpened] = useState<LoopDto | null>(base);
   const [values, setValues] = useState<FormValues>(() => (base ? valuesFromLoop(base) : emptyValues()));
   const [errors, setErrors] = useState<FormErrors>({});
+  const [probeValues, setProbeValues] = useState<ProbeFormValues>(() => probeValuesFrom(probe ?? null));
+  const [probeErrors, setProbeErrors] = useState<ProbeErrors>({});
   const [takenName, setTakenName] = useState<string | null>(null);
   const [conflict, setConflict] = useState<LoopDto | null>(null);
   const repos = useRepos();
@@ -187,13 +204,20 @@ function Editor({
 
   const shown: FormErrors = { ...errors };
   if (takenName !== null && sameName(values.name, takenName)) shown.name = 'error.LOOP_NAME_TAKEN';
-  const errorCount = Object.keys(shown).length;
+  const errorCount = Object.keys(shown).length + Object.keys(probeErrors).length;
   const err = (f: FormField) => (shown[f] ? t(shown[f]) : undefined);
 
   const set = <K extends keyof FormValues>(key: K, value: FormValues[K], field: FormField = key as FormField) => {
     setValues((v) => ({ ...v, [key]: value }));
     if (errors[field]) setErrors(({ [field]: _gone, ...rest }) => rest);
   };
+
+  const setProbe = <K extends keyof ProbeFormValues>(key: K, value: ProbeFormValues[K], field?: ProbeField) => {
+    setProbeValues((v) => ({ ...v, [key]: value }));
+    if (field && probeErrors[field]) setProbeErrors(({ [field]: _gone, ...rest }) => rest);
+  };
+  // A probe change needs a stopped loop (the server refuses it otherwise), so the group of an active loop only shows its values.
+  const probeLocked = latest?.status === 'active';
 
   const errorText = (e: ApiError) => {
     const key = `error.${e.code}` as MessageKey;
@@ -205,6 +229,25 @@ function Editor({
       const saved = await onSave(toBody(values), version);
       setErrors({});
       setConflict(null);
+      // The loop is saved: then the probe, or its removal when the switch is off. A refusal keeps the page, and the new version.
+      const body = probeValues.enabled ? toProbeBody(probeValues, probe?.resources) : probe ? null : undefined;
+      if (probe !== undefined && onSaveProbe && !probeLocked && body !== undefined) {
+        try {
+          await onSaveProbe(body);
+          setProbeErrors({});
+        } catch (e) {
+          setOpened(saved);
+          if (!isApiError(e)) throw e;
+          if (e.code === 'VALIDATION_FAILED') {
+            const { errors: next, rest } = probeErrorsFromIssues(e.issues);
+            setProbeErrors(next);
+            if (rest.length > 0) toast.show(errorText(e), 'err');
+          } else {
+            toast.show(errorText(e), 'err');
+          }
+          return;
+        }
+      }
       onSaved(saved);
     } catch (e) {
       if (!isApiError(e)) throw e;
@@ -367,6 +410,11 @@ function Editor({
           <Section title={t('editor.agent')} after={values.executorKind === 'mock' ? <p className="note">{t('editor.mockHint')}</p> : null}>
             <AgentFields values={values} executors={executors} err={err} set={set} formId={FORM_ID} />
           </Section>
+          {probe !== undefined ? (
+            <Section title={t('goalLoop.editor.title')} after={probeLocked ? <p className="group-note" data-testid="probe-stop-first">{t('goalLoop.editor.stopFirst')}</p> : null}>
+              <ProbeFields values={probeValues} errors={probeErrors} disabled={probeLocked} set={setProbe} formId={FORM_ID} />
+            </Section>
+          ) : null}
         </form>
         {phone ? (
           <ActionBar>{submit}</ActionBar>

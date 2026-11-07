@@ -263,6 +263,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
       probes: probeService,
       gate: gateService,
       goalCards: goalCardService,
+      holds: holdService,
       notices,
       processEvents: processService,
       scoreboard: scoreboardService,
