@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.7.0](https://github.com/hieplam/castraferrum/compare/v0.6.0...v0.7.0) (2026-11-07)
+
+
+### Features
+
+* **gate:** gate pages and repository switch (K12) ([#379](https://github.com/hieplam/castraferrum/issues/379)) ([4d5ee09](https://github.com/hieplam/castraferrum/commit/4d5ee098e70c54278cec2d8751179bad23f3cfee))
+* **goal-cards:** an accepted card becomes epic, manifest PR and loop (W5) ([#390](https://github.com/hieplam/castraferrum/issues/390)) ([23c00ca](https://github.com/hieplam/castraferrum/commit/23c00ca1480cbff48b9604c489e78b171288e245))
+* **tools:** a worktree sweep removes the worktrees of finished tasks ([#406](https://github.com/hieplam/castraferrum/issues/406)) ([b0766a0](https://github.com/hieplam/castraferrum/commit/b0766a082528ab1ecb4db82ab1c2f91b5063f59f))
+* **web:** loop state, editor fields and holds of a loop with a probe (P15) ([#392](https://github.com/hieplam/castraferrum/issues/392)) ([b6ccdd9](https://github.com/hieplam/castraferrum/commit/b6ccdd94b274b418343adc625e02b2b66d1287c6))
+
+
+### Bug Fixes
+
+* **gate:** a fork pull request or a stranger's text never acts by itself ([#400](https://github.com/hieplam/castraferrum/issues/400)) ([139c17e](https://github.com/hieplam/castraferrum/commit/139c17e5e55f520d8283d57bd2a266af93ac3b64))
+* **gate:** background git and gh calls never open a login window ([#404](https://github.com/hieplam/castraferrum/issues/404)) ([dd0787c](https://github.com/hieplam/castraferrum/commit/dd0787c2c1875f7cb1e6b9dbe8ea1e3a6ec59be7))
+* **gate:** fetches of one repository folder run one after another ([#394](https://github.com/hieplam/castraferrum/issues/394)) ([2ab7fbe](https://github.com/hieplam/castraferrum/commit/2ab7fbec247a3b06198c7f075f080d01a47b8148))
+
 ## [0.6.0](https://github.com/hieplam/castraferrum/compare/v0.5.0...v0.6.0) (2026-11-02)
 
 
