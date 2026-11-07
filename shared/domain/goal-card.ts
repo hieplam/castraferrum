@@ -131,6 +131,28 @@ export function windowOn(charter: Charter): boolean {
   return charter.refusalWindow.enabled && charter.acceptedWithNoChange >= WINDOW_MIN_ACCEPTED;
 }
 
+/** Rule 7: `date` gives the UTC day, so one card needs one stable time. */
+export function manifestPathOfCard(issue: number, date: Date): string {
+  return `goals/${date.toISOString().slice(0, 10)}-card-${issue}.json`;
+}
+
+/** Rule 8: in a card, `oracle` is a command and `threshold` is a literal text of its output. A new goal opens at 0 passed. */
+export function manifestOfCard(card: GoalCard, { epic, at }: { epic: number; at: Date }): string {
+  const goals = card.rows.map((row) => ({ id: row.id, outcome: row.outcome, checks: [{ run: row.oracle, expect: [row.threshold] }] }));
+  return `${JSON.stringify({ setup: [], opened: { at: at.toISOString(), passed: 0, total: goals.length }, epic, goals }, null, 2)}\n`;
+}
+
+/** The loop prompt of `plan.md` section 6. */
+export function goalLoopPrompt(epic: number, githubRepo: string): string {
+  return `Run one tick of the epic loop on epic #${epic} of ${githubRepo}, using the epic-loop skill. If that skill is not available, change nothing and reply SKILL MISSING.`;
+}
+
+/** The first line names the manifest. A row stays on one line, so a text in a card cannot add a second `Goal manifest:` line. */
+export function epicBodyOfCard(card: GoalCard, { manifest, prompt }: { manifest: string; prompt: string }): string {
+  const rows = card.rows.map((row) => `- ${row.id}: ${row.outcome}`.replace(/\s+/g, ' '));
+  return [`Goal manifest: ${manifest}`, '', ...rows, '', prompt, ''].join('\n');
+}
+
 /** Postgres `jsonb` does not keep the order of keys, so two cards compare field by field. */
 export function sameCard(a: GoalCard, b: GoalCard): boolean {
   return JSON.stringify(toCard(a)) === JSON.stringify(toCard(b));

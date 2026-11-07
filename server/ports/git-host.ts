@@ -85,4 +85,6 @@ export interface GitHost {
   issueBody(repo: string, number: number): Promise<string>;
   /** Adds `child` to the sub-issues of `parent`. */
   addSubIssue(repo: string, parent: number, child: number): Promise<void>;
+  /** Opens a pull request of the branch `head`. Throws a `GitHostError` when the branch already has an open one. */
+  createPullRequest(repo: string, pr: { head: string; base: string; title: string; body: string }): Promise<{ number: number; url: string }>;
 }

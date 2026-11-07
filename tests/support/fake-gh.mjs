@@ -28,6 +28,7 @@
 //   api repos/fake/repo/commits/<sha>/check-runs
 //   api repos/fake/repo/issues/<n>                         prints { id, number }; `id` is not the number, as on GitHub
 //   api -X POST repos/fake/repo/issues/<n>/sub_issues -F sub_issue_id=<id>      adds the child number to `world.subIssues[n]`
+// A test makes one call fail: `world.failNext` lists `<group> <sub>` texts, for example `pr create`. The next such call exits 1 and leaves the list without that text.
 // `--json` takes comma-separated GitHub field names. Every call, a failed one too, is appended to `calls`.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -48,7 +49,7 @@ class Exit extends Error {
 function loadWorld() {
   if (!worldPath) throw new Exit(2, 'fake-gh: FAKE_GH_WORLD is not set');
   const w = JSON.parse(readFileSync(worldPath, 'utf8'));
-  for (const k of ['issues', 'prs', 'calls', 'labels']) w[k] ??= [];
+  for (const k of ['issues', 'prs', 'calls', 'labels', 'failNext']) w[k] ??= [];
   for (const k of ['statuses', 'checkRuns', 'subIssues']) w[k] ??= {};
   w.bare ??= null;
   return w;
@@ -308,6 +309,11 @@ let world = null;
 try {
   world = loadWorld();
   const [group, sub, ...rest] = args;
+  const failing = world.failNext.indexOf(`${group} ${sub}`);
+  if (failing !== -1) {
+    world.failNext.splice(failing, 1);
+    throw new Exit(1, `fake-gh: ${group} ${sub} failed, as the test asked`);
+  }
   const handled =
     group === 'issue' ? issueCmd(world, sub, rest) : group === 'pr' ? prCmd(world, sub, rest) : group === 'label' ? labelCmd(world, sub, rest) : group === 'api' ? apiCmd(world, args.slice(1)) : false;
   if (!handled) throw new Exit(64, `fake-gh: unsupported: ${args.join(' ')}`);

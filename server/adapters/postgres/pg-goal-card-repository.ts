@@ -1,6 +1,6 @@
 import type pg from 'pg';
 import type { GoalCard, GoalCardDoor, GoalCardState } from '../../../shared/domain/goal-card';
-import type { GoalCardRecord, GoalCardRepository, GoalCardUpdate, NewGoalCardRecord } from '../../ports/goal-card-repository';
+import type { GoalCardRecord, GoalCardRepository, GoalCardResults, GoalCardUpdate, NewGoalCardRecord } from '../../ports/goal-card-repository';
 
 function toCard(r: Record<string, unknown>): GoalCardRecord {
   return {
@@ -56,6 +56,16 @@ export class PgGoalCardRepository implements GoalCardRepository {
        WHERE id = $1 AND state = $2
        RETURNING *`,
       [id, from, c.state, c.title, c.door, JSON.stringify(c.card), c.startAfter, c.changed, c.decidedAt],
+    );
+    return rows[0] ? toCard(rows[0]) : null;
+  }
+
+  async saveResults(id: string, r: GoalCardResults): Promise<GoalCardRecord | null> {
+    const { rows } = await this.#pool.query(
+      `UPDATE goal_cards SET epic_number = COALESCE($2, epic_number), pr_number = COALESCE($3, pr_number), loop_id = COALESCE($4, loop_id)
+       WHERE id = $1
+       RETURNING *`,
+      [id, r.epicNumber ?? null, r.prNumber ?? null, r.loopId ?? null],
     );
     return rows[0] ? toCard(rows[0]) : null;
   }

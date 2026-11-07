@@ -1,6 +1,6 @@
-import { rmSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { devNull } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { shellArgv } from '../../../shared/domain/gate-commands';
 import { matchesGlob, type ChangedFile } from '../../../shared/domain/scope-guard';
 import type { CommandResult, CommandRunner } from '../../ports/command-runner';
@@ -13,6 +13,7 @@ const MAX_OUTPUT_BYTES = 64 * 1024 * 1024;
 const PATHS_PER_CALL = 50;
 const MAIN_REF = 'refs/remotes/origin/main';
 const HEAD_REF = 'refs/gate/head';
+const PROTECTED_BRANCHES = new Set(['main', 'master']);
 
 function textOf(result: CommandResult): string {
   const reason = result.timedOut ? 'git timed out' : result.error;
@@ -182,6 +183,30 @@ export class GitGateWorkspace implements GateWorkspace {
       timeoutMs: command.timeoutMs,
       windowsVerbatimArguments: true,
       ...(command.signal ? { signal: command.signal } : {}),
+    });
+  }
+
+  async publishFile(repoPath: string, file: { branch: string; path: string; text: string; message: string }): Promise<void> {
+    if (PROTECTED_BRANCHES.has(file.branch)) throw new GateWorkspaceError(`publishFile refuses the branch ${file.branch}`, null, '');
+    // The whole call is one item of the queue, so it fetches itself: a call of `fetchMain` here waits for this item and never ends.
+    await this.#serial(repoPath, async () => {
+      await this.must(repoPath, ['fetch', '--no-tags', 'origin', `+refs/heads/main:${MAIN_REF}`]);
+      const mainSha = (await this.must(repoPath, ['rev-parse', MAIN_REF])).trim();
+      const id = `publish-${file.branch.replace(/[^\w.-]/g, '-')}`;
+      const dir = join(this.root, id);
+      await this.remove(repoPath, id);
+      try {
+        await this.must(repoPath, ['worktree', 'add', '--detach', dir, mainSha]);
+        const target = join(dir, file.path);
+        mkdirSync(dirname(target), { recursive: true });
+        writeFileSync(target, file.text);
+        await this.must(dir, ['add', '--', file.path]);
+        await this.must(dir, ['commit', '-q', '-m', file.message]);
+        // A retry starts from a newer `main`, so the commit of the first try is not an ancestor. `--force` replaces only this branch.
+        await this.must(dir, ['push', '--force', 'origin', `HEAD:refs/heads/${file.branch}`]);
+      } finally {
+        await this.remove(repoPath, id);
+      }
     });
   }
 

@@ -1594,6 +1594,20 @@ export function repositoryContract(env: () => ContractEnv): void {
       expect(await r.goalCards.update(input.id, 'proposed', edited)).toEqual({ ...row, ...edited });
       expect(await r.goalCards.update(input.id, 'proposed', refused(row))).toBeNull();
     });
+
+    it('saveResults stores one result at a time, keeps the others, and a decision does not change them', async () => {
+      const input = newCard(1, 1);
+      await r.goalCards.insert(input);
+      const loop = await r.loops.insert(newLoop({ name: 'goal-card-loop', repoId }));
+
+      await r.goalCards.saveResults(input.id, { epicNumber: 7 });
+      await r.goalCards.saveResults(input.id, { prNumber: 8 });
+      const row = (await r.goalCards.saveResults(input.id, { loopId: loop.id }))!;
+
+      expect(row).toMatchObject({ epicNumber: 7, prNumber: 8, loopId: loop.id });
+      expect(await r.goalCards.update(input.id, 'proposed', refused(row))).toMatchObject({ state: 'refused', epicNumber: 7, prNumber: 8, loopId: loop.id });
+      expect(await r.goalCards.saveResults(randomUUID(), { epicNumber: 9 })).toBeNull();
+    });
   });
 
   describe('notices', () => {

@@ -82,6 +82,8 @@ export interface FakeWorld {
   /** The numbers of the sub-issues of each parent. */
   subIssues: Record<string, number[]>;
   calls: { args: string[]; exit: number }[];
+  /** `<group> <sub>` texts, for example `pr create`. The next such call exits 1, and its text leaves the list. */
+  failNext?: string[];
 }
 export interface FakeGh {
   /** The wrapper: `gh.cmd` on win32, a `gh` shell script elsewhere. */

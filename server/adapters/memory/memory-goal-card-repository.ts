@@ -1,5 +1,5 @@
 import type { GoalCardState } from '../../../shared/domain/goal-card';
-import type { GoalCardRecord, GoalCardRepository, GoalCardUpdate, NewGoalCardRecord } from '../../ports/goal-card-repository';
+import type { GoalCardRecord, GoalCardRepository, GoalCardResults, GoalCardUpdate, NewGoalCardRecord } from '../../ports/goal-card-repository';
 import { clone, cmp, ConstraintViolation, type MemoryDb } from './memory-db';
 
 export class MemoryGoalCardRepository implements GoalCardRepository {
@@ -35,6 +35,14 @@ export class MemoryGoalCardRepository implements GoalCardRepository {
     const row = this.#db.goalCards.get(id);
     if (!row || row.state !== from) return null;
     const next = { ...row, ...change };
+    this.#db.writeGoalCard(next);
+    return clone(next);
+  }
+
+  async saveResults(id: string, results: GoalCardResults): Promise<GoalCardRecord | null> {
+    const row = this.#db.goalCards.get(id);
+    if (!row) return null;
+    const next = { ...row, ...results };
     this.#db.writeGoalCard(next);
     return clone(next);
   }
