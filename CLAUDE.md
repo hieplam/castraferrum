@@ -84,7 +84,12 @@ stranger.
   The owner reviews after the fact unless they ask to review a specific PR first. This covers only your own branches:
   a pull request from a fork needs a person, as the section above says.
 - Use a separate git worktree per task (`git worktree add ../castraferrum-<topic> -b <branch>`),
-  and remove the worktree and the branch once the PR is merged.
+  and remove the worktree and the branch once the PR is merged. `scripts/worktree-sweep.mjs` does it when you forget:
+  `.githooks/post-merge` runs it after each `git pull`, and the `SessionStart` hook of `.claude/settings.json` runs it
+  when a session starts. It removes a worktree only when its PR is merged or closed, `git status` is clean and HEAD is
+  the PR head, and it drops the lane databases `loops_<topic>_test`. It only reports a copy or a folder that is not a
+  worktree. `tests/tools/worktree-sweep.test.ts` proves what it keeps. Never copy a worktree folder for a Red run:
+  use `git stash` or a second worktree, so that the sweep can see it.
 
 ## Definition of done
 
