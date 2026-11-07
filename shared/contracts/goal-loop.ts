@@ -8,7 +8,7 @@ const argv = z.array(z.string());
 
 const probeResourceDto = z.object({ name: z.string(), check: argv, everySec: z.number().int() });
 
-/** Body of `PUT /loops/:id/probe`. An omitted field takes its default: empty list, empty map, no base port, restart policy `stop`. */
+/** Body of `PUT /loops/:id/probe`. An omitted field takes its default: empty list, empty map, no base port, restart policy `stop`, rank 100, no token budget. */
 export const probeInputBody = z.object({
   command: argv,
   claim: argv.optional(),
@@ -17,6 +17,8 @@ export const probeInputBody = z.object({
   laneEnv: z.record(z.string(), z.string()).optional(),
   laneBasePort: z.number().int().nullable().optional(),
   restartPolicy: z.enum(RESTART_POLICIES).optional(),
+  rank: z.number().int().optional(),
+  tokenBudget: z.number().int().nullable().optional(),
 });
 export type ProbeInputBody = z.input<typeof probeInputBody>;
 
@@ -29,6 +31,8 @@ export const probeDto = z.object({
   laneEnv: z.record(z.string(), z.string()),
   laneBasePort: z.number().int().nullable(),
   restartPolicy: z.enum(RESTART_POLICIES),
+  rank: z.number().int(),
+  tokenBudget: z.number().int().nullable(),
   state: z.enum(PROBE_STATES),
   lastLine: z.string().nullable(),
   lastProbeAt: isoDate.nullable(),

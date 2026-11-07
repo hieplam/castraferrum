@@ -39,6 +39,9 @@ export const PROBE_EVERY_SEC = 60;
 export const RESTART_POLICIES = ['stop', 'resume'] as const;
 export type RestartPolicy = (typeof RESTART_POLICIES)[number];
 
+/** The rank of a loop that sets none. Loops at one rank never read the plan window (rule 6). */
+export const DEFAULT_RANK = 100;
+
 /** The resource name that the console reserves for the plan window (spec 2.5). A loop setting cannot use it. */
 export const RESERVED_RESOURCE = 'plan-window';
 
@@ -58,6 +61,10 @@ export interface ProbeSettings {
   laneEnv: Record<string, string>;
   laneBasePort: number | null;
   restartPolicy: RestartPolicy;
+  /** Spec 2.14: a smaller number is a higher rank. */
+  rank: number;
+  /** The tokens that the runs of the loop can use. `null` has no limit. */
+  tokenBudget: number | null;
 }
 
 /** A stored probe: the settings plus what the last probe call left. */

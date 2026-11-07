@@ -7,6 +7,7 @@ import { SystemClock } from './adapters/clock/system-clock';
 import { InProcessEventBus } from './adapters/events/in-process-event-bus';
 import { CommandClaimGateway } from './adapters/claims/command-claim-gateway';
 import { ClaudeAgentExecutor } from './adapters/executors/claude/claude-agent-executor';
+import { ClaudePlanWindow } from './adapters/executors/claude/claude-plan-window';
 import { testModeQuery } from './adapters/executors/claude/test-mode-query';
 import { MockExecutor } from './adapters/executors/mock/mock-executor';
 import { StaticExecutorRegistry } from './adapters/executors/static-executor-registry';
@@ -166,7 +167,9 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
       await delay(ms, undefined, { signal });
     },
   });
-  const probeService = new DefaultProbeService({ ...repos, commands, claimGateway, gateQueue: gateService, runService, loopService, clock, ids, notifier });
+  // Test mode refuses the call of the plan window (no real Claude), so a test sees the unknown window of a failed read.
+  const planWindow = new ClaudePlanWindow({ clock, ...(opts.testMode ? { query: testModeQuery() } : {}) });
+  const probeService = new DefaultProbeService({ ...repos, commands, claimGateway, gateQueue: gateService, runService, loopService, clock, ids, notifier, planWindow });
   const goalCardStarter = new DefaultGoalCardStarter({ cards: repos.goalCards, repos: repos.repos, gate: repos.gate, gateQueue: gateService, host: gitHost, workspace: gateWorkspace, loops: loopService, probes: probeService, epicScript: opts.epicScript ?? defaultEpicScript() });
   const goalCardService = new DefaultGoalCardService({ cards: repos.goalCards, repos: repos.repos, gate: repos.gate, host: gitHost, workspace: gateWorkspace, notifier, starter: goalCardStarter, clock, ids });
   const holdService = new DefaultHoldService({ ...repos, commands, runService, clock });

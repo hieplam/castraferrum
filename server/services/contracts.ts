@@ -86,6 +86,8 @@ export type ValidationIssue = {
     | 'resources'
     | 'laneEnv'
     | 'laneBasePort'
+    | 'rank'
+    | 'tokenBudget'
     | 'executor.kind'
     | `executor.config${string}`;
   code:
@@ -406,6 +408,8 @@ export type ProbeInput = {
   laneEnv?: Record<string, string>;
   laneBasePort?: number | null;
   restartPolicy?: RestartPolicy;
+  rank?: number;
+  tokenBudget?: number | null;
 };
 
 /** The stored probe of a loop. */
