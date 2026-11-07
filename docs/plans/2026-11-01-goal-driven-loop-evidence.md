@@ -1034,6 +1034,60 @@ Light verify (no existing server or web file changes; `grep -rn "fake-probe-seq\
 
 <!-- P15 -->
 
+## P15
+
+**Red**, with the tests in place and the code of `origin/main` put back for `web/`, `shared/` and `server/`, after `npm run build`:
+
+    $ npx playwright test --project=visual tests/visual/ds/probe.visual.ts
+      10 failed
+    $ npx playwright test tests/e2e/probe-state.spec.ts --project chromium
+      7 failed
+    $ npx playwright test tests/e2e/probe-editor.spec.ts --project chromium
+      3 failed
+    $ npx vitest run --project api tests/api/holds-api.test.ts
+          Tests  3 failed (3)
+    $ npx vitest run --project unit web/features/loop-form/probe-form.test.ts
+     Test Files  1 failed (1)
+    $ npx vitest run --project unit shared/domain/goal-loop.test.ts
+          Tests  5 failed | 29 passed (34)
+
+**Green**, on the real build, each command alone:
+
+    $ npx playwright test --project=visual tests/visual/ds/probe.visual.ts       10 passed
+    $ node -e "const r=require('./reports/compare/ds/results/probe.json');console.log(r.length,Math.max(...r.flatMap(s=>s.regions.map(x=>x.ratio)))<=0.001)"
+    20 true                                      (worst ratio 0.000024)
+    $ npx playwright test tests/e2e/probe-state.spec.ts --project chromium       7 passed
+    $ npx playwright test tests/e2e/probe-editor.spec.ts --project chromium      3 passed
+    $ npx vitest run --project unit shared/domain/goal-loop.test.ts              Tests  34 passed (34)
+    $ npx vitest run --project unit web/features/loop-form/probe-form.test.ts    Tests  6 passed (6)
+    $ npx vitest run --project api tests/api/holds-api.test.ts                   Tests  3 passed (3)
+    $ npm run test:contract                                                      Tests  254 passed (254), exit 0
+    $ npm run ratchets                                                           ratchets: ok
+    $ npm run design:states -- --design design/ds                                states with shots: 142/142
+
+`npm run design:compare` on the whole suite: `pairs 272`, `worstRatio 0.0002`. Its one failure was `layout.visual.ts`, which lists the captions of the editor and now also expects "Probe"; that file then gave `9 passed`.
+
+**Stub check**, each one run for real and restored:
+
+    ProbeNow and its list off (the page ignores the probe):  probe.visual 8 failed | 2 passed; probe-state 5 failed | 2 passed
+    GET /api/holds answers {holds:[]}:                       holds-api Tests  1 failed | 2 passed; the 4 held pairs fail (probe-held, run-held, and their phone twins)
+    the read call of the notices skipped:                    probe-state test 7 fails
+    blockers ignored:                                        goal-loop.test.ts Tests  1 failed | 47 passed; probe-blocked pairs 2 failed; probe-state test 2 fails
+    the fallback draws a link:                               probe-state test 3 fails
+
+The two `run-held` pairs do not use the probe card, so a stub of `ProbeNow` leaves them green; the `holds` stub fails them.
+
+**Ratchet**, same tools before and after: pairs in `results/probe.json` 0 to 20; `e2e expects` 885 to 987; api tests +3 (`holds-api`); contract +1 per side (`statsByExecution` with a held run); `uc-coverage --min` 35 to 36 (UC-38).
+
+**Decisions**:
+- The editor sends back the `resources` that the probe already has, because it has no field for them (the setting stays API only).
+- `probe_failed` and `budget_limited` have no approved shot, so their now card uses the existing card with new words (`goalLoop.now.probeFailed*`, `goalLoop.now.budgetLimited*`).
+- The held count is a new field `held` in the statistics of a period, and the average run time leaves held runs out; the approved figures "6 runs" and "average of 5" need both.
+- Run 23 of the seed lasts 4518 s so that the five finished runs average 40:18; 16 skipped turns fill period 3 so that the page says "All 27 runs".
+- The Probe group of the editor is new on the screen of an existing loop, so the preview and the 8 edit shots were re-shot (see `design/APPROVED.md`).
+
+**Full verify**: not yet complete on this tree. The run before the last rebase stopped at `test:api` in `gate-scope.test.ts` (a temp folder removed by Windows, then `cannot lock ref`; issues 387 and 391, not this change). `test:unit` `Tests 1271 passed | 3 skipped (1274)` and `test:contract` `Tests 260 passed (260)` passed in that run. One full verify is queued after issue 391 merges.
+
 <!-- P16 -->
 
 ## P16

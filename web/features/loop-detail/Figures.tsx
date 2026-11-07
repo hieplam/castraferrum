@@ -28,7 +28,11 @@ export function Stats({ testId, children }: { testId: string; children: ReactNod
   );
 }
 
-export function Figures({ loop, live, now }: { loop: LoopDetailDto; live: boolean; now: Date }) {
+/**
+ * `goals` = the goals of the last probe line (`null` = the line has none, and the figure is hidden). A loop with a probe has no
+ * next run, so the figure of the goals takes the place of the next run.
+ */
+export function Figures({ loop, live, now, goals = null }: { loop: LoopDetailDto; live: boolean; now: Date; goals?: { passed: number; total: number } | null }) {
   const t = useT();
   const e = loop.currentExecution;
   const tz = loop.timezone;
@@ -45,7 +49,7 @@ export function Figures({ loop, live, now }: { loop: LoopDetailDto; live: boolea
   }
   const up = fmtSpan(t, secBetween(e.startedAt, e.endedAt ?? now));
   const next = live && loop.nextRunAt ? loop.nextRunAt : null;
-  const finished = e.stats.runs - e.stats.running;
+  const finished = e.stats.runs - e.stats.running - e.stats.held;
   return (
     <Stats testId="loop-figures">
       {live ? (
@@ -59,7 +63,9 @@ export function Figures({ loop, live, now }: { loop: LoopDetailDto; live: boolea
         />
       )}
       <Stat testId="fig-runs" label={t(live ? 'stat.runsSinceStart' : 'stat.runsInIt')} value={e.stats.runs} sub={countWords(t, e.stats)} />
-      {next ? (
+      {goals ? (
+        <Stat testId="fig-goals" label={t('goalLoop.goals.figure')} value={`${goals.passed}/${goals.total}`} sub={t('goalLoop.goals.figureSub')} />
+      ) : next ? (
         <Stat testId="fig-next" label={t('stat.nextRun')} value={fmtStampHm(next, tz, now)} sub={t('stat.in', { d: fmtWaitMinutes(t, secBetween(now, next)) })} />
       ) : (
         <Stat testId="fig-next" label={t('stat.nextRun')} value="-" sub={live ? undefined : t('stat.stoppedNote')} />

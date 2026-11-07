@@ -228,9 +228,10 @@ export class PgRunRepository implements RunRepository {
               count(r.id) FILTER (WHERE r.status = 'interrupted')::int                            AS interrupted,
               count(r.id) FILTER (WHERE r.status = 'cancelled')::int                              AS cancelled,
               count(r.id) FILTER (WHERE r.status = 'skipped')::int                                AS skipped,
+              count(r.id) FILTER (WHERE r.status = 'held')::int                                   AS held,
               count(r.session_id)::int                                                            AS sessions,
               round(extract(epoch FROM (coalesce(e.ended_at, $2::timestamptz) - e.started_at)) * 1000)::bigint::float8 AS elapsed_ms,
-              round(avg(r.duration_ms) FILTER (WHERE r.status NOT IN ('skipped','running')))::float8 AS avg_duration_ms
+              round(avg(r.duration_ms) FILTER (WHERE r.status NOT IN ('skipped','running','held')))::float8 AS avg_duration_ms
          FROM loop_executions e LEFT JOIN runs r ON r.execution_id = e.id
         WHERE e.id = ANY($1::uuid[])
         GROUP BY e.id`,
@@ -245,6 +246,7 @@ export class PgRunRepository implements RunRepository {
         interrupted: r.interrupted ?? 0,
         cancelled: r.cancelled ?? 0,
         skipped: r.skipped ?? 0,
+        held: r.held ?? 0,
         sessions: r.sessions ?? 0,
         elapsedMs: r.elapsed_ms ?? 0,
         avgDurationMs: r.avg_duration_ms ?? null,

@@ -5,7 +5,7 @@ import type { GateRepository } from '../ports/gate-repository';
 import type { HoldRecord } from '../ports/hold-repository';
 import type { Repositories } from '../ports/repositories';
 import type { RunRecord } from '../ports/run-repository';
-import type { HoldService, HoldTickReport, RunService } from './contracts';
+import type { HoldService, HoldTickReport, OpenHoldView, RunService } from './contracts';
 
 export type HoldServiceDeps = Pick<Repositories, 'holds' | 'loops' | 'probes' | 'repos' | 'runs'> & {
   commands: CommandRunner;
@@ -31,6 +31,22 @@ export class DefaultHoldService implements HoldService {
 
   constructor(deps: HoldServiceDeps) {
     this.#d = deps;
+  }
+
+  async listOpen(): Promise<OpenHoldView[]> {
+    const views: OpenHoldView[] = [];
+    for (const h of await this.#d.holds.listOpen()) {
+      const run = h.openedByRunId ? await this.#d.runs.findById(h.openedByRunId) : null;
+      views.push({
+        id: h.id,
+        resource: h.resource,
+        reason: h.reason,
+        openedAt: h.openedAt,
+        until: h.until,
+        openedByRun: h.openedByRunId ? { id: h.openedByRunId, iteration: run?.iteration ?? null } : null,
+      });
+    }
+    return views;
   }
 
   async tick(): Promise<HoldTickReport> {

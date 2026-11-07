@@ -17,6 +17,9 @@ import type {
   SchedulePreviewDto,
 } from '../../shared/contracts/loops';
 import type { FolderDto, FolderPlacesDto } from '../../shared/contracts/folders';
+import type { ProbeDto, ProbeInputBody } from '../../shared/contracts/goal-loop';
+import type { HoldDto } from '../../shared/contracts/holds';
+import type { NoticeDto } from '../../shared/contracts/notices';
 import type { RepoDto, RepoInputBody, RepoListItemDto } from '../../shared/contracts/repos';
 import type { GateJobDetailDto, GateViewDto } from '../../shared/contracts/gate';
 import type { ScoreboardDto } from '../../shared/contracts/scoreboard';
@@ -75,6 +78,18 @@ export interface LoopsApi {
   ratifyGateJob(id: string): Promise<void>;
   /** `POST /gate/jobs` - queues the PR again. `GATE_OFF` when the gate of the repo is off. */
   queueGateJob(repoId: string, prNumber: number): Promise<void>;
+  /** `GET /loops/:id/probe`: a loop with no probe gives `null`. */
+  getProbe(loopId: string): Promise<ProbeDto | null>;
+  /** `PUT /loops/:id/probe`: the loop must be stopped. Errors: `VALIDATION_FAILED` (`issues` of the probe fields), `LOOP_IS_ACTIVE`. */
+  saveProbe(loopId: string, body: ProbeInputBody): Promise<ProbeDto>;
+  /** `DELETE /loops/:id/probe`: a loop with no probe is not an error. */
+  deleteProbe(loopId: string): Promise<void>;
+  /** `GET /holds`: the open holds, oldest first (spec 2.5). */
+  listHolds(): Promise<HoldDto[]>;
+  /** `GET /notices`: the unread notices, newest first (spec 2.6). */
+  listNotices(): Promise<NoticeDto[]>;
+  /** `POST /notices/:id/read`. */
+  markNoticeRead(id: string): Promise<void>;
   /** `/api/health` - also returns on 503 (`{ ok: false, db: 'down' }`); only throws when the server cannot be reached. */
   health(): Promise<HealthResponse>;
 }

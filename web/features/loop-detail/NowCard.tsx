@@ -2,6 +2,7 @@
 // output of the last run), and the link to that run. Its `data-state` is the loop's state on its page, `never` before the first
 // Start and `last-failed` while an active loop's last run failed. Every figure comes from the API; the page's clock only counts
 // the seconds of the run working.
+import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { LoopDetailDto, RunDto } from '../../../shared/contracts/loops';
 import { useRunLogs } from '../../data/history';
@@ -10,20 +11,29 @@ import { useT } from '../../prefs/prefs';
 import { Icon } from '../../ui/kit/Icon';
 import { useLayout } from '../../ui/kit/Layout';
 import { Log } from '../../ui/kit/Log';
+import { probeKindOf, probeNowText, type ProbeContext, type ProbeKind } from './ProbeNow';
 import { cursorTime, fmtMmss, fmtRunDuration, fmtStampHm, fmtWaitMinutes, fmtWhen, isRepoMissing, roundList, runEndedAt, secBetween, toLogViewLines } from './format';
 
 /** `14:00`: the hour and minute of an instant in the loop's time zone. */
 const hm = (at: Date, tz: string) => fmtTime(at, tz).slice(0, 5);
 
-/** The loop's state on its page: the kinds of the Loops page, plus `stopping` while Stop cancels the run. */
-export type PageKind = 'running' | 'active' | 'stopped' | 'server_down' | 'archived' | 'stopping';
+/** The loop's state on its page: the kinds of the Loops page, plus `stopping` while Stop cancels the run, plus the states of a probe. */
+export type PageKind = 'running' | 'active' | 'stopped' | 'server_down' | 'archived' | 'stopping' | ProbeKind;
 
-export function pageKindOf(loop: LoopDetailDto, stopping: boolean): PageKind {
+/**
+ * `probe` = the probe of the loop, if it has one. A run that works comes first. An active loop then shows the state of its probe,
+ * and a loop that the goal stopped shows `complete`. A loop with no probe, or a probe in state `active`, keeps today's page.
+ */
+export function pageKindOf(loop: LoopDetailDto, stopping: boolean, probe?: { state: ProbeKind | 'active' } | null): PageKind {
   if (loop.archivedAt) return 'archived';
   if (loop.activeRun) return stopping ? 'stopping' : 'running';
-  if (loop.status === 'active') return 'active';
+  const kind = probeKindOf(probe);
+  if (loop.status === 'active') return kind && kind !== 'complete' ? kind : 'active';
+  if (kind === 'complete' && loop.currentExecution?.endReason === 'goal_met') return 'complete';
   return loop.currentExecution?.endReason === 'server_down' ? 'server_down' : 'stopped';
 }
+
+const MARK_CLASS = { ok: 'dot d-ok', fail: 'dot d-fail', warn: 'dot d-warn' } as const;
 
 function LiveOutput({ run, tz, now, offline }: { run: RunDto; tz: string; now: Date; offline: boolean }) {
   const t = useT();
@@ -46,7 +56,7 @@ function LastOutput({ run, tz }: { run: RunDto; tz: string }) {
   return <Log testId="last-run-log" left={t('now.lastOutput', { n: run.iteration ?? '' })} lines={toLogViewLines(logs.lines, tz, run.status)} />;
 }
 
-export function NowCard({ loop, kind, now, offline }: { loop: LoopDetailDto; kind: PageKind; now: Date; offline: boolean }) {
+export function NowCard({ loop, kind, now, offline, probe }: { loop: LoopDetailDto; kind: PageKind; now: Date; offline: boolean; probe?: ProbeContext | null }) {
   const t = useT();
   const phone = useLayout() === 'phone';
   const tz = loop.timezone;
@@ -58,13 +68,21 @@ export function NowCard({ loop, kind, now, offline }: { loop: LoopDetailDto; kin
   const inT = next ? fmtWaitMinutes(t, secBetween(now, next)) : '';
 
   let state: string = kind;
-  let head: string;
-  let sub: string;
-  let mark: 'pulse' | 'ok' | 'fail' | null = null;
+  let head: ReactNode;
+  let sub: ReactNode;
+  let mark: 'pulse' | 'ok' | 'fail' | 'warn' | null = null;
   let output = null;
   let open: { to: string; label: string } | null = null;
   let repoGone = false;
-  if (!exec) {
+  const probeKind = probe ? probeKindOf(probe.probe) : null;
+  if (exec && probe && probeKind && kind === probeKind) {
+    // A probe state: its own words, no output of a run (spec 2.1, goal G28).
+    const p = probeNowText(t, probeKind, probe, exec, tz, now);
+    head = p.head;
+    sub = p.sub;
+    mark = p.mark;
+    open = p.open ?? (last ? { to: `/runs/${last.id}`, label: t('now.openLastRun') } : null);
+  } else if (!exec) {
     state = 'never';
     head = t('now.neverRun');
     sub = t('now.neverRunSub');
@@ -147,7 +165,7 @@ export function NowCard({ loop, kind, now, offline }: { loop: LoopDetailDto; kin
   return (
     <div className="card" data-testid="now-card" data-state={state}>
       <div className="now">
-        {mark === 'pulse' ? <span className="pulse" /> : mark ? <span className={mark === 'ok' ? 'dot d-ok' : 'dot d-fail'} /> : null}
+        {mark === 'pulse' ? <span className="pulse" /> : mark ? <span className={MARK_CLASS[mark]} /> : null}
         <div className="now-text">
           <b>{head}</b>
           {sub}
