@@ -1,0 +1,7 @@
+#!/bin/sh
+# After a merge or a pull: removes the worktree, the branch and the lane databases of each finished task
+# (scripts/worktree-sweep.mjs says which worktrees it removes and why). It never stops the pull.
+[ -n "$CI" ] && exit 0
+[ "$LOOPS_SWEEP_OFF" = "1" ] && exit 0
+node scripts/worktree-sweep.mjs --quiet || echo "worktree-sweep: run node scripts/worktree-sweep.mjs to see every worktree and its reason" >&2
+exit 0
