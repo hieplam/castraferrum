@@ -9,7 +9,7 @@ import { fmtRunDuration, fmtSpan, fmtStampHm, fmtWaitMinutes, fmtWhen, secBetwee
 import { countWords } from './period-text';
 
 /** One figure: its label, its value (the data font) and a line under it. */
-export function Stat({ testId, label, value, sub }: { testId?: string; label: string; value: string | number; sub?: string }) {
+export function Stat({ testId, label, value, sub }: { testId?: string; label: string; value: string | number; sub?: ReactNode }) {
   return (
     <div className="stat" data-testid={testId}>
       <div className="stat-label">{label}</div>
@@ -42,7 +42,11 @@ export function Figures({ loop, live, now, goals = null }: { loop: LoopDetailDto
       <Stats testId="loop-figures">
         <Stat testId="fig-active" label={t('stat.activeFor')} value="-" sub={never} />
         <Stat testId="fig-runs" label={t('stat.runsSinceStart')} value="-" sub={never} />
-        <Stat testId="fig-next" label={t('stat.nextRun')} value="-" sub={never} />
+        {goals ? (
+          <Stat testId="fig-goals" label={t('goalLoop.goals.figure')} value={`${goals.passed}/${goals.total}`} sub={t('goalLoop.goals.figureSub')} />
+        ) : (
+          <Stat testId="fig-next" label={t('stat.nextRun')} value="-" sub={never} />
+        )}
         <Stat testId="fig-typical" label={t('stat.typical')} value="-" sub={never} />
       </Stats>
     );
