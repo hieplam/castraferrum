@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { appendFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { appendFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { query as sdkQuery, type SDKMessage, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { QueryFn, QueryHandle } from './claude-agent-executor';
@@ -17,6 +18,8 @@ import type { QueryFn, QueryHandle } from './claude-agent-executor';
 // parallel) - e2e UC-32 uses it to keep many turns running at the same time. A prompt with `[limit]` → a rejected `rate_limit_event`, then an
 // assistant `error`, then the end of the stream (spec 2.5). The option `resume` keeps its session id. A prompt with `[run-end:<word>:<value>]` ends the
 // result with the run-end line of spec 2.3: `<value>` is the `resource` of `RESOURCE_DOWN`, and the `pr` of each other word.
+// A prompt with `[goal-card]` plays the goal writer: it reads `card.md` in `cwd` and opens the card as an issue through the script of
+// `LOOPS_GH_BIN` (`issue create --title <title> --label goal-card --body-file card.md`). Test mode only, no model, no network (W6).
 
 export const REAL_CLAUDE_DIR_PREFIX = 'lc-real-claude-';
 export const FAKE_CLAUDE_DIR_PREFIX = 'lc-fake-claude-';
@@ -53,6 +56,7 @@ function fakeSoak(params: Parameters<QueryFn>[0]): QueryHandle {
     const sessionId = params.options.resume ?? randomUUID();
     const seconds = soakSecondsOf(prompt);
     if (prompt.includes(ECHO_ENV)) echoLaneEnv(params.options);
+    const card = prompt.includes(GOAL_CARD_MARK) ? writeGoalCard(prompt, params.options.cwd ?? '.') : '';
     yield { type: 'system', subtype: 'init', session_id: sessionId, apiKeySource: 'none', cwd: params.options.cwd ?? '', tools: [], mcp_servers: [] } as unknown as SDKMessage;
     yield { type: 'assistant', session_id: sessionId, parent_tool_use_id: null, message: { content: [{ type: 'text', text: `soaking for ${seconds} seconds` }] } } as unknown as SDKMessage;
     if (prompt.includes('[limit]')) {
@@ -62,7 +66,7 @@ function fakeSoak(params: Parameters<QueryFn>[0]): QueryHandle {
     }
     await sleep(seconds * 1000, abort?.signal);
     if (abort?.signal.aborted) throw new Error('Claude Code process aborted by user');
-    yield { type: 'result', subtype: 'success', is_error: false, result: `soak finished after ${seconds} seconds${runEndLineOf(prompt)}`, total_cost_usd: 0.0001, session_id: sessionId } as unknown as SDKMessage;
+    yield { type: 'result', subtype: 'success', is_error: false, result: `soak finished after ${seconds} seconds${card}${runEndLineOf(prompt)}`, total_cost_usd: 0.0001, session_id: sessionId } as unknown as SDKMessage;
   })();
 }
 
@@ -73,6 +77,29 @@ function runEndLineOf(prompt: string): string {
   const [, result, value] = m;
   const down = result === 'RESOURCE_DOWN';
   return `\n${JSON.stringify({ epic: 1, issue: 1, result, pr: down ? null : value, resource: down ? value : null, progress: null, note: '' })}`;
+}
+
+/** Prompt `[goal-card]`: the run writes the card of `card.md` in its folder as a `goal-card` issue, like the goal writer does (W6 oracle). */
+export const GOAL_CARD_MARK = '[goal-card]';
+const GOAL_CARD_REPO = 'fake/repo';
+
+/** Opens the card and returns a line for the run summary. A failed `gh` call throws, so the run fails and the test sees why. */
+function writeGoalCard(prompt: string, cwd: string): string {
+  const bin = process.env.LOOPS_GH_BIN;
+  if (!bin) throw new Error('[goal-card] needs LOOPS_GH_BIN (the fake gh)');
+  const file = join(cwd, 'card.md');
+  const title = /"title"\s*:\s*"([^"]+)"/.exec(readFileSync(file, 'utf8'))?.[1] ?? 'Goal card';
+  const repo = /\bon (\S+\/[^\s,.]+)/.exec(prompt)?.[1] ?? GOAL_CARD_REPO;
+  const args = ['issue', 'create', '-R', repo, '--title', `Goal card: ${title}`, '--label', 'goal-card', '--body-file', file];
+  const shell = /\.(cmd|bat)$/i.test(bin);
+  const r = bin.endsWith('.mjs')
+    ? spawnSync(process.execPath, [bin, ...args], { cwd, encoding: 'utf8' })
+    : shell
+      ? spawnSync(`"${bin}" ${args.map((a) => `"${a}"`).join(' ')}`, { cwd, encoding: 'utf8', shell: true })
+      : spawnSync(bin, args, { cwd, encoding: 'utf8' });
+  if (r.status !== 0) throw new Error(`[goal-card] gh failed: ${String(r.stderr || r.error?.message || r.status).trim()}`);
+  return `
+card opened: ${r.stdout.trim()}`;
 }
 
 /** Prompt `[echo-env]`: the run writes the lane env that it got, one JSON line, to `<cwd>/lane-env.jsonl` (P6 oracle). */
