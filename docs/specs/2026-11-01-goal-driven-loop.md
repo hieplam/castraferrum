@@ -29,7 +29,7 @@ An oracle is a behaviour run, or a measurement if it starts with `M:`. Rows G23 
 | G18 | When a goal ends, the next goal card appears with no owner message | `goal-card.spec.ts`: close a fake goal, the next probe shows a card | No writer, no card | 10 days to 0, D7, idle-days |
 | G19 | A refused goal does not start | `goal-cards.test.ts`: window on, refuse, wind past: no start. Control starts. Window off (default): no yes, no start | A plain timer starts it | Target 0, refused-started |
 | G20 | A one-way goal never starts alone | same file: it waits past the window, and starts after one yes | It starts | Target 0, one-way-started |
-| G21 | A lower rank cannot take the window from a higher rank | `server/services/rank.test.ts`: fake window, two goals, rule 2.14 | Older loop first | Not measured, rank-stops |
+| G21 | Dropped (decision 54): the rank row is gone from the manifest | none | none | none |
 | G22 | Owner messages per merged PR fall | M: `owner-messages`: reproduces 0.84 and 1.77, exact on a fixture | No tool fails the fixture | 0.84, 1.77 to under 0.2, D7 |
 | G23 | One root cause gives one hold and one push | `holds.test.ts`: two runs report one resource: 1 hold, 1 notice, its tasks wait, others run, a passing check clears it | Each task fails alone | 12 runs to 1 hold, D7, blocked-runs |
 | G24 | Each lane has its own number, database and port | `lanes.test.ts`: 3 runs get 3 different env sets | Equal env fails | Not measured |
@@ -177,11 +177,9 @@ A goal card is an issue labelled `goal-card` with one JSON block: `{"v":1,"title
 
 Table `goal_cards`: `state` is `proposed`, `accepted`, `refused` or `started`. `start_after` is set only with the window on and a `two-way` door. An index allows one `proposed` card per repository.
 
-### 2.14 Rank and budget
+### 2.14 Rank and budget (dropped)
 
-`loop_probes` gains `rank` (integer, default 100, smaller is higher) and `token_budget`. `runs` gains `tokens`. `PlanWindow.read()` returns `{ utilization: number | null; resetsAt: Date | null }`.
-
-Rule: a loop starts a run when no higher-rank loop last printed `take` or `plan`. Otherwise it starts one only when `resetsAt` is under 45 min away and `utilization` is under 90. With `null` it does not start. At `token_budget` the state is `budget_limited`, and no run starts.
+Dropped on 2026-11-09. See decision 54. Nothing in this epic builds `rank`, `token_budget`, `runs.tokens` or `PlanWindow`.
 
 ### 2.15 Merge guard
 
@@ -226,10 +224,10 @@ Each repository port has a `postgres/` and a `memory/` adapter. Each service has
 - **Issue 212.** `shared/domain/run-end.ts`. Ports: `command-runner`, `claims`, `loop-probe-repository`, `hold-repository`, `notifier`. Services: `probe-service`, `hold-service`, `notice-service`. Adapters: `process/`, `claims/`, `notify/`. `scheduler/background-ticker`: each second, one `tick()` per service, a busy service is skipped.
 - **Issue 213.** `shared/domain/merge-guard.ts`, `scope-guard.ts`. Ports: `git-host`, `gate-workspace`, `gate-repository`. Service: `gate-service`. Adapters: `github/`, `git/`.
 - **Issues 214, 215.** `shared/domain/fingerprint.ts`. Port: `goal-repository`. Services: `goal-service`, `standing-goal-service`, `process-service`.
-- **Issue 216.** Ports: `goal-card-repository`, `plan-window`. Service: `goal-card-service`. Adapter: `executors/claude/claude-plan-window`.
+- **Issue 216.** Ports: `goal-card-repository`. Service: `goal-card-service`. Adapter: none (the plan window adapter was dropped, decision 54).
 - **`web/`.** `features/` and `pages/`: `goal-loop`, `gate`, `goals`, `scoreboard`, `goal-cards`.
 
-Migrations by name: `loop_probes` (P3), `notices` (P9), `run_claims` with `runs.task_key`, `slot`, `end_*`, trigger word `probe` (P5), `holds` with status `held`, `runs.resume_count` (P8), `goal_met` (P10), `gate` with `repo_gate`, `run_claims.owner`, `gate_job_id` (K2), `goal_runs` (T2), `standing_goals` with `standing_issues`, `standing_schedule` (T4), `goal_cards` (W1), `rank` (W4).
+Migrations by name: `loop_probes` (P3), `notices` (P9), `run_claims` with `runs.task_key`, `slot`, `end_*`, trigger word `probe` (P5), `holds` with status `held`, `runs.resume_count` (P8), `goal_met` (P10), `gate` with `repo_gate`, `run_claims.owner`, `gate_job_id` (K2), `goal_runs` (T2), `standing_goals` with `standing_issues`, `standing_schedule` (T4), `goal_cards` (W1).
 
 Shared files take small edits, and a conflict takes the union. `compose.ts`: one service line, one entry in the array `background`. `contracts.ts`, both `repositories.ts`, `memory/index.ts`, `http/app.ts`, `shared/i18n/*.ts`, `docs/API.md`, `docs/USE-CASES.md`: append. `postgres/db.ts`: add each table to `truncateAll`. Only P5-P8, K7, K8, R4 edit `run-service.ts` and `claude-agent-executor.ts`.
 
@@ -247,7 +245,7 @@ Each task is one PR. A star: it can start at once. Column ap: blank is cf. Needs
 | S1* | limit order, resume, cost | | G3 | | log | s |
 | S2* | hook under bypass | | G27 | | log | s |
 | S3* | stub run time, CSS case | | G7 | | log | s |
-| S4* | plan window with no model | | G21 | | log | s |
+| S4* | plan window with no model (dropped with W4, decision 54) | | none | | log | s |
 | S5* | grouping quality, fixture | | G14 | | tests/fixtures | o: model output |
 | S6* | cost of an eval pass | ap | G17 | | log | s |
 | D1* | Design gap issue, status rows, preview | | G11, G28 | | design | o: design |
@@ -298,10 +296,10 @@ Each task is one PR. A star: it can start at once. Column ap: blank is cf. Needs
 | W1 | Charter, card, GoalCardService | | G19, G20 | K11, T5 | services | o: door rules |
 | W2 | goal-writer-probe.mjs | | G18 | W1 | scripts | s |
 | W3 | Skill: goal writer, queue clean-up | ap | G18 | W1 | skill | o: prompt |
-| W4 | PlanWindow, rank, budget | | G21 | S4, W1 | services | o: shared window |
+| W4 | ~~PlanWindow, rank, budget~~ dropped, decision 54 | | none | | none | none |
 | W5 | Card becomes manifest and loop | | G18 | W1, T3 | services | o: real work |
 | W6 | End-to-end: next card appears | | G18 | W2, W3, W5 | tests/e2e | s |
-| W7 | Goal cards page, rank fields | | G19, G20 | D2, W4 | web | s |
+| W7 | Goal cards page | | G19, G20 | D2 | web | s |
 | Z1 | Verify: goal:check, E check --dry-run on each task | | all | all above | goals | s |
 | Z2 | Agent acceptance, all new screens | | all | Z1 | tests/e2e | o: images |
 
@@ -323,7 +321,7 @@ Tasks: foundation 13, issue 212: 16, 213: 12, 214: 6, 215: 9, 216: 7. Total 63.
 Pages open from a `.cell.is-link`. The tab bar stays.
 
 - Loop state, run `held`: `.pill` (gap), `.now`, `.cmd`.
-- Probe settings, rank, budget: `.field`, `.input`, `.switch`, `.hint`.
+- Probe settings: `.field`, `.input`, `.switch`, `.hint`.
 - Notices, holds: `.banner.is-warn`, `.group`, `.note`.
 - Goals figure, goal rows, standing goals: `.stat`, `.group`, `.pill`.
 - Gate queue, record, output: `.group`, `.pill` (gap), `.log`, `.btn.primary`, `.switch`.
@@ -387,6 +385,7 @@ Pages open from a `.cell.is-link`. The tab bar stays.
 51. T5: `goals/health.json` holds one command string per row, like decision 31. `parseHealthFile` fills `{repo}`, makes the argv with `shellArgv`, and refuses an audit row with no `--since`. Row H2 starts at `2026-11-01T00:00:00Z`. The date is the day the gate is switched on, and a ratified pull request sets it. Until then H2 lists each merge since that day as an incident, which is correct, because the gate did not exist. The rows file issues with the label `standing-goal` and attach them to no epic (`epic` is 0). `StandingGoalService.runHealth` runs the file when it is due. Nothing calls it in this epic.
 52. P15, P16: the owner approved the `probe-blocked` shot with the title of each blocker, the number of tasks it blocks and a link, so the shot stays. `epic.mjs` holds that data, and `probeLine` dropped it. So the probe line carries `blockers` (2.1), built from the open blockers of the open tasks and sorted by `blocks`, then by number. `issues` stays as it is. A probe that gives no `blockers` shows a plain cell with the issue number. The page shows the line without the key `blockers`, because the cells above show it.
 53. Amendment of issue 387, under the same standing rule as decision 20: `guarded` gains `tests/support/test-temp.ts`, because `vitest.config.ts` and `playwright.config.ts` now import it, and the closure rule of decision 20 covers each file that `verify` reaches.
+54. Issue 407: W4 (issue 347) is dropped as a whole, on 2026-11-09. Its plan window reads `usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET` of the Claude Agent SDK, a call that its makers mark as experimental. PR 393 is closed with no merge. So goal row G21, section 2.14 and the rank fields of W7 leave the scope, and `rank`, `token_budget`, `runs.tokens` and `PlanWindow` are not built. The state `budget_limited` stays in the domain (P15), but nothing sets it.
 
 **`docs/ARCHITECTURE.md`.** P4: services, ports, tables. P8: line 448 (no pause or resume) becomes "a hold pauses runs for a resource". P11: lines 447 and 231 (stop every loop on restart) become a per-loop `restartPolicy`, default `stop`.
 

@@ -7,7 +7,7 @@
   "opened": {
     "at": "2026-11-01T00:00:00Z",
     "passed": 0,
-    "total": 29
+    "total": 28
   },
   "goals": [
     {
@@ -279,19 +279,6 @@
           "run": "npx vitest run --project api tests/api/goal-cards.test.ts --reporter verbose",
           "expect": [
             "goal-cards",
-            "passed"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "G21",
-      "outcome": "A lower rank cannot take the window from a higher rank",
-      "checks": [
-        {
-          "run": "npx vitest run --project unit server/services/rank.test.ts --reporter verbose",
-          "expect": [
-            "rank",
             "passed"
           ]
         }
