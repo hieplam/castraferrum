@@ -1763,6 +1763,25 @@ export function repositoryContract(env: () => ContractEnv): void {
       expect(await r.goals.getSchedule('hieplam/tribe')).toEqual({ repo: 'hieplam/tribe', lastAt: at(5), nextAt: null });
       expect((await r.goals.getSchedule('hieplam/castraferrum'))?.lastAt).toEqual(at(3));
     });
+
+    it('listGoals gives each goal with all of its issues, closed ones too, by row id, for one repository', async () => {
+      await r.goals.saveGoal({ repo: 'o/r', rowId: 'H2', state: 'failing', lastLine: 'FAIL b', lastRunAt: at(5) });
+      await r.goals.saveGoal({ repo: 'o/r', rowId: 'H1', state: 'passing', lastLine: null, lastRunAt: at(4) });
+      await r.goals.saveGoal({ repo: 'p/r', rowId: 'H3', state: 'passing', lastLine: null, lastRunAt: at(4) });
+      const closed = newIssue({ openedAt: at(1) });
+      await r.goals.open(closed);
+      await r.goals.touch(closed.id, at(2));
+      await r.goals.close(closed.id, at(3));
+      const open = newIssue({ rowId: 'H2', fingerprint: 'dddddddddddd', issueNumber: 9, openedAt: at(5) });
+      await r.goals.open(open);
+      const list = await r.goals.listGoals('o/r');
+      expect(list.map((g) => [g.rowId, g.state, g.issues.map((i) => i.issueNumber)])).toEqual([
+        ['H1', 'passing', [7]],
+        ['H2', 'failing', [9]],
+      ]);
+      expect(list[0]!.issues[0]).toMatchObject({ lastFailedAt: at(2), closedAt: at(3) });
+      expect(await r.goals.listGoals('none/none')).toEqual([]);
+    });
   });
 
   describe('goal_runs', () => {
@@ -1793,6 +1812,20 @@ export function repositoryContract(env: () => ContractEnv): void {
       await r.goals.saveRows([]);
       expect((await r.goals.listRows('hieplam/tribe', 'goals/a.json')).map((x) => x.rowId)).toEqual(['G1', 'G2']);
       expect(await r.goals.listRows('hieplam/tribe', 'goals/none.json')).toEqual([]);
+    });
+
+    it('listManifests gives each manifest of one repository with the newest time and the sha of that row, newest first', async () => {
+      await r.goals.saveRows([
+        row({ manifest: 'goals/a.json', rowId: 'G1', at: at(1), sha: 'aaaaaaa' }),
+        row({ manifest: 'goals/a.json', rowId: 'G2', at: at(3), sha: 'bbbbbbb' }),
+        row({ manifest: 'goals/b.json', rowId: 'G1', at: at(2), sha: 'ccccccc' }),
+        row({ manifest: 'goals/c.json', rowId: 'G1', at: at(9), sha: 'ddddddd', repo: 'p/r' }),
+      ]);
+      expect(await r.goals.listManifests('o/r')).toEqual([
+        { manifest: 'goals/a.json', at: at(3), sha: 'bbbbbbb' },
+        { manifest: 'goals/b.json', at: at(2), sha: 'ccccccc' },
+      ]);
+      expect(await r.goals.listManifests('none/none')).toEqual([]);
     });
   });
 }
