@@ -21,14 +21,16 @@ function specOutcomes(): Map<string, string> {
 }
 
 describe('goal manifest of the goal-driven loop epic', () => {
-  it('ids are G1 to G29 once each', () => {
-    const want = Array.from({ length: 29 }, (_, i) => `G${i + 1}`);
+  it('ids are G1 to G29 once each, except the dropped G21', () => {
+    const want = Array.from({ length: 29 }, (_, i) => `G${i + 1}`).filter((id) => id !== 'G21');
     expect(manifest.goals.map((g) => g.id)).toEqual(want);
   });
 
   it('outcomes equal the spec table', () => {
     const table = specOutcomes();
-    expect(table.size).toBe(29);
+    // G21 stays in the spec table as a dropped row (decision 54) and has no manifest goal.
+    table.delete('G21');
+    expect(table.size).toBe(28);
     for (const g of manifest.goals) expect(g.outcome, g.id).toBe(table.get(g.id));
   });
 
@@ -44,8 +46,8 @@ describe('goal manifest of the goal-driven loop epic', () => {
     }
   });
 
-  it('opened total is 29', () => {
-    expect(manifest.opened).toEqual({ at: '2026-11-01T00:00:00Z', passed: 0, total: 29 });
+  it('opened total is 28', () => {
+    expect(manifest.opened).toEqual({ at: '2026-11-01T00:00:00Z', passed: 0, total: 28 });
     expect(manifest.opened.total).toBe(manifest.goals.length);
   });
 });

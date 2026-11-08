@@ -35,24 +35,24 @@ Rules for every section: `LOG` means `docs/plans/2026-11-01-goal-driven-loop-evi
 **Files:** create `goals/2026-11-01-goal-driven-loop.json`, `tests/tools/goal-driven-manifest.test.ts`; append `## F1` to the evidence log `docs/plans/2026-11-01-goal-driven-loop-evidence.md`.
 
 **Steps:**
-1. Format of `scripts/goal-check.mjs` (`setup: []`, `goals[]`), plus `"opened":{"at":"2026-11-01T00:00:00Z","passed":0,"total":29}` (spec 2.10). Goals G1 to G29, `outcome` = the Outcome cell of the spec table, word for word.
+1. Format of `scripts/goal-check.mjs` (`setup: []`, `goals[]`), plus `"opened":{"at":"2026-11-01T00:00:00Z","passed":0,"total":28}` (spec 2.10). Goals G1 to G29 except G21 (dropped, spec decision 54), `outcome` = the Outcome cell of the spec table, word for word.
 2. Vitest check: `npx vitest run --project api tests/api/<f>`, `expect: ["<f>","passed"]`. E2e: `npx playwright test tests/e2e/<f> --project chromium --reporter list`, `expect: ["passed"]` (G2 adds `gap_ms`).
    - api: G3 usage-hold, G4 claims, G6 gate-red, G7 gate-stub, G8 gate-handover, G9 gate-scope, G13 standing-goals, G14 process-review, G15 scoreboard, G19 and G20 goal-cards, G23 holds, G24 lanes, G25 plan-action, G27 merge-guard (all `.test.ts`).
    - e2e: G1 probe-idle, G2 probe-gap, G11 goal-number, G18 goal-card, G28 probe-state (all `.spec.ts`).
-   - G3 also: `npx vitest run --project contract tests/contract/executor-mock.test.ts --reporter verbose` expecting `usage_limit`. G5: `npm run api-smoke` expecting `restart: resume loop started a run with no http call`. G16: unit `tests/tools/rule-lint.test.ts`. G21: unit `server/services/rank.test.ts`.
+   - G3 also: `npx vitest run --project contract tests/contract/executor-mock.test.ts --reporter verbose` expecting `usage_limit`. G5: `npm run api-smoke` expecting `restart: resume loop started a run with no http call`. G16: unit `tests/tools/rule-lint.test.ts`.
    - G12, G22: `npx vitest run --project unit tests/tools/metrics-baseline.test.ts -t <metric> --reporter verbose`, expecting `late-tasks is the share` and `owner-messages divides`.
 3. ap goals G10, G17, G26, G29: `node --test --test-reporter=spec --test-name-pattern="^G<k> " ../agent-plugins/<file>`, expecting `✔ G<k> ` and `ℹ fail 0`. File: `plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs` (G10, G26, G29); `scripts/evals/eval-gate.test.mjs` (G17). A pattern with no match still prints `ℹ pass 1`, so `✔` is the proof.
-4. Test titles: `ids are G1 to G29 once each`, `outcomes equal the spec table`, `every goal has a check that can fail`, `opened total is 29`.
+4. Test titles: `ids are G1 to G29 once each, except the dropped G21`, `outcomes equal the spec table`, `every goal has a check that can fail`, `opened total is 28`.
 
-**Goal:** all goals. `node scripts/goal-check.mjs goals/2026-11-01-goal-driven-loop.json` shows 29 rows, red.
+**Goal:** all goals. `node scripts/goal-check.mjs goals/2026-11-01-goal-driven-loop.json` shows 28 rows, red.
 
 **Red:** the same command exits 1 with `ENOENT: no such file or directory`. The test written first prints `Test Files  1 failed (1)`.
 
-**Green:** `npx vitest run --project unit tests/tools/goal-driven-manifest.test.ts` prints `Tests  4 passed (4)`. The goal-check command exits 1 and ends with `goals passed: 0/29` (`2/29` if F0 is on `main`: G12 and G22 pass).
+**Green:** `npx vitest run --project unit tests/tools/goal-driven-manifest.test.ts` prints `Tests  4 passed (4)`. The goal-check command exits 1 and ends with `goals passed: 0/28` (`2/28` if F0 is on `main`: G12 and G22 pass).
 
-**Stub check:** an empty `checks` list fails test 3. Change G1 to `node -e 0` in a copy: it prints `G1 pass` and the line shows `1/29`.
+**Stub check:** an empty `checks` list fails test 3. Change G1 to `node -e 0` in a copy: it prints `G1 pass` and the line shows `1/28`.
 
-**Ratchet:** goals passing, 0/29 (`goal-check`). It only rises.
+**Ratchet:** goals passing, 0/28 (`goal-check`). It only rises.
 
 ## F2 - Fake GitHub, bare repository kit
 
@@ -145,7 +145,7 @@ Rules for every section: `LOG` means `docs/plans/2026-11-01-goal-driven-loop-evi
 2. One haiku run of one short prompt: print whether any message holds `utilization`.
 3. Sandbox as in the lane rules (haiku, low effort, `GH_TOKEN=invalid`, no write tools). Spend limit: 0.10 USD.
 
-**Goal:** G21. The rank rule can read the plan window.
+**Goal:** none. Dropped on 2026-11-09 with W4 (spec decision 54): the rank rule and its plan window are not built, and G21 is gone from the manifest. This spike stays as a record only.
 
 **Red:** not applicable, because there is no code. The Green command prints `0` now.
 
@@ -258,11 +258,11 @@ Wave 5. `E` is `epic.mjs` of the epic-loop skill. `LOG` is the evidence log. `GM
 
 **Red:** not applicable, because Z1 writes no code. Before Z1, `grep -c "^## Z1$" LOG` prints `0`.
 
-**Green:** with `ZONE` = `sed -n '/^## Z1$/,/^<!-- Z2 -->$/p' LOG`: `ZONE | grep -c "^    G[0-9]* pass"` prints `29`; `ZONE | grep -c "^    goals passed: 29/29$"` prints `1`; `ZONE | grep -c "goal-check: exit 0 after"` prints 32 or more (one per check; G3, G11, G25 have two); `ZONE | grep -c "^Z1 check "` equals `wc -l < z1-tasks.txt`; `ZONE | grep "^Z1 check " | grep -vc PASS` prints `0`; `ZONE | grep -c FAIL` prints `0`. `node scripts/lang-scan.mjs --check-baseline` exits 0 and `node scripts/lang-scan.mjs --history --coupling` prints `coupling: 0`. The coordinator runs `node scripts/goal-check.mjs GM` again before it merges.
+**Green:** with `ZONE` = `sed -n '/^## Z1$/,/^<!-- Z2 -->$/p' LOG`: `ZONE | grep -c "^    G[0-9]* pass"` prints `28`; `ZONE | grep -c "^    goals passed: 28/28$"` prints `1`; `ZONE | grep -c "goal-check: exit 0 after"` prints 31 or more (one per check; G3, G11, G25 have two); `ZONE | grep -c "^Z1 check "` equals `wc -l < z1-tasks.txt`; `ZONE | grep "^Z1 check " | grep -vc PASS` prints `0`; `ZONE | grep -c FAIL` prints `0`. `node scripts/lang-scan.mjs --check-baseline` exits 0 and `node scripts/lang-scan.mjs --history --coupling` prints `coupling: 0`. The coordinator runs `node scripts/goal-check.mjs GM` again before it merges.
 
-**Stub check:** with no section, or the 29 lines alone, `grep -c "^## Z1$"` and the `goal-check: exit` count fail. A section with a lowered row cannot hide: step 2 reads `GM` from `origin/main`, and the coordinator re-runs the tool.
+**Stub check:** with no section, or the 28 lines alone, `grep -c "^## Z1$"` and the `goal-check: exit` count fail. A section with a lowered row cannot hide: step 2 reads `GM` from `origin/main`, and the coordinator re-runs the tool.
 
-**Ratchet:** goals passing, `p/29` at the first run of step 5 to `29/29` (`goal-check`, last line). It only rises. Open fix issues under epic 217 at merge: only Z2.
+**Ratchet:** goals passing, `p/28` at the first run of step 5 to `28/28` (`goal-check`, last line). It only rises. Open fix issues under epic 217 at merge: only Z2.
 
 ## Z2 - Agent acceptance, all new screens
 
@@ -275,7 +275,7 @@ Wave 5. Z2 needs Z1, and through Z1 the five screen tasks P15, K12, T6, R9, W7 a
 - Goals page `/loops/:id/goals`: `goal-rows` (T6).
 - Scoreboard `/scoreboard`: `scoreboard` (R9).
 - Goal cards `/repos/:id/goal-cards`: `card-two-way`, `card-one-way` (W7).
-- Probe settings fields (command, rank, token budget) and the notices banner (P15, W7): no preview id. Judge them against `design/ds/SYSTEM.md` and `components.css`. A missing state is a `design-system` issue that blocks Z2.
+- Probe settings fields (command) and the notices banner (P15): no preview id. Judge them against `design/ds/SYSTEM.md` and `components.css`. A missing state is a `design-system` issue that blocks Z2.
 
 **Files:** new `tests/e2e/acceptance.goal-loop.spec.ts`, `tests/support/acceptance-goal-loop.ts`; append `## Z2` to `LOG`. Model: `tests/e2e/acceptance.journey.spec.ts` and `tests/support/acceptance-journey.ts` (task U27 of epic 63).
 
