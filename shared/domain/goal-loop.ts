@@ -58,6 +58,8 @@ export interface ProbeSettings {
   laneEnv: Record<string, string>;
   laneBasePort: number | null;
   restartPolicy: RestartPolicy;
+  /** The tokens that the runs of the loop can use. `null` has no limit. */
+  tokenBudget: number | null;
 }
 
 /** A stored probe: the settings plus what the last probe call left. */

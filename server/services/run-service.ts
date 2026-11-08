@@ -73,6 +73,7 @@ export class DefaultRunService implements RunService {
       finishedAt: d.clock.now(),
       error: reason === 'timed_out' ? message : null,
       costUsd: run.costUsd, // `finish` replaces the cost, so a run that was held must pass its stored cost (decision 28)
+      tokens: run.tokens,
     });
     return done ?? (await this.get(runId));
   }
@@ -203,14 +204,14 @@ export class DefaultRunService implements RunService {
       d.active.release(run.id);
       const error = `No such executor "${run.executorKind}"`;
       await this.#log(run, 'error', error);
-      return (await this.#finish(run, { status: 'failed', finishedAt: d.clock.now(), error, costUsd: run.costUsd })) ?? this.get(run.id);
+      return (await this.#finish(run, { status: 'failed', finishedAt: d.clock.now(), error, costUsd: run.costUsd, tokens: run.tokens })) ?? this.get(run.id);
     }
     const profile = parseToolProfile(env?.CASTRAFERRUM_TOOL_PROFILE); // from the env, so a resume keeps the profile of the run
     if (profile === null) {
       d.active.release(run.id);
       const error = `Unknown tool profile "${env?.CASTRAFERRUM_TOOL_PROFILE}"`;
       await this.#log(run, 'error', error);
-      return (await this.#finish(run, { status: 'failed', finishedAt: d.clock.now(), error, costUsd: run.costUsd })) ?? this.get(run.id);
+      return (await this.#finish(run, { status: 'failed', finishedAt: d.clock.now(), error, costUsd: run.costUsd, tokens: run.tokens })) ?? this.get(run.id);
     }
     const p = this.#drive(run, executor, controller, cwd, env, resumeSessionId, profile, gateGuard)
       .catch(() => {
@@ -254,10 +255,11 @@ export class DefaultRunService implements RunService {
           break; // `usage_limit` is the last event
         } else {
           const costUsd = ev.costUsd ?? run.costUsd; // a cost replaces the stored one, and a resumed run with no cost keeps it (decision 28)
+          const tokens = ev.tokens ?? run.tokens;
           outcome =
             ev.outcome === 'succeeded'
-              ? { status: 'succeeded', summary: ev.summary ?? null, costUsd, endResult: ev.end?.result ?? null, endPr: ev.end?.pr ?? null }
-              : { status: 'failed', summary: ev.summary ?? null, error: ev.error ?? 'Unknown error', costUsd };
+              ? { status: 'succeeded', summary: ev.summary ?? null, costUsd, tokens, endResult: ev.end?.result ?? null, endPr: ev.end?.pr ?? null }
+              : { status: 'failed', summary: ev.summary ?? null, error: ev.error ?? 'Unknown error', costUsd, tokens };
           if (ev.end?.result === 'RESOURCE_DOWN') resourceDown = ev.end.resource;
           break; // `result` is the last event
         }
@@ -271,7 +273,7 @@ export class DefaultRunService implements RunService {
     if (signal.aborted) return;
     if (thrown !== null) {
       await this.#log(run, 'error', thrown);
-      outcome = { status: 'failed', error: thrown, costUsd: run.costUsd };
+      outcome = { status: 'failed', error: thrown, costUsd: run.costUsd, tokens: run.tokens };
     }
     if (limit) outcome = await this.#onLimit(run, limit, sessionId);
     if (resourceDown && run.trigger === 'probe') {
@@ -287,7 +289,7 @@ export class DefaultRunService implements RunService {
    */
   async #onLimit(run: RunRecord, limit: UsageLimit, sessionId: string | null): Promise<DriveOutcome | null> {
     const d = this.#d;
-    const failed: DriveOutcome = { status: 'failed', summary: null, error: limit.message, costUsd: limit.costUsd ?? run.costUsd };
+    const failed: DriveOutcome = { status: 'failed', summary: null, error: limit.message, costUsd: limit.costUsd ?? run.costUsd, tokens: run.tokens };
     if (run.trigger !== 'probe') return failed;
     const now = d.clock.now();
     await openHold(d, { resource: RESERVED_RESOURCE, reason: limit.message, until: limit.resetsAt, openedByRunId: run.id, now });

@@ -116,6 +116,11 @@ export class DefaultProbeService implements ProbeService {
       }
       if (!first && !(await this.#isDue(probe, now))) return;
       if ((await this.#lanesInUse(loop.id)).length >= loop.maxConcurrent) return; // no free lane: the answer cannot be used
+      if (probe.tokenBudget !== null && (await d.runs.sumTokens(loop.id)) >= probe.tokenBudget) {
+        // Spec 2.14: no probe call and no run. The last line and the last call stay, as in a hold, so a raised budget probes at once.
+        if (probe.state !== 'budget_limited') await d.probes.record(loop.id, { state: 'budget_limited', lastLine: probe.lastLine, at: probe.lastProbeAt ?? now });
+        return;
+      }
       const repo = await d.repos.findById(loop.repoId);
       if (!repo) throw new Error(`Loop points at repo ${loop.repoId} which does not exist`);
       const result = await d.commands.run({ argv: probe.command, cwd: repo.path, timeoutMs: PROBE_TIMEOUT_MS });
@@ -340,6 +345,7 @@ function clean(input: ProbeInput): { settings: ProbeSettings; issues: Validation
     laneEnv: input.laneEnv ?? {},
     laneBasePort: input.laneBasePort ?? null,
     restartPolicy: input.restartPolicy ?? 'stop',
+    tokenBudget: input.tokenBudget ?? null,
   };
   const has = (argv: string[], placeholder: string) => argv.some((a) => a.includes(placeholder));
   const empty = (argv: string[]) => argv.length === 0 || argv.some((a) => a === '');
@@ -371,6 +377,9 @@ function clean(input: ProbeInput): { settings: ProbeSettings; issues: Validation
   const port = settings.laneBasePort;
   if (port !== null && (port < BASE_PORT_MIN || port > BASE_PORT_MAX)) {
     issues.push({ field: 'laneBasePort', code: 'outOfRange', message: `The base port must be ${BASE_PORT_MIN}-${BASE_PORT_MAX}` });
+  }
+  if (settings.tokenBudget !== null && settings.tokenBudget < 1) {
+    issues.push({ field: 'tokenBudget', code: 'outOfRange', message: 'The token budget must be 1 or more' });
   }
   return { settings, issues };
 }

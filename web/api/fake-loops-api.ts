@@ -282,6 +282,7 @@ export class FakeLoopsApi implements LoopsApi {
       laneEnv: body.laneEnv ?? {},
       laneBasePort: body.laneBasePort ?? null,
       restartPolicy: body.restartPolicy ?? 'stop',
+      tokenBudget: body.tokenBudget ?? null,
       state: this.probes.get(loopId)?.state ?? 'active',
       lastLine: this.probes.get(loopId)?.lastLine ?? null,
       lastProbeAt: this.probes.get(loopId)?.lastProbeAt ?? null,

@@ -65,6 +65,36 @@ describe('ClaudeAgentExecutor', () => {
     expect(new ClaudeAgentExecutor().describe()).toMatchObject({ kind: 'claude', label: 'Claude (Agent SDK)' });
   });
 
+  it('a success result gives `tokens`: input plus output of the SDK `usage`, with no cache tokens', async () => {
+    const usage = { input_tokens: 120, output_tokens: 30, cache_read_input_tokens: 9000, cache_creation_input_tokens: 800 };
+    const q = scriptedQuery(async function* () {
+      yield msg.init('x');
+      yield { ...msg.success('x', 'first', 0.1), usage: { input_tokens: 1, output_tokens: 1 } } as SDKMessage; // only the last result counts
+      yield msg.bgTasks('x', [{ id: 't', description: 'wait' }]);
+      yield msg.init('x');
+      yield { ...msg.success('x', 'second', 0.2), usage } as SDKMessage;
+      yield msg.bgTasks('x', []);
+    });
+    const events = await all(new ClaudeAgentExecutor({ query: q, settleMs: 10 }).execute(input(), new AbortController().signal));
+    expect(results(events)).toMatchObject([{ outcome: 'succeeded', tokens: 150 }]);
+  });
+
+  it('an error result gives its `tokens` too, and a result with no `usage` gives no key', async () => {
+    const failing = scriptedQuery(async function* () {
+      yield msg.init('x');
+      yield { ...msg.error('x', ['broke']), usage: { input_tokens: 5, output_tokens: 6 } } as SDKMessage;
+    });
+    const failed = await all(new ClaudeAgentExecutor({ query: failing }).execute(input(), new AbortController().signal));
+    expect(results(failed)).toMatchObject([{ outcome: 'failed', tokens: 11 }]);
+
+    const plain = scriptedQuery(async function* () {
+      yield msg.init('x');
+      yield msg.success('x', 'done');
+    });
+    const done = await all(new ClaudeAgentExecutor({ query: plain }).execute(input(), new AbortController().signal));
+    expect(results(done)[0]).not.toHaveProperty('tokens');
+  });
+
   it('repo does not exist → failed "Repo does not exist: <path>", no session is opened', async () => {
     const q = scriptedQuery(async function* () {
       yield msg.init('x');
