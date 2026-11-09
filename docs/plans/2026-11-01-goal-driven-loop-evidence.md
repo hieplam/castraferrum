@@ -2147,6 +2147,26 @@ An earlier verify failed `goal-service.test.ts > the comment comes before the fi
 
 <!-- W6 -->
 
+## W6
+
+Goal G18 (task W6): when a goal ends, the next goal card appears with no owner message. The oracle is `tests/e2e/goal-card.spec.ts` (3 tests, tag `UC-39`). It uses a second server with the fake `gh`, a local bare repository, the real `scripts/goal-writer-probe.mjs`, and the fake session of test mode. The prompt `[goal-card]` makes that session open the card of `card.md` as an issue.
+
+**Red** (before the `[goal-card]` path existed in `test-mode-query.ts`): `npx playwright test tests/e2e/goal-card.spec.ts --project chromium --reporter list --workers 1` printed `1 failed`, `2 passed`. The failure was `Expected [1, 1]`, `Received [1, 0]` (1 run, 0 cards). The two controls passed.
+
+**Green** (after the change): the same command printed `3 passed (31.9s)`. After the rebase on `origin/main` the full verify ran the 3 tests inside `test:e2e` (`156 passed`). `npx vitest run --project unit server/adapters/executors/claude/test-mode-query.test.ts` printed `Tests  9 passed (9)` (2 new).
+
+**Stub check** (each run for real, then restored):
+- a probe that always prints `skip`: `2 failed`, `1 passed`. The first test failed with `Expected [1, 1]`, `Received [0, 0]`. The no-charter control failed too, because it expects `blocked`.
+- a probe that always prints `plan`: `3 failed` (the first control fails, as the plan says, and so does the no-charter control).
+- no ingest in `GoalCardService` (the `#ingest` call removed): `1 failed`, `2 passed`. The first test failed with `Expected [1, 1]`, `Received [1, 0]`.
+
+**Ratchet:** `uc-coverage` floor 36 to 37 (new row UC-39, 38 rows). `e2e expects:` 1006 to 1029 (`e2eExpectsMin` stays 745, a floor that only rises). Unit +2. `idle-days`: decision 7, not measured yet.
+
+**Decisions:** (1) The server of the spec gets `LOOPS_GH_BIN` set to `tests/support/fake-gh.mjs`, not to the `.cmd` wrapper, because `GhGitHost` spawns with no shell and Node cannot spawn a `.cmd` that way on Windows (`spawn EINVAL`). (2) The no-charter control uses a clone of a second bare repository with no charter, because the charter is read from the `origin/main` of the clone. (3) `e2eExpectsMin` is not raised, to avoid a conflict with the lanes that run at the same time.
+
+**Verify:** the full verify ran in slot-1. Unit (after a fix of the counts in `tests/tools/uc-coverage.test.ts`): `Tests  1331 passed | 3 skipped (1334)`. Contract `memory: 124 passed · postgres: 124 passed`. Api `Tests  429 passed | 2 skipped (431)`. The e2e step printed `1 failed`, `156 passed (17.9m)`. The one failure is `tests/visual/ds/layout.visual.ts:94` (the dot of the Now card, phone). This change reaches no web code, so it cannot affect that test. After the rebase on `origin/main`, that test alone in slot-1 (`npx playwright test tests/visual/ds/layout.visual.ts --project visual -g "dot is centred" --workers 1`) printed `2 passed (17.3s)`, desktop and phone.
+
+
 <!-- W7 -->
 
 <!-- Z1 -->
