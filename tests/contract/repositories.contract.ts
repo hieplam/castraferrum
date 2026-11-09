@@ -1765,16 +1765,16 @@ export function repositoryContract(env: () => ContractEnv): void {
     });
 
     it('listGoals gives each goal with all of its issues, closed ones too, by row id, for one repository', async () => {
-      await r.goals.saveGoal({ repo: 'o/r', rowId: 'H2', state: 'failing', lastLine: 'FAIL b', lastRunAt: at(5) });
-      await r.goals.saveGoal({ repo: 'o/r', rowId: 'H1', state: 'passing', lastLine: null, lastRunAt: at(4) });
-      await r.goals.saveGoal({ repo: 'p/r', rowId: 'H3', state: 'passing', lastLine: null, lastRunAt: at(4) });
+      await r.goals.saveGoal({ repo: 'hieplam/tribe', rowId: 'H2', state: 'failing', lastLine: 'FAIL b', lastRunAt: at(5) });
+      await r.goals.saveGoal({ repo: 'hieplam/tribe', rowId: 'H1', state: 'passing', lastLine: null, lastRunAt: at(4) });
+      await r.goals.saveGoal({ repo: 'hieplam/castraferrum', rowId: 'H3', state: 'passing', lastLine: null, lastRunAt: at(4) });
       const closed = newIssue({ openedAt: at(1) });
       await r.goals.open(closed);
       await r.goals.touch(closed.id, at(2));
       await r.goals.close(closed.id, at(3));
       const open = newIssue({ rowId: 'H2', fingerprint: 'dddddddddddd', issueNumber: 9, openedAt: at(5) });
       await r.goals.open(open);
-      const list = await r.goals.listGoals('o/r');
+      const list = await r.goals.listGoals('hieplam/tribe');
       expect(list.map((g) => [g.rowId, g.state, g.issues.map((i) => i.issueNumber)])).toEqual([
         ['H1', 'passing', [7]],
         ['H2', 'failing', [9]],
@@ -1819,9 +1819,9 @@ export function repositoryContract(env: () => ContractEnv): void {
         row({ manifest: 'goals/a.json', rowId: 'G1', at: at(1), sha: 'aaaaaaa' }),
         row({ manifest: 'goals/a.json', rowId: 'G2', at: at(3), sha: 'bbbbbbb' }),
         row({ manifest: 'goals/b.json', rowId: 'G1', at: at(2), sha: 'ccccccc' }),
-        row({ manifest: 'goals/c.json', rowId: 'G1', at: at(9), sha: 'ddddddd', repo: 'p/r' }),
+        row({ manifest: 'goals/c.json', rowId: 'G1', at: at(9), sha: 'ddddddd', repo: 'hieplam/castraferrum' }),
       ]);
-      expect(await r.goals.listManifests('o/r')).toEqual([
+      expect(await r.goals.listManifests('hieplam/tribe')).toEqual([
         { manifest: 'goals/a.json', at: at(3), sha: 'bbbbbbb' },
         { manifest: 'goals/b.json', at: at(2), sha: 'ccccccc' },
       ]);
