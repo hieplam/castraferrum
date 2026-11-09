@@ -45,8 +45,8 @@ test('UC-38: action blocked with blockers shows each issue with its title, the t
     reason: 'Every open task waits for a failed task.',
     issues: ['31', '33'],
     blockers: [
-      { key: '31', title: 'Migration 14 fails', blocks: 3, url: 'https://github.com/acme/api/issues/31' },
-      { key: '33', title: 'The check on main is red', blocks: 1, url: 'https://github.com/acme/api/issues/33' },
+      { key: '31', title: 'Migration 14 fails', blocks: 3, url: 'https://github.com/hieplam/tribe/issues/31' },
+      { key: '33', title: 'The check on main is red', blocks: 1, url: 'https://github.com/hieplam/tribe/issues/33' },
     ],
   };
   const { loop } = await startedProbeLoop(request, JSON.stringify(blocked));
@@ -57,7 +57,7 @@ test('UC-38: action blocked with blockers shows each issue with its title, the t
   await expect(rows.first()).toContainText('Issue 31: Migration 14 fails');
   await expect(rows.first()).toContainText('Blocks 3 tasks');
   await expect(rows.last()).toContainText('Blocks 1 task');
-  await expect(rows.first()).toHaveAttribute('href', 'https://github.com/acme/api/issues/31');
+  await expect(rows.first()).toHaveAttribute('href', 'https://github.com/hieplam/tribe/issues/31');
   await expect(rows.first()).toHaveAttribute('rel', 'noopener');
   // The cells above show the blockers, so the line under them does not repeat them.
   await expect(page.getByTestId('probe-line')).toContainText('"issues":["31","33"]');

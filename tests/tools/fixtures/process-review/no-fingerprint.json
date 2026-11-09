@@ -14,7 +14,7 @@
       ],
       "firstAt": "2026-10-19T08:00:00.000Z",
       "lastAt": "2026-10-22T09:30:00.000Z",
-      "repo": "fake/repo",
+      "repo": "hieplam/tribe",
       "check": {
         "kind": "hook",
         "name": "hooks/usage-limit.mjs",

@@ -7,36 +7,36 @@ const c = 'FAIL tests/api/x.test.ts > saves rows';
 
 describe('fingerprint', () => {
   it('gives the same golden hash for two failures that differ only in path, number, time and hex', () => {
-    expect(fingerprint('o/r', 'H1', a)).toBe('cf30542f175d');
-    expect(fingerprint('o/r', 'H1', b)).toBe('cf30542f175d');
+    expect(fingerprint('hieplam/tribe', 'H1', a)).toBe('b429f5546b75');
+    expect(fingerprint('hieplam/tribe', 'H1', b)).toBe('b429f5546b75');
   });
 
   it('gives another golden hash for another failing line', () => {
-    expect(fingerprint('o/r', 'H1', c)).toBe('cb1d48109252');
+    expect(fingerprint('hieplam/tribe', 'H1', c)).toBe('3529c9c59972');
   });
 
   it('gives another golden hash for another row', () => {
-    expect(fingerprint('o/r', 'H2', a)).toBe('d3b1c1fec1fa');
+    expect(fingerprint('hieplam/tribe', 'H2', a)).toBe('059e30e2987a');
   });
 
   it('gives another golden hash for another repository', () => {
-    expect(fingerprint('p/r', 'H1', a)).toBe('2a32e90e9b35');
+    expect(fingerprint('hieplam/castraferrum', 'H1', a)).toBe('bdbc3c16acfc');
   });
 
   it('skips a line with no failing word before the first failing line', () => {
-    expect(fingerprint('o/r', 'H1', `ok 1\n${b}`)).toBe('cf30542f175d');
+    expect(fingerprint('hieplam/tribe', 'H1', `ok 1\n${b}`)).toBe('b429f5546b75');
     expect(firstFailingLine(`ok 1\r\n${b}\r\nmore`)).toBe(b);
     expect(firstFailingLine('ok 1\n  × loads rows\nfailed later')).toBe('  × loads rows');
   });
 
   it('uses the last non-empty line when no line has a failing word, and an empty text when there is no line', () => {
     expect(firstFailingLine('one\ntwo\n\n  \n')).toBe('two');
-    expect(fingerprint('o/r', 'H1', 'one\ntwo\n')).toBe(fingerprint('o/r', 'H1', 'two'));
+    expect(fingerprint('hieplam/tribe', 'H1', 'one\ntwo\n')).toBe(fingerprint('hieplam/tribe', 'H1', 'two'));
     expect(firstFailingLine('\n \n')).toBe('');
   });
 
   it('is 12 lower-case hex characters, from a sha256 that matches Node at each block boundary', () => {
-    expect(fingerprint('o/r', 'H1', '')).toMatch(/^[0-9a-f]{12}$/);
+    expect(fingerprint('hieplam/tribe', 'H1', '')).toMatch(/^[0-9a-f]{12}$/);
     // Each pair is a number of two-byte characters and the output of createHash('sha256') for them: 54, 56, 62, 64, 118 and 128 bytes pass a boundary.
     const vectors: [number, string][] = [
       [0, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'],

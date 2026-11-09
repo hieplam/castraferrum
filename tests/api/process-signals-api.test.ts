@@ -17,7 +17,7 @@ const HEAD = 'abcdef0123456789abcdef0123456789abcdef01';
 const PR_NUMBER = 7777;
 const FROM = '2026-10-19T00:00:00.000Z';
 const TO = '2026-10-21T00:00:00.000Z';
-const REPO = 'fake/repo';
+const REPO = 'hieplam/tribe';
 
 let server: ApiServer;
 let gh: FakeGh;

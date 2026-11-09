@@ -44,7 +44,7 @@ export function cluster(fingerprint: string, cause: string, runIds: string[], ch
     runIds,
     firstAt: '2026-09-15T03:00:00.000Z',
     lastAt: '2026-10-07T03:00:00.000Z',
-    repo: 'o/r',
+    repo: 'hieplam/tribe',
     fingerprint,
     ...(check ? { check: { kind: 'test', name: check, replay: `npx vitest run ${check}` } } : {}),
   };

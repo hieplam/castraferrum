@@ -38,7 +38,7 @@ beforeAll(() => {
   firstPassFile = join(dir, 'first-pass.json');
   const r = spawnSync(
     process.execPath,
-    ['--import', 'tsx', script, 'first-pass', '--events', eventsFile, '--repo', 'o/r', '--from', '2026-10-19T00:00:00Z', '--to', '2026-10-23T00:00:00Z', '--out', firstPassFile],
+    ['--import', 'tsx', script, 'first-pass', '--events', eventsFile, '--repo', 'hieplam/tribe', '--from', '2026-10-19T00:00:00Z', '--to', '2026-10-23T00:00:00Z', '--out', firstPassFile],
     { cwd: root, encoding: 'utf8' },
   );
   expect(r.status).toBe(0);
