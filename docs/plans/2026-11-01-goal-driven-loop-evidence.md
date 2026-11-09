@@ -1005,6 +1005,35 @@ Ratchet: unit tests 828 passed before, 836 passed after (plus 8). Metric idle-da
 
 <!-- P13 -->
 
+## P13
+
+Source: these tasks shipped in hieplam/agent-plugins, so the literal results below are copied from the Verify section of the merged PR https://github.com/hieplam/agent-plugins/pull/17 (written into this log for issue 432). Nothing here was measured again.
+
+Red (`node --test tests/epic.test.mjs` in `scripts`, before building):
+
+    ℹ tests 40
+    ℹ fail 0
+    (with the 9 new tests added and no implementation)
+    ℹ tests 49
+    ℹ pass 41
+    ℹ fail 8
+
+The PR notes that the 9th new test ("passes when the log has only other queries") passes on a stub by nature, so the failing one guards it.
+
+Green (`node --test tests/epic.test.mjs tests/check-tick.test.mjs`, after rebase on `origin/master`):
+
+    ℹ tests 49
+    ℹ pass 49
+    ℹ fail 0
+
+Evals (haiku, scratch folder, fake GitHub module, spend about 0.06 USD): ids 1,2,3 before the change 0 of 3 PASS; after the change 0 of 3 PASS (same cause, a closing code fence; no worse than baseline). Eval 6 after a prompt fix: `[with_skill] PASS`.
+
+Stub check: with `epic.mjs` and `check-tick.mjs` restored to `origin/master`, the same tests print `ℹ pass 41` and `ℹ fail 8`. A `--probe` that is ignored fails the shape test. A log with `query EpicNode` fails `check-tick` (exit 1, "the run logged query EpicNode").
+
+Ratchet: `node --test` count 40 to 49.
+
+Acceptance: not recorded in https://github.com/hieplam/agent-plugins/pull/17 (the PR is in agent-plugins, and `E check` reads castraferrum).
+
 <!-- P14 -->
 
 ## P14
@@ -1420,6 +1449,35 @@ Light verify: `grep -rn "merge-audit" server web` prints nothing.
 
 <!-- K10 -->
 
+## K10
+
+Source: this task shipped in hieplam/agent-plugins, so the literal results below are copied from the Verify section of the merged PR https://github.com/hieplam/agent-plugins/pull/18 (written into this log for issue 432). Nothing here was measured again.
+
+Red (tests added first; `node --test tests/epic.test.mjs tests/check-tick.test.mjs` in `plugins/epic-loop/skills/epic-loop/scripts`):
+
+    ℹ tests 54
+    ℹ pass 50
+    ℹ fail 4
+
+The 4 failures are 3 `check` tests and the `--pr` test.
+
+Green (same command after the change and after rebase on `origin/master` a253c57; T3 had not merged, so the count is 49 + 5 = 54):
+
+    ℹ tests 54
+    ℹ pass 54
+    ℹ fail 0
+
+Evals (`run_evals.py --eval-id 1,2,3,6,7 --mode with_skill --exec-model haiku --grader-model haiku`, `GH_TOKEN=invalid`; cost not measured): first run 1 PASS, 2 FAIL, 3 PASS, 6 PASS, 7 FAIL (eval 7 failed only on its `expected_output`, which was reworded). Second run: 2 PASS, 7 PASS.
+
+Stub check (run for real in the PR):
+- `check` ignores the status (`const gate = null`): 2 tests fail, `ℹ pass 52`, `ℹ fail 2`.
+- `check-tick.mjs` ignores `--pr`: the `--pr` test fails.
+- A polling tick (`tick.md` from `origin/master`, no gate mode): eval 7 `[with_skill] FAIL`.
+
+Ratchet: `node --test` count 49 to 54.
+
+Acceptance: not recorded in https://github.com/hieplam/agent-plugins/pull/18 (the PR is in agent-plugins, and `E check` reads castraferrum).
+
 <!-- K11 -->
 
 ## K11
@@ -1619,6 +1677,34 @@ Stub checks, each run and restored:
 Ratchet: unit tests + 16 (goal service 0 to 14, adapter 16 to 18). Contract 113 to 115 per side. Duplicate fall issues in the test: 0.
 
 <!-- T3 -->
+
+## T3
+
+Source: this task shipped in hieplam/agent-plugins, so the literal results below are copied from the Verify section of the merged PR https://github.com/hieplam/agent-plugins/pull/19 (written into this log for issue 432). Nothing here was measured again.
+
+Red (before the rebase, N = 47; `node --test scripts/tests/epic.test.mjs`):
+
+    tests 67
+    pass 54
+    fail 13
+
+Green, after the rebase (`node --test scripts/tests/epic.test.mjs`):
+
+    tests 71
+    pass 71
+    fail 0
+
+With `check-tick.test.mjs`: `tests 74`, `pass 74`, `fail 0`. After the two `G11:` tests of the gate review: `tests 73`, `pass 73`, `fail 0`; with `check-tick.test.mjs`: `tests 76`, `pass 76`, `fail 0`. The golden test `no Goal manifest line: behaves as before` passes.
+
+Stub check (run for real after the rebase):
+- `epic.mjs` of `origin/master`: `tests 71`, `pass 58`, `fail 13`.
+- A stub that blocks every manifest epic: `tests 71`, `pass 59`, `fail 12`. The failures include the take, done and control tests.
+
+Real GitHub, read-only: `E next 217 --dry-run -R hieplam/castraferrum` ran with the `IssueBody` query, and the `ClosingFiles` query returned data for a real issue.
+
+Ratchet: tests in `epic.test.mjs`, 47 to 73 (51 to 73 from K10's base, +22). F0 `first-goal-day`: decision 7, not measured yet.
+
+Acceptance: not recorded in https://github.com/hieplam/agent-plugins/pull/19 (the PR is in agent-plugins, and `E check` reads castraferrum).
 
 <!-- T4 -->
 
