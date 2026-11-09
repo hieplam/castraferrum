@@ -12,7 +12,7 @@ import type {
   NoticeService,
   ProcessService,
   ScoreboardService,
-  GateService, GoalCardService, ProbeService,
+  GateService, GoalCardService, GoalViewService, ProbeService,
   RepoService,
   RunService,
   TranscriptService,
@@ -21,6 +21,7 @@ import { HttpError, sendError } from './errors';
 import { folderRoutes } from './folder-routes';
 import { gateRoutes } from './gate-routes';
 import { goalCardRoutes } from './goal-card-routes';
+import { goalRoutes } from './goal-routes';
 import { healthRoutes } from './health-routes';
 import { holdRoutes } from './hold-routes';
 import { liveRoutes } from './live-routes';
@@ -58,6 +59,8 @@ export type ApiServices = {
   probes: ProbeService;
   gate: GateService;
   goalCards: GoalCardService;
+  /** The goals page of a loop (goal G11). */
+  goalView: GoalViewService;
   /** The open holds (spec 2.5). */
   holds: HoldService;
 };
@@ -91,12 +94,13 @@ export async function buildHttpApp(deps: HttpDeps) {
 
   await app.register(healthRoutes, { health: deps.health });
   if (deps.api) {
-    const { loops, repos, folders, runs, live, transcripts, now, probes, notices, processEvents, scoreboard, gate, goalCards, holds } = deps.api;
+    const { loops, repos, folders, runs, live, transcripts, now, probes, notices, processEvents, scoreboard, gate, goalCards, goalView, holds } = deps.api;
     const sse = { heartbeatMs: deps.sseHeartbeatMs ?? 15_000, shutdown: shutdown.signal };
     await app.register(loopRoutes, { loops, runs });
     await app.register(probeRoutes, { probes });
     await app.register(gateRoutes, { gate });
     await app.register(goalCardRoutes, { goalCards });
+    await app.register(goalRoutes, { goalView });
     await app.register(holdRoutes, { holds });
     await app.register(repoRoutes, { repos });
     await app.register(folderRoutes, { folders });

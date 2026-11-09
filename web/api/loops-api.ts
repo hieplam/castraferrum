@@ -18,6 +18,7 @@ import type {
 } from '../../shared/contracts/loops';
 import type { FolderDto, FolderPlacesDto } from '../../shared/contracts/folders';
 import type { ProbeDto, ProbeInputBody } from '../../shared/contracts/goal-loop';
+import type { GoalViewDto } from '../../shared/contracts/goals';
 import type { HoldDto } from '../../shared/contracts/holds';
 import type { NoticeDto } from '../../shared/contracts/notices';
 import type { RepoDto, RepoInputBody, RepoListItemDto } from '../../shared/contracts/repos';
@@ -91,6 +92,8 @@ export interface LoopsApi {
   saveProbe(loopId: string, body: ProbeInputBody): Promise<ProbeDto>;
   /** `DELETE /loops/:id/probe`: a loop with no probe is not an error. */
   deleteProbe(loopId: string): Promise<void>;
+  /** `GET /loops/:id/goals?manifest=` - the goal number, its rows, the standing goals and the loops whose probe failed (spec 2.10). A loop with no stored goal row gives `manifest: null`. */
+  goalView(loopId: string, manifest?: string): Promise<GoalViewDto>;
   /** `GET /holds`: the open holds, oldest first (spec 2.5). */
   listHolds(): Promise<HoldDto[]>;
   /** `GET /notices`: the unread notices, newest first (spec 2.6). */

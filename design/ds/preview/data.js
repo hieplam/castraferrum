@@ -509,8 +509,8 @@
         ['H2', 'node scripts/merge-audit.mjs', false, 'Failing since 18/10 02:00', '35'],
       ],
       loops: [
-        ['budget_limited', 'Billing screens worker', '1 200 000 of 1 200 000 tokens'],
-        ['probe_failed', 'Nightly health check', 'The probe ended with exit code 1 at 13:30'],
+        ['budget_limited', 'Billing screens worker', '1,200,000 of 1,200,000 tokens'],
+        ['probe_failed', 'Nightly health check', 'The probe stopped: exit 1'],
       ],
     },
     score: {

@@ -16,6 +16,8 @@ export const qk = {
   loopRuns: (id: string, page: PageRequest = {}) => ['loop', id, 'runs', page] as const,
   /** The probe of one loop - under prefix `loop` + id: a run or loop event refreshes it. */
   probe: (id: string) => ['loop', id, 'probe'] as const,
+  /** The goals page of one loop - under prefix `loop` + id, so a loop or run event refreshes it; the pages also read it again every few seconds. */
+  goalView: (id: string, manifest: string | null) => ['loop', id, 'goals', manifest] as const,
   /** The open holds and the unread notices - under prefix `loops`: every live event refreshes them. */
   holds: () => ['loops', 'holds'] as const,
   notices: () => ['loops', 'notices'] as const,

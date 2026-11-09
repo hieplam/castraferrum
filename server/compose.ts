@@ -41,6 +41,7 @@ import { DefaultGateService } from './services/gate-service';
 import { DefaultGoalCardService } from './services/goal-card-service';
 import { DefaultGoalCardStarter } from './services/goal-card-starter';
 import { DefaultGoalService } from './services/goal-service';
+import { DefaultGoalViewService } from './services/goal-view-service';
 import { DefaultHealthService } from './services/health-service';
 import { DefaultHoldService } from './services/hold-service';
 import { DefaultLiveService } from './services/live-service';
@@ -150,6 +151,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
   const gitHost = new GhGitHost({ runner: commands, ghBin: opts.ghBin ?? 'gh' });
   const gateWorkspace = new GitGateWorkspace({ runner: commands, root: join(tmpdir(), 'castraferrum-gate') });
   const goalService = new DefaultGoalService({ goals: repos.goals, repos: repos.repos, gate: repos.gate, host: gitHost, workspace: gateWorkspace, clock, ids });
+  const goalViewService = new DefaultGoalViewService({ goals: repos.goals, loops: repos.loops, repos: repos.repos, gate: repos.gate, probes: repos.probes, runs: repos.runs, workspace: gateWorkspace });
   const gateService = new DefaultGateService({
     gate: repos.gate,
     repos: repos.repos,
@@ -263,6 +265,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
       probes: probeService,
       gate: gateService,
       goalCards: goalCardService,
+      goalView: goalViewService,
       holds: holdService,
       notices,
       processEvents: processService,

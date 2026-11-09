@@ -11,8 +11,9 @@ export function activeTab(pathname: string): Tab | null {
 
 /**
  * A page pushed from a tab root (spec 4.6): the loop, All runs, a loop's settings, an active period, a run and the editor. On the
- * phone it shows a navigation bar with the way back instead of the tab bar.
+ * phone it shows a navigation bar with the way back instead of the tab bar. The goals page of a loop is the exception: like the gate
+ * pages, it keeps the tab bar under its navigation bar (goal-driven loop spec, section 5).
  */
 export function isPushed(pathname: string): boolean {
-  return /^\/(loops|executions|runs)\/./.test(pathname);
+  return /^\/(loops|executions|runs)\/./.test(pathname) && !/^\/loops\/[^/]+\/goals$/.test(pathname);
 }

@@ -4,7 +4,7 @@
 // no other service (ARCHITECTURE.md § Layers). The Default… classes only know each other through the interfaces here.
 import type { GoalCardRecord } from '../ports/goal-card-repository';
 import type { DomainEvent, EventFilter } from '../../shared/domain/events';
-import type { ProbeRecord, ProbeResource, RestartPolicy } from '../../shared/domain/goal-loop';
+import type { ProbeRecord, ProbeResource, ProbeState, RestartPolicy } from '../../shared/domain/goal-loop';
 import type { ExecutionEndReason, ExecutionStats, LogLine, LoopStatus, RunStatus } from '../../shared/domain/run';
 import type { TranscriptEntry, TranscriptPage } from '../../shared/domain/transcript';
 import type { GateJobState, GateStep, GateStepName } from '../../shared/domain/gate';
@@ -449,6 +449,28 @@ export interface GoalService {
   afterMerge(input: GoalMergeInput): Promise<GoalPassReport>;
   /** Runs the `nightly` rows that last ran more than 24 h ago. */
   nightly(now: Date, signal?: AbortSignal): Promise<GoalPassReport>;
+}
+
+export type GoalViewRow = { id: string; outcome: string; pass: boolean; line: string };
+export type GoalViewStanding = { id: string; command: string; pass: boolean; openSince: Date | null; lastFailedAt: Date | null; issue: number | null };
+export type GoalViewLoop = { id: string; name: string; state: ProbeState; used: number; budget: number | null; text: string | null };
+export type GoalView = {
+  manifest: string | null;
+  checkedAt: Date | null;
+  /** The first 7 characters of the commit of the newest row. */
+  sha: string | null;
+  passed: number;
+  total: number;
+  opened: { at: string; passed: number; total: number } | null;
+  rows: GoalViewRow[];
+  standing: GoalViewStanding[];
+  loops: GoalViewLoop[];
+};
+
+/** What the goals page reads (spec 2.10, goal G11). */
+export interface GoalViewService {
+  /** Throws `LOOP_NOT_FOUND`. A loop with no gate row, or no stored row, gives `manifest: null` and empty lists. `manifest` defaults to the newest one. */
+  view(loopId: string, manifest?: string): Promise<GoalView>;
 }
 
 export type GateQueueInput = { repoId: string; prNumber: number; taskKey?: string };
