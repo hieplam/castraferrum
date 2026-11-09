@@ -12,7 +12,7 @@ import type { VerifyTask } from '../../shared/domain/scope-guard';
 import { createBareRepo, type BareRepo } from './bare-repo';
 import { createFakeGh, FAKE_GH_SCRIPT, type FakeGh } from './fake-gh-kit';
 
-export const GITHUB_REPO = 'fake/repo';
+export const GITHUB_REPO = 'hieplam/tribe';
 export const SETUP_LINE = `node -e "console.log('setup ok')"`;
 export const VERIFY_LINE = 'node tests/verify.mjs';
 export const TEST_LINE = 'node tests/e.test.mjs';
@@ -199,7 +199,7 @@ export function createGateWorld(): GateWorld {
         isCrossRepository: over.fork ?? false,
         mergeCommit: null,
         closingIssuesReferences: (over.closing ?? []).map((n) => ({ number: n })),
-        url: `https://github.com/fake/repo/pull/${number}`,
+        url: `https://github.com/hieplam/tribe/pull/${number}`,
         createdAt: new Date(0).toISOString(),
         mergedAt: null,
       });

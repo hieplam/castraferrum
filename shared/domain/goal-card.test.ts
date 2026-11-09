@@ -94,14 +94,14 @@ describe('goal_card', () => {
   });
 
   it('the epic body starts with the manifest line, then one line for each row, then the prompt', () => {
-    const body = epicBodyOfCard(CARD, { manifest: 'goals/x.json', prompt: goalLoopPrompt(7, 'o/r') });
+    const body = epicBodyOfCard(CARD, { manifest: 'goals/x.json', prompt: goalLoopPrompt(7, 'hieplam/tribe') });
 
     expect(body.split('\n')).toEqual([
       'Goal manifest: goals/x.json',
       '',
       '- G1: The probe answers in 1 s',
       '',
-      'Run one tick of the epic loop on epic #7 of o/r, using the epic-loop skill. If that skill is not available, change nothing and reply SKILL MISSING.',
+      'Run one tick of the epic loop on epic #7 of hieplam/tribe, using the epic-loop skill. If that skill is not available, change nothing and reply SKILL MISSING.',
       '',
     ]);
   });

@@ -243,7 +243,7 @@ describe('coupling', () => {
     expect(findCoupling(`see ${bare} for details`)?.kind).toBe('issue-ref');
     expect(findCoupling(`([${n}](https://github.com/hieplam/castraferrum/issues/102)) and ${bare}`)?.kind).toBe('issue-ref');
     // a link into another repository, or a link text that does not match its target, is still a hit
-    expect(findCoupling(`([${bare}](https://github.com/other/repo/issues/287))`)?.kind).toBe('issue-ref');
+    expect(findCoupling(`([${bare}](https://github.com/hieplam/tribe/issues/287))`)?.kind).toBe('issue-ref');
     expect(findCoupling(`([${bare}](https://github.com/hieplam/castraferrum/issues/102))`)?.kind).toBe('issue-ref');
   });
 

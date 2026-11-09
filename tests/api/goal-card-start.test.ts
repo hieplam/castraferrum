@@ -47,7 +47,7 @@ function openCard(value: unknown = card()): number {
   const world = gh.read();
   const number = Math.max(0, ...world.issues.map((i) => i.number), ...world.prs.map((p) => p.number)) + 1;
   const at = new Date().toISOString();
-  world.issues.push({ number, title: `Goal card ${number}`, body: bodyOf(value), state: 'OPEN', labels: [{ name: 'goal-card' }], comments: [], url: `https://github.com/fake/repo/issues/${number}`, createdAt: at, updatedAt: at, closedAt: null });
+  world.issues.push({ number, title: `Goal card ${number}`, body: bodyOf(value), state: 'OPEN', labels: [{ name: 'goal-card' }], comments: [], url: `https://github.com/hieplam/tribe/issues/${number}`, createdAt: at, updatedAt: at, closedAt: null });
   writeFileSync(gh.world, JSON.stringify(world));
   return number;
 }
@@ -59,7 +59,7 @@ function failNext(command: string) {
 }
 
 async function setGate(enabled: boolean) {
-  const res = await server.app.inject({ method: 'POST', url: '/api/__test/repo-gate', payload: { repoId, enabled, githubRepo: 'fake/repo' } });
+  const res = await server.app.inject({ method: 'POST', url: '/api/__test/repo-gate', payload: { repoId, enabled, githubRepo: 'hieplam/tribe' } });
   expect(res.statusCode).toBe(204);
 }
 
@@ -136,7 +136,7 @@ describe('goal card start', { timeout: 60_000 }, () => {
     expect(epics[0]!.labels).toEqual([]);
     expect(row.epicNumber).toBe(epics[0]!.number);
     expect(epics[0]!.body).toContain('G1: The probe answers in 1 s');
-    expect(epics[0]!.body).toContain(`Run one tick of the epic loop on epic #${row.epicNumber} of fake/repo, using the epic-loop skill.`);
+    expect(epics[0]!.body).toContain(`Run one tick of the epic loop on epic #${row.epicNumber} of hieplam/tribe, using the epic-loop skill.`);
 
     const path = manifestPathOf(epics[0]!.body);
     expect(path).toMatch(new RegExp(`^goals/\\d{4}-\\d{2}-\\d{2}-card-${issue}\\.json$`));
@@ -149,12 +149,12 @@ describe('goal card start', { timeout: 60_000 }, () => {
     const live = await loops();
     expect(live).toEqual([expect.objectContaining({ id: row.loopId, name: `Goal ${issue}: Faster probes`, status: 'active' })]);
     const probe = (await server.app.inject({ method: 'GET', url: `/api/loops/${row.loopId}/probe` })).json().probe as { command: string[]; claim: string[]; release: string[] };
-    expect(probe.command).toEqual(['node', EPIC_SCRIPT, 'next', String(row.epicNumber), '--probe', '-R', 'fake/repo']);
-    expect(probe.claim).toEqual(['node', EPIC_SCRIPT, 'claim', '{key}', '--epic', String(row.epicNumber), '--parallel', '-R', 'fake/repo']);
-    expect(probe.release).toEqual(['node', EPIC_SCRIPT, 'release', '{key}', '--reason', '{reason}', '--if-claimed', '-R', 'fake/repo']);
+    expect(probe.command).toEqual(['node', EPIC_SCRIPT, 'next', String(row.epicNumber), '--probe', '-R', 'hieplam/tribe']);
+    expect(probe.claim).toEqual(['node', EPIC_SCRIPT, 'claim', '{key}', '--epic', String(row.epicNumber), '--parallel', '-R', 'hieplam/tribe']);
+    expect(probe.release).toEqual(['node', EPIC_SCRIPT, 'release', '{key}', '--reason', '{reason}', '--if-claimed', '-R', 'hieplam/tribe']);
     const detail = (await server.app.inject({ method: 'GET', url: `/api/loops/${row.loopId}` })).json();
     expect(detail).toMatchObject({ cron: '0 0 1 1 *', timeoutSec: 14400, executor: { kind: 'claude' } });
-    expect(detail.prompt).toContain(`epic #${row.epicNumber} of fake/repo`);
+    expect(detail.prompt).toContain(`epic #${row.epicNumber} of hieplam/tribe`);
   });
 
   it('the epic body matches the pattern of E next on one whole line, and a row cannot add a second line', async () => {

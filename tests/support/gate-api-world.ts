@@ -146,7 +146,7 @@ export async function startGateApi() {
     /** A loop run ends with `PR_OPEN` on this PR, on task 141. The ticks stop when the claim of the run is closed. */
     async runChain(c: GateCase, pr: WorldPr): Promise<ChainResult> {
       const issues = c.world.gh.read();
-      issues.issues.push({ number: 141, title: 'The task', body: '', state: 'OPEN', labels: [], comments: [], url: 'https://github.com/fake/repo/issues/141', createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString(), closedAt: null });
+      issues.issues.push({ number: 141, title: 'The task', body: '', state: 'OPEN', labels: [], comments: [], url: 'https://github.com/hieplam/tribe/issues/141', createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString(), closedAt: null });
       writeFileSync(c.world.gh.world, JSON.stringify(issues, null, 2));
 
       // A run of the fake Claude needs a folder with this prefix, so the loop has its own clone of origin.
@@ -155,7 +155,7 @@ export async function startGateApi() {
       execFileSync('git', ['clone', '-q', c.world.bare.bare, dir], { stdio: ['ignore', 'pipe', 'pipe'] });
 
       c.mainBefore = c.world.bare.sha('main');
-      const loop = await startHandOverLoop(server, pool, { gate: true, dir, prompt: handOverPrompt(`https://github.com/fake/repo/pull/${pr.number}`) });
+      const loop = await startHandOverLoop(server, pool, { gate: true, dir, prompt: handOverPrompt(`https://github.com/hieplam/tribe/pull/${pr.number}`) });
       folders.push(loop.labels);
       await server.inspect.backgroundTick();
       await expect.poll(async () => (await pool.query('SELECT status FROM runs WHERE loop_id = $1', [loop.loopId])).rows[0]?.status, { timeout: 15_000 }).toBe('succeeded');

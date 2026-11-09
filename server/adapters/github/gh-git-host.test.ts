@@ -8,7 +8,7 @@ import { GitHostError, PullRequestNotFoundError } from '../../ports/git-host';
 import { NodeCommandRunner } from '../process/node-command-runner';
 import { GhGitHost } from './gh-git-host';
 
-const REPO = 'fake/repo';
+const REPO = 'hieplam/tribe';
 let bare: BareRepo;
 let gh: FakeGh;
 let host: GhGitHost;
@@ -71,7 +71,7 @@ describe('GhGitHost on the fake gh and a bare repository', () => {
       state: 'OPEN',
       title: 'Add a',
       body: 'Closes #7',
-      url: 'https://github.com/fake/repo/pull/1',
+      url: 'https://github.com/hieplam/tribe/pull/1',
       mergedAt: null,
       closingIssues: [7],
       fromFork: false,
@@ -148,7 +148,7 @@ describe('GhGitHost on the fake gh and a bare repository', () => {
   it('openIssue creates an issue with its labels and returns its number and url', async () => {
     gh.seedLabels('loop:gate', 'bug');
     const issue = await host.openIssue(REPO, { title: 'Red main', body: 'details', labels: ['loop:gate', 'bug'] });
-    expect(issue).toEqual({ number: 1, url: 'https://github.com/fake/repo/issues/1' });
+    expect(issue).toEqual({ number: 1, url: 'https://github.com/hieplam/tribe/issues/1' });
     const stored = gh.read().issues[0];
     expect(stored?.title).toBe('Red main');
     expect(stored?.labels.map((l) => l.name)).toEqual(['loop:gate', 'bug']);
@@ -169,7 +169,7 @@ describe('GhGitHost on the fake gh and a bare repository', () => {
     await host.openIssue(REPO, { title: 'fingerprint abc', body: 'one', labels: [] });
     await host.openIssue(REPO, { title: 'other', body: 'two', labels: [] });
     const hits = await host.searchIssues(REPO, 'fingerprint abc');
-    expect(hits).toEqual([{ number: 1, title: 'fingerprint abc', state: 'OPEN', url: 'https://github.com/fake/repo/issues/1' }]);
+    expect(hits).toEqual([{ number: 1, title: 'fingerprint abc', state: 'OPEN', url: 'https://github.com/hieplam/tribe/issues/1' }]);
   });
 
   it('closeIssue closes the issue', async () => {
@@ -256,8 +256,8 @@ describe('GhGitHost on the fake gh and a bare repository', () => {
     await host.addSubIssue(REPO, 1, 2);
     expect(gh.read().subIssues).toEqual({ 1: [2] });
     const calls = gh.read().calls.map((c) => c.args).filter((args) => args[0] === 'api');
-    expect(calls[0]).toEqual(['api', 'repos/fake/repo/issues/2']);
-    expect(calls[1]?.slice(1, 5)).toEqual(['-X', 'POST', 'repos/fake/repo/issues/1/sub_issues', '-F']);
+    expect(calls[0]).toEqual(['api', 'repos/hieplam/tribe/issues/2']);
+    expect(calls[1]?.slice(1, 5)).toEqual(['-X', 'POST', 'repos/hieplam/tribe/issues/1/sub_issues', '-F']);
   });
 
   it('issuesWithLabel gives the open issues of the label with their bodies, and issueBody reads one body', async () => {
@@ -299,7 +299,7 @@ describe('GhGitHost on the fake gh and a bare repository', () => {
 
     const pr = await host.createPullRequest(REPO, { head: 'goal/card-7', base: 'main', title: 'The title', body: 'The body' });
 
-    expect(pr).toEqual({ number: 1, url: 'https://github.com/fake/repo/pull/1' });
+    expect(pr).toEqual({ number: 1, url: 'https://github.com/hieplam/tribe/pull/1' });
     expect(gh.read().prs[0]).toMatchObject({ headRefName: 'goal/card-7', baseRefName: 'main', title: 'The title', body: 'The body', state: 'OPEN', headRefOid: sha });
   });
 

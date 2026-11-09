@@ -20,8 +20,8 @@ const eventsFile = join(root, 'tests', 'fixtures', 'process-review', 'events.jso
 const recordedFile = join(root, 'tests', 'tools', 'fixtures', 'process-first-pass', 'groups-haiku.json');
 const FROM = '2026-10-19T00:00:00Z';
 const TO = '2026-10-23T00:00:00Z';
-const USAGE_FINGERPRINT = '58237cb2147d';
-const SMART_APP_FINGERPRINT = '0f274a882e6b';
+const USAGE_FINGERPRINT = '19d9d9ad93d7';
+const SMART_APP_FINGERPRINT = 'c7dd47c27295';
 const fixtureRows = JSON.parse(readFileSync(eventsFile, 'utf8')) as Row[];
 
 let server: ApiServer;
@@ -81,7 +81,7 @@ async function firstPass(): Promise<{ file: string; value: { clusters: Json[]; r
   const events = join(dir, 'events.json');
   writeFileSync(events, res.body);
   const file = join(dir, 'first-pass.json');
-  run('process-review.mjs', ['first-pass', '--events', events, '--repo', 'o/r', '--from', FROM, '--to', TO, '--out', file]);
+  run('process-review.mjs', ['first-pass', '--events', events, '--repo', 'hieplam/tribe', '--from', FROM, '--to', TO, '--out', file]);
   return { file, value: JSON.parse(readFileSync(file, 'utf8')) };
 }
 
@@ -148,7 +148,7 @@ describe('process-review replay (G14)', () => {
   it('gets the same rest from the API as from the file', async () => {
     const fromApi = (await firstPass()).value.rest;
     const out = join(dir, 'file-first-pass.json');
-    run('process-review.mjs', ['first-pass', '--events', eventsFile, '--repo', 'o/r', '--from', FROM, '--to', TO, '--out', out]);
+    run('process-review.mjs', ['first-pass', '--events', eventsFile, '--repo', 'hieplam/tribe', '--from', FROM, '--to', TO, '--out', out]);
     const fromFile = (JSON.parse(readFileSync(out, 'utf8')) as { rest: Row[] }).rest;
     const shape = (rows: Row[]) => rows.map((e) => ({ at: Date.parse(e.at), status: e.status, text: e.text })).sort((a, b) => a.at - b.at || a.text.localeCompare(b.text));
     expect(fromApi).toHaveLength(14);

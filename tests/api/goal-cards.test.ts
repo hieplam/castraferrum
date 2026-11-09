@@ -50,7 +50,7 @@ function openCard(body: string): number {
   const world = gh.read();
   const number = Math.max(0, ...world.issues.map((i) => i.number)) + 1;
   const at = new Date().toISOString();
-  world.issues.push({ number, title: `Goal card ${number}`, body, state: 'OPEN', labels: [{ name: 'goal-card' }], comments: [], url: `https://github.com/fake/repo/issues/${number}`, createdAt: at, updatedAt: at, closedAt: null });
+  world.issues.push({ number, title: `Goal card ${number}`, body, state: 'OPEN', labels: [{ name: 'goal-card' }], comments: [], url: `https://github.com/hieplam/tribe/issues/${number}`, createdAt: at, updatedAt: at, closedAt: null });
   writeFileSync(gh.world, JSON.stringify(world));
   return number;
 }
@@ -68,7 +68,7 @@ async function registerRepo(gate: boolean): Promise<string> {
   expect(repo.statusCode).toBe(201);
   const id = repo.json().id as string;
   if (gate) {
-    const set = await server.app.inject({ method: 'POST', url: '/api/__test/repo-gate', payload: { repoId: id, enabled: false, githubRepo: 'fake/repo' } });
+    const set = await server.app.inject({ method: 'POST', url: '/api/__test/repo-gate', payload: { repoId: id, enabled: false, githubRepo: 'hieplam/tribe' } });
     expect(set.statusCode).toBe(204);
   }
   return id;

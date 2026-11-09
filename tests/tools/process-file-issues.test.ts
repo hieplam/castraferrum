@@ -41,7 +41,7 @@ function seedIssue(gh: FakeGh, patch: Partial<FakeIssue>): void {
     state: 'OPEN',
     labels: [],
     comments: [],
-    url: 'https://github.com/fake/repo/issues/7',
+    url: 'https://github.com/hieplam/tribe/issues/7',
     createdAt: '2026-10-01T00:00:00.000Z',
     updatedAt: '2026-10-01T00:00:00.000Z',
     closedAt: null,

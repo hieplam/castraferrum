@@ -3,7 +3,7 @@
 // { bare, issues, prs, statuses, checkRuns, calls }. See fake-gh-kit.ts for how to seed and read the world.
 //
 // Supported commands (anything else prints `fake-gh: unsupported: <args>` and exits 64):
-//   issue create --title --body|--body-file [--label]...      prints https://github.com/fake/repo/issues/<n>
+//   issue create --title --body|--body-file [--label]...      prints https://github.com/hieplam/tribe/issues/<n>
 //       as the real gh does, a label that is not in `world.labels` is refused: `could not add label: '<name>' not found`, exit 1
 //   label create <name> [--force]      adds <name> to `world.labels`; with no --force, an existing label is refused (exit 1)
 //   issue list [--state open|closed|all] [--search] [--label]... [--limit <n>] --json <fields>
@@ -16,18 +16,18 @@
 //   issue close <n>
 //   issue reopen <n>
 // `-R <owner/name>` and `--repo` are accepted and ignored: the fake holds one repository.
-//   pr create --head --base --title --body        prints https://github.com/fake/repo/pull/<n>
+//   pr create --head --base --title --body        prints https://github.com/hieplam/tribe/pull/<n>
 //   pr list --json <fields>        pr view <n> --json <fields>
 //       a pull request that is not in the world prints the real text: `GraphQL: Could not resolve to a PullRequest with the number of <n>. (repository.pullRequest)`, exit 1
 //   (a pull request has `closingIssuesReferences`: [{ number }], read from "Closes #n" in its body at `pr create`; a test can seed it)
 //   pr merge <n> --squash [--match-head-commit <sha>]
 //       real git in the bare repository `world.bare`; a wrong sha prints
 //       `fake-gh: head commit does not match` and exits 1
-//   api [-X POST] repos/fake/repo/statuses/<sha> -f state= -f context= -f description=
-//   api [-X GET] repos/fake/repo/commits/<sha>/status
-//   api repos/fake/repo/commits/<sha>/check-runs
-//   api repos/fake/repo/issues/<n>                         prints { id, number }; `id` is not the number, as on GitHub
-//   api -X POST repos/fake/repo/issues/<n>/sub_issues -F sub_issue_id=<id>      adds the child number to `world.subIssues[n]`
+//   api [-X POST] repos/hieplam/tribe/statuses/<sha> -f state= -f context= -f description=
+//   api [-X GET] repos/hieplam/tribe/commits/<sha>/status
+//   api repos/hieplam/tribe/commits/<sha>/check-runs
+//   api repos/hieplam/tribe/issues/<n>                         prints { id, number }; `id` is not the number, as on GitHub
+//   api -X POST repos/hieplam/tribe/issues/<n>/sub_issues -F sub_issue_id=<id>      adds the child number to `world.subIssues[n]`
 // A test makes one call fail: `world.failNext` lists `<group> <sub>` texts, for example `pr create`. The next such call exits 1 and leaves the list without that text.
 // `--json` takes comma-separated GitHub field names. Every call, a failed one too, is appended to `calls`.
 import { execFileSync } from 'node:child_process';
@@ -35,7 +35,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const REPO_URL = 'https://github.com/fake/repo';
+const REPO_URL = 'https://github.com/hieplam/tribe';
 const args = process.argv.slice(2);
 const worldPath = process.env.FAKE_GH_WORLD;
 
@@ -126,7 +126,7 @@ function issueCmd(w, sub, rest) {
       state: 'OPEN',
       labels: (flags.label ?? []).map((name) => ({ name })),
       comments: [],
-      author: { login: String(one(flags, 'repo') ?? 'fake/repo').split('/')[0] },
+      author: { login: String(one(flags, 'repo') ?? 'hieplam/tribe').split('/')[0] },
       url: `${REPO_URL}/issues/${n}`,
       createdAt: t,
       updatedAt: t,
@@ -268,7 +268,7 @@ function apiCmd(w, rest) {
   const { flags, positional, fields } = parse(rest);
   const path = String(positional[0] ?? '').replace(/^\//, '');
   let m;
-  if ((m = path.match(/^repos\/fake\/repo\/statuses\/([0-9a-f]+)$/)) && flags.method === 'POST') {
+  if ((m = path.match(/^repos\/hieplam\/tribe\/statuses\/([0-9a-f]+)$/)) && flags.method === 'POST') {
     const status = {
       state: fields.state ?? '',
       context: fields.context ?? 'default',
@@ -277,7 +277,7 @@ function apiCmd(w, rest) {
     };
     (w.statuses[m[1]] ??= []).push(status);
     print({ sha: m[1], ...status });
-  } else if ((m = path.match(/^repos\/fake\/repo\/commits\/([0-9a-f]+)\/status$/)) && (!flags.method || flags.method === 'GET')) {
+  } else if ((m = path.match(/^repos\/hieplam\/tribe\/commits\/([0-9a-f]+)\/status$/)) && (!flags.method || flags.method === 'GET')) {
     const latest = new Map();
     for (const s of w.statuses[m[1]] ?? []) latest.set(s.context, s);
     const statuses = [...latest.values()];
@@ -290,13 +290,13 @@ function apiCmd(w, rest) {
           ? 'pending'
           : 'success';
     print({ sha: m[1], state, total_count: statuses.length, statuses });
-  } else if ((m = path.match(/^repos\/fake\/repo\/commits\/([0-9a-f]+)\/check-runs$/)) && (!flags.method || flags.method === 'GET')) {
+  } else if ((m = path.match(/^repos\/hieplam\/tribe\/commits\/([0-9a-f]+)\/check-runs$/)) && (!flags.method || flags.method === 'GET')) {
     const runs = w.checkRuns[m[1]] ?? [];
     print({ total_count: runs.length, check_runs: runs });
-  } else if ((m = path.match(/^repos\/fake\/repo\/issues\/(\d+)$/)) && (!flags.method || flags.method === 'GET')) {
+  } else if ((m = path.match(/^repos\/hieplam\/tribe\/issues\/(\d+)$/)) && (!flags.method || flags.method === 'GET')) {
     const issue = find(w.issues, m[1], 'issue');
     print({ id: ISSUE_ID_BASE + issue.number, number: issue.number });
-  } else if ((m = path.match(/^repos\/fake\/repo\/issues\/(\d+)\/sub_issues$/)) && flags.method === 'POST') {
+  } else if ((m = path.match(/^repos\/hieplam\/tribe\/issues\/(\d+)\/sub_issues$/)) && flags.method === 'POST') {
     const child = find(w.issues, Number(fields.sub_issue_id) - ISSUE_ID_BASE, 'issue');
     (w.subIssues[m[1]] ??= []).push(child.number);
     print({ number: child.number });
