@@ -914,6 +914,7 @@ export const vi: Record<MessageKey, string> = {
   'goalLoop.goals.empty': 'Chưa có mục tiêu nào được kiểm tra.',
   'goalLoop.goals.lastFailed': 'Lần lỗi cuối {t}',
   'goalLoop.goals.failingSince': 'Đang lỗi từ {t}',
+  'goalLoop.goals.budget': '{used} trên {budget} token',
   'goalLoop.goals.probeStopped': 'Probe đã dừng: {text}',
   'goalLoop.score.link': 'Bảng điểm quy trình',
   'goalLoop.score.title': 'Bảng điểm quy trình',

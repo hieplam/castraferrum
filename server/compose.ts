@@ -151,7 +151,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
   const gitHost = new GhGitHost({ runner: commands, ghBin: opts.ghBin ?? 'gh' });
   const gateWorkspace = new GitGateWorkspace({ runner: commands, root: join(tmpdir(), 'castraferrum-gate') });
   const goalService = new DefaultGoalService({ goals: repos.goals, repos: repos.repos, gate: repos.gate, host: gitHost, workspace: gateWorkspace, clock, ids });
-  const goalViewService = new DefaultGoalViewService({ goals: repos.goals, loops: repos.loops, repos: repos.repos, gate: repos.gate, probes: repos.probes, workspace: gateWorkspace });
+  const goalViewService = new DefaultGoalViewService({ goals: repos.goals, loops: repos.loops, repos: repos.repos, gate: repos.gate, probes: repos.probes, runs: repos.runs, workspace: gateWorkspace });
   const gateService = new DefaultGateService({
     gate: repos.gate,
     repos: repos.repos,

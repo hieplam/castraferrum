@@ -1,7 +1,7 @@
 // The world of the goals page (goal G11): the sample of `goalLoop.goals` in design/ds/preview/data.js, built for real. The repo `api` becomes
 // a git clone whose `origin/main` holds `goals/2026-10-16-billing.json` (8 goals, `opened` 0 of 8 on 16/10) and `goals/health.json` (rows H1
 // and H2). The table `goal_runs` holds the 8 results (3 pass, commit 4be21c7, checked at 13:59), the standing goals hold H1 (passing, its
-// last failure on 14/10 02:00) and H2 (failing since 18/10 02:00, issue 35), and the loop "Nightly health check" has a failed probe with the
+// last failure on 14/10 02:00) and H2 (failing since 18/10 02:00, issue 35), the loop "Billing screens worker" used 1,200,000 of its 1,200,000 tokens, and the loop "Nightly health check" has a failed probe with the
 // last line `exit 1`. The page of the loop "Billing epic worker" in this world must equal the approved `goal-rows` shots. Z2 imports the seed.
 import { realpathSync } from 'node:fs';
 import type pg from 'pg';
@@ -106,11 +106,21 @@ export async function seedGoalRows(sp: TestApi, db: pg.Pool): Promise<{ path: st
   for (const [kind, name, why] of sample.loops) {
     const id = uuid(`goals loop ${name}`);
     await insertLoop(id, name, 'A probe that failed');
+    const budget = kind === 'budget_limited';
     await db.query(
-      `INSERT INTO loop_probes (loop_id, command, claim, release, resources, lane_env, lane_base_port, restart_policy, state, last_line, last_probe_at)
-       VALUES ($1,$2,'[]','[]','[]','{}',NULL,'stop',$3,$4,$5)`,
-      [id, JSON.stringify(['node', 'probe.mjs']), kind, why.replace(/^The probe stopped: /, ''), pvTime('18/10 13:30:00')],
+      `INSERT INTO loop_probes (loop_id, command, claim, release, resources, lane_env, lane_base_port, restart_policy, state, last_line, last_probe_at, token_budget)
+       VALUES ($1,$2,'[]','[]','[]','{}',NULL,'stop',$3,$4,$5,$6)`,
+      [id, JSON.stringify(['node', 'probe.mjs']), kind, budget ? null : why.replace(/^The probe stopped: /, ''), pvTime('18/10 13:30:00'), budget ? 1_200_000 : null],
     );
+    if (budget) {
+      const execution = uuid(`goals execution ${name}`);
+      await db.query('INSERT INTO loop_executions (id, loop_id, seq, started_at, ended_at, end_reason) VALUES ($1,$2,1,$3,$4,$5)', [execution, id, pvTime('18/10 12:00:00'), pvTime('18/10 13:30:00'), 'stopped']);
+      await db.query(
+        `INSERT INTO runs (id, loop_id, execution_id, iteration, trigger, status, started_at, finished_at, prompt_snapshot, executor_kind, executor_config, tokens)
+         VALUES ($1,$2,$3,1,'probe','succeeded',$4,$4,'p','claude','{}',1200000)`,
+        [uuid(`goals run ${name}`), id, execution, pvTime('18/10 13:00:00')],
+      );
+    }
   }
   return { path, loopId: l.id, page: `/loops/${l.id}/goals` };
 }

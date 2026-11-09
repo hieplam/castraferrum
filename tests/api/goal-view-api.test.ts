@@ -153,7 +153,7 @@ describe('GET /api/loops/:id/goals', { timeout: 60_000 }, () => {
     ]);
   });
 
-  it('loops lists only the loops of this repository whose probe state is probe_failed, with the last line as the text', async () => {
+  it('loops lists only the loops of this repository whose probe state is budget_limited or probe_failed, with the tokens used and the budget, and the last line as the text of a failed probe', async () => {
     const { repoId, loopId } = await world({ [MANIFEST]: manifestText(['G1']) });
     await repositories().goals.saveRows([row()]);
     const other = await world({ [MANIFEST]: manifestText(['G1']) });
@@ -169,8 +169,20 @@ describe('GET /api/loops/:id/goals', { timeout: 60_000 }, () => {
     await probe(waiting.json().id, 'waiting', '{"v":1}');
     await probe(loopId, 'budget_limited', null);
     await probe(other.loopId, 'probe_failed', 'exit 2');
+    await pool.query('UPDATE loop_probes SET token_budget = 1200000 WHERE loop_id = $1', [loopId]);
+    const execution = randomUUID();
+    await pool.query('INSERT INTO loop_executions (id, loop_id, seq, started_at) VALUES ($1,$2,1,$3)', [execution, loopId, at(0)]);
+    await pool.query(
+      `INSERT INTO runs (id, loop_id, execution_id, iteration, trigger, status, started_at, prompt_snapshot, executor_kind, executor_config, tokens)
+       VALUES ($1,$2,$5,1,'probe','succeeded',$3,'p','claude','{}',700000), ($4,$2,$5,2,'probe','succeeded',$3,'p','claude','{}',500000)`,
+      [randomUUID(), loopId, at(0), randomUUID(), execution],
+    );
     const body = (await goals(loopId)).json();
-    expect(body.loops).toEqual([{ id: failed.json().id, name: 'Nightly health check', state: 'probe_failed', text: 'exit 1' }]);
+    expect(body.loops).toHaveLength(2);
+    expect(body.loops).toEqual(expect.arrayContaining([
+      { id: loopId, name: expect.any(String), state: 'budget_limited', used: 1200000, budget: 1200000, text: null },
+      { id: failed.json().id, name: 'Nightly health check', state: 'probe_failed', used: 0, budget: null, text: 'exit 1' },
+    ]));
   });
 
   it('the manifest query picks one manifest, the default is the one with the newest row, and a manifest with no stored row gives manifest null', async () => {

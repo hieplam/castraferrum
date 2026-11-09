@@ -453,7 +453,7 @@ export interface GoalService {
 
 export type GoalViewRow = { id: string; outcome: string; pass: boolean; line: string };
 export type GoalViewStanding = { id: string; command: string; pass: boolean; openSince: Date | null; lastFailedAt: Date | null; issue: number | null };
-export type GoalViewLoop = { id: string; name: string; state: ProbeState; text: string | null };
+export type GoalViewLoop = { id: string; name: string; state: ProbeState; used: number; budget: number | null; text: string | null };
 export type GoalView = {
   manifest: string | null;
   checkedAt: Date | null;

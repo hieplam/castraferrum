@@ -5,7 +5,7 @@ import { Link } from 'react-router';
 import type { GoalLoopDto, GoalRowDto, GoalViewDto, StandingRowDto } from '../../../shared/contracts/goals';
 import { useLoop } from '../../data/loops';
 import { useGoalView } from '../../data/goals';
-import { fmtDateTime, fmtTime } from '../../prefs/format';
+import { fmtDateTime, fmtNumber, fmtTime } from '../../prefs/format';
 import { useT } from '../../prefs/prefs';
 import { Group, RowCell } from '../../ui/kit/Group';
 import { Icon } from '../../ui/kit/Icon';
@@ -51,8 +51,12 @@ function LoopCell({ loop, t }: { loop: GoalLoopDto; t: TFn }) {
           {loop.name}
         </span>
         <span className="cell-row">
-          <Pill tone="fail">{t('goalLoop.loop.probeFailed')}</Pill>
-          <span className="cell-meta">{t('goalLoop.goals.probeStopped', { text: loop.text ?? '' })}</span>
+          {loop.state === 'budget_limited' ? <Pill tone="warn">{t('goalLoop.loop.budgetLimited')}</Pill> : <Pill tone="fail">{t('goalLoop.loop.probeFailed')}</Pill>}
+          <span className="cell-meta">
+            {loop.state === 'budget_limited'
+              ? t('goalLoop.goals.budget', { used: fmtNumber(t.lang, loop.used), budget: fmtNumber(t.lang, loop.budget ?? 0) })
+              : t('goalLoop.goals.probeStopped', { text: loop.text ?? '' })}
+          </span>
         </span>
       </span>
       <Icon name="chev" className="chev" />

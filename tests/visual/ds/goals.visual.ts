@@ -60,7 +60,7 @@ test.describe('desktop goals page against the preview', () => {
     await page.goto(`${ctx.sp.baseUrl}${path}`);
     await expect(page.getByTestId('goal-row')).toHaveCount(8);
     await expect(page.getByTestId('standing-row')).toHaveCount(2);
-    await expect(page.getByTestId('goal-loop-row')).toHaveCount(1);
+    await expect(page.getByTestId('goal-loop-row')).toHaveCount(2);
     await still(page, { x: 1430, y: 890 });
     await snap(page, 'goal-rows', 'The goals page: four figures, eight goal rows, two standing goals, the loop whose probe failed', [regions.page()]);
   });

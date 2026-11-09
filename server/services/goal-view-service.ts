@@ -7,6 +7,7 @@ import type { GoalRepository } from '../ports/goal-repository';
 import type { LoopProbeRepository } from '../ports/loop-probe-repository';
 import type { LoopRepository } from '../ports/loop-repository';
 import type { RepoRepository } from '../ports/repo-repository';
+import type { RunRepository } from '../ports/run-repository';
 import type { GoalView, GoalViewLoop, GoalViewRow, GoalViewService, GoalViewStanding } from './contracts';
 
 const MAIN = 'origin/main';
@@ -19,6 +20,7 @@ export type GoalViewServiceDeps = {
   repos: Pick<RepoRepository, 'findById'>;
   gate: Pick<GateRepository, 'getRepoGate'>;
   probes: Pick<LoopProbeRepository, 'list'>;
+  runs: Pick<RunRepository, 'sumTokens'>;
   workspace: Pick<GateWorkspace, 'readAt'>;
 };
 
@@ -109,13 +111,15 @@ export class DefaultGoalViewService implements GoalViewService {
     });
   }
 
-  /** The loops of this repository whose probe failed. The state `budget_limited` stays in the domain, but nothing sets it. */
+  /** The loops of this repository whose probe state is `budget_limited` or `probe_failed`. `used` is the sum of the tokens of their runs. */
   async #loops(repoId: string): Promise<GoalViewLoop[]> {
-    const { loops, probes } = this.#d;
+    const { loops, probes, runs } = this.#d;
     const mine = new Map((await loops.list({ repoId })).map((l) => [l.id, l]));
-    return (await probes.list())
-      .filter((p) => p.state === 'probe_failed' && mine.has(p.loopId))
-      .map((p) => ({ id: p.loopId, name: mine.get(p.loopId)!.name, state: p.state, text: p.lastLine }))
-      .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+    const stopped = (await probes.list()).filter((p) => (p.state === 'probe_failed' || p.state === 'budget_limited') && mine.has(p.loopId));
+    const out: GoalViewLoop[] = [];
+    for (const p of stopped) {
+      out.push({ id: p.loopId, name: mine.get(p.loopId)!.name, state: p.state, used: await runs.sumTokens(p.loopId), budget: p.tokenBudget, text: p.state === 'probe_failed' ? p.lastLine : null });
+    }
+    return out.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   }
 }

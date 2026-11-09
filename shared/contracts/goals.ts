@@ -25,8 +25,15 @@ export const standingRowDto = z.object({
 });
 export type StandingRowDto = z.output<typeof standingRowDto>;
 
-/** A loop of the repository whose probe failed. */
-export const goalLoopDto = z.object({ id: z.string(), name: z.string(), state: z.enum(PROBE_STATES), text: z.string().nullable() });
+/** A loop of the repository that stopped on its token budget or on a failed probe. `used` is the sum of the tokens of its runs; `budget` is `null` when it has none; `text` is the last probe line of a failed probe. */
+export const goalLoopDto = z.object({
+  id: z.string(),
+  name: z.string(),
+  state: z.enum(PROBE_STATES),
+  used: z.number().int(),
+  budget: z.number().int().nullable(),
+  text: z.string().nullable(),
+});
 export type GoalLoopDto = z.output<typeof goalLoopDto>;
 
 export const goalViewDto = z.object({

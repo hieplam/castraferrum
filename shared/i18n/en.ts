@@ -894,6 +894,7 @@ export const en = {
   'goalLoop.goals.empty': 'No goal has been checked yet.',
   'goalLoop.goals.lastFailed': 'Last failed {t}',
   'goalLoop.goals.failingSince': 'Failing since {t}',
+  'goalLoop.goals.budget': '{used} of {budget} tokens',
   'goalLoop.goals.probeStopped': 'The probe stopped: {text}',
   'goalLoop.score.link': 'Process scoreboard',
   'goalLoop.score.title': 'Process scoreboard',
