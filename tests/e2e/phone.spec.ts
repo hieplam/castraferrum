@@ -8,7 +8,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
-import { api, closeDb, fill, loopRows, pickRepo, reset } from '../support/form-kit';
+import { api, closeDb, createLoop, fill, loopRows, pickRepo, reset } from '../support/form-kit';
 import { box, offUiFont, textLeft } from '../support/frame-probe';
 import { ignoreHostKeys } from '../support/host-keys';
 import { ensureTestRepo, TEST_REPO } from '../support/test-repo';
@@ -119,9 +119,11 @@ test.describe('the console on a phone', () => {
     await expect(page.getByTestId('loop-header')).toContainText(name);
     await phoneOk(page, 'Loop page', false);
 
-    // Start it from the action bar; the live log shows a line within 1 second.
+    // Start it from the action bar. The live log shows its first line. The limit is the default one of `expect`: the 1 second of UC-06
+    // is the lag between a line and the screen (detail.spec.ts), not the time from the tap, which holds the start request and the
+    // stream opening (issue 412).
     await page.getByTestId('loop-start').tap();
-    await expect(page.getByTestId('live-log').locator('[data-seq]').first()).toBeVisible({ timeout: 1_000 });
+    await expect(page.getByTestId('live-log').locator('[data-seq]').first()).toBeVisible();
     await expect(page.getByTestId('loop-stop')).toBeVisible();
     await phoneOk(page, 'Live log', false);
 
@@ -168,6 +170,26 @@ test.describe('the console on a phone', () => {
     expect(repos.map((r) => r.path)).toContain(newRepo);
     await expect(page.getByTestId('repo-row-name').filter({ hasText: basename(newRepo) })).toBeVisible();
     await phoneOk(page, 'Repos tab, repo registered', true);
+  });
+});
+
+// Issue 412: the first line of the live log must not depend on how fast Start answers. The route holds the start request for
+// 1.5 s, longer than the 1 s that a full run once lost to a loaded machine.
+test.describe('the live log on a phone when Start answers late', () => {
+  test('the first log line shows after a start request that takes 1.5 s', async ({ page, request }) => {
+    const loop = await createLoop(request, { name: 'Phone slow start', prompt: 'Check the slow start', cron: '0 0 1 1 *' });
+    await page.route(`**/api/loops/${loop.id}/start`, async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1_500));
+      await route.continue();
+    });
+    await page.goto(`/loops/${loop.id}`);
+    await expect(page.getByTestId('loop-header')).toHaveAttribute('data-status', 'stopped');
+    await page.getByTestId('loop-start').tap();
+    await expect(page.getByTestId('live-log').locator('[data-seq]').first()).toBeVisible();
+    await expect(page.getByTestId('loop-stop')).toBeVisible();
+    await page.getByTestId('loop-stop').tap();
+    await page.getByTestId('stop-confirm').tap();
+    await expect(page.getByTestId('loop-header')).toHaveAttribute('data-status', 'stopped');
   });
 });
 
