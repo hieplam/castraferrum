@@ -18,12 +18,16 @@ if (!root) throw new Error('Missing #root in index.html');
 
 
 applyStoredPrefs();
+// `useTransitions={false}`: a route change is a plain update, not a transition. React renders a transition in slices, one scheduler
+// task per slice, and keeps the old page until the last slice. In WebKit on a loaded machine those tasks waited so long that the next
+// page came only when the transition expired, 5 s after the click (issues 413 and 414). No page suspends and nothing reads a pending
+// route change, so the old page staying on screen gave nothing (tests/e2e/route-change.spec.ts).
 createRoot(root).render(
   <StrictMode>
     <PrefsProvider>
       <DataProvider api={new HttpLoopsApi()} live={new SseLiveEvents()}>
         <ToastProvider>
-          <BrowserRouter>
+          <BrowserRouter useTransitions={false}>
             <App />
           </BrowserRouter>
         </ToastProvider>
