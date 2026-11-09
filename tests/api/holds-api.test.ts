@@ -7,7 +7,8 @@ import { loopBody, resetApi, startApi, testPool, type ApiServer } from '../suppo
 let server: ApiServer;
 let pool: pg.Pool;
 beforeAll(async () => {
-  server = await startApi();
+  // No ticker: the hold service of a ticking server closes an open docker hold when Docker is up, between the INSERT and the GET (issue 426).
+  server = await startApi({}, { ticker: false });
   pool = testPool();
 });
 afterAll(async () => {
