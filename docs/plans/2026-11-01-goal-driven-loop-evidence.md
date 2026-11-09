@@ -2369,6 +2369,179 @@ Tests outside the task that failed in the first full run on a saturated machine,
 
 <!-- Z1 -->
 
+## Z1
+
+Verify of epic 217: the goal-check tool on all 28 goals, and `E check --dry-run` on each of the 61 closed tasks.
+
+Decisions (recorded in the PR):
+- Step 3 (pull the skill clone) was replaced by a detached worktree of agent-plugins at origin/master 7de81f3, because the clone is on another branch with untracked work that is not ours. `E` ran from that worktree. The clone was not touched; its branch and status are the same before and after.
+- The goal-check run below ran on main e085c45. Main moved by one docs-only commit, f5541b2 (the evidence sections of P13, K10 and T3, issue 432). The output is reused, not run again. The coordinator re-runs the tool on the final main.
+- W4 was reopened as "W4 - Token budget", so its evidence heading is `## W4 (token budget)`.
+- First run of step 7 found 9 failing lines (3 missing evidence sections, 6 PRs without an Acceptance line). Issue 432 fixed them. The second run below prints PASS on all 61.
+- Ratchet: goals passing at the first run of step 5: 28/28. After: 28/28. Open fix issues under epic 217: only Z2.
+
+Z1 sha: e085c45
+
+    goal-check: running npm run build
+    goal-check: exit 0 after 2s
+    goal-check: running git clone --depth 1 https://github.com/hieplam/agent-plugins.git agent-plugins-checkout || git -C agent-plugins-checkout pull --ff-only
+    goal-check: exit 0 after 2s
+    goal-check: running npx playwright test tests/e2e/probe-idle.spec.ts --project chromium --reporter list
+    goal-check: exit 0 after 14s
+    G1 pass
+    goal-check: running npx playwright test tests/e2e/probe-gap.spec.ts --project chromium --reporter list
+    goal-check: exit 0 after 11s
+    G2 pass
+    goal-check: running npx vitest run --project api tests/api/usage-hold.test.ts --reporter verbose
+    goal-check: exit 0 after 7s
+    goal-check: running npx vitest run --project contract tests/contract/executor-mock.test.ts --reporter verbose
+    goal-check: exit 0 after 3s
+    G3 pass
+    goal-check: running npx vitest run --project api tests/api/claims.test.ts --reporter verbose
+    goal-check: exit 0 after 7s
+    G4 pass
+    goal-check: running npm run api-smoke
+    goal-check: exit 0 after 19s
+    G5 pass
+    goal-check: running npx vitest run --project api tests/api/gate-red.test.ts --reporter verbose
+    goal-check: exit 0 after 103s
+    G6 pass
+    goal-check: running npx vitest run --project api tests/api/gate-stub.test.ts --reporter verbose
+    goal-check: exit 0 after 36s
+    G7 pass
+    goal-check: running npx vitest run --project api tests/api/gate-handover.test.ts --reporter verbose
+    goal-check: exit 0 after 7s
+    G8 pass
+    goal-check: running npx vitest run --project api tests/api/gate-scope.test.ts --reporter verbose
+    goal-check: exit 0 after 202s
+    G9 pass
+    goal-check: running node --test --test-reporter=spec --test-name-pattern="^G10: " agent-plugins-checkout/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs
+    goal-check: exit 0 after 3s
+    G10 pass
+    goal-check: running npx playwright test tests/e2e/goal-number.spec.ts --project chromium --reporter list
+    goal-check: exit 0 after 44s
+    goal-check: running node --test --test-reporter=spec --test-name-pattern="^G11: " agent-plugins-checkout/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs
+    goal-check: exit 0 after 0s
+    G11 pass
+    goal-check: running npx vitest run --project unit tests/tools/metrics-baseline.test.ts -t late-tasks --reporter verbose
+    goal-check: exit 0 after 2s
+    G12 pass
+    goal-check: running npx vitest run --project api tests/api/standing-goals.test.ts --reporter verbose
+    goal-check: exit 0 after 11s
+    G13 pass
+    goal-check: running npx vitest run --project api tests/api/process-review-replay.test.ts --reporter verbose
+    goal-check: exit 0 after 11s
+    G14 pass
+    goal-check: running npx vitest run --project api tests/api/scoreboard.test.ts --reporter verbose
+    goal-check: exit 0 after 9s
+    G15 pass
+    goal-check: running npx vitest run --project unit tests/tools/rule-lint.test.ts --reporter verbose
+    goal-check: exit 0 after 3s
+    G16 pass
+    goal-check: running python3 -m unittest discover -v -s agent-plugins-checkout/scripts/evals/tests -p test_eval_gate.py
+    goal-check: exit 0 after 1s
+    G17 pass
+    goal-check: running npx playwright test tests/e2e/goal-card.spec.ts --project chromium --reporter list
+    goal-check: exit 0 after 24s
+    G18 pass
+    goal-check: running npx vitest run --project api tests/api/goal-cards.test.ts --reporter verbose
+    goal-check: exit 0 after 45s
+    G19 pass
+    goal-check: running npx vitest run --project api tests/api/goal-cards.test.ts --reporter verbose
+    goal-check: exit 0 after 47s
+    G20 pass
+    goal-check: running npx vitest run --project unit tests/tools/metrics-baseline.test.ts -t owner-messages --reporter verbose
+    goal-check: exit 0 after 2s
+    G22 pass
+    goal-check: running npx vitest run --project api tests/api/holds.test.ts --reporter verbose
+    goal-check: exit 0 after 9s
+    G23 pass
+    goal-check: running npx vitest run --project api tests/api/lanes.test.ts --reporter verbose
+    goal-check: exit 0 after 7s
+    G24 pass
+    goal-check: running npx vitest run --project api tests/api/plan-action.test.ts --reporter verbose
+    goal-check: exit 0 after 6s
+    goal-check: running node --test --test-reporter=spec --test-name-pattern="^G25: " agent-plugins-checkout/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs
+    goal-check: exit 0 after 1s
+    G25 pass
+    goal-check: running node --test --test-reporter=spec --test-name-pattern="^G26: " agent-plugins-checkout/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs
+    goal-check: exit 0 after 1s
+    G26 pass
+    goal-check: running npx vitest run --project api tests/api/merge-guard.test.ts --reporter verbose
+    goal-check: exit 0 after 3s
+    G27 pass
+    goal-check: running npx playwright test tests/e2e/probe-state.spec.ts --project chromium --reporter list
+    goal-check: exit 0 after 27s
+    G28 pass
+    goal-check: running node --test --test-reporter=spec --test-name-pattern="^G29: " agent-plugins-checkout/plugins/epic-loop/skills/epic-loop/scripts/tests/epic.test.mjs
+    goal-check: exit 0 after 1s
+    G29 pass
+    goals passed: 28/28
+
+Z1 check P1 issue 236: PASS 236
+Z1 check P2 issue 237: PASS 237
+Z1 check P3 issue 238: PASS 238
+Z1 check P9 issue 239: PASS 239
+Z1 check P12 issue 240: PASS 240
+Z1 check P13 issue 241: PASS 241
+Z1 check P4 issue 287: PASS 287
+Z1 check P5 issue 288: PASS 288
+Z1 check P6 issue 289: PASS 289
+Z1 check P7 issue 290: PASS 290
+Z1 check P8 issue 325: PASS 325
+Z1 check P10 issue 326: PASS 326
+Z1 check P11 issue 327: PASS 327
+Z1 check P14 issue 328: PASS 328
+Z1 check P16 issue 354: PASS 354
+Z1 check P15 issue 355: PASS 355
+Z1 check K1 issue 242: PASS 242
+Z1 check K3 issue 243: PASS 243
+Z1 check K9 issue 244: PASS 244
+Z1 check K10 issue 245: PASS 245
+Z1 check K2 issue 291: PASS 291
+Z1 check K8 issue 292: PASS 292
+Z1 check K4 issue 305: PASS 305
+Z1 check K5 issue 306: PASS 306
+Z1 check K6 issue 307: PASS 307
+Z1 check K7 issue 329: PASS 329
+Z1 check K11 issue 350: PASS 350
+Z1 check K12 issue 356: PASS 356
+Z1 check T1 issue 246: PASS 246
+Z1 check T3 issue 247: PASS 247
+Z1 check T4 issue 282: PASS 282
+Z1 check T2 issue 308: PASS 308
+Z1 check T5 issue 333: PASS 333
+Z1 check T6 issue 357: PASS 357
+Z1 check R1 issue 248: PASS 248
+Z1 check R3 issue 249: PASS 249
+Z1 check R2 issue 283: PASS 283
+Z1 check R5 issue 284: PASS 284
+Z1 check R7 issue 285: PASS 285
+Z1 check R4 issue 330: PASS 330
+Z1 check R6 issue 331: PASS 331
+Z1 check R8 issue 332: PASS 332
+Z1 check R9 issue 358: PASS 358
+Z1 check W1 issue 344: PASS 344
+Z1 check W2 issue 345: PASS 345
+Z1 check W3 issue 346: PASS 346
+Z1 check W4 issue 347: PASS 347
+Z1 check W5 issue 348: PASS 348
+Z1 check W6 issue 349: PASS 349
+Z1 check W7 issue 359: PASS 359
+Z1 check F0 issue 225: PASS 225
+Z1 check F1 issue 226: PASS 226
+Z1 check F2 issue 227: PASS 227
+Z1 check S1 issue 228: PASS 228
+Z1 check S2 issue 229: PASS 229
+Z1 check S3 issue 230: PASS 230
+Z1 check S4 issue 231: PASS 231
+Z1 check S5 issue 232: PASS 232
+Z1 check S6 issue 233: PASS 233
+Z1 check D1 issue 234: PASS 234
+Z1 check D2 issue 235: PASS 235
+
+Z1 known, outside the goals: 12 failures, 21 errors, eval 4 fails
+
 <!-- Z2 -->
 
 
