@@ -5,6 +5,7 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import pg from 'pg';
+import { expect, vi } from 'vitest';
 import { composeServer, type ComposeOptions, type ComposedServer } from '../../server/compose';
 import { databaseUrl } from '../../server/config';
 
@@ -188,4 +189,21 @@ function parseFrame(frame: string): SseEvent {
 
 function describe(events: SseEvent[]): string {
   return events.map((e) => (e.event === ':' ? `:${e.comment}` : e.event)).join(', ') || 'nothing received';
+}
+
+/**
+ * Moves the clock 61 s and returns the id of the skipped run that the schedule tick records for a loop whose first run is still going.
+ * It waits for two finished schedule ticks after the move, not for a wall-clock limit on the skipped run: the first tick can have read
+ * the clock before the move, the second one started after it. Then the skipped run must exist, and the assertion has no wait of its own.
+ * A slow ticker (a loaded full verify) so cannot fail the test by being later than a guessed limit.
+ */
+export async function skippedRunAfterClockMove(server: Pick<ApiServer, 'inspect'>, base: string, loopId: string): Promise<string> {
+  const send = async (method: string, url: string, body?: unknown) =>
+    fetch(base + url, { method, ...(body === undefined ? {} : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }) });
+  const from = server.inspect.ticks();
+  expect((await send('POST', '/api/__test/clock', { advanceMs: 61_000 })).status).toBe(200);
+  await vi.waitFor(() => expect(server.inspect.ticks()).toBeGreaterThanOrEqual(from + 2), { timeout: 15_000 });
+  const runs = ((await (await send('GET', `/api/loops/${loopId}/runs`)).json()) as { items: { id: string; status: string }[] }).items;
+  expect(runs[0]).toMatchObject({ status: 'skipped' });
+  return runs[0]!.id;
 }
