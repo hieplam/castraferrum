@@ -29,7 +29,7 @@ beforeAll(async () => {
   gh = createFakeGh();
   saved = process.env.FAKE_GH_WORLD;
   process.env.FAKE_GH_WORLD = gh.world;
-  server = await startApi({ ghBin: FAKE_GH_SCRIPT });
+  server = await startApi({ ghBin: FAKE_GH_SCRIPT }, { ticker: false });
   pool = testPool();
 });
 afterAll(async () => {
@@ -72,6 +72,14 @@ async function signals(from = FROM, to = TO, repo = REPO) {
 }
 
 describe('GET /api/process/signals (G14)', () => {
+  it('the test server leaves a queued gate job to the test (no gate ticker runs beside endJob)', async () => {
+    const id = randomUUID();
+    await createPgRepositories(pool).gate.enqueue({ id, repoId, prNumber: PR_NUMBER, headSha: HEAD, taskKey: '141', at: new Date() });
+    await new Promise((r) => setTimeout(r, 500)); // five tick periods of the 100 ms ticker, if it ran
+    const { rows } = await pool.query('SELECT state FROM gate_jobs WHERE id = $1', [id]);
+    expect(rows[0].state).toBe('queued');
+  });
+
   it('a failed gate job gives an item whose text is the failed step and the first failing line of its output', async () => {
     const id = await endJob('failed', '2026-10-20T10:00:00Z', 'green', 'ok 1\n  FAIL tests/x.test.ts expected 1 got 2\nlast line');
     const res = await signals();

@@ -18,7 +18,11 @@ export type ApiServer = ComposedServer & {
   listen(): Promise<string>;
 };
 
-export async function startApi(over: Partial<ComposeOptions> = {}): Promise<ApiServer> {
+/**
+ * `ticker: false` leaves every background service stopped. A test that writes gate jobs through the repository needs it:
+ * the gate service of a ticking server takes a queued job between the `enqueue` and the `takeNext` of the test and writes step 1 itself.
+ */
+export async function startApi(over: Partial<ComposeOptions> = {}, opts: { ticker?: boolean } = {}): Promise<ApiServer> {
   const server = await composeServer({
     databaseUrl: TEST_DB_URL,
     testMode: true,
@@ -28,7 +32,7 @@ export async function startApi(over: Partial<ComposeOptions> = {}): Promise<ApiS
     dbWaitMs: 5000,
     ...over,
   });
-  server.startTicker();
+  if (opts.ticker !== false) server.startTicker();
   return {
     ...server,
     async listen() {
