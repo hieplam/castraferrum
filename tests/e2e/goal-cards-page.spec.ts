@@ -93,7 +93,7 @@ test('G20: the token budget 1000 saves in the editor of a stopped probe loop and
   expect((await api(request, 'PUT', `/api/loops/${loop.id}/probe`, probe)).status).toBe(200);
   await page.goto(`/loops/${loop.id}/edit`);
   await expect(page.getByTestId('probe-token-budget')).toHaveValue('');
-  await page.getByTestId('probe-token-budget').fill('abc');
+  await page.getByTestId('probe-token-budget').fill('0');
   await page.getByTestId('form-submit').click();
   await expect(page.getByText(en['goalLoop.editor.tokenBudgetError'])).toBeVisible();
   await page.getByTestId('probe-token-budget').fill('1000');
