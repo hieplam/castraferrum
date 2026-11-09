@@ -2148,6 +2148,8 @@ Migration `0014_motionless_the_hand.sql`: `ALTER TABLE "loop_probes" ADD COLUMN 
 
 Ratchet: new unit tests in the focused set, 414 to 421 (N+7), api +2, contract +2 per side. Up only.
 
+Full `npm run verify` on the final rebased code (slot 1, lane database `loops_w4b_test`, port 7270): `states with shots: 142/142`, `ratchets: ok`, unit `Tests  1336 passed | 3 skipped (1339)`, contract `Tests  270 passed (270)`, api `Tests  431 passed | 2 skipped (433)`, e2e `153 passed`, `1 failed`. The one failure is the known flaky test of issue 405, `tests/e2e/acceptance.iphone.spec.ts:43` (light first): `Error: expect(locator).toContainText(expected) failed`, `Expected substring: "Review open pull requests daily"`, `Error: element(s) not found`. The dark-first twin passed. Not retried.
+
 
 <!-- W5 -->
 
