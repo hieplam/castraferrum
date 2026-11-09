@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { loopBody, MOCK_TICK_MS, openSse, resetApi, startApi, type ApiServer, type SseEvent } from '../support/api-kit';
+import { loopBody, MOCK_TICK_MS, openSse, resetApi, skippedRunAfterClockMove, startApi, type ApiServer, type SseEvent } from '../support/api-kit';
 
 const FIXTURE = fileURLToPath(new URL('../fixtures/transcript/haiku-small.jsonl', import.meta.url));
 const FIXTURE_KINDS = { user: 1, thinking: 2, tool_use: 2, tool_result: 2, assistant: 1, system: 1 };
@@ -217,12 +217,7 @@ describe('GET /api/runs/:id/transcript/stream', () => {
 
     const l2 = (await call('POST', '/api/loops', loopBody({ cron: '* * * * *' }))).body;
     await call('POST', `/api/loops/${l2.id}/start`);
-    await call('POST', '/api/__test/clock', { advanceMs: 61_000 });
-    const skipped = await vi.waitFor(async () => {
-      const runs = (await call('GET', `/api/loops/${l2.id}/runs`)).body.items as Json[];
-      expect(runs[0]).toMatchObject({ status: 'skipped' });
-      return runs[0]!.id as string;
-    });
+    const skipped = await skippedRunAfterClockMove(server, base, l2.id as string);
     const none = await openSse(`${base}/api/runs/${skipped}/transcript/stream`);
     await none.waitEnd(3000);
     expect(none.data().map((e) => e.event)).toEqual(['missing', 'ended']);
