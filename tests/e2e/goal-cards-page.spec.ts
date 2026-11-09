@@ -66,6 +66,7 @@ test('G19: each earlier card with a chevron is a link that opens its GitHub issu
   try {
     await page.goto(`${c.sp.baseUrl}${PAGE}`);
     const cells = page.getByTestId('card-history').locator('.cell');
+    await expect(cells.first()).toBeVisible();
     expect(await cells.count()).toBeGreaterThan(0);
     for (const cell of await cells.all()) {
       await expect(cell.locator('.chev')).toHaveCount(1);
