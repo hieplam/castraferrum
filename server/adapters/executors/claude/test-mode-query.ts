@@ -81,7 +81,7 @@ function runEndLineOf(prompt: string): string {
 
 /** Prompt `[goal-card]`: the run writes the card of `card.md` in its folder as a `goal-card` issue, like the goal writer does (W6 oracle). */
 export const GOAL_CARD_MARK = '[goal-card]';
-const GOAL_CARD_REPO = 'fake/repo';
+const GOAL_CARD_REPO = 'hieplam/tribe';
 
 /** Opens the card and returns a line for the run summary. A failed `gh` call throws, so the run fails and the test sees why. */
 function writeGoalCard(prompt: string, cwd: string): string {

@@ -15,7 +15,7 @@ import { createFakeGh, type FakeGh, type FakeWorld } from '../support/fake-gh-ki
 import { ServerProcess } from '../support/server-process';
 
 const PROBE = resolve('scripts/goal-writer-probe.mjs');
-const REPO = 'fake/repo';
+const REPO = 'hieplam/tribe';
 const CHARTER = readFileSync(resolve('goals/charter.json'), 'utf8');
 const WRITER_PROMPT = `[goal-card] Run the goal writer on ${REPO}, using the epic-loop skill.`;
 const CARD = {
@@ -65,7 +65,7 @@ function changeWorld(change: (w: FakeWorld) => void): void {
 function seedEpic(): void {
   changeWorld((w) => {
     const at = '2026-11-01T00:00:00Z';
-    w.issues = [{ number: 1, title: EPIC.title, body: EPIC.body, state: 'OPEN', labels: [], comments: [], author: { login: 'fake' }, url: 'https://github.com/fake/repo/issues/1', createdAt: at, updatedAt: at, closedAt: null }];
+    w.issues = [{ number: 1, title: EPIC.title, body: EPIC.body, state: 'OPEN', labels: [], comments: [], author: { login: 'hieplam' }, url: 'https://github.com/hieplam/tribe/issues/1', createdAt: at, updatedAt: at, closedAt: null }];
     w.calls = [];
   });
 }
@@ -91,7 +91,7 @@ async function startWriter(origin: BareRepo): Promise<string> {
   expect((await sp.api('POST', '/api/__test/reset')).status).toBe(204);
   expect((await sp.api('POST', '/api/__test/clock', { at: '2026-11-02T03:00:00Z' })).status).toBe(200);
   seedEpic();
-  const repo = await sp.api<Json>('POST', '/api/repos', { path: cloneOf(origin), name: 'fake-repo' });
+  const repo = await sp.api<Json>('POST', '/api/repos', { path: cloneOf(origin), name: 'tribe' });
   expect(repo.status).toBe(201);
   const repoId = repo.body.id as string;
   expect((await sp.api('POST', '/api/__test/repo-gate', { repoId, enabled: false, githubRepo: REPO })).status).toBe(204);

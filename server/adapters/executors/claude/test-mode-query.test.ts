@@ -105,7 +105,7 @@ describe('testModeQuery, prompt [goal-card] (W6)', () => {
   const world = () => {
     const dir = mkdtempSync(join(tmpdir(), 'lc-goal-card-gh-'));
     const script = join(dir, 'gh.mjs');
-    writeFileSync(script, "import{appendFileSync}from'node:fs';appendFileSync(process.env.GH_CALLS,JSON.stringify(process.argv.slice(2))+String.fromCharCode(10));console.log('https://github.com/fake/repo/issues/7');\n");
+    writeFileSync(script, "import{appendFileSync}from'node:fs';appendFileSync(process.env.GH_CALLS,JSON.stringify(process.argv.slice(2))+String.fromCharCode(10));console.log('https://github.com/hieplam/tribe/issues/7');\n");
     const calls = join(dir, 'calls.jsonl');
     return { dir, script, calls };
   };
@@ -122,10 +122,10 @@ describe('testModeQuery, prompt [goal-card] (W6)', () => {
     process.env.LOOPS_GH_BIN = w.script;
     process.env.GH_CALLS = w.calls;
     try {
-      const events = await run('[goal-card] Run the goal writer on fake/repo, using the epic-loop skill.', cwd);
+      const events = await run('[goal-card] Run the goal writer on hieplam/tribe, using the epic-loop skill.', cwd);
       expect(events.at(-1)).toMatchObject({ type: 'result', outcome: 'succeeded' });
       const call = JSON.parse(readFileSync(w.calls, 'utf8').trim()) as string[];
-      expect(call).toEqual(['issue', 'create', '-R', 'fake/repo', '--title', 'Goal card: Report per customer', '--label', 'goal-card', '--body-file', join(cwd, 'card.md')]);
+      expect(call).toEqual(['issue', 'create', '-R', 'hieplam/tribe', '--title', 'Goal card: Report per customer', '--label', 'goal-card', '--body-file', join(cwd, 'card.md')]);
     } finally {
       process.env.LOOPS_GH_BIN = saved.bin;
       process.env.GH_CALLS = saved.calls;
