@@ -958,7 +958,7 @@ export const vi: Record<MessageKey, string> = {
   'goalLoop.hold.untilUnknown': 'chưa biết lúc nào kết thúc',
   'goalLoop.blocked.issueOnly': 'Issue {n}',
   'goalLoop.editor.title': 'Probe',
-  'goalLoop.editor.enabled': 'Loop này chọn việc kế tiếp bằng probe',
+  'goalLoop.editor.enabled': 'Chọn việc kế tiếp bằng probe',
   'goalLoop.editor.stopFirst': 'Hãy dừng loop trước. Chỉ sửa được probe khi loop đã dừng.',
   'goalLoop.editor.command': 'Lệnh probe',
   'goalLoop.editor.commandHint': 'Mỗi dòng một đối số. Dòng cuối của kết quả quyết định.',

@@ -938,7 +938,7 @@ export const en = {
   'goalLoop.hold.untilUnknown': 'end not known',
   'goalLoop.blocked.issueOnly': 'Issue {n}',
   'goalLoop.editor.title': 'Probe',
-  'goalLoop.editor.enabled': 'This loop picks its next task with a probe',
+  'goalLoop.editor.enabled': 'Pick the next task with a probe',
   'goalLoop.editor.stopFirst': 'Stop the loop first. The probe can change only while the loop is stopped.',
   'goalLoop.editor.command': 'Probe command',
   'goalLoop.editor.commandHint': 'One argument per line. The last line of its output decides.',
