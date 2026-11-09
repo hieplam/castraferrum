@@ -97,6 +97,9 @@ export class ServerProcess {
 
   async start(): Promise<void> {
     if (this.#child) return;
+    // A test-only delay, to make a slow start (a loaded machine) happen on demand: a setup that must stay inside its limit is proven with it.
+    const delay = Number(process.env.LOOPS_TEST_START_DELAY_MS ?? 0);
+    if (delay > 0) await new Promise((r) => setTimeout(r, delay));
     const db = new URL(liveDbUrl());
     db.hostname = '127.0.0.1';
     db.port = String(this.#dbProxyPort);

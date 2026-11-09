@@ -15,7 +15,11 @@ import {
 import { liveDbUrl, ServerProcess } from "../../support/server-process";
 import { PHONE_VIEW, PREVIEW_VIEW } from "./kit";
 
-/** One server for a describe block; `world()` = a clean DB with the preview's world (with history), the clocks at PREVIEW_NOW. */
+/**
+ * One server for the whole file (it was one for each describe block: six starts, and under load each start can pass the 30 s default of a
+ * hook); `world()` = a clean DB with the preview's world (with history), the clocks at PREVIEW_NOW. The start has the 180 s that the
+ * tests of the other visual files that start a ServerProcess set for themselves.
+ */
 function useServer() {
   const ctx = {} as {
     sp: ServerProcess;
@@ -23,6 +27,7 @@ function useServer() {
     world(page: Page): Promise<void>;
   };
   test.beforeAll(async () => {
+    test.setTimeout(180_000);
     ctx.sp = await ServerProcess.launch();
     ctx.db = new pg.Pool({ connectionString: liveDbUrl(), max: 2 });
     ctx.world = async (page) => {
@@ -52,6 +57,8 @@ function useServer() {
   });
   return ctx;
 }
+
+const ctx = useServer();
 
 /** A token of design/ds/tokens.css in px, as the page resolves it. */
 const tokenPx = (page: Page, name: string) =>
@@ -89,7 +96,6 @@ for (const [size, view] of [
 ] as const) {
   test.describe(`${size} layout of the loop and run pages`, () => {
     test.use(view);
-    const ctx = useServer();
 
     test("castraferrum#189: the Now card's dot is centred on its title in every state", async ({
       page,
@@ -136,7 +142,6 @@ for (const [size, view] of [
 
 test.describe("phone loop page: caption and meta line", () => {
   test.use(PHONE_VIEW);
-  const ctx = useServer();
 
   test("castraferrum#192: the Recent runs caption sits under its head, wraps at the caption line height, never breaks a part", async ({
     page,
@@ -240,7 +245,6 @@ test.describe("phone loop page: caption and meta line", () => {
 
 test.describe("phone section captions (castraferrum#202)", () => {
   test.use(PHONE_VIEW);
-  const ctx = useServer();
 
   /** Every visible `.group-cap` of the page: its text, its distance to what it captions (the next box) and to the box above. */
   const captions = (page: Page) =>
@@ -332,7 +336,6 @@ test.describe("phone section captions (castraferrum#202)", () => {
 
 test.describe("phone notes and cards after a captioned group (castraferrum#205)", () => {
   test.use(PHONE_VIEW);
-  const ctx = useServer();
 
   /** Every visible box that follows a captioned `.group` and is not the next caption or head: its name and its gap to the group. */
   const trailing = (page: Page) =>
@@ -418,7 +421,6 @@ test.describe("phone notes and cards after a captioned group (castraferrum#205)"
 
 test.describe("phone section heads (castraferrum#207)", () => {
   test.use(PHONE_VIEW);
-  const ctx = useServer();
 
   /** Every visible `.section-head` of the page: its title, what it heads (the next box) and the gap between them. */
   const heads = (page: Page) =>
