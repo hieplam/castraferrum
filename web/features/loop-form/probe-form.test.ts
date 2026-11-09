@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ValidationIssueDto } from '../../../shared/contracts/common';
 import type { ProbeDto } from '../../../shared/contracts/goal-loop';
-import { argvToText, envToText, probeErrorsFromIssues, probeValuesFrom, textToArgv, textToEnv, toProbeBody } from './probe-form';
+import { argvToText, envToText, probeErrorsFromIssues, probeValuesFrom, textToArgv, textToEnv, toProbeBody, tokenBudgetError } from './probe-form';
 
 const probe: ProbeDto = {
   loopId: 'loop-1',
@@ -40,25 +40,42 @@ describe('env text', () => {
 });
 
 describe('probe body', () => {
-  it('maps every field, and sends back the resources and the token budget of the probe (they have no field)', () => {
+  it('maps every field, and sends back the resources of the probe (they have no field)', () => {
     const values = probeValuesFrom(probe);
-    expect(values).toMatchObject({ enabled: true, restart: 'resume', basePort: '7250', claim: 'node\nepic.mjs\nclaim\n{key}' });
+    expect(values).toMatchObject({ enabled: true, restart: 'resume', basePort: '7250', tokenBudget: '1000', claim: 'node\nepic.mjs\nclaim\n{key}' });
     expect(toProbeBody(values, probe)).toEqual({
       command: probe.command,
       claim: probe.claim,
       release: probe.release,
       resources: probe.resources,
-          tokenBudget: 1000,
+      tokenBudget: 1000,
       laneEnv: probe.laneEnv,
       laneBasePort: 7250,
       restartPolicy: 'resume',
     });
   });
 
-  it('a new probe sends no token budget, so the server defaults apply', () => {
-    const body = toProbeBody(probeValuesFrom(probe));
+  it('a new probe sends no resources, and no token budget (null) while the field is empty', () => {
+    const body = toProbeBody(probeValuesFrom(null));
     expect(body.resources).toEqual([]);
-    expect(body).not.toHaveProperty('tokenBudget');
+    expect(body.tokenBudget).toBeNull();
+  });
+
+  it('the text of the token budget is sent as a number', () => {
+    const values = probeValuesFrom(probe);
+    expect(toProbeBody({ ...values, tokenBudget: ' 2500 ' }, probe).tokenBudget).toBe(2500);
+  });
+
+  it('an empty token budget is null, which means no limit, also when the saved probe had a budget', () => {
+    expect(toProbeBody({ ...probeValuesFrom(probe), tokenBudget: '' }, probe).tokenBudget).toBeNull();
+  });
+
+  it('text that is not a whole number of 1 or more gives an error key, and an empty field or a number gives none', () => {
+    expect(tokenBudgetError('abc')).toBe('goalLoop.editor.tokenBudgetError');
+    expect(tokenBudgetError('0')).toBe('goalLoop.editor.tokenBudgetError');
+    expect(tokenBudgetError('1.5')).toBe('goalLoop.editor.tokenBudgetError');
+    expect(tokenBudgetError('')).toBeNull();
+    expect(tokenBudgetError(' 1000 ')).toBeNull();
   });
 
   it('an empty base port is null, and text that is not a number is 0 (the server reports it at the field)', () => {
@@ -69,7 +86,7 @@ describe('probe body', () => {
   });
 
   it('a loop with no probe starts with the switch off and every field empty', () => {
-    expect(probeValuesFrom(null)).toEqual({ enabled: false, command: '', claim: '', release: '', restart: 'stop', basePort: '', laneEnv: '' });
+    expect(probeValuesFrom(null)).toEqual({ enabled: false, command: '', claim: '', release: '', restart: 'stop', basePort: '', laneEnv: '', tokenBudget: '' });
   });
 });
 

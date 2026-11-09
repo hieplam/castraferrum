@@ -4,6 +4,7 @@
 import type { ValidationIssueDto } from '../../../shared/contracts/common';
 import type { ProbeDto, ProbeInputBody } from '../../../shared/contracts/goal-loop';
 import type { RestartPolicy } from '../../../shared/domain/goal-loop';
+import type { MessageKey } from '../../prefs/messages';
 
 export type ProbeFormValues = {
   /** The switch: a loop with a probe, or one that gets a probe on Save. */
@@ -17,10 +18,12 @@ export type ProbeFormValues = {
   basePort: string;
   /** `KEY=value` per line. */
   laneEnv: string;
+  /** `''` = no limit (`null`). */
+  tokenBudget: string;
 };
 
 /** Fields of the group that can carry a server error. */
-export type ProbeField = 'command' | 'claim' | 'release' | 'laneEnv' | 'laneBasePort';
+export type ProbeField = 'command' | 'claim' | 'release' | 'laneEnv' | 'laneBasePort' | 'tokenBudget';
 export type ProbeErrors = Partial<Record<ProbeField, string>>;
 
 /** An argv as the editor shows it: one argument per line. */
@@ -54,7 +57,7 @@ export function textToEnv(text: string): Record<string, string> {
 }
 
 export function emptyProbeValues(): ProbeFormValues {
-  return { enabled: false, command: '', claim: '', release: '', restart: 'stop', basePort: '', laneEnv: '' };
+  return { enabled: false, command: '', claim: '', release: '', restart: 'stop', basePort: '', laneEnv: '', tokenBudget: '' };
 }
 
 export function probeValuesFrom(probe: ProbeDto | null): ProbeFormValues {
@@ -67,6 +70,7 @@ export function probeValuesFrom(probe: ProbeDto | null): ProbeFormValues {
     restart: probe.restartPolicy,
     basePort: probe.laneBasePort === null ? '' : String(probe.laneBasePort),
     laneEnv: envToText(probe.laneEnv),
+    tokenBudget: probe.tokenBudget === null ? '' : String(probe.tokenBudget),
   };
 }
 
@@ -77,17 +81,30 @@ function portOf(text: string): number | null {
   return /^\d+$/.test(s) ? Number(s) : 0;
 }
 
+/** Token budget field: empty = no limit (`null`); text that is not a whole number gives 0, so the server also reports `tokenBudget:outOfRange`. */
+function budgetOf(text: string): number | null {
+  const s = text.trim();
+  if (s === '') return null;
+  return /^\d+$/.test(s) ? Number(s) : 0;
+}
+
+/** The error key of the token budget field, or `null` when it is empty (no limit) or a whole number of 1 or more. */
+export function tokenBudgetError(text: string): MessageKey | null {
+  const s = text.trim();
+  return s === '' || (/^\d+$/.test(s) && Number(s) >= 1) ? null : 'goalLoop.editor.tokenBudgetError';
+}
+
 /**
- * The editor shows no field for `resources` and `tokenBudget` yet, so a save sends the values of the saved probe:
- * an omitted field takes its server default, and a save from the editor must not reset a budget set through the API.
+ * The editor shows no field for `resources` yet, so a save sends the resources of the saved probe: an omitted field takes its server
+ * default. The token budget is the field `probe-token-budget`: empty is `null`, no limit.
  */
-export function toProbeBody(v: ProbeFormValues, kept?: Pick<ProbeDto, 'resources' | 'tokenBudget'>): ProbeInputBody {
+export function toProbeBody(v: ProbeFormValues, kept?: Pick<ProbeDto, 'resources'>): ProbeInputBody {
   return {
     command: textToArgv(v.command),
     claim: textToArgv(v.claim),
     release: textToArgv(v.release),
     resources: kept?.resources ?? [],
-    ...(kept ? { tokenBudget: kept.tokenBudget } : {}),
+    tokenBudget: budgetOf(v.tokenBudget),
     laneEnv: textToEnv(v.laneEnv),
     laneBasePort: portOf(v.basePort),
     restartPolicy: v.restart,
@@ -96,13 +113,13 @@ export function toProbeBody(v: ProbeFormValues, kept?: Pick<ProbeDto, 'resources
 
 /**
  * The probe issues that have a field (`command:required`, `claim:missingKey`, `release:missingKey`, `release:missingReason`,
- * `laneEnv:missingBasePort`, `laneBasePort:outOfRange`) with the server's message; the others (`resources:reserved`) go to `rest`.
+ * `laneEnv:missingBasePort`, `laneBasePort:outOfRange`, `tokenBudget:outOfRange`) with the server's message; the others (`resources:reserved`) go to `rest`.
  */
 export function probeErrorsFromIssues(issues: ValidationIssueDto[]): { errors: ProbeErrors; rest: ValidationIssueDto[] } {
   const errors: ProbeErrors = {};
   const rest: ValidationIssueDto[] = [];
   for (const i of issues) {
-    if (i.field === 'command' || i.field === 'claim' || i.field === 'release' || i.field === 'laneEnv' || i.field === 'laneBasePort') {
+    if (i.field === 'command' || i.field === 'claim' || i.field === 'release' || i.field === 'laneEnv' || i.field === 'laneBasePort' || i.field === 'tokenBudget') {
       errors[i.field] ??= i.message;
     } else rest.push(i);
   }

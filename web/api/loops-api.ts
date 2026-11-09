@@ -22,6 +22,7 @@ import type { HoldDto } from '../../shared/contracts/holds';
 import type { NoticeDto } from '../../shared/contracts/notices';
 import type { RepoDto, RepoInputBody, RepoListItemDto } from '../../shared/contracts/repos';
 import type { GateJobDetailDto, GateViewDto } from '../../shared/contracts/gate';
+import type { GoalCardDto, GoalCardListDto } from '../../shared/contracts/goal-cards';
 import type { ScoreboardDto } from '../../shared/contracts/scoreboard';
 import type { TranscriptPageDto } from '../../shared/contracts/transcript';
 
@@ -78,6 +79,12 @@ export interface LoopsApi {
   ratifyGateJob(id: string): Promise<void>;
   /** `POST /gate/jobs` - queues the PR again. `GATE_OFF` when the gate of the repo is off. */
   queueGateJob(repoId: string, prNumber: number): Promise<void>;
+  /** `GET /goal-cards?repoId=` - the goal cards of a repo, with the count `acceptedWithNoChange` (spec 2.13). */
+  goalCards(repoId: string): Promise<GoalCardListDto>;
+  /** `POST /goal-cards/:id/accept` - the one-word yes. `GOAL_CARD_NOT_FOUND`, `GOAL_CARD_NOT_OPEN` (the card is not proposed). */
+  acceptGoalCard(id: string): Promise<GoalCardDto>;
+  /** `POST /goal-cards/:id/refuse` - the no; it closes the issue. Same errors as accept. */
+  refuseGoalCard(id: string): Promise<GoalCardDto>;
   /** `GET /loops/:id/probe`: a loop with no probe gives `null`. */
   getProbe(loopId: string): Promise<ProbeDto | null>;
   /** `PUT /loops/:id/probe`: the loop must be stopped. Errors: `VALIDATION_FAILED` (`issues` of the probe fields), `LOOP_IS_ACTIVE`. */

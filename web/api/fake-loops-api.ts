@@ -22,6 +22,7 @@ import type { HoldDto } from '../../shared/contracts/holds';
 import type { NoticeDto } from '../../shared/contracts/notices';
 import type { RepoDto, RepoInputBody, RepoListItemDto } from '../../shared/contracts/repos';
 import type { GateJobDetailDto, GateViewDto } from '../../shared/contracts/gate';
+import type { GoalCardDto, GoalCardListDto } from '../../shared/contracts/goal-cards';
 import type { ScoreboardDto } from '../../shared/contracts/scoreboard';
 import type { TranscriptPageDto } from '../../shared/contracts/transcript';
 import { ApiError, type LoopListFilter, type LoopsApi, type Page, type PageRequest } from './loops-api';
@@ -236,6 +237,31 @@ export class FakeLoopsApi implements LoopsApi {
   }
   async queueGateJob(): Promise<void> {
     this.calls.push('queueGateJob');
+  }
+  /** The goal cards of a test, by repo id. Accept and Refuse change the state of the card, as the server does. */
+  readonly goalCardRows = new Map<string, GoalCardDto[]>();
+  async goalCards(repoId: string): Promise<GoalCardListDto> {
+    this.calls.push('goalCards');
+    const items = this.goalCardRows.get(repoId) ?? [];
+    return { items, acceptedWithNoChange: items.filter((c) => (c.state === 'accepted' || c.state === 'started') && !c.changed).length };
+  }
+  async acceptGoalCard(id: string): Promise<GoalCardDto> {
+    this.calls.push('acceptGoalCard');
+    return this.#decideGoalCard(id, 'accepted');
+  }
+  async refuseGoalCard(id: string): Promise<GoalCardDto> {
+    this.calls.push('refuseGoalCard');
+    return this.#decideGoalCard(id, 'refused');
+  }
+  #decideGoalCard(id: string, state: 'accepted' | 'refused'): GoalCardDto {
+    for (const rows of this.goalCardRows.values()) {
+      const at = rows.findIndex((c) => c.id === id);
+      if (at < 0) continue;
+      if (rows[at]!.state !== 'proposed') throw new ApiError('GOAL_CARD_NOT_OPEN', 409, 'card is not proposed');
+      rows[at] = { ...rows[at]!, state, decidedAt: this.now() };
+      return rows[at]!;
+    }
+    throw new ApiError('GOAL_CARD_NOT_FOUND', 404, 'card not found');
   }
   async listRepos(): Promise<RepoListItemDto[]> {
     this.calls.push('listRepos');
