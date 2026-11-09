@@ -36,6 +36,9 @@ function blockedLine(line: string): string {
 /** Run #23 stays out of every shot ("Show 1 more run"), so its time makes the five finished runs average 40:18 as the approved figures say. */
 const RUN_23_DURATION = 4518;
 
+/** The seeded probe is never due while the server clock is this far before the preview time: no tick of the live ticker touches the seed. */
+const SERVER_CLOCK_BACK_MS = 24 * 3600_000;
+
 type Sample = { n: number; st: string; trig: string; start: string; dur: number; cost: number | null; sum?: string; err?: string };
 
 /**
@@ -154,6 +157,9 @@ export async function seedProbeState(
     for (const [seq, when, level, message] of logs) await db.query('INSERT INTO run_logs (run_id, seq, at, level, message) VALUES ($1,$2,$3,$4,$5)', [runId, seq, when, level, message]);
     if (opts.projectsDir) writeSessionTranscript(join(opts.projectsDir), sid(key, heldRun.n), gl.transcript);
   }
+  // The server clock leaves PREVIEW_NOW (the browser clock stays there): the ticker of the real server probes the seeded loop once the
+  // clock is 60 s past its last probe, and that tick would replace the seeded state and the time of the last probe (issue 421).
+  ok(await sp.api('POST', '/api/__test/clock', { at: new Date(PREVIEW_NOW.getTime() - SERVER_CLOCK_BACK_MS).toISOString() }));
   return { path: `/loops/${l.id}`, runPath };
 }
 
