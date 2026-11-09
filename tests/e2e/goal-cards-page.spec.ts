@@ -65,11 +65,11 @@ test('G19: each earlier card with a chevron is a link that opens its GitHub issu
   const c = await launch('two-way');
   try {
     await page.goto(`${c.sp.baseUrl}${PAGE}`);
-    const cells = page.getByTestId('card-history').locator('.cell');
+    const cells = page.getByTestId('card-history').locator('[data-card-id]');
     await expect(cells.first()).toBeVisible();
     expect(await cells.count()).toBeGreaterThan(0);
     for (const cell of await cells.all()) {
-      await expect(cell.locator('.chev')).toHaveCount(1);
+      await expect(cell.locator('svg')).toHaveCount(1);
       await expect(cell).toHaveAttribute('href', /^https:\/\/github\.com\/hieplam\/tribe\/issues\/\d+$/);
       await expect(cell).toHaveAttribute('target', '_blank');
       expect(await cell.evaluate((el) => el.tagName)).toBe('A');
