@@ -8,7 +8,7 @@
 // locked for a folder already registered. A registration the server refuses shows its error at the path or the name, and Add stays
 // locked until one of them changes. Keyboard (the filter): arrow keys select, Enter opens, Backspace on an empty filter goes up,
 // Escape closes.
-import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import type { FolderEntryDto, FolderPlacesDto } from '../../../shared/contracts/folders';
 import { isApiError } from '../../api/loops-api';
 import { useFolderNav, useFolderPlaces } from '../../data/folders';
@@ -94,8 +94,9 @@ export function AddRepo({ onClose }: { onClose(): void }) {
   }, [places.isPending, places.data, nav]);
 
   // Arriving at a folder: the field shows its path (unless the user typed one since their last step), the filter empties, the folder
-  // just left is selected (going up).
-  useEffect(() => {
+  // just left is selected (going up). A layout effect, so the field changes in the same task as the list: with a plain effect the
+  // list showed the folder one task before the field did, and a path typed in that gap went after the late path (issue 405).
+  useLayoutEffect(() => {
     if (!folder) return;
     if (!keepTyped.current) {
       setTyped(folder.path);

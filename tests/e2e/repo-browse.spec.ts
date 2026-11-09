@@ -145,6 +145,30 @@ test.describe('browse folders when registering a repo', () => {
     await expect(page.getByTestId('repo-row')).toHaveCount(1);
   });
 
+  // Issue 405: the acceptance journey waits for the list to show the opening folder, then fills the path field. The field got its
+  // path one task after the list: in that gap the field was empty, the fill selected nothing, the late path arrived, and the typed
+  // path went after it (`GET /api/folders?path=<home><typed path>`, a 400). A mutation observer records the field each
+  // time the page changes, in the same task as the change, so the gap shows on every run and no slow listing is needed.
+  test('UC-29: the path field shows the opening folder in the same frame as the folder list', { tag: '@UC-29' }, async ({ page }) => {
+    await page.addInitScript(() => {
+      const frames: { path: string; field: string | null }[] = [];
+      (window as unknown as { folderFrames: typeof frames }).folderFrames = frames;
+      new MutationObserver(() => {
+        const path = document.querySelector('[data-testid="folder-list"]')?.getAttribute('data-path') ?? '';
+        if (!path) return;
+        const field = document.querySelector<HTMLInputElement>('[data-testid="repo-path"]')?.value ?? null;
+        const last = frames[frames.length - 1];
+        if (last?.path !== path || last.field !== field) frames.push({ path, field });
+      }).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-path'] });
+    });
+    await page.goto('/repos');
+    await openFolderPicker(page);
+    const home = await page.getByTestId('folder-list').getAttribute('data-path');
+    expect(home).not.toBe('');
+    const frames = await page.evaluate(() => (window as unknown as { folderFrames: { path: string; field: string | null }[] }).folderFrames);
+    expect(frames, 'each change of the folder list, with the path field at that moment').toEqual([{ path: home, field: home }]);
+  });
+
   // castraferrum#183 (found by U27): the dialog is rendered into `body`, outside `.app`; its controls still use the UI font.
   test('every control of the folder picker dialog uses the UI font', async ({ page }) => {
     await page.goto('/repos');
