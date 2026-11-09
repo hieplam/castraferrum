@@ -2,6 +2,8 @@
 // disabled with the hint to stop it first, and a server message shows under its field. All real: browser, build, Fastify, Postgres (test mode).
 import { expect, test } from '@playwright/test';
 import { api, createLoop, reset } from '../support/form-kit';
+import { en } from '../../shared/i18n/en';
+import { vi } from '../../shared/i18n/vi';
 
 type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -76,3 +78,44 @@ test('a claim command with no {key} shows the server message under its field, an
   await expect(page).toHaveURL(new RegExp(`/loops/${loop.id}/edit$`));
   expect((await api<Json>(request, 'GET', `/api/loops/${loop.id}/probe`)).body.probe).toBeNull();
 });
+
+test('an empty Base port and an empty Token budget draw the system placeholder for an empty number row', async ({ page, request }) => {
+  await reset(request);
+  const loop = await createLoop(request, { name: 'Probe placeholder loop', prompt: 'Do the claimed task', cron: '0 0 1 1 *' });
+  await page.goto(`/loops/${loop.id}/edit`);
+  await page.getByTestId('probe-enabled').click();
+  await expect(page.getByTestId('probe-base-port')).toHaveValue('');
+  await expect(page.getByTestId('probe-base-port')).toHaveAttribute('placeholder', en['editor.noLimit']);
+  await expect(page.getByTestId('probe-token-budget')).toHaveValue('');
+  await expect(page.getByTestId('probe-token-budget')).toHaveAttribute('placeholder', en['editor.noLimit']);
+});
+
+for (const width of [390, 360]) {
+  for (const theme of ['light', 'dark'] as const) {
+    for (const lang of ['en', 'vi'] as const) {
+      test(`at ${width} px (${theme}, ${lang}) the probe switch label stays inside the padding of its cell`, async ({ page, request }) => {
+        await page.setViewportSize({ width, height: 844 });
+        await page.emulateMedia({ colorScheme: theme });
+        await page.addInitScript((l) => window.localStorage.setItem('loop-console.lang', l), lang);
+        await reset(request);
+        const loop = await createLoop(request, { name: 'Probe switch loop', prompt: 'Do the claimed task', cron: '0 0 1 1 *' });
+        await page.goto(`/loops/${loop.id}/edit`);
+        const sw = page.getByTestId('probe-enabled');
+        await expect(sw).toContainText((lang === 'en' ? en : vi)['goalLoop.editor.enabled']);
+        const m = await sw.evaluate((el) => {
+          const cell = el.parentElement as HTMLElement;
+          const style = getComputedStyle(cell);
+          const label = document.createRange();
+          label.selectNodeContents(el);
+          return {
+            labelEnd: label.getBoundingClientRect().right,
+            limit: cell.getBoundingClientRect().right - parseFloat(style.paddingRight),
+            boxEnd: el.getBoundingClientRect().right,
+          };
+        });
+        expect(m.labelEnd, `label end ${m.labelEnd} past the cell padding at ${m.limit}`).toBeLessThanOrEqual(m.limit);
+        expect(m.boxEnd, `switch end ${m.boxEnd} past the cell padding at ${m.limit}`).toBeLessThanOrEqual(m.limit);
+      });
+    }
+  }
+}

@@ -465,3 +465,11 @@ Task T6 built the goals page of a loop and compared it with the approved `goal-r
 
 - **What changed:** the two texts above in `goalLoop.goals.loops` of `design/ds/preview/data.js`. Only these 4 images changed: `goal-rows-light`, `goal-rows-dark`, `phone-goal-rows-light` and `phone-goal-rows-dark` in [`ds/preview/shots/`](ds/preview/shots/), re-shot with `npm run design:shots -- --design design/ds --only goal-rows,phone-goal-rows`.
 - **What did not change:** every other element of the two approved states (the four figures, the 8 goal rows, the 2 standing goals, the layout on the phone and the desktop). No class, token, colour or other text of the system changed. The `budget_limited` row stays: the owner brought the token budget back on 2026-11-09, and the app draws it from `loop_probes.token_budget` and the sum of `runs.tokens`.
+
+## the probe switch label, shorter so that it fits at 390 and 360 px (issue 434), 2026-11-09
+
+The label of the probe switch in the editor (`goalLoop.editor.enabled`) ran 11 px past the cell padding at 390 px, because `.switch` cannot wrap its label. By the standing rule of the epic (the app's honest text wins, the owner is not asked), the label is now shorter: `Pick the next task with a probe` in English, and the Vietnamese entry in `shared/i18n/vi.ts`. The meaning is the same. No class, token, colour or size changed.
+
+- **What changed:** the text of that one label. Only these 8 images changed: `form-edit-running`, `form-conflict`, `form-duplicate` and `form-edit-claude`, light and dark, in [`ds/preview/shots/`](ds/preview/shots/). They are the preview states that draw the Probe group of an existing loop.
+- **What did not change:** every other element of those states, and every other approved shot.
+- **Also changed:** the empty Base port and Token budget rows of the probe settings show the placeholder `None` (key `editor.noLimit`), as the Time limit row does (issue 433). The preview does not draw these two rows, so no shot changed for it.
