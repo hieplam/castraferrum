@@ -34,7 +34,7 @@ beforeAll(async () => {
     headRefOid: HEAD,
     mergeCommit: null,
     closingIssuesReferences: [{ number: 141 }],
-    url: 'https://github.com/fake/repo/pull/7',
+    url: 'https://github.com/hieplam/tribe/pull/7',
     createdAt: new Date(0).toISOString(),
     mergedAt: null,
   });
@@ -57,7 +57,7 @@ beforeEach(async () => {
 
 const ratify = (id: string) => server.app.inject({ method: 'POST', url: `/api/gate/jobs/${id}/ratify` });
 
-const gateOn = () => createPgRepositories(pool).gate.setRepoGate(repoId, { enabled: true, githubRepo: 'fake/repo', checkCommand: [] }, new Date());
+const gateOn = () => createPgRepositories(pool).gate.setRepoGate(repoId, { enabled: true, githubRepo: 'hieplam/tribe', checkCommand: [] }, new Date());
 
 describe('POST /api/gate/jobs', { timeout: 30_000 }, () => {
   it('queues the PR at its head, with the first closing issue as the task key: 201', async () => {

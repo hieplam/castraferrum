@@ -1295,17 +1295,17 @@ export function repositoryContract(env: () => ContractEnv): void {
       const j = job(over);
       return { id: j.id, answer: await r.gate.enqueue(j) };
     };
-    const setting = { enabled: true, githubRepo: 'o/r', checkCommand: ['node', 'check.mjs'] };
+    const setting = { enabled: true, githubRepo: 'hieplam/tribe', checkCommand: ['node', 'check.mjs'] };
 
     it('a repository with no gate row has none', async () => {
       expect(await r.gate.getRepoGate(repoId)).toBeNull();
     });
 
     it('setRepoGate stores the setting, and the gate stays off when the caller says so', async () => {
-      expect(await r.gate.setRepoGate(repoId, { enabled: false, githubRepo: 'o/r', checkCommand: [] }, at(1))).toEqual({
+      expect(await r.gate.setRepoGate(repoId, { enabled: false, githubRepo: 'hieplam/tribe', checkCommand: [] }, at(1))).toEqual({
         repoId,
         enabled: false,
-        githubRepo: 'o/r',
+        githubRepo: 'hieplam/tribe',
         checkCommand: [],
         updatedAt: at(1),
       });
@@ -1314,8 +1314,8 @@ export function repositoryContract(env: () => ContractEnv): void {
 
     it('setRepoGate replaces the whole setting', async () => {
       await r.gate.setRepoGate(repoId, setting, at(1));
-      await r.gate.setRepoGate(repoId, { enabled: false, githubRepo: 'x/y', checkCommand: [] }, at(2));
-      expect(await r.gate.getRepoGate(repoId)).toEqual({ repoId, enabled: false, githubRepo: 'x/y', checkCommand: [], updatedAt: at(2) });
+      await r.gate.setRepoGate(repoId, { enabled: false, githubRepo: 'hieplam/castraferrum', checkCommand: [] }, at(2));
+      expect(await r.gate.getRepoGate(repoId)).toEqual({ repoId, enabled: false, githubRepo: 'hieplam/castraferrum', checkCommand: [], updatedAt: at(2) });
     });
 
     it('setRepoGate for an unknown repository gives REPO_NOT_FOUND and writes nothing', async () => {
@@ -1576,7 +1576,7 @@ export function repositoryContract(env: () => ContractEnv): void {
     const newCard = (issueNumber: number, sec: number): NewGoalCardRecord => ({
       id: randomUUID(),
       repoId,
-      githubRepo: 'o/r',
+      githubRepo: 'hieplam/tribe',
       issueNumber,
       title: 'Goal',
       door: 'two-way',
@@ -1704,7 +1704,7 @@ export function repositoryContract(env: () => ContractEnv): void {
   describe('standing goals', () => {
     const newIssue = (over: Partial<NewStandingIssueRecord> = {}): NewStandingIssueRecord => ({
       id: randomUUID(),
-      repo: 'o/r',
+      repo: 'hieplam/tribe',
       rowId: 'H1',
       fingerprint: 'cf30542f175d',
       issueNumber: 7,
@@ -1713,28 +1713,28 @@ export function repositoryContract(env: () => ContractEnv): void {
     });
 
     it('saveGoal stores a goal and replaces it, and getGoal gives null for another row', async () => {
-      const goal = { repo: 'o/r', rowId: 'H1', state: 'failing', lastLine: 'FAIL a', lastRunAt: at(1) } as const;
+      const goal = { repo: 'hieplam/tribe', rowId: 'H1', state: 'failing', lastLine: 'FAIL a', lastRunAt: at(1) } as const;
       await r.goals.saveGoal(goal);
-      expect(await r.goals.getGoal('o/r', 'H1')).toEqual(goal);
+      expect(await r.goals.getGoal('hieplam/tribe', 'H1')).toEqual(goal);
       await r.goals.saveGoal({ ...goal, state: 'passing', lastLine: null, lastRunAt: at(2) });
-      expect(await r.goals.getGoal('o/r', 'H1')).toEqual({ ...goal, state: 'passing', lastLine: null, lastRunAt: at(2) });
-      expect(await r.goals.getGoal('o/r', 'H2')).toBeNull();
-      expect(await r.goals.getGoal('p/r', 'H1')).toBeNull();
+      expect(await r.goals.getGoal('hieplam/tribe', 'H1')).toEqual({ ...goal, state: 'passing', lastLine: null, lastRunAt: at(2) });
+      expect(await r.goals.getGoal('hieplam/tribe', 'H2')).toBeNull();
+      expect(await r.goals.getGoal('hieplam/castraferrum', 'H1')).toBeNull();
     });
 
     it('open gives one failed pass, a second open issue with a fingerprint is refused, and another repository is free', async () => {
       const first = newIssue();
       expect(await r.goals.open(first)).toEqual({ ...first, lastFailedAt: at(1), failCount: 1, closedAt: null });
       await expect(r.goals.open(newIssue({ issueNumber: 8 }))).rejects.toThrow();
-      const other = newIssue({ repo: 'p/r' });
+      const other = newIssue({ repo: 'hieplam/castraferrum' });
       await r.goals.open(other);
-      expect((await r.goals.findOpen('o/r', first.fingerprint))?.id).toBe(first.id);
-      expect((await r.goals.findOpen('p/r', first.fingerprint))?.id).toBe(other.id);
-      expect(await r.goals.findOpen('o/r', 'aaaaaaaaaaaa')).toBeNull();
+      expect((await r.goals.findOpen('hieplam/tribe', first.fingerprint))?.id).toBe(first.id);
+      expect((await r.goals.findOpen('hieplam/castraferrum', first.fingerprint))?.id).toBe(other.id);
+      expect(await r.goals.findOpen('hieplam/tribe', 'aaaaaaaaaaaa')).toBeNull();
       const second = newIssue({ fingerprint: 'bbbbbbbbbbbb', openedAt: at(5) });
       await r.goals.open(second);
       await r.goals.open(newIssue({ rowId: 'H2', fingerprint: 'cccccccccccc' }));
-      expect((await r.goals.listOpen('o/r', 'H1')).map((i) => i.id)).toEqual([first.id, second.id]);
+      expect((await r.goals.listOpen('hieplam/tribe', 'H1')).map((i) => i.id)).toEqual([first.id, second.id]);
     });
 
     it('touch adds one failed pass, and close frees the fingerprint and keeps its first time', async () => {
@@ -1747,27 +1747,27 @@ export function repositoryContract(env: () => ContractEnv): void {
       await r.goals.close(issue.id, at(4));
       await r.goals.close(issue.id, at(5));
       await r.goals.close(randomUUID(), at(5));
-      expect(await r.goals.findOpen('o/r', issue.fingerprint)).toBeNull();
-      expect(await r.goals.listOpen('o/r', 'H1')).toEqual([]);
+      expect(await r.goals.findOpen('hieplam/tribe', issue.fingerprint)).toBeNull();
+      expect(await r.goals.listOpen('hieplam/tribe', 'H1')).toEqual([]);
       const again = newIssue();
       await r.goals.open(again);
-      expect((await r.goals.findOpen('o/r', issue.fingerprint))?.id).toBe(again.id);
+      expect((await r.goals.findOpen('hieplam/tribe', issue.fingerprint))?.id).toBe(again.id);
     });
 
     it('saveSchedule stores one row for each repository and replaces it, also with no next time', async () => {
-      expect(await r.goals.getSchedule('o/r')).toBeNull();
-      await r.goals.saveSchedule({ repo: 'o/r', lastAt: at(1), nextAt: at(2) });
-      await r.goals.saveSchedule({ repo: 'p/r', lastAt: at(3), nextAt: at(4) });
-      expect(await r.goals.getSchedule('o/r')).toEqual({ repo: 'o/r', lastAt: at(1), nextAt: at(2) });
-      await r.goals.saveSchedule({ repo: 'o/r', lastAt: at(5), nextAt: null });
-      expect(await r.goals.getSchedule('o/r')).toEqual({ repo: 'o/r', lastAt: at(5), nextAt: null });
-      expect((await r.goals.getSchedule('p/r'))?.lastAt).toEqual(at(3));
+      expect(await r.goals.getSchedule('hieplam/tribe')).toBeNull();
+      await r.goals.saveSchedule({ repo: 'hieplam/tribe', lastAt: at(1), nextAt: at(2) });
+      await r.goals.saveSchedule({ repo: 'hieplam/castraferrum', lastAt: at(3), nextAt: at(4) });
+      expect(await r.goals.getSchedule('hieplam/tribe')).toEqual({ repo: 'hieplam/tribe', lastAt: at(1), nextAt: at(2) });
+      await r.goals.saveSchedule({ repo: 'hieplam/tribe', lastAt: at(5), nextAt: null });
+      expect(await r.goals.getSchedule('hieplam/tribe')).toEqual({ repo: 'hieplam/tribe', lastAt: at(5), nextAt: null });
+      expect((await r.goals.getSchedule('hieplam/castraferrum'))?.lastAt).toEqual(at(3));
     });
   });
 
   describe('goal_runs', () => {
     const row = (over: Partial<GoalRunRecord> = {}): GoalRunRecord => ({
-      repo: 'o/r',
+      repo: 'hieplam/tribe',
       manifest: 'goals/a.json',
       rowId: 'G1',
       pass: true,
@@ -1782,17 +1782,17 @@ export function repositoryContract(env: () => ContractEnv): void {
 
     it('saveRows replaces the row of the same key, also with no value', async () => {
       await r.goals.saveRows([row()]);
-      expect(await r.goals.listRows('o/r', 'goals/a.json')).toEqual([row()]);
+      expect(await r.goals.listRows('hieplam/tribe', 'goals/a.json')).toEqual([row()]);
       const next = row({ pass: false, value: null, of: null, line: 'G1 FAIL', cadence: 'nightly', sha: 'def5678', at: at(2) });
       await r.goals.saveRows([next]);
-      expect(await r.goals.listRows('o/r', 'goals/a.json')).toEqual([next]);
+      expect(await r.goals.listRows('hieplam/tribe', 'goals/a.json')).toEqual([next]);
     });
 
     it('listRows gives the rows of one repository and manifest by row id, and an empty save changes nothing', async () => {
-      await r.goals.saveRows([row({ rowId: 'G2' }), row({ rowId: 'G1' }), row({ manifest: 'goals/b.json' }), row({ repo: 'p/r' })]);
+      await r.goals.saveRows([row({ rowId: 'G2' }), row({ rowId: 'G1' }), row({ manifest: 'goals/b.json' }), row({ repo: 'hieplam/castraferrum' })]);
       await r.goals.saveRows([]);
-      expect((await r.goals.listRows('o/r', 'goals/a.json')).map((x) => x.rowId)).toEqual(['G1', 'G2']);
-      expect(await r.goals.listRows('o/r', 'goals/none.json')).toEqual([]);
+      expect((await r.goals.listRows('hieplam/tribe', 'goals/a.json')).map((x) => x.rowId)).toEqual(['G1', 'G2']);
+      expect(await r.goals.listRows('hieplam/tribe', 'goals/none.json')).toEqual([]);
     });
   });
 }

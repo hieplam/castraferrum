@@ -22,13 +22,13 @@ class FakeHost {
   failClose = false;
   failList = false;
 
-  /** Open issues of a repository other than `o/r`. */
+  /** Open issues of a repository other than `hieplam/tribe`. */
   elsewhere: LabeledIssue[] = [];
 
   async issuesWithLabel(repo: string): Promise<LabeledIssue[]> {
     if (this.failList) throw new GitHostError('gh issue list failed', 1, 'down');
     this.calls.push('list');
-    return repo === 'o/r' ? this.issues : this.elsewhere;
+    return repo === 'hieplam/tribe' ? this.issues : this.elsewhere;
   }
   async issueBody(_repo: string, number: number): Promise<string> {
     return this.issues.find((i) => i.number === number)!.body;
@@ -62,7 +62,7 @@ beforeEach(async () => {
   starts = [];
   failStart = false;
   repoId = (await repos.repos.insert({ id: new RandomIdGenerator().newId(), name: 'r', path: '/r', createdAt: T0 })).id;
-  await repos.gate.setRepoGate(repoId, { enabled: false, githubRepo: 'o/r', checkCommand: [] }, T0);
+  await repos.gate.setRepoGate(repoId, { enabled: false, githubRepo: 'hieplam/tribe', checkCommand: [] }, T0);
   const deps: GoalCardServiceDeps = {
     cards: repos.goalCards,
     repos: repos.repos,
@@ -206,8 +206,8 @@ describe('goal_card_service', () => {
 
   it('a row of another repository does not change', async () => {
     const other = (await repos.repos.insert({ id: new RandomIdGenerator().newId(), name: 'o', path: '/o', createdAt: T0 })).id;
-    await repos.gate.setRepoGate(other, { enabled: false, githubRepo: 'o/other', checkCommand: [] }, T0);
-    await repos.goalCards.insert({ id: 'other-row', repoId: other, githubRepo: 'o/other', issueNumber: 7, title: 'Other', door: 'one-way', card: card('Other') as never, startAfter: null, createdAt: T0 });
+    await repos.gate.setRepoGate(other, { enabled: false, githubRepo: 'hieplam/castraferrum', checkCommand: [] }, T0);
+    await repos.goalCards.insert({ id: 'other-row', repoId: other, githubRepo: 'hieplam/castraferrum', issueNumber: 7, title: 'Other', door: 'one-way', card: card('Other') as never, startAfter: null, createdAt: T0 });
     host.elsewhere = [{ number: 7, title: 'Other', body: bodyOf('Other') }];
     host.issues = [{ number: 1, title: 'Card', body: bodyOf('First') }];
     await service.tick();

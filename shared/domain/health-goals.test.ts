@@ -19,7 +19,7 @@ const file = (patch: Record<string, unknown> = {}, rows?: unknown[]) =>
 
 function refused(text: string): string {
   try {
-    parseHealthFile(text, 'o/r', 'linux');
+    parseHealthFile(text, 'hieplam/tribe', 'linux');
   } catch (e) {
     expect(isDomainError(e, 'VALIDATION_FAILED')).toBe(true);
     return (e as Error).message;
@@ -29,7 +29,7 @@ function refused(text: string): string {
 
 describe('parseHealthFile', () => {
   it('parses the real goals/health.json', () => {
-    const h = parseHealthFile(REAL, 'o/r', 'linux');
+    const h = parseHealthFile(REAL, 'hieplam/tribe', 'linux');
     expect(h.rows.map((r) => r.id)).toEqual(['H1', 'H2']);
     expect(h.epic).toBe(0);
     expect(h.cron).toBe('0 2 * * *');
@@ -38,14 +38,14 @@ describe('parseHealthFile', () => {
   });
 
   it('fills {repo} and gives an sh argv on linux, with verbatim false', () => {
-    const row = parseHealthFile(REAL, 'o/r', 'linux').rows[1]!;
-    expect(row.run).toEqual(['sh', '-c', 'node scripts/merge-audit.mjs -R o/r --since 2026-11-01T00:00:00Z']);
+    const row = parseHealthFile(REAL, 'hieplam/tribe', 'linux').rows[1]!;
+    expect(row.run).toEqual(['sh', '-c', 'node scripts/merge-audit.mjs -R hieplam/tribe --since 2026-11-01T00:00:00Z']);
     expect(row.verbatim).toBe(false);
   });
 
   it('gives a cmd.exe argv on win32, with verbatim true', () => {
-    const row = parseHealthFile(REAL, 'o/r', 'win32').rows[1]!;
-    expect(row.run).toEqual(['cmd.exe', '/d', '/s', '/c', '"node scripts/merge-audit.mjs -R o/r --since 2026-11-01T00:00:00Z"']);
+    const row = parseHealthFile(REAL, 'hieplam/tribe', 'win32').rows[1]!;
+    expect(row.run).toEqual(['cmd.exe', '/d', '/s', '/c', '"node scripts/merge-audit.mjs -R hieplam/tribe --since 2026-11-01T00:00:00Z"']);
     expect(row.verbatim).toBe(true);
   });
 

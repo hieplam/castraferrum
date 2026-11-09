@@ -561,7 +561,7 @@ describe('gate_workspace', { timeout: 60_000 }, () => {
       delete process.env.SSH_ASKPASS;
       try {
         const { port } = server.address() as AddressInfo;
-        git(repoPath, ['remote', 'set-url', 'origin', `http://127.0.0.1:${port}/acme/api.git`]);
+        git(repoPath, ['remote', 'set-url', 'origin', `http://127.0.0.1:${port}/hieplam/tribe.git`]);
         const started = Date.now();
         await expect(ws.fetchMain(repoPath)).rejects.toThrow(/git fetch failed/);
         expect(Date.now() - started).toBeLessThan(10_000);

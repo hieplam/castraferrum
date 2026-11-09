@@ -10,8 +10,8 @@ import type { ComposedServer } from '../../server/compose';
 import { loopBody } from './api-kit';
 
 const FAKE_LABELS = resolve('tests/support/fake-labels.mjs');
-export const HANDOVER_PR_URL = 'https://github.com/fake/repo/pull/7';
-export const HANDOVER_GITHUB_REPO = 'fake/repo';
+export const HANDOVER_PR_URL = 'https://github.com/hieplam/tribe/pull/7';
+export const HANDOVER_GITHUB_REPO = 'hieplam/tribe';
 export const handOverPrompt = (pr = HANDOVER_PR_URL) => `Handle one task [echo-env] [run-end:PR_OPEN:${pr}]`;
 
 export type HandOverLoop = { repoId: string; loopId: string; dir: string; labels: string };

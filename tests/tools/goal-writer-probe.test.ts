@@ -47,8 +47,8 @@ function world(opts: { charter?: boolean } = {}): World {
       state: 'OPEN',
       labels: [],
       comments: [],
-      author: { login: 'fake' },
-      url: `https://github.com/fake/repo/issues/${issue.number}`,
+      author: { login: 'hieplam' },
+      url: `https://github.com/hieplam/tribe/issues/${issue.number}`,
       createdAt: T0,
       updatedAt: T0,
       closedAt: null,
@@ -56,7 +56,7 @@ function world(opts: { charter?: boolean } = {}): World {
     });
     writeFileSync(gh.world, JSON.stringify(w));
   };
-  const run: World['run'] = (args = ['-R', 'fake/repo'], env = {}) => {
+  const run: World['run'] = (args = ['-R', 'hieplam/tribe'], env = {}) => {
     const r = spawnSync(process.execPath, [SCRIPT, ...args], {
       cwd: dir,
       encoding: 'utf8',
@@ -98,7 +98,7 @@ describe('goal-writer-probe', () => {
       stranger.seed({ number: 1, body: manifest, author: { login: 'someone-else' } });
       expect(stranger.run().out.trim()).toBe(PLAN_LINE);
       const owner = world();
-      owner.seed({ number: 1, body: manifest, author: { login: 'fake' } });
+      owner.seed({ number: 1, body: manifest, author: { login: 'hieplam' } });
       expect((owner.run().line as { action: string }).action).toBe('skip');
     });
 
@@ -107,7 +107,7 @@ describe('goal-writer-probe', () => {
       stranger.seed({ number: 1, labels: [{ name: 'goal-card' }], author: { login: 'someone-else' } });
       expect(stranger.run().out.trim()).toBe(PLAN_LINE);
       const owner = world();
-      owner.seed({ number: 1, labels: [{ name: 'goal-card' }], author: { login: 'fake' } });
+      owner.seed({ number: 1, labels: [{ name: 'goal-card' }], author: { login: 'hieplam' } });
       expect((owner.run().line as { action: string }).action).toBe('skip');
     });
 
@@ -156,20 +156,20 @@ describe('goal-writer-probe', () => {
   it('skips a second call inside the gap', () => {
     const w = world();
     expect(w.run().out.trim()).toBe(PLAN_LINE);
-    const second = w.run(['-R', 'fake/repo'], { GOAL_WRITER_NOW: '2026-11-02T15:59:00.000Z' });
+    const second = w.run(['-R', 'hieplam/tribe'], { GOAL_WRITER_NOW: '2026-11-02T15:59:00.000Z' });
     expect((second.line as { action: string }).action).toBe('skip');
   });
 
   it('plans again 7 hours after the stamp', () => {
     const w = world();
     expect(w.run().out.trim()).toBe(PLAN_LINE);
-    const later = w.run(['-R', 'fake/repo'], { GOAL_WRITER_NOW: '2026-11-02T17:00:00.000Z' });
+    const later = w.run(['-R', 'hieplam/tribe'], { GOAL_WRITER_NOW: '2026-11-02T17:00:00.000Z' });
     expect(later.out.trim()).toBe(PLAN_LINE);
   });
 
   it('exits 1 with no line when gh fails, and does not read that as nothing open', () => {
     const w = world();
-    const r = w.run(['-R', 'fake/repo'], { LOOPS_GH_BIN: join(tmpdir(), 'lc-no-such-gh.mjs') });
+    const r = w.run(['-R', 'hieplam/tribe'], { LOOPS_GH_BIN: join(tmpdir(), 'lc-no-such-gh.mjs') });
     expect(r.code).toBe(1);
     expect(r.out).toBe('');
     expect(r.err).toContain('goal-writer-probe: gh failed');

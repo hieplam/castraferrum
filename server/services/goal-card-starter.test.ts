@@ -10,7 +10,7 @@ function world(gateEnabled = false) {
   let row: GoalCardRecord = {
     id: 'card',
     repoId: 'repo',
-    githubRepo: 'o/r',
+    githubRepo: 'hieplam/tribe',
     issueNumber: 5,
     title: CARD.title,
     door: 'two-way',
@@ -106,7 +106,7 @@ describe('goal_card_starter', () => {
     await w.start();
 
     expect(w.d.host.openIssue).toHaveBeenCalledTimes(1);
-    expect(w.d.host.editIssueBody).toHaveBeenLastCalledWith('o/r', 10, expect.stringContaining('epic #10 of o/r'));
+    expect(w.d.host.editIssueBody).toHaveBeenLastCalledWith('hieplam/tribe', 10, expect.stringContaining('epic #10 of hieplam/tribe'));
     expect(w.d.workspace.publishFile).toHaveBeenCalledWith('/repo', expect.objectContaining({ branch: 'goal/card-5', path: 'goals/2026-11-02-card-5.json' }));
   });
 

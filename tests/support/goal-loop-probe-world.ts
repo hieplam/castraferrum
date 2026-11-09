@@ -13,7 +13,7 @@ export type ProbeSeedState = 'waiting' | 'blocked' | 'held' | 'complete';
 /** The loop key of the sample, as the preview names it: the page of state `held` is the loop `probe-held`. */
 const keyOf = (state: ProbeSeedState) => `probe-${state}`;
 
-/** The blocking issues of the approved `probe-blocked` shot: the key, the title and the tasks each one blocks. The link is `https://github.com/acme/api/issues/<key>`. */
+/** The blocking issues of the approved `probe-blocked` shot: the key, the title and the tasks each one blocks. The link is `https://github.com/hieplam/tribe/issues/<key>`. */
 const BLOCKERS = [
   { key: '31', title: 'Migration 14 fails', blocks: 3 },
   { key: '33', title: 'The check on main is red', blocks: 5 },
@@ -28,7 +28,7 @@ function blockedLine(line: string): string {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(object)) {
     out[k] = v;
-    if (k === 'issues') out.blockers = BLOCKERS.map((b) => ({ ...b, url: `https://github.com/acme/api/issues/${b.key}` }));
+    if (k === 'issues') out.blockers = BLOCKERS.map((b) => ({ ...b, url: `https://github.com/hieplam/tribe/issues/${b.key}` }));
   }
   return JSON.stringify(out);
 }

@@ -66,7 +66,7 @@ describe('parseProbeLine: valid actions', () => {
 
 describe('parseProbeLine: blockers (decision 52)', () => {
   const blocked = (blockers?: unknown) => line({ action: 'blocked', reason: 'red CI', issues: ['31'], ...(blockers === undefined ? {} : { blockers }) });
-  const entry = { key: '31', title: 'Migration 14 fails', blocks: 3, url: 'https://github.com/acme/api/issues/31' };
+  const entry = { key: '31', title: 'Migration 14 fails', blocks: 3, url: 'https://github.com/hieplam/tribe/issues/31' };
 
   test('a missing key gives an empty list', () => {
     const r = parseProbeLine(blocked());
@@ -88,7 +88,7 @@ describe('parseProbeLine: blockers (decision 52)', () => {
   });
 
   test('a url that does not start with https:// fails the line', () => {
-    expect(parseProbeLine(blocked([{ ...entry, url: 'http://github.com/acme/api/issues/31' }]))).toMatchObject({ ok: false, reason: 'invalid blockers' });
+    expect(parseProbeLine(blocked([{ ...entry, url: 'http://github.com/hieplam/tribe/issues/31' }]))).toMatchObject({ ok: false, reason: 'invalid blockers' });
     expect(parseProbeLine(blocked([{ ...entry, title: 7 }]))).toMatchObject({ ok: false, reason: 'invalid blockers' });
   });
 });
@@ -189,25 +189,25 @@ describe('lanes', () => {
   });
 
   test('prNumberOf: a link of the repository gives its number, with no regard to case', () => {
-    expect(prNumberOf('https://github.com/o/r/pull/7', 'o/r')).toBe(7);
-    expect(prNumberOf('https://GitHub.com/O/R/pull/2147483647', 'o/r')).toBe(2147483647);
+    expect(prNumberOf('https://github.com/hieplam/tribe/pull/7', 'hieplam/tribe')).toBe(7);
+    expect(prNumberOf('https://GitHub.com/HIEPLAM/Tribe/pull/2147483647', 'hieplam/tribe')).toBe(2147483647);
   });
 
   test.each([
     [null],
     [''],
     ['7'],
-    ['https://github.com/o/other/pull/7'],
-    ['https://github.com/o/r/pull/7/files'],
-    ['https://github.com/o/r/pull/7#issuecomment-1'],
-    ['https://github.com/o/r/issues/7'],
-    ['https://github.com/o/r/pull/0'],
-    ['https://github.com/o/r/pull/2147483648'],
-    ['http://github.com/o/r/pull/7'],
-    ['https://github.example/o/r/pull/7'],
-    ['https://evil.test/https://github.com/o/r/pull/7'],
+    ['https://github.com/hieplam/castraferrum/pull/7'],
+    ['https://github.com/hieplam/tribe/pull/7/files'],
+    ['https://github.com/hieplam/tribe/pull/7#issuecomment-1'],
+    ['https://github.com/hieplam/tribe/issues/7'],
+    ['https://github.com/hieplam/tribe/pull/0'],
+    ['https://github.com/hieplam/tribe/pull/2147483648'],
+    ['http://github.com/hieplam/tribe/pull/7'],
+    ['https://github.example/hieplam/tribe/pull/7'],
+    ['https://evil.test/https://github.com/hieplam/tribe/pull/7'],
   ])('prNumberOf: %s gives null', (link) => {
-    expect(prNumberOf(link, 'o/r')).toBeNull();
+    expect(prNumberOf(link, 'hieplam/tribe')).toBeNull();
   });
 
   test('claimedLine: the prompt line of spec 2.7, with the key and the action', () => {

@@ -34,7 +34,7 @@ describe('fake gh', { timeout: 60_000 }, () => {
     gh.seedLabels('a', 'b');
     const c = run('issue', 'create', '--title', 'First', '--body', 'Body one', '--label', 'a', '--label', 'b');
     expect(c.status).toBe(0);
-    expect(c.out.trim()).toBe('https://github.com/fake/repo/issues/1');
+    expect(c.out.trim()).toBe('https://github.com/hieplam/tribe/issues/1');
     const l = run('issue', 'list', '--json', 'number,title,labels,state');
     expect(JSON.parse(l.out)).toEqual([{ number: 1, title: 'First', labels: [{ name: 'a' }, { name: 'b' }], state: 'OPEN' }]);
   });
@@ -95,7 +95,7 @@ describe('fake gh', { timeout: 60_000 }, () => {
   it('pr create then list', () => {
     const { run } = setup(true);
     const c = run('pr', 'create', '--head', 'feat/x', '--base', 'main', '--title', 'T', '--body', 'Closes #1');
-    expect(c.out.trim()).toBe('https://github.com/fake/repo/pull/1');
+    expect(c.out.trim()).toBe('https://github.com/hieplam/tribe/pull/1');
     const l = JSON.parse(run('pr', 'list', '--json', 'number,headRefName,baseRefName,state,title').out);
     expect(l).toEqual([{ number: 1, headRefName: 'feat/x', baseRefName: 'main', state: 'OPEN', title: 'T' }]);
   });
@@ -135,12 +135,12 @@ describe('fake gh', { timeout: 60_000 }, () => {
   it('posted status read back', () => {
     const { run, gh } = setup();
     const sha = 'a'.repeat(40);
-    const p = run('api', '-X', 'POST', `repos/fake/repo/statuses/${sha}`, '-f', 'state=success', '-f', 'context=loop/goal', '-f', 'description=ok');
+    const p = run('api', '-X', 'POST', `repos/hieplam/tribe/statuses/${sha}`, '-f', 'state=success', '-f', 'context=loop/goal', '-f', 'description=ok');
     expect(p.status).toBe(0);
-    const s = JSON.parse(run('api', `repos/fake/repo/commits/${sha}/status`).out);
+    const s = JSON.parse(run('api', `repos/hieplam/tribe/commits/${sha}/status`).out);
     expect(s.state).toBe('success');
     expect(s.statuses).toEqual([expect.objectContaining({ context: 'loop/goal', state: 'success', description: 'ok' })]);
-    expect(JSON.parse(run('api', `repos/fake/repo/commits/${sha}/check-runs`).out)).toEqual({ total_count: 0, check_runs: [] });
+    expect(JSON.parse(run('api', `repos/hieplam/tribe/commits/${sha}/check-runs`).out)).toEqual({ total_count: 0, check_runs: [] });
     expect(gh.read().statuses[sha]).toHaveLength(1);
   });
 
@@ -177,10 +177,10 @@ describe('fake gh', { timeout: 60_000 }, () => {
     cleanups.push(() => rmSync(dir, { recursive: true, force: true }));
     const bodyFile = join(dir, 'body.md');
     writeFileSync(bodyFile, 'from a file');
-    expect(run('issue', 'create', '-R', 'o/r', '--title', 'T', '--body-file', bodyFile).status).toBe(0);
+    expect(run('issue', 'create', '-R', 'hieplam/tribe', '--title', 'T', '--body-file', bodyFile).status).toBe(0);
     expect(run('issue', 'close', '1').status).toBe(0);
-    expect(run('issue', 'reopen', '1', '-R', 'o/r').status).toBe(0);
-    expect(run('issue', 'comment', '1', '-R', 'o/r', '--body', 'again').status).toBe(0);
+    expect(run('issue', 'reopen', '1', '-R', 'hieplam/tribe').status).toBe(0);
+    expect(run('issue', 'comment', '1', '-R', 'hieplam/tribe', '--body', 'again').status).toBe(0);
     const v = JSON.parse(run('issue', 'view', '1', '--json', 'body,state,comments,closedAt').out);
     expect(v).toEqual({ body: 'from a file', state: 'OPEN', comments: [expect.objectContaining({ body: 'again' })], closedAt: null });
   });
@@ -193,7 +193,7 @@ describe('fake gh', { timeout: 60_000 }, () => {
     world.issues[1]!.updatedAt = '2026-10-20T00:00:00.000Z';
     world.issues[2]!.updatedAt = '2026-10-21T00:00:00.000Z';
     writeFileSync(gh.world, JSON.stringify(world));
-    const since = run('issue', 'list', '-R', 'o/r', '--state', 'all', '--search', 'updated:>=2026-10-20', '--json', 'number');
+    const since = run('issue', 'list', '-R', 'hieplam/tribe', '--state', 'all', '--search', 'updated:>=2026-10-20', '--json', 'number');
     expect(JSON.parse(since.out)).toEqual([{ number: 2 }, { number: 3 }]);
     const limited = run('issue', 'list', '--state', 'all', '--search', 'updated:>=2026-10-20', '--limit', '1', '--json', 'number');
     expect(JSON.parse(limited.out)).toEqual([{ number: 2 }]);

@@ -13,7 +13,7 @@ import { DefaultStandingGoalService } from '../../server/services/standing-goal-
 import { TEST_DB_URL } from '../support/api-kit';
 import { createFakeGh, FAKE_GH_SCRIPT, type FakeGh, type FakePr } from '../support/fake-gh-kit';
 
-const REPO = 'fake/repo';
+const REPO = 'hieplam/tribe';
 const ROOT = process.cwd();
 const T1 = new Date('2026-11-02T02:00:00.000Z');
 const T2 = new Date('2026-11-03T02:00:00.000Z');

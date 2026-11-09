@@ -73,7 +73,7 @@ async function setup() {
       state: over.state ?? 'OPEN',
       labels: [],
       comments: [],
-      url: `https://github.com/fake/repo/issues/${number}`,
+      url: `https://github.com/hieplam/tribe/issues/${number}`,
       closedAt: null,
     } as never);
     writeFileSync(world.gh.world, JSON.stringify(w, null, 2));

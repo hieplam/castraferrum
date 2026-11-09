@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import summaries from '../../tests/fixtures/run-summaries.json';
 import { parseRunEnd } from './run-end';
 
-const pr = 'https://github.com/o/r/pull/7';
+const pr = 'https://github.com/hieplam/tribe/pull/7';
 
 describe('parseRunEnd', () => {
   test('returns null for all real run summaries (masked fixture)', () => {

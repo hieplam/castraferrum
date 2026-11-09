@@ -14,7 +14,7 @@
       ],
       "firstAt": "2026-10-19T08:00:00.000Z",
       "lastAt": "2026-10-22T09:30:00.000Z",
-      "repo": "fake/repo",
+      "repo": "hieplam/tribe",
       "fingerprint": "aaaaaaaaaaaa",
       "check": {
         "kind": "hook",
@@ -32,7 +32,7 @@
       ],
       "firstAt": "2026-10-19T08:00:00.000Z",
       "lastAt": "2026-10-22T09:30:00.000Z",
-      "repo": "fake/repo",
+      "repo": "hieplam/tribe",
       "fingerprint": "bbbbbbbbbbbb",
       "check": {
         "kind": "hook",
@@ -51,7 +51,7 @@
       ],
       "firstAt": "2026-10-19T08:00:00.000Z",
       "lastAt": "2026-10-22T09:30:00.000Z",
-      "repo": "fake/repo",
+      "repo": "hieplam/tribe",
       "fingerprint": "not-a-hash",
       "check": {
         "kind": "hook",

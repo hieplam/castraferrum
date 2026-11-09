@@ -8,7 +8,7 @@ import { DefaultGateService } from './gate-service';
 const SEC = 1000;
 const HOUR = 60 * MIN;
 const HEAD = 'a'.repeat(40);
-const PR = 'https://github.com/fake/repo/pull/7';
+const PR = 'https://github.com/hieplam/tribe/pull/7';
 const at = (ms: number) => new Date(T0.getTime() + ms);
 const take = (key: string) => JSON.stringify({ v: 1, action: 'take', tasks: [{ key }] });
 const SKIP = '{"v":1,"action":"skip"}';
@@ -49,7 +49,7 @@ async function restart(): Promise<void> {
   await k.repos.gate.requeueRunning(k.clock.now());
 }
 
-const gateSetting = (enabled: boolean) => k.repos.gate.setRepoGate(k.repo.id, { enabled, githubRepo: 'fake/repo', checkCommand: [] }, T0);
+const gateSetting = (enabled: boolean) => k.repos.gate.setRepoGate(k.repo.id, { enabled, githubRepo: 'hieplam/tribe', checkCommand: [] }, T0);
 
 async function tickAt(ms: number) {
   k.clock.set(at(ms));
@@ -292,7 +292,7 @@ describe('gate_handover orders', () => {
   it('the repository name in the link may differ in case: the hand-over takes it', async () => {
     await gateSetting(true);
     await runningTask();
-    await endRun('https://GitHub.com/Fake/Repo/pull/7');
+    await endRun('https://GitHub.com/Hieplam/Tribe/pull/7');
     await tickAt(SEC);
     expect(k.gateQueue.calls).toEqual([{ repoId: k.repo.id, prNumber: 7, taskKey: '141' }]);
   });

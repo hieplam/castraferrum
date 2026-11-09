@@ -35,7 +35,7 @@ function json(dir: string, name: string, value: unknown): string {
   return file;
 }
 function firstPassArgs(out: string, events = eventsFile) {
-  return ['first-pass', '--events', events, '--repo', 'o/r', '--from', '2026-10-19T00:00:00Z', '--to', '2026-10-23T00:00:00Z', '--out', out];
+  return ['first-pass', '--events', events, '--repo', 'hieplam/tribe', '--from', '2026-10-19T00:00:00Z', '--to', '2026-10-23T00:00:00Z', '--out', out];
 }
 function firstPass(events = eventsFile) {
   const out = join(temp(), 'first-pass.json');
@@ -116,7 +116,7 @@ describe('process-review first-pass', () => {
       ['second-word', ['r2', 'r3']],
       ['first-word', ['r1', 'r4']],
     ]);
-    expect(value).toMatchObject({ v: 1, repo: 'o/r', from: '2026-10-19T00:00:00Z', to: '2026-10-23T00:00:00Z', rest: [] });
+    expect(value).toMatchObject({ v: 1, repo: 'hieplam/tribe', from: '2026-10-19T00:00:00Z', to: '2026-10-23T00:00:00Z', rest: [] });
   });
 
   it('exits 2 and writes nothing on a bad rules file', () => {
@@ -205,25 +205,25 @@ describe('process-review first-pass --signals (R8)', () => {
 describe('process-review assemble', () => {
   it('gives the golden fingerprints of the two rule clusters', () => {
     const { value } = assembled();
-    expect(cluster(value, 'usage-limit')).toMatchObject({ fingerprint: '58237cb2147d', events: 12 });
-    expect(cluster(value, 'smart-app-control')).toMatchObject({ fingerprint: '0f274a882e6b', events: 14 });
+    expect(cluster(value, 'usage-limit')).toMatchObject({ fingerprint: '19d9d9ad93d7', events: 12 });
+    expect(cluster(value, 'smart-app-control')).toMatchObject({ fingerprint: 'c7dd47c27295', events: 14 });
   });
 
   it('gives the golden fingerprints and the counts of the model clusters, and ignores numbers that the model wrote', () => {
     const { value } = assembled();
     expect(cluster(value, 'skipped-runs')).toMatchObject({
-      fingerprint: '99bba937603b',
+      fingerprint: 'adefec4d0870',
       events: 3,
       runIds: ['e06', 'e18', 'e23'],
       firstAt: '2026-10-19T20:45:00Z',
       lastAt: '2026-10-21T08:30:00Z',
-      repo: 'o/r',
+      repo: 'hieplam/tribe',
     });
-    expect(cluster(value, 'cancelled-from-console')).toMatchObject({ fingerprint: '8fad049b186e', events: 2 });
+    expect(cluster(value, 'cancelled-from-console')).toMatchObject({ fingerprint: '939f49263c67', events: 2 });
 
     const dir = temp();
     const groups = JSON.parse(readFileSync(fixture('groups'), 'utf8'));
-    Object.assign(groups.clusters[0], { events: 99, runIds: ['e99'], firstAt: '2020-01-01T00:00:00Z', fingerprint: 'aaaaaaaaaaaa', repo: 'x/y' });
+    Object.assign(groups.clusters[0], { events: 99, runIds: ['e99'], firstAt: '2020-01-01T00:00:00Z', fingerprint: 'aaaaaaaaaaaa', repo: 'hieplam/castraferrum' });
     const out = join(dir, 'review.json');
     const r = run('assemble', '--first-pass', firstPass().file, '--groups', json(dir, 'groups.json', groups), '--out', out);
     expect(r.code).toBe(0);
@@ -265,7 +265,7 @@ describe('process-review assemble', () => {
     });
     expect(filed.stderr).toBe('');
     expect(filed.status).toBe(0);
-    expect(JSON.parse(filed.stdout).created).toEqual(['58237cb2147d', '0f274a882e6b', '99bba937603b', '8fad049b186e']);
+    expect(JSON.parse(filed.stdout).created).toEqual(['19d9d9ad93d7', 'c7dd47c27295', 'adefec4d0870', '939f49263c67']);
 
     const prompt = readFileSync(join(root, 'scripts', 'process-review', 'prompt.md'), 'utf8').toLowerCase();
     for (const words of ['`rest`', 'groups.json', 'process-review.mjs assemble', 'process-file-issues.mjs', 'never write a count, date, hash or id']) {

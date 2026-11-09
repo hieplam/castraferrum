@@ -8,7 +8,7 @@ import { DefaultGateService } from './gate-service';
 
 const SEC = 1000;
 const HOUR = 60 * MIN;
-const PR = 'https://github.com/fake/repo/pull/7';
+const PR = 'https://github.com/hieplam/tribe/pull/7';
 const at = (ms: number) => new Date(T0.getTime() + ms);
 const take = (key: string) => JSON.stringify({ v: 1, action: 'take', tasks: [{ key }] });
 const plan = (key: string) => JSON.stringify({ v: 1, action: 'plan', plan: { key, failing: ['G4'] } });
@@ -19,8 +19,8 @@ beforeEach(() => {
   k = makeKit();
 });
 
-const gateOn = () => k.repos.gate.setRepoGate(k.repo.id, { enabled: true, githubRepo: 'fake/repo', checkCommand: [] }, T0);
-const gateOff = () => k.repos.gate.setRepoGate(k.repo.id, { enabled: false, githubRepo: 'fake/repo', checkCommand: [] }, T0);
+const gateOn = () => k.repos.gate.setRepoGate(k.repo.id, { enabled: true, githubRepo: 'hieplam/tribe', checkCommand: [] }, T0);
+const gateOff = () => k.repos.gate.setRepoGate(k.repo.id, { enabled: false, githubRepo: 'hieplam/tribe', checkCommand: [] }, T0);
 
 async function probeLoop(): Promise<string> {
   const { id } = await k.loopService.create(k.input());
@@ -114,7 +114,7 @@ describe('gate_handover', () => {
   it('PR_OPEN with a pull request of another repository: a release, and no queue', async () => {
     await gateOn();
     await running();
-    await endRun(1, { result: 'PR_OPEN', pr: 'https://github.com/other/repo/pull/7' });
+    await endRun(1, { result: 'PR_OPEN', pr: 'https://github.com/hieplam/castraferrum/pull/7' });
     await tickAt(SEC);
 
     expect(k.gateQueue.calls).toEqual([]);
@@ -145,7 +145,7 @@ describe('gate_handover', () => {
   it('queue says the pull request does not exist: one release, not excused, with a reason that names the pull request', async () => {
     await gateOn();
     await running();
-    await endRun(1, { result: 'PR_OPEN', pr: 'https://github.com/fake/repo/pull/9' });
+    await endRun(1, { result: 'PR_OPEN', pr: 'https://github.com/hieplam/tribe/pull/9' });
     k.gateQueue.answer = () => {
       throw new PullRequestNotFoundError(9, 1, 'GraphQL: Could not resolve to a PullRequest with the number of 9. (repository.pullRequest)');
     };

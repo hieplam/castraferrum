@@ -61,7 +61,7 @@ function setup(): World {
         baseRefName: 'main',
         headRefOid: sha,
         mergeCommit: null,
-        url: `https://github.com/fake/repo/pull/${number}`,
+        url: `https://github.com/hieplam/tribe/pull/${number}`,
         createdAt: '2026-11-01T00:00:00.000Z',
         mergedAt: '2026-11-02T00:00:00.000Z',
         ...patch,

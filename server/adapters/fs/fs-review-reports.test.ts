@@ -24,7 +24,7 @@ const cluster = (fingerprint: string, over: Record<string, unknown> = {}) => ({
   runIds: ['r1', 'r2'],
   firstAt: '2026-10-01T00:00:00Z',
   lastAt: '2026-10-02T00:00:00Z',
-  repo: 'o/r',
+  repo: 'hieplam/tribe',
   fingerprint,
   ...over,
 });
