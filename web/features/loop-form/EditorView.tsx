@@ -27,7 +27,7 @@ import { useToast } from '../../ui/toast';
 import { errorTitle, PageNotFound } from '../loop-detail/PushedPage';
 import { AgentFields } from './AgentFields';
 import { changedParts, emptyValues, errorsFromIssues, PART_LABEL, sameName, toBody, valuesFromLoop, type FormErrors, type FormField, type FormValues } from './form-model';
-import { probeErrorsFromIssues, probeValuesFrom, toProbeBody, type ProbeErrors, type ProbeField, type ProbeFormValues } from './probe-form';
+import { probeErrorsFromIssues, probeValuesFrom, toProbeBody, tokenBudgetError, type ProbeErrors, type ProbeField, type ProbeFormValues } from './probe-form';
 import { ProbeFields } from './ProbeFields';
 import { RepoPicker } from './RepoPicker';
 import { evaluateDraft } from './schedule-draft';
@@ -225,6 +225,12 @@ function Editor({
   };
 
   async function save(version: number | null) {
+    // A token budget that is not a number stops the save before any request: its error key shows under the field.
+    const budgetKey = probeValues.enabled && !probeLocked ? tokenBudgetError(probeValues.tokenBudget) : null;
+    if (budgetKey) {
+      setProbeErrors((e) => ({ ...e, tokenBudget: t(budgetKey) }));
+      return;
+    }
     try {
       const saved = await onSave(toBody(values), version);
       setErrors({});

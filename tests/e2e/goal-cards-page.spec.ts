@@ -1,11 +1,12 @@
 // E2E goals G19 and G20, the goal cards page on the real build: Accept and Refuse change the card and the history, a one-way card shows no
-// start time, and a two-way card with no start time says that it waits for Accept. All real: browser, build, Fastify, Postgres (test mode).
+// start time, a two-way card with no start time says that it waits for Accept, and the token budget of a loop saves in the editor. All real: browser, build, Fastify, Postgres (test mode).
 // No test reaches the network: the console runs on the fake `gh` (`LOOPS_GH_BIN`), which holds the issue of the card. The name that shows
 // is `hieplam/tribe`.
 import { expect, test } from '@playwright/test';
 import pg from 'pg';
 import { en } from '../../shared/i18n/en';
 import { createFakeGh, type FakeGh } from '../support/fake-gh-kit';
+import { api, createLoop, reset } from '../support/form-kit';
 import { goalCardId, PROPOSED_ISSUE, seedCard } from '../support/goal-loop-cards-world';
 import { repoId } from '../support/preview-world';
 import { liveDbUrl, ServerProcess } from '../support/server-process';
@@ -83,4 +84,24 @@ test('G20: a two-way card with no start time says that it waits for Accept', asy
   } finally {
     await c.stop();
   }
+});
+
+test('G20: the token budget 1000 saves in the editor of a stopped probe loop and is there after a reload', async ({ page, request }) => {
+  await reset(request);
+  const loop = await createLoop(request, { name: 'Budget editor loop', prompt: 'Do the claimed task', cron: '0 0 1 1 *' });
+  const probe = { command: ['node', 'epic.mjs', 'next', '--probe'] };
+  expect((await api(request, 'PUT', `/api/loops/${loop.id}/probe`, probe)).status).toBe(200);
+  await page.goto(`/loops/${loop.id}/edit`);
+  await expect(page.getByTestId('probe-token-budget')).toHaveValue('');
+  await page.getByTestId('probe-token-budget').fill('abc');
+  await page.getByTestId('form-submit').click();
+  await expect(page.getByText(en['goalLoop.editor.tokenBudgetError'])).toBeVisible();
+  await page.getByTestId('probe-token-budget').fill('1000');
+  await page.getByTestId('form-submit').click();
+  await expect(page).toHaveURL(new RegExp(`/loops/${loop.id}$`));
+  const saved = (await api<{ probe: { tokenBudget: number | null } }>(request, 'GET', `/api/loops/${loop.id}/probe`)).body.probe;
+  expect(saved.tokenBudget).toBe(1000);
+  await page.goto(`/loops/${loop.id}/edit`);
+  await page.reload();
+  await expect(page.getByTestId('probe-token-budget')).toHaveValue('1000');
 });

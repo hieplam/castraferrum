@@ -945,6 +945,9 @@ export const en = {
   'goalLoop.editor.restartResume': 'Resume',
   'goalLoop.editor.basePort': 'Base port',
   'goalLoop.editor.basePortHint': 'Run k gets this port plus its lane number. Empty means no port.',
+  'goalLoop.editor.tokenBudget': 'Token budget',
+  'goalLoop.editor.tokenBudgetHint': 'The most tokens that all runs of this loop use. Empty means no limit.',
+  'goalLoop.editor.tokenBudgetError': 'Enter a whole number of 1 or more, or leave the field empty',
   'goalLoop.editor.laneEnv': 'Lane environment',
   'goalLoop.editor.laneEnvHint': 'KEY=value per line. {slot} and {port} are filled in for each run.',
 };

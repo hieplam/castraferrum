@@ -965,6 +965,9 @@ export const vi: Record<MessageKey, string> = {
   'goalLoop.editor.restartResume': 'Tiếp tục',
   'goalLoop.editor.basePort': 'Cổng gốc',
   'goalLoop.editor.basePortHint': 'Mỗi lần chạy dùng cổng này cộng số làn của nó. Để trống nghĩa là không có cổng.',
+  'goalLoop.editor.tokenBudget': 'Ngân sách token',
+  'goalLoop.editor.tokenBudgetHint': 'Số token nhiều nhất mà mọi lượt chạy của loop này dùng. Để trống nghĩa là không giới hạn.',
+  'goalLoop.editor.tokenBudgetError': 'Nhập một số nguyên từ 1 trở lên, hoặc để trống',
   'goalLoop.editor.laneEnv': 'Biến môi trường của làn',
   'goalLoop.editor.laneEnvHint': 'Mỗi dòng một KEY=value. {slot} và {port} được điền cho từng lần chạy.',
 };
