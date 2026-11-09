@@ -47,8 +47,8 @@ export type ExecutionEvent =
    */
   | { type: 'session'; sessionId: string }
   | { type: 'log'; level: 'info' | 'warn' | 'error'; message: string; data?: unknown }
-  /** Exactly once, as the final event, unless the run ends at a usage limit. `costUsd`: estimated cost reported by the SDK (Claude); Mock has none. `end`: the run-end signal of a success. */
-  | { type: 'result'; outcome: 'succeeded' | 'failed'; summary?: string; error?: string; costUsd?: number; end?: RunEnd }
+  /** Exactly once, as the final event, unless the run ends at a usage limit. `costUsd`: estimated cost reported by the SDK (Claude); Mock has none. `end`: the run-end signal of a success. `tokens`: input plus output tokens of the SDK `usage`; Mock has none. */
+  | { type: 'result'; outcome: 'succeeded' | 'failed'; summary?: string; error?: string; costUsd?: number; tokens?: number; end?: RunEnd }
   /**
    * The final event in place of `result` when the account hit a usage limit (spec 2.5). `resetsAt` and `limitType` are `null` when not known. `costUsd` is
    * the cumulative cost of the session, so it replaces a stored cost and is never added. A limit before any message with an id has no `session` event.

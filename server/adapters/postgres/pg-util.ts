@@ -96,6 +96,7 @@ export function toRun(r: Row): RunRecord {
     error: (r.error as string | null) ?? null,
     // numeric as a string so no precision is lost; the money figures in phase 2 only need 6 decimal places.
     costUsd: r.cost_usd === null || r.cost_usd === undefined ? null : Number(r.cost_usd),
+    tokens: r.tokens === null || r.tokens === undefined ? null : Number(r.tokens), // pg gives a bigint as a string
     sessionId: (r.session_id as string | null) ?? null,
     taskKey: (r.task_key as string | null) ?? null,
     slot: (r.slot as number | null) ?? null,

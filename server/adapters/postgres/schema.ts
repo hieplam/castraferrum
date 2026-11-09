@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  bigint,
   boolean,
   check,
   doublePrecision,
@@ -138,6 +139,8 @@ export const runs = pgTable(
     summary: text('summary'),
     error: text('error'),
     costUsd: numeric('cost_usd', { precision: 12, scale: 6, mode: 'number' }),
+    /** Input and output tokens of the run, as the executor reports them. A resume replaces the value, as for the cost. */
+    tokens: bigint('tokens', { mode: 'number' }),
     sessionId: text('session_id'),
     /** The claimed task of a run that a probe started. */
     taskKey: text('task_key'),
@@ -197,6 +200,8 @@ export const loopProbes = pgTable(
     laneEnv: jsonb('lane_env').notNull().default(sql`'{}'::jsonb`),
     laneBasePort: integer('lane_base_port'),
     restartPolicy: text('restart_policy').notNull().default('stop'),
+    /** Spec 2.14: the tokens that the runs of the loop can use. Null has no limit. */
+    tokenBudget: bigint('token_budget', { mode: 'number' }),
     state: text('state').notNull().default('active'),
     lastLine: text('last_line'),
     lastProbeAt: ts('last_probe_at'),

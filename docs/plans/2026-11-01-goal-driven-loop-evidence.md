@@ -2123,6 +2123,34 @@ Ratchet: tests 79 to 100, which is N+21 and not N+20, because the owner rule of 
 
 <!-- W4 -->
 
+## W4 (token budget)
+
+Scope: token budget only, by the order of the owner on 2026-11-09 (spec decision 55). No rank, no plan window.
+
+Red (stub check, the budget check never stops: `false &&` in front of the condition in `#probeLoop`), `npx vitest run --project unit server/services/probe-tick.test.ts`:
+
+    × at or over the budget: no probe call, no run, state budget_limited, and the last line stays
+    Test Files  1 failed (1)
+    Tests  1 failed | 20 passed (21)
+
+Green after the restore:
+
+    npx vitest run --project unit server/services server/adapters/executors web/features/loop-form
+    Test Files  30 passed | 1 skipped (31)
+    Tests  421 passed | 3 skipped (424)
+    npm run test:contract
+    memory: 126 passed · postgres: 126 passed
+    npx vitest run --project api tests/api/probe-settings-api.test.ts
+    Tests  9 passed (9)
+    npm run typecheck exits 0
+
+Migration `0014_motionless_the_hand.sql`: `ALTER TABLE "loop_probes" ADD COLUMN "token_budget" bigint;` and `ALTER TABLE "runs" ADD COLUMN "tokens" bigint;`. No `rank` column.
+
+Ratchet: new unit tests in the focused set, 414 to 421 (N+7), api +2, contract +2 per side. Up only.
+
+Full `npm run verify` on the final rebased code (slot 1, lane database `loops_w4b_test`, port 7270): `states with shots: 142/142`, `ratchets: ok`, unit `Tests  1336 passed | 3 skipped (1339)`, contract `Tests  270 passed (270)`, api `Tests  431 passed | 2 skipped (433)`, e2e `153 passed`, `1 failed`. The one failure is the known flaky test of issue 405, `tests/e2e/acceptance.iphone.spec.ts:43` (light first): `Error: expect(locator).toContainText(expected) failed`, `Expected substring: "Review open pull requests daily"`, `Error: element(s) not found`. The dark-first twin passed. Not retried.
+
+
 <!-- W5 -->
 
 ## W5

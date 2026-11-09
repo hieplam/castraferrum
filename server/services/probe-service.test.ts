@@ -43,6 +43,7 @@ describe('ProbeService', () => {
       laneEnv: {},
       laneBasePort: null,
       restartPolicy: 'stop',
+      tokenBudget: null,
       state: 'active',
       lastLine: null,
       lastProbeAt: null,
@@ -95,6 +96,14 @@ describe('ProbeService', () => {
     expect(await issuesOf(probes.save(id, input({ laneEnv: { LANE_PORT: 'x:{port}' } })))).toEqual(['laneEnv:missingBasePort']);
     expect(await probes.get(id)).toBeNull();
     await expect(probes.save(id, input({ laneEnv: { LANE_PORT: '{port}' }, laneBasePort: 7100 }))).resolves.toMatchObject({ laneBasePort: 7100 });
+  });
+
+  it('save: a token budget under 1 throws tokenBudget:outOfRange, and 1 or null is stored', async () => {
+    const id = await stoppedLoop();
+    expect(await issuesOf(probes.save(id, input({ tokenBudget: 0 })))).toEqual(['tokenBudget:outOfRange']);
+    expect(await probes.get(id)).toBeNull();
+    await expect(probes.save(id, input({ tokenBudget: 1 }))).resolves.toMatchObject({ tokenBudget: 1 });
+    await expect(probes.save(id, input())).resolves.toMatchObject({ tokenBudget: null });
   });
 
   it('remove: deletes the row, accepts a loop with no probe, and refuses an active loop', async () => {
