@@ -520,7 +520,7 @@
         `<div class="page-head" data-testid="loop-header" data-status="${status}"><h1 class="page-title">${esc(l.name)}${pill}</h1>${edit}${menu}${mainAction(l, kind)}</div>${desc}` +
         `<div class="cols"><div class="cols-main">${nowCard(key, o)}${extra}${recentRuns(key, o)}</div><div class="cols-side">${figures(key)}${settingsCard(key)}</div></div>`;
     }
-    return app({ tab: 'loops', loopCount: D.counts.all, conn: o.conn, banner: o.banner, navbar: navbar(t('nav.loops'), '', edit + menuBtn), page, overlay: o.overlay });
+    return app({ tab: 'loops', loopCount: o.loopCount ?? D.counts.all, conn: o.conn, banner: o.banner, navbar: navbar(t('nav.loops'), '', edit + menuBtn), page, overlay: o.overlay });
   }
   // All runs (spec 5.3 and D26): the longest active period, then the runs of page 1 grouped by active period.
   function runsApp(key) {
@@ -676,7 +676,7 @@
       : backlink(l.name, 'back-to-loop') + header + alert +
         `<div class="cols"><div class="cols-main">${summary}${tx}${log}</div><div class="cols-side">${facts}${resume}${prompt}</div></div>`;
     const more = `<button class="iconbtn" type="button" aria-label="${t('act.more')}" aria-haspopup="menu">${icon('more')}</button>`;
-    return app({ tab: 'loops', loopCount: D.counts.all, conn: o.conn, banner: o.banner, navbar: navbar(l.name, 'back-to-loop', more), page, overlay: o.overlay });
+    return app({ tab: 'loops', loopCount: o.loopCount ?? D.counts.all, conn: o.conn, banner: o.banner, navbar: navbar(l.name, 'back-to-loop', more), page, overlay: o.overlay });
   }
 
   // ── Goal-driven loop: gate, goals, scoreboard, goal cards ───
@@ -684,6 +684,9 @@
   // the way back and the tab bar under it, and the main action stays in the page, because an action bar would cover the
   // tab bar.
   const GL = D.goalLoop;
+  // The console of a probe state holds the sample loops and the probe loop "Billing epic worker"; the goals page adds the loops that
+  // stopped on its goals. The top bar counts them, as the app does (design/APPROVED.md, task Z2).
+  const PROBE_LOOPS = D.counts.all + 1;
   const JOB_PILL = { queued: ['s-wait', 'goalLoop.gate.queued'], running: ['s-run', 'goalLoop.gate.running'], merged: ['s-ok', 'goalLoop.gate.merged'], failed: ['s-fail', 'goalLoop.gate.failed'], needs_ratification: ['s-warn', 'goalLoop.gate.needsRatification'] };
   const CARD_PILL = { proposed: ['s-wait', 'goalLoop.card.proposed'], accepted: ['s-ok', 'goalLoop.card.accepted'], refused: ['s-stop', 'goalLoop.card.refused'], started: ['s-run', 'goalLoop.card.started'] };
   const DOOR_PILL = { 'two-way': ['s-skip', 'goalLoop.door.twoWay'], 'one-way': ['s-warn', 'goalLoop.door.oneWay'] };
@@ -744,7 +747,7 @@
       `<p class="group-cap">${t('goalLoop.goals.rows')}</p><div class="group" data-testid="goal-rows">${G.rows.map((r) => row(r, 'goal-row')).join('')}</div>` +
       `<p class="group-cap">${t('goalLoop.goals.standing')}</p><div class="group" data-testid="standing-goals">${G.standing.map(standing).join('')}</div>` +
       `<p class="group-cap">${t('goalLoop.goals.loops')}</p><div class="group" data-testid="goal-loops">${G.loops.map(loop).join('')}</div>`;
-    return pagedApp('loops', GL.loop.name, page);
+    return pagedApp('loops', GL.loop.name, page, { loopCount: PROBE_LOOPS + G.loops.length });
   }
   function scoreboardApp() {
     const S = GL.score, F = S.figures;
@@ -1179,11 +1182,11 @@
     'repos-delete-blocked': () => reposApp({ banner: repoInUse('old') }),
     'settings': () => settingsTabApp(),
     'settings-db-down': () => settingsTabApp({ dbDown: true }),
-    'probe-waiting': () => loopApp(probeKey('waiting')),
-    'probe-held': () => loopApp(probeKey('held'), { banner: 'hold' }),
-    'probe-blocked': () => loopApp(probeKey('blocked')),
-    'probe-complete': () => loopApp(probeKey('complete')),
-    'run-held': () => { D.transcripts.goalHeld = GL.transcript; return runApp(probeKey('held'), 28, { tx: { mode: 'held', data: 'goalHeld' } }); },
+    'probe-waiting': () => loopApp(probeKey('waiting'), { loopCount: PROBE_LOOPS }),
+    'probe-held': () => loopApp(probeKey('held'), { banner: 'hold', loopCount: PROBE_LOOPS }),
+    'probe-blocked': () => loopApp(probeKey('blocked'), { loopCount: PROBE_LOOPS }),
+    'probe-complete': () => loopApp(probeKey('complete'), { loopCount: PROBE_LOOPS }),
+    'run-held': () => { D.transcripts.goalHeld = GL.transcript; return runApp(probeKey('held'), 28, { tx: { mode: 'held', data: 'goalHeld' }, loopCount: PROBE_LOOPS }); },
     'gate-queue': () => gateQueueApp(),
     'gate-failed': () => gateFailedApp(),
     'goal-rows': () => goalsApp(),
