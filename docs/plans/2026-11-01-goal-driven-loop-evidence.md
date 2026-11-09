@@ -2680,6 +2680,16 @@ Judgement of the 52 journey shots (`reports/acceptance/goal-loop-<width>-<theme>
 
 
 
+**Green after the rebase on origin/main f5541b2** (it brought only this log): typecheck exit 0, then the same command:
+
+    [acceptance] goal loop 1440 light: acceptance steps: 13
+    [acceptance] goal loop 1440 dark: acceptance steps: 13
+    [acceptance] goal loop 390 light: acceptance steps: 13
+    [acceptance] goal loop 390 dark: acceptance steps: 13
+      4 passed (1.2m)
+
+**Light verify** (no file under `server/` or `web/` changed): design:states, typecheck, arch, ratchets -- --base main, test:unit, test:contract, test:api, api-smoke and build each exit 0.
+
 <!-- 373 -->
 
 ## 373
