@@ -1719,6 +1719,10 @@ Names that changed after the plan: the view is a new class `DefaultGoalViewServi
 - `e2e expects` of `npm run ratchets`: 1054 before, 1068 after (14 expects in `goal-number.spec.ts` and the seed). `e2eExpectsMin` stays 745.
 - Metric `status-questions`: decision 7, not measured yet.
 
+### Full verify
+
+`npm run verify` after the last rebase, in slot 1: exit 0. Last lines: `phone overflow: 0/12` and `UCs with a green e2e: 38/38`. The visual project ran 174 passed. `design:compare` report: 292 pairs, worst ratio 0.00035 (`goals.json`: 4 pairs, worst ratio 0). The first verify run stopped at `api-surface.test.ts`, which counted 44 routes against 45 (the goals route); the count was raised and the run repeated from the start. One run of `probe.visual.ts` showed `probe-waiting` on the state `probe_failed`; it did not repeat in the full verify.
+
 <!-- R1 -->
 
 ## R1
