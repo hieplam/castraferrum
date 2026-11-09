@@ -110,10 +110,12 @@ test('UC-30: a run waiting for a background task - the agent runs a background c
   await fill(
     page,
     'f-prompt',
-    `Your very first action must be a call to the Bash tool with run_in_background=true running exactly one command: sleep 20 && echo ${token}\n` +
+    `Your very first action must be a call to the Bash tool with run_in_background=true running exactly one command: sleep 20 && echo ${token} | tee token.txt\n` +
       'Write no text before that tool call; replying without making it is a failure.\n' +
       'Once the tool call has returned (the command is only started), end the turn at once, replying with exactly two words: STILL WAITING\n' +
-      'Later, when Claude Code reports the background command is done, read its output and reply with exactly one line: ALL DONE <output>',
+      'Later, when Claude Code reports the background command is done, first read the file token.txt in the current folder with the Read tool (the output is also in the output file that the report names). ' +
+      'Never answer from memory and never say that you have not read it: the token is only in that file.\n' +
+      'Only after you have read the token, reply with exactly one line: ALL DONE <token>',
   );
   await pickRepo(page, basename(dir));
   await page.getByTestId('f-model-haiku').click();
