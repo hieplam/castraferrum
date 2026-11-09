@@ -53,10 +53,10 @@ export function ProbeFields({
             />
           </FieldCell>
           <FieldCell row label={t('goalLoop.editor.basePort')} htmlFor="probe-base-port" error={errors.laneBasePort} hints={[{ text: t('goalLoop.editor.basePortHint') }]}>
-            <Input id="probe-base-port" form={formId} type="number" value={values.basePort} disabled={disabled} invalid={!!errors.laneBasePort} onChange={(v) => set('basePort', v, 'laneBasePort')} />
+            <Input id="probe-base-port" form={formId} type="number" placeholder={t('editor.noLimit')} value={values.basePort} disabled={disabled} invalid={!!errors.laneBasePort} onChange={(v) => set('basePort', v, 'laneBasePort')} />
           </FieldCell>
           <FieldCell row label={t('goalLoop.editor.tokenBudget')} htmlFor="probe-token-budget" error={errors.tokenBudget} hints={[{ text: t('goalLoop.editor.tokenBudgetHint') }]}>
-            <Input id="probe-token-budget" form={formId} type="number" value={values.tokenBudget} disabled={disabled} invalid={!!errors.tokenBudget} onChange={(v) => set('tokenBudget', v, 'tokenBudget')} />
+            <Input id="probe-token-budget" form={formId} type="number" placeholder={t('editor.noLimit')} value={values.tokenBudget} disabled={disabled} invalid={!!errors.tokenBudget} onChange={(v) => set('tokenBudget', v, 'tokenBudget')} />
           </FieldCell>
           <FieldCell label={t('goalLoop.editor.laneEnv')} htmlFor="probe-lane-env" error={errors.laneEnv} hints={[{ text: t('goalLoop.editor.laneEnvHint') }]}>
             <Textarea id="probe-lane-env" form={formId} value={values.laneEnv} disabled={disabled} invalid={!!errors.laneEnv} onChange={(v) => set('laneEnv', v, 'laneEnv')} />
