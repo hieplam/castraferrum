@@ -6,7 +6,7 @@
 // when its id is in `tests/pass.txt`. Two ids are in the file at the start, so the number is 2/8. A pull request that adds a third id moves it to 3/8
 // when the gate merges it and the goal pass reads `main`. A pull request that fixes no goal leaves it at 2/8.
 import { execFileSync } from 'node:child_process';
-import { readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import pg from 'pg';
 import { createGateWorld, disposeGateSeed, GOOD_FILES, VERIFY_LINE, type GateWorld } from '../support/gate-world';
@@ -75,9 +75,15 @@ async function mergeThroughGate(c: Console, files: Record<string, string>, taskK
   const pr = c.world.openPr({ files });
   const queued = await c.sp.api<{ jobId: string }>('POST', '/api/gate/jobs', { repoId: c.repoId, prNumber: pr.number, taskKey });
   expect(queued.status).toBe(201);
-  await expect
-    .poll(async () => (await c.pool.query('SELECT state FROM gate_jobs WHERE id = $1', [queued.body.jobId])).rows[0]?.state, { timeout: 120_000, intervals: [1_000] })
-    .toBe('merged');
+  // A refused job names its step and output in the failure, so a red run says why.
+  const job = async () => {
+    const row = (await c.pool.query('SELECT state, failed_step FROM gate_jobs WHERE id = $1', [queued.body.jobId])).rows[0];
+    const steps = (await c.pool.query('SELECT step, status, output_tail FROM gate_steps WHERE job_id = $1 ORDER BY seq', [queued.body.jobId])).rows;
+    const paths = (await c.pool.query('SELECT path FROM repos')).rows.map((r) => `${r.path} exists=${existsSync(r.path)}`);
+    return `${row?.state} at ${row?.failed_step} ${paths.join(' | ')} ${JSON.stringify(steps)}
+${c.sp.logs.join('').slice(-1500)}`;
+  };
+  await expect.poll(async () => ((await job()).startsWith('merged') ? 'merged' : await job()), { timeout: 120_000, intervals: [1_000] }).toBe('merged');
   await expect.poll(comments, { timeout: 120_000, intervals: [1_000] }).toBeGreaterThan(before);
 }
 
