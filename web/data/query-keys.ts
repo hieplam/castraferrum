@@ -31,6 +31,8 @@ export const qk = {
   /** The gate page of a repo and one gate job. They change when a job runs, so the pages read them again every few seconds. */
   gate: (repoId: string) => ['gate', 'repo', repoId] as const,
   gateJob: (id: string) => ['gate', 'job', id] as const,
+  /** The goal cards of a repo. A new card can arrive at any tick, so the page reads them again every few seconds. */
+  goalCards: (repoId: string) => ['goal-cards', repoId] as const,
   health: () => ['health'] as const,
   executors: () => ['executors'] as const,
   schedulePreview: (cron: string, tz: string, lang: string) => ['schedule-preview', cron, tz, lang] as const,

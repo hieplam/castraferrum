@@ -1,5 +1,5 @@
 // The Probe group of the editor (goal G28, spec 2.1): the switch, then the probe command, the claim and release commands (one argument
-// per line), what a restart does, the base port and the lane environment. A loop that works now gets the group disabled with the hint
+// per line), what a restart does, the base port, the token budget and the lane environment. A loop that works now gets the group disabled with the hint
 // that says to stop it first: the server refuses a probe change on an active loop. The server's messages sit under their field.
 import { useT } from '../../prefs/prefs';
 import { FieldCell, Input, Segmented, Switch, Textarea } from '../../ui/kit/Field';
@@ -54,6 +54,9 @@ export function ProbeFields({
           </FieldCell>
           <FieldCell row label={t('goalLoop.editor.basePort')} htmlFor="probe-base-port" error={errors.laneBasePort} hints={[{ text: t('goalLoop.editor.basePortHint') }]}>
             <Input id="probe-base-port" form={formId} type="number" value={values.basePort} disabled={disabled} invalid={!!errors.laneBasePort} onChange={(v) => set('basePort', v, 'laneBasePort')} />
+          </FieldCell>
+          <FieldCell row label={t('goalLoop.editor.tokenBudget')} htmlFor="probe-token-budget" error={errors.tokenBudget} hints={[{ text: t('goalLoop.editor.tokenBudgetHint') }]}>
+            <Input id="probe-token-budget" form={formId} type="number" value={values.tokenBudget} disabled={disabled} invalid={!!errors.tokenBudget} onChange={(v) => set('tokenBudget', v, 'tokenBudget')} />
           </FieldCell>
           <FieldCell label={t('goalLoop.editor.laneEnv')} htmlFor="probe-lane-env" error={errors.laneEnv} hints={[{ text: t('goalLoop.editor.laneEnvHint') }]}>
             <Textarea id="probe-lane-env" form={formId} value={values.laneEnv} disabled={disabled} invalid={!!errors.laneEnv} onChange={(v) => set('laneEnv', v, 'laneEnv')} />

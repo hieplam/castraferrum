@@ -2177,6 +2177,50 @@ An earlier verify failed `goal-service.test.ts > the comment comes before the fi
 
 <!-- W7 -->
 
+## W7
+
+Red (tests exist, page and field absent, old build):
+
+    $ npx playwright test --project=visual tests/visual/ds/goal-cards.visual.ts --reporter list --workers 1
+      4 failed
+    $ npx playwright test tests/e2e/goal-cards-page.spec.ts --project chromium --reporter list --workers 1
+      5 failed
+    $ npx vitest run --project unit web/features/loop-form/probe-form.test.ts
+          Tests  6 failed | 4 passed (10)
+
+Green (after the last rebase and a rebuild):
+
+    $ npx playwright test --project=visual tests/visual/ds/goal-cards.visual.ts --reporter list --workers 1
+      4 passed (34.3s)
+    $ node -e "const r=require('./reports/compare/ds/results/goal-cards.json');console.log(r.length,Math.max(...r.flatMap(s=>s.regions.map(x=>x.ratio)))<=0.001)"
+    8 true
+    $ npx playwright test tests/e2e/goal-cards-page.spec.ts --project=chromium --reporter list --workers 1   (inside npm run test:e2e: 164 passed (14.6m))
+    $ npx vitest run --project unit web/features/loop-form/
+          Tests  30 passed (30)
+    $ npx playwright test --project=visual tests/visual/ds/repos.visual.ts --reporter list --workers 1
+      4 passed (45.5s)
+    $ npm run test:api        Tests  431 passed | 2 skipped (433)
+    $ npm run uc-coverage -- --min 36        UCs with a green e2e: 37/37
+
+Stub check (each patch applied, built, run, restored):
+
+    GoalCardView returns null                -> visual: 4 failed
+    Accept sends no request                  -> e2e: 1 failed (the first test)
+    one-way card shows a start time          -> e2e and visual: 3 failed (the third e2e test and the two card-one-way pairs)
+    toProbeBody drops tokenBudget            -> e2e: 1 failed; unit: Tests  2 failed | 8 passed (10)
+
+Ratchet (`e2e expects` of `npm run ratchets`, files of tests/e2e and tests/support), before and after:
+
+    origin/main: 1006
+    this branch: 1027 (min 745), ratchets: ok
+    pairs in results/goal-cards.json: 0 -> 8, worst ratio 0
+
+Tests outside the task that failed in the first full run on a saturated machine, and passed alone:
+
+    gh-git-host.test.ts (Hook timed out in 10000ms)      alone: Tests  34 passed (34)
+    probe.visual.ts probe-blocked (probe_failed)         alone: 10 passed (27.6s)
+    loops.visual.ts Vietnamese (ERR_NO_BUFFER_SPACE)     alone: 12 passed (46.5s)
+
 <!-- Z1 -->
 
 <!-- Z2 -->

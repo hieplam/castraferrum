@@ -35,3 +35,6 @@ export const goalCardListDto = z.object({
   /** The count of accepted or started cards with `changed` false. A person copies it to the charter in a ratified PR. */
   acceptedWithNoChange: z.number().int(),
 });
+
+export type GoalCardDto = z.output<typeof goalCardDto>;
+export type GoalCardListDto = z.output<typeof goalCardListDto>;

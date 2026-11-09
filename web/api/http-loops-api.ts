@@ -24,6 +24,7 @@ import {
 import { folderDto, folderPlacesDto } from '../../shared/contracts/folders';
 import { repoDto, repoListDto, type RepoInputBody } from '../../shared/contracts/repos';
 import { gateJobDetailDto, gateViewDto } from '../../shared/contracts/gate';
+import { goalCardDto, goalCardListDto } from '../../shared/contracts/goal-cards';
 import { scoreboardDto } from '../../shared/contracts/scoreboard';
 import { transcriptPageDto } from '../../shared/contracts/transcript';
 import { ApiError, type LoopListFilter, type LoopsApi, type PageRequest } from './loops-api';
@@ -123,6 +124,15 @@ export class HttpLoopsApi implements LoopsApi {
   }
   async queueGateJob(repoId: string, prNumber: number) {
     await this.#call('POST', '/gate/jobs', { body: { repoId, prNumber } }, z.object({}).passthrough());
+  }
+  goalCards(repoId: string) {
+    return this.#call('GET', '/goal-cards', { query: { repoId } }, goalCardListDto);
+  }
+  acceptGoalCard(id: string) {
+    return this.#call('POST', `/goal-cards/${enc(id)}/accept`, {}, goalCardDto);
+  }
+  refuseGoalCard(id: string) {
+    return this.#call('POST', `/goal-cards/${enc(id)}/refuse`, {}, goalCardDto);
   }
   getProbe(loopId: string) {
     return this.#call('GET', `/loops/${enc(loopId)}/probe`, {}, probeEnvelopeDto).then((r) => r.probe);
