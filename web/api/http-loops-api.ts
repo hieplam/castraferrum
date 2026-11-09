@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import { API_ERROR_CODES, errorBody } from '../../shared/contracts/common';
 import { probeEnvelopeDto, type ProbeInputBody } from '../../shared/contracts/goal-loop';
+import { goalViewDto } from '../../shared/contracts/goals';
 import { healthResponse } from '../../shared/contracts/health';
 import { holdListDto } from '../../shared/contracts/holds';
 import { noticeListDto } from '../../shared/contracts/notices';
@@ -133,6 +134,9 @@ export class HttpLoopsApi implements LoopsApi {
   }
   refuseGoalCard(id: string) {
     return this.#call('POST', `/goal-cards/${enc(id)}/refuse`, {}, goalCardDto);
+  }
+  goalView(loopId: string, manifest?: string) {
+    return this.#call('GET', `/loops/${enc(loopId)}/goals`, { query: { manifest } }, goalViewDto);
   }
   getProbe(loopId: string) {
     return this.#call('GET', `/loops/${enc(loopId)}/probe`, {}, probeEnvelopeDto).then((r) => r.probe);

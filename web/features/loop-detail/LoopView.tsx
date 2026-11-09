@@ -8,11 +8,13 @@ import type { ProbeDto } from '../../../shared/contracts/goal-loop';
 import type { LoopDetailDto } from '../../../shared/contracts/loops';
 import { PROBE_EVERY_SEC } from '../../../shared/domain/goal-loop';
 import { useNow, useSharedServerStatus } from '../../data/connection';
+import { useGoalView } from '../../data/goals';
 import { useLoop } from '../../data/loops';
 import { useHolds, useProbe, useReadNoticesOf } from '../../data/probe';
 import type { MessageKey } from '../../prefs/messages';
 import { useT } from '../../prefs/prefs';
 import { Button, IconButton } from '../../ui/kit/Button';
+import { Group } from '../../ui/kit/Group';
 import { Icon } from '../../ui/kit/Icon';
 import { ActionBar, Cols, useLayout } from '../../ui/kit/Layout';
 import { Menu } from '../../ui/kit/Overlay';
@@ -142,7 +144,18 @@ function LoopBody({ loop, probe }: { loop: LoopDetailDto; probe: ProbeDto | null
   ) : null;
   const now_ = <NowCard loop={loop} kind={kind} now={now} offline={offline} probe={ctx} />;
   const extra = ctx ? <ProbeExtra kind={kind === probeKind ? probeKind : null} ctx={ctx} exec={loop.currentExecution} tz={loop.timezone} now={now} /> : null;
-  const figures = <Figures loop={loop} live={live} now={now} goals={ctx?.reading.line?.goals ?? null} />;
+  // The stored goal number of the loop's repository wins over the goals of the last probe line; a loop with no stored row keeps the line's.
+  const goalView = useGoalView(loop.id).data;
+  const stored = goalView?.manifest ? { passed: goalView.passed, total: goalView.total } : null;
+  const figures = <Figures loop={loop} live={live} now={now} goals={stored ?? ctx?.reading.line?.goals ?? null} />;
+  const goalsLink = stored ? (
+    <Group testId="goals-group">
+      <Link className="cell is-link" to={`/loops/${loop.id}/goals`} data-testid="goals-link">
+        <span className="cell-main">{t('goalLoop.goals.link')}</span>
+        <Icon name="chev" className="chev" />
+      </Link>
+    </Group>
+  ) : null;
   const schedule = probe ? t('goalLoop.probe.every', { s: PROBE_EVERY_SEC }) : scheduleSentence(loop.cron, t.lang);
   const recent = <RecentRuns loop={loop} now={now} />;
   const stop = actions.confirmId ? <StopSheet loop={loop} onCancel={actions.cancelStop} onConfirm={actions.confirmStop} /> : null;
@@ -178,6 +191,7 @@ function LoopBody({ loop, probe }: { loop: LoopDetailDto; probe: ProbeDto | null
         {now_}
         {extra}
         {figures}
+        {goalsLink}
         {recent}
         <div className="group">
           {loop.runCount ? (
@@ -224,6 +238,7 @@ function LoopBody({ loop, probe }: { loop: LoopDetailDto; probe: ProbeDto | null
         side={
           <>
             {figures}
+            {goalsLink}
             <SettingsCard loop={loop} probe={probe} />
           </>
         }

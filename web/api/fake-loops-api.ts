@@ -18,6 +18,7 @@ import type {
 } from '../../shared/contracts/loops';
 import type { FolderDto, FolderPlacesDto } from '../../shared/contracts/folders';
 import type { ProbeDto, ProbeInputBody } from '../../shared/contracts/goal-loop';
+import type { GoalViewDto } from '../../shared/contracts/goals';
 import type { HoldDto } from '../../shared/contracts/holds';
 import type { NoticeDto } from '../../shared/contracts/notices';
 import type { RepoDto, RepoInputBody, RepoListItemDto } from '../../shared/contracts/repos';
@@ -290,6 +291,13 @@ export class FakeLoopsApi implements LoopsApi {
   async folderPlaces(): Promise<FolderPlacesDto> {
     this.calls.push('folderPlaces');
     return this.places;
+  }
+  /** The goals view of each loop (seeded by the test); a loop with no entry has no stored goal row. */
+  readonly goalViews = new Map<string, GoalViewDto>();
+  async goalView(loopId: string): Promise<GoalViewDto> {
+    this.calls.push(`goalView ${loopId}`);
+    this.#loop(loopId);
+    return this.goalViews.get(loopId) ?? { manifest: null, checkedAt: null, sha: null, passed: 0, total: 0, opened: null, rows: [], standing: [], loops: [] };
   }
   async getProbe(loopId: string): Promise<ProbeDto | null> {
     this.calls.push(`getProbe ${loopId}`);

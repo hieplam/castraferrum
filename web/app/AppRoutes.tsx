@@ -5,6 +5,7 @@ import { EditorRoute } from '../pages/EditorRoute';
 import { GateJobRoute } from '../pages/GateJobRoute';
 import { GateRoute } from '../pages/GateRoute';
 import { GoalCardsRoute } from '../pages/GoalCardsRoute';
+import { GoalsRoute } from '../pages/GoalsRoute';
 import { LoopRoute } from '../pages/LoopRoute';
 import { LoopRunsRoute } from '../pages/LoopRunsRoute';
 import { LoopSettingsRoute } from '../pages/LoopSettingsRoute';
@@ -25,6 +26,7 @@ export function AppRoutes() {
         <Route path="loops/new" element={<EditorRoute />} />
         <Route path="loops/:id/edit" element={<EditorRoute />} />
         <Route path="loops/:id/runs" element={<LoopRunsRoute />} />
+        <Route path="loops/:id/goals" element={<GoalsRoute />} />
         <Route path="loops/:id/settings" element={<LoopSettingsRoute />} />
         <Route path="loops/:id" element={<LoopRoute />} />
         <Route path="executions/:id" element={<PeriodRoute />} />

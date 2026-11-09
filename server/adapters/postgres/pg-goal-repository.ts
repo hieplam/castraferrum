@@ -1,6 +1,6 @@
 import type pg from 'pg';
 import type { GoalCadence, GoalRunRecord, StandingGoalRecord, StandingGoalState, StandingIssueRecord, StandingScheduleRecord } from '../../../shared/domain/standing-goal';
-import type { GoalRepository, NewStandingIssueRecord } from '../../ports/goal-repository';
+import type { GoalManifestRun, GoalRepository, NewStandingIssueRecord, StandingGoalEntry } from '../../ports/goal-repository';
 import { withTx } from './pg-util';
 
 type Row = Record<string, unknown>;
@@ -135,5 +135,22 @@ export class PgGoalRepository implements GoalRepository {
   async listRows(repo: string, manifest: string): Promise<GoalRunRecord[]> {
     const { rows } = await this.#pool.query('SELECT * FROM goal_runs WHERE repo = $1 AND manifest = $2 ORDER BY row_id COLLATE "C"', [repo, manifest]);
     return rows.map(toRun);
+  }
+
+  async listManifests(repo: string): Promise<GoalManifestRun[]> {
+    // The newest row of each manifest; a tie takes the smaller row id, as the memory adapter does.
+    const { rows } = await this.#pool.query(
+      `SELECT DISTINCT ON (manifest) manifest, at, sha FROM goal_runs WHERE repo = $1 ORDER BY manifest, at DESC, row_id COLLATE "C"`,
+      [repo],
+    );
+    return rows
+      .map((r) => ({ manifest: r.manifest as string, at: r.at as Date, sha: r.sha as string }))
+      .sort((a, b) => b.at.getTime() - a.at.getTime() || (a.manifest < b.manifest ? -1 : a.manifest > b.manifest ? 1 : 0));
+  }
+
+  async listGoals(repo: string): Promise<StandingGoalEntry[]> {
+    const goals = await this.#pool.query('SELECT * FROM standing_goals WHERE repo = $1 ORDER BY row_id COLLATE "C"', [repo]);
+    const issues = await this.#pool.query('SELECT * FROM standing_issues WHERE repo = $1 ORDER BY opened_at, id', [repo]);
+    return goals.rows.map((g) => ({ ...toGoal(g), issues: issues.rows.filter((i) => i.row_id === g.row_id).map(toIssue) }));
   }
 }

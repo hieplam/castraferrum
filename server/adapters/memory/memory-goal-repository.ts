@@ -1,5 +1,5 @@
 import type { GoalRunRecord, StandingGoalRecord, StandingIssueRecord, StandingScheduleRecord } from '../../../shared/domain/standing-goal';
-import type { GoalRepository, NewStandingIssueRecord } from '../../ports/goal-repository';
+import type { GoalManifestRun, GoalRepository, NewStandingIssueRecord, StandingGoalEntry } from '../../ports/goal-repository';
 import { clone, cmp, type MemoryDb } from './memory-db';
 
 export class MemoryGoalRepository implements GoalRepository {
@@ -67,6 +67,28 @@ export class MemoryGoalRepository implements GoalRepository {
       .filter((r) => r.repo === repo && r.manifest === manifest)
       .sort((a, b) => cmp(a.rowId, b.rowId))
       .map(clone);
+  }
+
+  async listManifests(repo: string): Promise<GoalManifestRun[]> {
+    const newest = new Map<string, GoalRunRecord>();
+    for (const row of this.#db.goalRuns.values()) {
+      const seen = newest.get(row.manifest);
+      if (row.repo === repo && (!seen || row.at.getTime() > seen.at.getTime() || (row.at.getTime() === seen.at.getTime() && cmp(row.rowId, seen.rowId) < 0))) newest.set(row.manifest, row);
+    }
+    return [...newest.values()].map((row) => ({ manifest: row.manifest, at: new Date(row.at), sha: row.sha })).sort((a, b) => b.at.getTime() - a.at.getTime() || cmp(a.manifest, b.manifest));
+  }
+
+  async listGoals(repo: string): Promise<StandingGoalEntry[]> {
+    return [...this.#db.standingGoals.values()]
+      .filter((g) => g.repo === repo)
+      .sort((a, b) => cmp(a.rowId, b.rowId))
+      .map((g) => ({
+        ...clone(g),
+        issues: [...this.#db.standingIssues.values()]
+          .filter((i) => i.repo === repo && i.rowId === g.rowId)
+          .sort((a, b) => a.openedAt.getTime() - b.openedAt.getTime() || cmp(a.id, b.id))
+          .map(clone),
+      }));
   }
 
   #open(): StandingIssueRecord[] {

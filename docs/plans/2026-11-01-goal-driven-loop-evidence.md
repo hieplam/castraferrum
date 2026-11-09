@@ -1683,6 +1683,46 @@ Ratchet: unit tests 1015 to 1025 (+10), api tests 162 to 170 (+8). Duplicate iss
 
 <!-- T6 -->
 
+## T6
+
+Task T6, goal G11: the owner sees progress as a number that moves at each merge, and the goals page matches `goal-rows` (desktop, phone, light, dark). Branch `feat/gdl-t6-goal-rows`, rebased on main 558c130 (W4 token budget, W6, W7 merged).
+
+Names that changed after the plan: the view is a new class `DefaultGoalViewService` in `server/services/goal-view-service.ts` with its own interface `GoalViewService` (the plan put `view` in `goal-service.ts`; a separate class keeps the fakes of `GoalService` unchanged). The seed uses `hieplam/tribe` for `github_repo` (the plan said `acme/api`: a name that only shows on a page is `hieplam/tribe`), and its gate row is off, so no goal pass runs on the fake world. The tests reach no network: the e2e console runs on the fake `gh` and a local bare origin. The `spawn git ENOENT` lines of an early e2e run came from a stale repository row of my own probe script in the live database, not from the product.
+
+### Red
+
+- Contract, adapters removed: `npx vitest run --project contract -t "listGoals|listManifests"` printed `Tests  4 failed | 266 skipped (270)` (`r.goals.listManifests is not a function`, two sides).
+- Api, server code removed: `npx vitest run --project api tests/api/goal-view-api.test.ts` printed `Tests  7 failed (7)`.
+- Visual and e2e: the Red of these two was not run before the web code existed. The empty implementation gives the same result: with `GoalsView` returning `null`, the visual command prints `2 failed`, and with the view answering `manifest: null` the e2e tests fail (see the stub check).
+
+### Green (after the last rebase)
+
+- `npx playwright test --project=visual tests/visual/ds/goals.visual.ts`: `2 passed`.
+- `design/compare/ds/results/goals.json` after `npm run design:compare`: `4 true` (4 pairs, worst ratio at most 0.001).
+- `npx playwright test --project=chromium tests/e2e/goal-number.spec.ts`: `3 passed`.
+- `npx vitest run --project api tests/api/goal-view-api.test.ts`: `Tests  7 passed (7)`.
+- `npx vitest run --project contract -t "goal_runs|standing goals"`: `Tests  16 passed | 258 skipped (274)`.
+- `npx playwright test --project=visual tests/visual/ds/loop.visual.ts`: `8 passed`.
+- `npx vitest run --project unit tests/tools/test-addresses.test.ts`: `Tests  5 passed (5)`.
+
+### Stub check (each run, then restored)
+
+- `GoalsView` returns `null`: goals visual `2 failed`.
+- The view answers `manifest: null`: api `Tests  6 failed | 1 passed (7)`; the e2e test of the number `1 failed` (no `fig-goals`); the e2e test of the link `1 failed` (no `goals-link`).
+- The link for every loop: `loop.visual.ts` `2 failed` (`loop-last-failed-light · page: 7.61 % off`) and the probe pairs fail.
+- The rows read from stale stored rows (only G1 and G2): the e2e test of the move from 2/8 to 3/8 `1 failed`.
+
+### Ratchet
+
+- Pairs in `results/goals.json`: 0 before, 4 after.
+- Api tests: +7 (the file `goal-view-api.test.ts`). Contract tests: +2 per side (`listGoals`, `listManifests`; 16 pass in the two groups).
+- `e2e expects` of `npm run ratchets`: 1054 before, 1068 after (14 expects in `goal-number.spec.ts` and the seed). `e2eExpectsMin` stays 745.
+- Metric `status-questions`: decision 7, not measured yet.
+
+### Full verify
+
+`npm run verify` after the last rebase, in slot 1: exit 0. Last lines: `phone overflow: 0/12` and `UCs with a green e2e: 38/38`. The visual project ran 174 passed. `design:compare` report: 292 pairs, worst ratio 0.00035 (`goals.json`: 4 pairs, worst ratio 0). The first verify run stopped at `api-surface.test.ts`, which counted 44 routes against 45 (the goals route); the count was raised and the run repeated from the start. One run of `probe.visual.ts` showed `probe-waiting` on the state `probe_failed`; it did not repeat in the full verify.
+
 <!-- R1 -->
 
 ## R1
