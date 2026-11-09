@@ -13,6 +13,7 @@ const probe: ProbeDto = {
   laneEnv: { DB_NAME: 'loops_{slot}_test', PORT: '{port}' },
   laneBasePort: 7250,
   restartPolicy: 'resume',
+  tokenBudget: 1000,
   state: 'waiting',
   lastLine: null,
   lastProbeAt: null,
@@ -39,18 +40,25 @@ describe('env text', () => {
 });
 
 describe('probe body', () => {
-  it('maps every field, and sends back the resources of the probe (they have no field)', () => {
+  it('maps every field, and sends back the resources and the token budget of the probe (they have no field)', () => {
     const values = probeValuesFrom(probe);
     expect(values).toMatchObject({ enabled: true, restart: 'resume', basePort: '7250', claim: 'node\nepic.mjs\nclaim\n{key}' });
-    expect(toProbeBody(values, probe.resources)).toEqual({
+    expect(toProbeBody(values, probe)).toEqual({
       command: probe.command,
       claim: probe.claim,
       release: probe.release,
       resources: probe.resources,
+          tokenBudget: 1000,
       laneEnv: probe.laneEnv,
       laneBasePort: 7250,
       restartPolicy: 'resume',
     });
+  });
+
+  it('a new probe sends no token budget, so the server defaults apply', () => {
+    const body = toProbeBody(probeValuesFrom(probe));
+    expect(body.resources).toEqual([]);
+    expect(body).not.toHaveProperty('tokenBudget');
   });
 
   it('an empty base port is null, and text that is not a number is 0 (the server reports it at the field)', () => {

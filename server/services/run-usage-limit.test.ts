@@ -5,6 +5,27 @@ import { flush, makeKit, until, type Kit } from '../../tests/support/service-kit
 const runOf = (kit: Kit) => [...kit.db.runs.values()][0]!;
 
 describe('RunService: usage_limit', () => {
+  it('a cancelled run keeps its stored tokens, and a result with tokens replaces them (decision 28)', async () => {
+    const kit = makeKit();
+    const loop = await kit.loopService.create(kit.input());
+    await kit.loopService.start(loop.id);
+    await until(() => kit.scripted.calls.length === 1, 'the run started');
+    const run = runOf(kit);
+    kit.db.runs.set(run.id, { ...run, tokens: 40 });
+    kit.scripted.call(1).succeedWithTokens(70);
+    await kit.runService.settled();
+    expect(runOf(kit).tokens).toBe(70);
+
+    const kept = makeKit();
+    const second = await kept.loopService.create(kept.input());
+    await kept.loopService.start(second.id);
+    await until(() => kept.scripted.calls.length === 1, 'the run started');
+    const held = runOf(kept);
+    kept.db.runs.set(held.id, { ...held, tokens: 40 });
+    await kept.runService.cancel(held.id, 'cancelled');
+    expect(runOf(kept).tokens).toBe(40);
+  });
+
   it('a scripted usage_limit writes failed, error = message, costUsd, and run.finished', async () => {
     const kit = makeKit();
     const loop = await kit.loopService.create(kit.input());

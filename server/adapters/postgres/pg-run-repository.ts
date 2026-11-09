@@ -105,7 +105,7 @@ export class PgRunRepository implements RunRepository {
     const { rows } = await this.#pool.query(
       `UPDATE runs SET status = $2, finished_at = $3,
                        duration_ms = round(extract(epoch FROM ($3::timestamptz - started_at)) * 1000)::int,
-                       summary = $4, error = $5, cost_usd = $6, end_result = $7, end_pr = $8
+                       summary = $4, error = $5, cost_usd = $6, end_result = $7, end_pr = $8, tokens = $9
         WHERE id = $1 AND status IN ('running', 'held')
     RETURNING *`,
       [
@@ -117,6 +117,7 @@ export class PgRunRepository implements RunRepository {
         outcome.costUsd ?? null,
         outcome.endResult ?? null,
         outcome.endPr ?? null,
+        outcome.tokens ?? null,
       ],
     );
     if (rows[0]) return toRun(rows[0]);
@@ -164,6 +165,11 @@ export class PgRunRepository implements RunRepository {
   async findById(id: string): Promise<RunRecord | null> {
     const { rows } = await this.#pool.query('SELECT * FROM runs WHERE id = $1', [id]);
     return rows[0] ? toRun(rows[0]) : null;
+  }
+
+  async sumTokens(loopId: string): Promise<number> {
+    const { rows } = await this.#pool.query<{ total: string | null }>('SELECT sum(tokens) AS total FROM runs WHERE loop_id = $1', [loopId]);
+    return Number(rows[0]?.total ?? 0);
   }
 
   async latestFinishedAt(loopId: string): Promise<Date | null> {

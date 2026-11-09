@@ -21,6 +21,8 @@ export type RunRecord = {
   summary: string | null;
   error: string | null;
   costUsd: number | null;
+  /** Input and output tokens. A resume replaces the value, as for the cost (decision 28). */
+  tokens: number | null;
   sessionId: string | null;
   /** The claimed task of a run that a probe started. */
   taskKey: string | null;
@@ -71,6 +73,7 @@ export type RunOutcome = {
   summary?: string | null;
   error?: string | null;
   costUsd?: number | null;
+  tokens?: number | null;
   endResult?: string | null;
   endPr?: string | null;
 };
@@ -99,6 +102,8 @@ export interface RunRepository {
   listHeld(loopId: string): Promise<RunRecord[]>;
   /** Every `held` run of every loop, oldest first (started_at, id). */
   listAllHeld(): Promise<RunRecord[]>;
+  /** The stored tokens of every run of the loop. A run with no value counts 0, and a loop with no run gives 0. */
+  sumTokens(loopId: string): Promise<number>;
   /** The latest `finished_at` of the loop's runs, with no `skipped` rows. No finished run -> null. */
   latestFinishedAt(loopId: string): Promise<Date | null>;
   /** Oldest first (started_at ascending). */

@@ -40,6 +40,7 @@ describe('memory', () => {
           summary: null,
           error: null,
           costUsd: null,
+          tokens: null,
           sessionId: null,
           taskKey: null,
           slot: null,

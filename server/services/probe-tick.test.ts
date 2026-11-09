@@ -203,3 +203,51 @@ describe('ProbeService.tick', () => {
     expect([...report.probed].sort()).toEqual([slow, fast].sort());
   });
 });
+
+describe('ProbeService.tick: token budget (spec 2.14)', () => {
+  async function budgetLoop(tokenBudget: number | null): Promise<string> {
+    const { id } = await k.loopService.create(k.input());
+    await k.probeService.save(id, { command: ['node', 'probe.mjs', '--json'], tokenBudget });
+    await k.loopService.start(id);
+    await flush();
+    return id;
+  }
+
+  /** One finished run of the loop that used `tokens`. */
+  async function spend(id: string, tokens: number, atMs: number) {
+    k.clock.set(at(atMs));
+    await startRun(id);
+    k.scripted.call(k.scripted.calls.length).succeedWithTokens(tokens);
+    await flush();
+  }
+
+  it('at or over the budget: no probe call, no run, state budget_limited, and the last line stays', async () => {
+    const id = await budgetLoop(100);
+    await tickAt(0);
+    expect(k.commands.calls).toHaveLength(1);
+    await spend(id, 100, 10 * SEC);
+    const runs = k.db.runs.size;
+
+    const report = await tickAt(2 * MIN);
+    expect(report.probed).toEqual([]);
+    expect(k.commands.calls).toHaveLength(1);
+    expect(k.db.runs.size).toBe(runs);
+    expect(await k.repos.probes.get(id)).toMatchObject({ state: 'budget_limited', lastLine: SKIP, lastProbeAt: at(0) });
+
+    await tickAt(4 * MIN);
+    expect(k.commands.calls).toHaveLength(1);
+    expect(await k.repos.probes.get(id)).toMatchObject({ state: 'budget_limited', lastLine: SKIP, lastProbeAt: at(0) });
+  });
+
+  it('under the budget the probe is called, and a loop with no budget is never limited', async () => {
+    const id = await budgetLoop(100);
+    await tickAt(0);
+    await spend(id, 99, 10 * SEC);
+    expect((await tickAt(2 * MIN)).probed).toEqual([id]);
+    expect(await k.repos.probes.get(id)).toMatchObject({ state: 'active' });
+
+    const free = await budgetLoop(null);
+    await spend(free, 1_000_000, 3 * MIN);
+    expect((await tickAt(5 * MIN)).probed).toContain(free);
+  });
+});

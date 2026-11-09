@@ -275,7 +275,7 @@ Wave 5. Z2 needs Z1, and through Z1 the five screen tasks P15, K12, T6, R9, W7 a
 - Goals page `/loops/:id/goals`: `goal-rows` (T6).
 - Scoreboard `/scoreboard`: `scoreboard` (R9).
 - Goal cards `/repos/:id/goal-cards`: `card-two-way`, `card-one-way` (W7).
-- Probe settings fields (command) and the notices banner (P15): no preview id. Judge them against `design/ds/SYSTEM.md` and `components.css`. A missing state is a `design-system` issue that blocks Z2.
+- Probe settings fields (command, token budget) and the notices banner (P15, W7): no preview id. Judge them against `design/ds/SYSTEM.md` and `components.css`. A missing state is a `design-system` issue that blocks Z2.
 
 **Files:** new `tests/e2e/acceptance.goal-loop.spec.ts`, `tests/support/acceptance-goal-loop.ts`; append `## Z2` to `LOG`. Model: `tests/e2e/acceptance.journey.spec.ts` and `tests/support/acceptance-journey.ts` (task U27 of epic 63).
 

@@ -230,7 +230,7 @@ function Editor({
       setErrors({});
       setConflict(null);
       // The loop is saved: then the probe, or its removal when the switch is off. A refusal keeps the page, and the new version.
-      const body = probeValues.enabled ? toProbeBody(probeValues, probe?.resources) : probe ? null : undefined;
+      const body = probeValues.enabled ? toProbeBody(probeValues, probe ?? undefined) : probe ? null : undefined;
       if (probe !== undefined && onSaveProbe && !probeLocked && body !== undefined) {
         try {
           await onSaveProbe(body);

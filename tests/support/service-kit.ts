@@ -70,6 +70,10 @@ export class ScriptedRun {
   succeedWith(end: { result: string; pr?: string | null; resource?: string | null }): this {
     return this.#push({ type: 'result', outcome: 'succeeded', summary: 'done', end: { result: end.result, pr: end.pr ?? null, resource: end.resource ?? null } });
   }
+  /** A success with the tokens of the run. */
+  succeedWithTokens(tokens: number): this {
+    return this.#push({ type: 'result', outcome: 'succeeded', summary: 'done', tokens });
+  }
   fail(error = 'broken'): this {
     return this.#push({ type: 'result', outcome: 'failed', error });
   }
