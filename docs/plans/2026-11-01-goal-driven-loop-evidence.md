@@ -2544,6 +2544,273 @@ Z1 known, outside the goals: 12 failures, 21 errors, eval 4 fails
 
 <!-- Z2 -->
 
+## Z2
+
+Attempt 1, lane z2, 2026-11-09, on origin/main e085c45. Result: BLOCKED by 3 defects (issues 433, 434, 435), each linked under epic 217 to block issue 352. The judgement lines of this attempt are indented below, so the counts of the Green (`^Z2 pair `, `^Z2 shot `) start at 0. The attempt that merges appends the final 44 + 52 lines, unindented, after the defects close.
+
+**Red** (before the journey existed): `npx playwright test tests/e2e/acceptance.goal-loop.spec.ts --project chromium --reporter list`
+
+    Error: No tests found.
+    Make sure that arguments are regular expressions matching test files.
+    You may need to escape symbols like "$" or "*" and quote the arguments.
+
+**Green** (after the rebase, the same command):
+
+    [acceptance] goal loop 1440 light: acceptance steps: 13
+    [acceptance] goal loop 1440 dark: acceptance steps: 13
+    [acceptance] goal loop 390 light: acceptance steps: 13
+    [acceptance] goal loop 390 dark: acceptance steps: 13
+      4 passed (1.1m)
+
+`npm run design:compare`: `84 passed (7.5m)`, `design:compare exit 0`. `design/compare/ds/report.json`: `"pairs": 292`, `"worstRatio": 0.00035`, `"maxRatio": 0.001`. The 44 goal-loop pairs (11 ids and 11 phone ids, 2 themes) are all in it, worst 0.00035, 0 over `maxRatio`.
+
+**Stub check:** the URL of the `scoreboard` step changed to `/scoreboard-x`, one run at 1440 px light: the test fails at step 11, `1440 light: scoreboard`, on the state word: `Error: the word of a cause with no check` ... `getByTestId('score-causes').getByText('No check yet', { exact: true })` `Expected: 1` `Received: 0`. Restored with `git checkout`.
+
+**Ratchet:** journey steps 0 -> 13 (`GOAL_LOOP_STEPS`). Pairs looked at 0 -> 44 (88 images opened with Read). Journey shots looked at 0 -> 52. Open defects: 3 (issues 433, 434, 435), so Z2 does not merge in this attempt.
+
+**Decisions** (standing rules of epic 217):
+
+- The notices banner of spec section 5 ("Notices, holds: `.banner.is-warn`") is the hold banner `banner-hold`: notices have no other view in the app (`web/data/probe.ts` only marks them read). Step 5 `hold-banner` reaches it by the back link from the held run.
+- The probe settings item is the editor of the stopped loop of `probe-complete`, opened by its Edit button (step 7). The fields judged: command, claim, release, restart, base port, token budget, lane environment (the rank was dropped, spec decision 54).
+- A seed resets the database, so each world opens its first page by URL; every other state of the same world is reached by a click or a tap (run-held, hold-banner, probe-settings, gate-failed).
+- The journey runs its own console (`ServerProcess`, the fake `gh`, a temp `CLAUDE_CONFIG_DIR`), as the visual tests of P15, K12, T6, R9 and W7 do; the seeds keep the 24 h server clock move of the probe world.
+- Sample data only: on the desktop, the top bar of `probe-*`, `run-held` and `goal-rows` said "Loops 7" in the preview and "Loops 8" or "Loops 10" in the app. The app wins: the preview counts these loops, 12 shots re-shot, recorded in `design/APPROVED.md`. `probe.visual.ts` and `goals.visual.ts` pass on the new shots: `12 passed (47.6s)`.
+
+Judgement of the 44 pairs (preview shot next to `design/compare/ds/shots/`):
+
+    Z2 pair probe-waiting-light: matches (the page); the top bar said Loops 7, the app 8: sample data, preview corrected and re-shot
+    Z2 pair probe-waiting-dark: matches (the page); the top bar said Loops 7, the app 8: sample data, preview corrected and re-shot
+    Z2 pair probe-held-light: matches (the page); the top bar said Loops 7, the app 8: sample data, preview corrected and re-shot
+    Z2 pair probe-held-dark: matches (the page); the top bar said Loops 7, the app 8: sample data, preview corrected and re-shot
+    Z2 pair probe-blocked-light: matches (the page); the top bar said Loops 7, the app 8: sample data, preview corrected and re-shot
+    Z2 pair probe-blocked-dark: matches (the page); the top bar said Loops 7, the app 8: sample data, preview corrected and re-shot
+    Z2 pair probe-complete-light: matches (the page); the top bar said Loops 7, the app 8: sample data, preview corrected and re-shot
+    Z2 pair probe-complete-dark: matches (the page); the top bar said Loops 7, the app 8: sample data, preview corrected and re-shot
+    Z2 pair run-held-light: matches (the page); the top bar said Loops 7, the app 8: sample data, preview corrected and re-shot
+    Z2 pair run-held-dark: matches (the page); the top bar said Loops 7, the app 8: sample data, preview corrected and re-shot
+    Z2 pair gate-queue-light: matches
+    Z2 pair gate-queue-dark: matches
+    Z2 pair gate-failed-light: matches
+    Z2 pair gate-failed-dark: matches
+    Z2 pair goal-rows-light: matches (the page); the top bar said Loops 7, the app 10: sample data, preview corrected and re-shot
+    Z2 pair goal-rows-dark: matches (the page); the top bar said Loops 7, the app 10: sample data, preview corrected and re-shot
+    Z2 pair scoreboard-light: matches
+    Z2 pair scoreboard-dark: matches
+    Z2 pair card-two-way-light: matches
+    Z2 pair card-two-way-dark: matches
+    Z2 pair card-one-way-light: matches
+    Z2 pair card-one-way-dark: matches
+    Z2 pair phone-probe-waiting-light: matches
+    Z2 pair phone-probe-waiting-dark: matches
+    Z2 pair phone-probe-held-light: matches
+    Z2 pair phone-probe-held-dark: matches
+    Z2 pair phone-probe-blocked-light: matches
+    Z2 pair phone-probe-blocked-dark: matches
+    Z2 pair phone-probe-complete-light: matches
+    Z2 pair phone-probe-complete-dark: matches
+    Z2 pair phone-run-held-light: matches
+    Z2 pair phone-run-held-dark: matches
+    Z2 pair phone-gate-queue-light: matches
+    Z2 pair phone-gate-queue-dark: matches
+    Z2 pair phone-gate-failed-light: matches
+    Z2 pair phone-gate-failed-dark: matches
+    Z2 pair phone-goal-rows-light: matches
+    Z2 pair phone-goal-rows-dark: matches
+    Z2 pair phone-scoreboard-light: matches
+    Z2 pair phone-scoreboard-dark: matches
+    Z2 pair phone-card-two-way-light: matches
+    Z2 pair phone-card-two-way-dark: matches
+    Z2 pair phone-card-one-way-light: matches
+    Z2 pair phone-card-one-way-dark: matches
+
+Judgement of the 52 journey shots (`reports/acceptance/goal-loop-<width>-<theme>-<nn>-<step>.png`):
+
+    Z2 shot 1440-light-01: matches
+    Z2 shot 1440-light-02: matches
+    Z2 shot 1440-light-03: matches
+    Z2 shot 1440-light-04: matches
+    Z2 shot 1440-light-05: matches
+    Z2 shot 1440-light-06: matches
+    Z2 shot 1440-light-07: the empty Base port and Token budget rows show only a label and a chevron, no "None" (issue 433)
+    Z2 shot 1440-light-08: matches
+    Z2 shot 1440-light-09: matches
+    Z2 shot 1440-light-10: matches
+    Z2 shot 1440-light-11: matches
+    Z2 shot 1440-light-12: the three earlier cards show a chevron but are not links (issue 435)
+    Z2 shot 1440-light-13: the three earlier cards show a chevron but are not links (issue 435)
+    Z2 shot 1440-dark-01: matches
+    Z2 shot 1440-dark-02: matches
+    Z2 shot 1440-dark-03: matches
+    Z2 shot 1440-dark-04: matches
+    Z2 shot 1440-dark-05: matches
+    Z2 shot 1440-dark-06: matches
+    Z2 shot 1440-dark-07: the empty Base port and Token budget rows show only a label and a chevron, no "None" (issue 433)
+    Z2 shot 1440-dark-08: matches
+    Z2 shot 1440-dark-09: matches
+    Z2 shot 1440-dark-10: matches
+    Z2 shot 1440-dark-11: matches
+    Z2 shot 1440-dark-12: the three earlier cards show a chevron but are not links (issue 435)
+    Z2 shot 1440-dark-13: the three earlier cards show a chevron but are not links (issue 435)
+    Z2 shot 390-light-01: matches
+    Z2 shot 390-light-02: matches
+    Z2 shot 390-light-03: matches
+    Z2 shot 390-light-04: matches
+    Z2 shot 390-light-05: matches
+    Z2 shot 390-light-06: matches
+    Z2 shot 390-light-07: the empty Base port and Token budget rows show only a label and a chevron, no "None" (issue 433); the switch label runs 11 px past the cell padding to the card edge (issue 434)
+    Z2 shot 390-light-08: matches
+    Z2 shot 390-light-09: matches
+    Z2 shot 390-light-10: matches
+    Z2 shot 390-light-11: matches
+    Z2 shot 390-light-12: the three earlier cards show a chevron but are not links (issue 435)
+    Z2 shot 390-light-13: the three earlier cards show a chevron but are not links (issue 435)
+    Z2 shot 390-dark-01: matches
+    Z2 shot 390-dark-02: matches
+    Z2 shot 390-dark-03: matches
+    Z2 shot 390-dark-04: matches
+    Z2 shot 390-dark-05: matches
+    Z2 shot 390-dark-06: matches
+    Z2 shot 390-dark-07: the empty Base port and Token budget rows show only a label and a chevron, no "None" (issue 433); the switch label runs 11 px past the cell padding to the card edge (issue 434)
+    Z2 shot 390-dark-08: matches
+    Z2 shot 390-dark-09: matches
+    Z2 shot 390-dark-10: matches
+    Z2 shot 390-dark-11: matches
+    Z2 shot 390-dark-12: the three earlier cards show a chevron but are not links (issue 435)
+    Z2 shot 390-dark-13: the three earlier cards show a chevron but are not links (issue 435)
+
+
+
+**Green after the rebase on origin/main f5541b2** (it brought only this log): typecheck exit 0, then the same command:
+
+    [acceptance] goal loop 1440 light: acceptance steps: 13
+    [acceptance] goal loop 1440 dark: acceptance steps: 13
+    [acceptance] goal loop 390 light: acceptance steps: 13
+    [acceptance] goal loop 390 dark: acceptance steps: 13
+      4 passed (1.2m)
+
+**Light verify** (no file under `server/` or `web/` changed): design:states, typecheck, arch, ratchets -- --base main, test:unit, test:contract, test:api, api-smoke and build each exit 0.
+
+**Final attempt**, lane z2, 2026-11-10, on origin/main d8a44aa (the fixes of issues 433, 434 and 435 merged as PR 441 and PR 442). The rebase had one conflict, in `design/APPROVED.md` (text, both sections kept). The journey now also asserts the two fixes: the empty Base port and Token budget rows carry the placeholder `editor.noLimit`, and each earlier goal card is a link to `https://github.com/hieplam/<repo>/issues/<n>` with `target="_blank"`.
+
+**Green** (`npm run build`, then the command of Red on the lane database, after Docker Desktop was restarted):
+
+    [acceptance] goal loop 1440 light: acceptance steps: 13
+    [acceptance] goal loop 1440 dark: acceptance steps: 13
+    [acceptance] goal loop 390 light: acceptance steps: 13
+    [acceptance] goal loop 390 dark: acceptance steps: 13
+      4 passed (57.3s)
+
+`npm run design:compare`: `84 passed (5.9m)`, exit 0. `design/compare/ds/report.json`: `"pairs": 292`, `"worstRatio": 0.00035`, `"maxRatio": 0.001`. The 44 goal-loop pairs are all in the report, 0 over `maxRatio`, the worst 0.00035. The 8 pairs of the editor states that PR 441 re-shot (`form-edit-running`, `form-conflict`, `form-edit-claude`, `form-duplicate`, light and dark) are at 0.00001 to 0.00002.
+
+**Stub check:** the URL of the `scoreboard` step changed to `/scoreboard-x`, one run at 1440 px light: `1 failed`, at step `1440 light: scoreboard`, `Error: the word of a cause with no check`, `expect(locator).toHaveCount(expected) failed`. Restored with `git checkout`, `git status` clean.
+
+**Judged again** (opened with Read): the probe settings shots 1440-light-07, 1440-dark-07, 390-light-07 and 390-dark-07 (the switch label "Pick the next task with a probe" sits inside its cell; Base port and Token budget show "None" and a chevron, as Time limit does); the same editor in Vietnamese at 390 px light and dark and 1440 px light and dark, from a scratch test that was not committed (the switch label fits; both rows show the Vietnamese placeholder); the goal-card shots 1440-light-12, 1440-dark-13, 390-light-12 and 390-dark-13; the pairs `card-two-way-light` and `phone-card-one-way-dark` (preview and app the same, the earlier cards keep their chevron and draw no other style). The other images did not change since attempt 1: the fixes touched only the editor and the earlier cards, and the compare shows no pair over `maxRatio`.
+
+**Ratchet:** journey steps 0 -> 13. Pairs looked at 0 -> 44. Open defects 3 -> 0 (issues 433, 434 and 435 closed).
+
+**Light verify, not complete** (no file under `server/` or `web/` changed; `grep -rn "acceptance-goal-loop\|acceptance.goal-loop" server web` prints nothing): design:states, typecheck, lang-scan --check-baseline, arch, ratchets -- --base main and rule-lint -- --base main exit 0; test:unit `1348 passed | 3 skipped`; test:contract `274 passed`. test:api ended `44 failed | 302 passed`, all 44 in `tests/api/gate-scope.test.ts` at `git clone` of a local bare repository, with 15 `Worker exited unexpectedly with exit code 3221225794`; then Claude Code stopped the shell because the machine was low on memory. That run is not a result, and api-smoke and build after it did not run.
+
+Final judgement of the 44 pairs:
+
+Z2 pair probe-waiting-light: matches
+Z2 pair probe-waiting-dark: matches
+Z2 pair probe-held-light: matches
+Z2 pair probe-held-dark: matches
+Z2 pair probe-blocked-light: matches
+Z2 pair probe-blocked-dark: matches
+Z2 pair probe-complete-light: matches
+Z2 pair probe-complete-dark: matches
+Z2 pair run-held-light: matches
+Z2 pair run-held-dark: matches
+Z2 pair gate-queue-light: matches
+Z2 pair gate-queue-dark: matches
+Z2 pair gate-failed-light: matches
+Z2 pair gate-failed-dark: matches
+Z2 pair goal-rows-light: matches
+Z2 pair goal-rows-dark: matches
+Z2 pair scoreboard-light: matches
+Z2 pair scoreboard-dark: matches
+Z2 pair card-two-way-light: matches
+Z2 pair card-two-way-dark: matches
+Z2 pair card-one-way-light: matches
+Z2 pair card-one-way-dark: matches
+Z2 pair phone-probe-waiting-light: matches
+Z2 pair phone-probe-waiting-dark: matches
+Z2 pair phone-probe-held-light: matches
+Z2 pair phone-probe-held-dark: matches
+Z2 pair phone-probe-blocked-light: matches
+Z2 pair phone-probe-blocked-dark: matches
+Z2 pair phone-probe-complete-light: matches
+Z2 pair phone-probe-complete-dark: matches
+Z2 pair phone-run-held-light: matches
+Z2 pair phone-run-held-dark: matches
+Z2 pair phone-gate-queue-light: matches
+Z2 pair phone-gate-queue-dark: matches
+Z2 pair phone-gate-failed-light: matches
+Z2 pair phone-gate-failed-dark: matches
+Z2 pair phone-goal-rows-light: matches
+Z2 pair phone-goal-rows-dark: matches
+Z2 pair phone-scoreboard-light: matches
+Z2 pair phone-scoreboard-dark: matches
+Z2 pair phone-card-two-way-light: matches
+Z2 pair phone-card-two-way-dark: matches
+Z2 pair phone-card-one-way-light: matches
+Z2 pair phone-card-one-way-dark: matches
+
+Final judgement of the 52 journey shots:
+
+Z2 shot 1440-light-01: matches
+Z2 shot 1440-light-02: matches
+Z2 shot 1440-light-03: matches
+Z2 shot 1440-light-04: matches
+Z2 shot 1440-light-05: matches
+Z2 shot 1440-light-06: matches
+Z2 shot 1440-light-07: matches
+Z2 shot 1440-light-08: matches
+Z2 shot 1440-light-09: matches
+Z2 shot 1440-light-10: matches
+Z2 shot 1440-light-11: matches
+Z2 shot 1440-light-12: matches
+Z2 shot 1440-light-13: matches
+Z2 shot 1440-dark-01: matches
+Z2 shot 1440-dark-02: matches
+Z2 shot 1440-dark-03: matches
+Z2 shot 1440-dark-04: matches
+Z2 shot 1440-dark-05: matches
+Z2 shot 1440-dark-06: matches
+Z2 shot 1440-dark-07: matches
+Z2 shot 1440-dark-08: matches
+Z2 shot 1440-dark-09: matches
+Z2 shot 1440-dark-10: matches
+Z2 shot 1440-dark-11: matches
+Z2 shot 1440-dark-12: matches
+Z2 shot 1440-dark-13: matches
+Z2 shot 390-light-01: matches
+Z2 shot 390-light-02: matches
+Z2 shot 390-light-03: matches
+Z2 shot 390-light-04: matches
+Z2 shot 390-light-05: matches
+Z2 shot 390-light-06: matches
+Z2 shot 390-light-07: matches
+Z2 shot 390-light-08: matches
+Z2 shot 390-light-09: matches
+Z2 shot 390-light-10: matches
+Z2 shot 390-light-11: matches
+Z2 shot 390-light-12: matches
+Z2 shot 390-light-13: matches
+Z2 shot 390-dark-01: matches
+Z2 shot 390-dark-02: matches
+Z2 shot 390-dark-03: matches
+Z2 shot 390-dark-04: matches
+Z2 shot 390-dark-05: matches
+Z2 shot 390-dark-06: matches
+Z2 shot 390-dark-07: matches
+Z2 shot 390-dark-08: matches
+Z2 shot 390-dark-09: matches
+Z2 shot 390-dark-10: matches
+Z2 shot 390-dark-11: matches
+Z2 shot 390-dark-12: matches
+Z2 shot 390-dark-13: matches
 
 <!-- 373 -->
 
