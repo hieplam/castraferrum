@@ -190,6 +190,9 @@ export async function goalLoopJourney(page: Page, request: APIRequestContext, o:
       await expect(page.getByLabel(t('goalLoop.editor.laneEnv'), { exact: true })).toHaveValue('');
       await expect(page.getByLabel(t('goalLoop.editor.basePort'), { exact: true })).toHaveValue('');
       await expect(page.getByLabel(t('goalLoop.editor.tokenBudget'), { exact: true })).toHaveValue('');
+      // Issue 433: the empty Base port and Token budget rows show the placeholder of the empty Time limit row.
+      await expect(page.getByLabel(t('goalLoop.editor.basePort'), { exact: true })).toHaveAttribute('placeholder', t('editor.noLimit'));
+      await expect(page.getByLabel(t('goalLoop.editor.tokenBudget'), { exact: true })).toHaveAttribute('placeholder', t('editor.noLimit'));
       await expect(page.getByTestId('probe-restart-stop')).toHaveAttribute('aria-checked', 'true');
       await expect(page.getByTestId('probe-restart-resume')).toHaveText(t('goalLoop.editor.restartResume'));
       for (const hint of ['commandHint', 'claimHint', 'releaseHint', 'basePortHint', 'tokenBudgetHint', 'laneEnvHint'] as const) {
@@ -255,6 +258,11 @@ export async function goalLoopJourney(page: Page, request: APIRequestContext, o:
         await expect(history).toHaveCount(3);
         for (const [state, key] of [['accepted', 'goalLoop.card.accepted'], ['refused', 'goalLoop.card.refused'], ['started', 'goalLoop.card.started']] as const) {
           await expect(history.and(page.locator(`[data-status=${state}]`)), `the word of an earlier card that is ${state}`).toContainText(t(key));
+        }
+        // Issue 435: each earlier card is a link that opens its GitHub issue in a new tab.
+        for (const card of await history.all()) {
+          await expect(card, 'an earlier card opens its GitHub issue').toHaveAttribute('href', /^https:\/\/github\.com\/hieplam\/[^/]+\/issues\/\d+$/);
+          await expect(card).toHaveAttribute('target', '_blank');
         }
       });
     }
