@@ -61,6 +61,24 @@ test('G19: Refuse leaves no waiting card, shows the card as refused and closes i
   }
 });
 
+test('G19: each earlier card with a chevron is a link that opens its GitHub issue in a new tab', async ({ page }) => {
+  const c = await launch('two-way');
+  try {
+    await page.goto(`${c.sp.baseUrl}${PAGE}`);
+    const cells = page.getByTestId('card-history').locator('[data-card-id]');
+    await expect(cells.first()).toBeVisible();
+    expect(await cells.count()).toBeGreaterThan(0);
+    for (const cell of await cells.all()) {
+      await expect(cell.locator('svg')).toHaveCount(1);
+      await expect(cell).toHaveAttribute('href', /^https:\/\/github\.com\/hieplam\/tribe\/issues\/\d+$/);
+      await expect(cell).toHaveAttribute('target', '_blank');
+      expect(await cell.evaluate((el) => el.tagName)).toBe('A');
+    }
+  } finally {
+    await c.stop();
+  }
+});
+
 test('G20: the one-way card shows the one-way sentence and no start time', async ({ page }) => {
   const c = await launch('one-way');
   try {
