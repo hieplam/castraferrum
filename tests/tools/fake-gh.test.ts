@@ -1,5 +1,5 @@
 // Oracle of the fake GitHub kit (F2): every test runs the fake as a child process, as the callers do.
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -212,6 +212,30 @@ describe('fake gh', { timeout: 60_000 }, () => {
     writeFileSync(gh.world, JSON.stringify(world));
     expect(JSON.parse(run('issue', 'list', '--search', 'beta updated:>=2026-10-19', '--json', 'number').out)).toEqual([{ number: 2 }]);
     expect(JSON.parse(run('issue', 'list', '--search', 'beta updated:>=2026-10-21', '--json', 'number').out)).toEqual([]);
+  });
+  // Issue 456: the background tick runs the gate and the goal-card ingest at the same time, so two fake gh processes
+  // overlap. Each call reads, changes and writes the one world file. Without a lock, a reader got a half-written file
+  // ("Unexpected end of JSON input") and a writer lost the change of the other.
+  it('parallel calls all succeed and none loses the change of another (issue 456)', async () => {
+    const { gh } = setup();
+    const world = gh.read();
+    // A large world makes each write long, as in a real test that has run for a while.
+    world.labels.push('x'.repeat(200_000));
+    writeFileSync(gh.world, JSON.stringify(world));
+    const call = (...args: string[]) =>
+      new Promise<{ code: number | null; err: string }>((done) => {
+        const child = spawn(process.execPath, [gh.script, ...args], { env: { ...process.env, ...gh.env } });
+        let err = '';
+        child.stderr.on('data', (d) => (err += String(d)));
+        child.on('close', (code) => done({ code, err: err.trim() }));
+      });
+    const n = 16;
+    const results = await Promise.all(Array.from({ length: n }, (_, i) => (i % 2 ? call('issue', 'list', '--json', 'number') : call('issue', 'create', '--title', `T${i}`, '--body', 'B'))));
+
+    expect(results.filter((r) => r.code !== 0)).toEqual([]);
+    const after = gh.read();
+    expect(after.issues.map((i) => i.number).sort((a, b) => a - b)).toEqual(Array.from({ length: n / 2 }, (_, i) => i + 1));
+    expect(after.calls).toHaveLength(n);
   });
 });
 
