@@ -6,6 +6,7 @@ import { OffsetClock } from './adapters/clock/offset-clock';
 import { SystemClock } from './adapters/clock/system-clock';
 import { InProcessEventBus } from './adapters/events/in-process-event-bus';
 import { CommandClaimGateway } from './adapters/claims/command-claim-gateway';
+import { NodeSecrets } from './adapters/crypto/node-secrets';
 import { ClaudeAgentExecutor } from './adapters/executors/claude/claude-agent-executor';
 import { testModeQuery } from './adapters/executors/claude/test-mode-query';
 import { MockExecutor } from './adapters/executors/mock/mock-executor';
@@ -24,6 +25,7 @@ import { FanoutNotifier } from './adapters/notify/fanout-notifier';
 import { StoreNotifier } from './adapters/notify/store-notifier';
 import { WebhookNotifier } from './adapters/notify/webhook-notifier';
 import { FsReviewReports } from './adapters/fs/fs-review-reports';
+import { MemorySessionStore } from './adapters/memory/session-store';
 import { NodeCommandRunner } from './adapters/process/node-command-runner';
 import { openDb, truncateAll, type Db } from './adapters/postgres/db';
 import { PgDbProbe } from './adapters/postgres/db-probe';
@@ -36,6 +38,7 @@ import type { Notifier } from './ports/notifier';
 import { startBackgroundTicker, type BackgroundTicker } from './scheduler/background-ticker';
 import { startTicker, type Ticker } from './scheduler/ticker';
 import type { BackgroundService, RecoveryReport } from './services/contracts';
+import { DefaultAuthService } from './services/auth-service';
 import { DefaultFolderService } from './services/folder-service';
 import { DefaultGateService } from './services/gate-service';
 import { DefaultGoalCardService } from './services/goal-card-service';
@@ -92,6 +95,11 @@ export type ComposeOptions = {
   ghBin?: string;
   /** The `epic.mjs` of a started goal card. Defaults to the script of the epic-loop skill. */
   epicScript?: string;
+  /**
+   * Sign-in credentials (`--username`, `--password`; remote-access spec D1 to D6). Set = every route but the D5 public ones needs a
+   * session; unset = no sign-in, the console behaves as before.
+   */
+  auth?: { username: string; password: string };
 };
 
 export type ComposedServer = {
@@ -253,6 +261,9 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
       }
     : undefined;
 
+  // Sessions live in memory (spec D3). In test mode the clock is the offset clock, so API tests wind session expiry and the limit.
+  const auth = new DefaultAuthService({ credentials: opts.auth, sessions: new MemorySessionStore(), secrets: new NodeSecrets(), clock });
+
   const app = await buildHttpApp({
     health: new DefaultHealthService({ db: new PgDbProbe(db.pool) }),
     api: {
@@ -271,6 +282,7 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
       processEvents: processService,
       scoreboard: scoreboardService,
       now: () => clock.now(),
+      auth,
     },
     testHooks,
     webRoot: opts.webRoot,

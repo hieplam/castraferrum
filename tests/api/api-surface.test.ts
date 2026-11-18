@@ -7,27 +7,9 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { API_ERROR_CODES } from '../../shared/contracts/common';
 import { startApi, type ApiServer } from '../support/api-kit';
+import { apiTableRows } from '../support/api-table';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
-// The API surface table of docs/API.md (40 routes).
-const SPEC = readFileSync(join(ROOT, 'docs', 'API.md'), 'utf8');
-
-type Row = { method: 'GET' | 'POST' | 'PUT' | 'DELETE'; path: string; codes: string[] };
-
-/** Row `| GET | \`/loops/:id\` | ... | \`LOOP_NOT_FOUND\` |` -> route; `/start | /stop` is joined to the prefix of the first path. */
-function specRows(): Row[] {
-  const rows: Row[] = [];
-  for (const line of SPEC.split('\n')) {
-    const m = /^\| (GET|POST|PUT|DELETE) \| (.+?) \| .+? \| (.+?) \|$/.exec(line);
-    if (!m) continue;
-    const paths = [...m[2]!.matchAll(/`([^`]+)`/g)].map((x) => x[1]!.replace(/\?.*$/, ''));
-    const first = paths[0]!;
-    const prefix = first.slice(0, first.lastIndexOf('/'));
-    const codes = [...m[3]!.matchAll(/`([A-Z_]+)`/g)].map((x) => x[1]!);
-    for (const p of paths) rows.push({ method: m[1] as Row['method'], path: p === first ? p : prefix + p, codes });
-  }
-  return rows;
-}
 
 let server: ApiServer;
 beforeAll(async () => {
@@ -38,10 +20,10 @@ afterAll(async () => {
 });
 
 describe('API surface matches SPEC section API contract', () => {
-  const rows = specRows();
+  const rows = apiTableRows();
 
-  it('reads the API table of the spec (20 phase 1 routes + 3 repo routes + 2 folder-browse routes + 2 phase 2 transcript routes + 3 probe routes + 2 notice routes + 3 process routes + 3 goal card routes + 3 gate page routes + 1 hold route + 1 goals route; 5 test-mode routes separate)', () => {
-    expect(rows).toHaveLength(45);
+  it('reads the API table of the spec (20 phase 1 routes + 3 repo routes + 2 folder-browse routes + 2 phase 2 transcript routes + 3 probe routes + 2 notice routes + 3 process routes + 3 goal card routes + 3 gate page routes + 1 hold route + 1 goals route + 3 sign-in routes; 5 test-mode routes separate)', () => {
+    expect(rows).toHaveLength(48);
   });
 
   it.each(rows.map((r) => [`${r.method} /api${r.path}`, r] as const))('%s has a registered route', (_name, r) => {
