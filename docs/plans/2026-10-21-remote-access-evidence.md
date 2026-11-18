@@ -228,3 +228,110 @@ Made by the standing rules of the epic; the spec leaves them open.
   `Generic Password` in `server/services/auth-service.test.ts` (the wrong-password fixture) and a `Username Password`
   in `tests/api/auth-api.test.ts` (the wrong-login body). They are no secrets: they are made-up wrong passwords of the
   tests. The fixtures now read `password2` and `password3` next to `password1`; the squash merge carries only the new text.
+
+## R3
+
+- `main` SHA: `ffaf10e` (R2 merged as pull request 457). Date of the runs: 2026-11-18. Same container as R1 and R2
+  (Node 24, local Postgres 16, no WebKit, no Claude login), default `loops_test`, e2e port 7071.
+- Browser of the new shots: Playwright's Chromium build 1243 (the pinned revision 1248 cannot be downloaded here; 1243
+  is mapped to it). The 20 new shots were rendered in this container by the repository's own tool
+  (`npm run design:shots -- --only <the ten sign-in ids>`); no existing shot was re-shot. If the owner's machine
+  (Chromium 1248) renders them a few pixels differently, re-shoot the ten sign-in ids there with the same command.
+- Design-system gap: issue 459 (label `design-system`, template "Design system gap"): the sign-in screen is the one
+  screen outside the app frame, the brand outside the top bar, and "Signed in as" in the top bar. Closed by the owner's
+  approval (R4, issue 59) and the build (R5, issue 60), as its "Done when" list says. It is not a sub-issue of the
+  phase: it blocks no task (the system is extended in this pull request, by the standing rule).
+
+### Red
+
+- `npm run design:states` on `main`: `states with shots: 142/142`, exit code `0` (N = 142).
+- After the ten rows in `design/ds/STATES.md` and the ten entries in `design/ds/preview/states.js`, before shooting:
+  exit code `1`, `states with shots: 142/152`, naming each missing shot:
+  `missing: signin — light shot missing; dark shot missing`, the same for `phone-signin`, `signin-error`,
+  `phone-signin-error`, `signin-locked`, `phone-signin-locked`, `signin-topbar`, `phone-signin-topbar`, `vi-signin`,
+  `phone-vi-signin`.
+
+### Green
+
+- (1) `npm run design:states`: `states with shots: 152/152`, exit code `0` (N + 10).
+- `npm run design:shots -- --dry --only <the ten sign-in ids>`: `drawn 10 states x 2 themes, 0 problems` (every
+  required test id visible with its count, no class outside `components.css`, no literal inline style).
+- (2) `git diff --stat main -- design/ds/preview/shots`: only the 20 added files of the ten sign-in states
+  (`signin-*`, `vi-signin-*`, and their phone forms `phone-signin-*`, `phone-vi-signin-*`), no existing shot changed.
+- (3) `npx vitest run --project unit shared/i18n tests/tools/ds-catalogue.test.ts tests/tools/ds-docs.test.ts
+  tests/tools/design-states.test.ts tests/tools/i18n-counts.test.ts tests/tools/design-lint.test.ts`:
+  `Tests  37 passed (37)`; the key-set test passes with the 12 new keys (`settings.account` and 11 `signin.*`) in `en`
+  and `vi`, none empty, the same `{x}` parameters.
+- `npm run design:lint`: `unknown classes: 0`, `literal styles: 0`, `css violations: 0`.
+- (4) `npm run verify` on the branch (43d223b, the preview of this pull request): exit code `1` at the e2e step, like
+  the baseline (the like-for-like bar of R1 for this container).
+  - design:states `states with shots: 152/152`; lang-scan `baseline check: ok`; ratchets `ratchets: ok`;
+    rule-lint `rule-lint: ok (rule lines 18, without a check 7, new 0)`
+  - unit: `Tests  1397 passed | 4 skipped (1401)`
+  - contract: `Tests  276 passed (276)`
+  - api: `Tests  467 passed | 2 skipped (469)`
+  - api-smoke: `... sessionIds of execution #1 = 1, #2 = 1 ok`
+  - e2e: `45 failed`, `29 did not run`, `118 passed (10.5m)`. `diff` of the sorted failure lists (the R1 baseline list
+    against this run): no difference.
+- (5) The pull request body links every new light shot and lists the D-UI decisions below.
+
+### Stub check
+
+- Rows without shots fail `design:states` (the Red above: exit code `1`, `142/152`).
+- A key only in `en` (`signin.signOut` removed from `vi.ts`): `shared/i18n/i18n.test.ts > has one key set` fails
+  (`Tests  1 failed | 2 passed (3)`), and the typecheck fails with `TS2741: Property '"signin.signOut"' is missing`.
+  An empty Vietnamese text (`signin.invalid` set to a space): `has no empty string` fails,
+  `vi has empty strings: expected [ 'signin.invalid' ] to deeply equal []`.
+- CSS leak: every state of the preview was shot twice in this container, once with the branch's `components.css` and
+  once with `main`'s (copies of `design/ds`, `npm run design:shots -- --design <copy>`, both exit code `0`, 304 images
+  each). The 284 images of the 142 existing states are byte-identical between the two runs: the new rules touch no
+  existing screen. Without the new rules 18 of the 20 sign-in images differ (the two `phone-signin-topbar` images use
+  only existing classes and are identical), so the sign-in screen depends on its CSS. The branch run is byte-identical
+  to the 20 committed shots.
+
+### Ratchet
+
+- Preview states 142 to 152 (+10; the plan asks for + 8 or more). Shots 284 to 304. Catalogue classes of spec 4.5
+  +4 (`.signin`, `.signin-form`, `.signin-brand`, `.topbar-user`), component families 19 to 20 (Sign-in).
+  i18n keys +12 in each language.
+
+### Decisions
+
+Made by the standing rules of the epic and the design-system rule of CLAUDE.md; the spec leaves them open. R4 is the
+owner's gate: the owner approves the preview and the system addition together (no entry in `design/APPROVED.md` here).
+
+- D-UI 1. The sign-in screen is drawn outside the app frame: no top bar, tab bar or navigation bar, since nothing behind
+  it is reachable before sign-in. The system had no rule for such a screen, so it gained a Sign-in family
+  (`.signin`, `.signin-form`, `.signin-brand`, `.topbar-user`, reading only existing tokens: no colour, size or token is
+  new), drawn on `design/ds/index.html`, listed in spec 4.5 of the UI uplift and described in `SYSTEM.md` (issue 459).
+- D-UI 2. The form is one column at most `--size-dialog` wide: the brand, the `h1` (`.page-title`), a `.page-desc`,
+  a `.card.is-pad` with the fields and `.btn.primary.lg.block`, then a `.note` saying the credentials are the ones the
+  console was started with. Desktop: centred on the page. Phone: `--space-10` under the safe area at the top, so the
+  keyboard does not cover the fields.
+- D-UI 3. Errors belong to the form, not to a field, and never say which field was wrong (the server does not either):
+  wrong credentials is a `.banner.is-err` at the top of the card with the username kept and the password cleared; too
+  many attempts is a `.banner.is-warn` (nothing typed is wrong, the console asks to wait) with the wait in whole
+  minutes, rounded up from `Retry-After` (690 s gives 12 minutes in the sample), the count joined to its unit by a
+  no-break space, and Sign in disabled.
+- D-UI 4. Signed in, desktop: the end of the top bar shows "Signed in as <name>" (`.topbar-user`, the name bold) and
+  Sign out as a `.btn.sm`, after the connection and the theme button. Phone: the top bar is hidden by the system, so
+  Settings starts with an Account group (an existing `.cell` with the same sentence and Sign out as a `.btn`), like the
+  phone-only This device group. `phone-signin-topbar` therefore draws Settings, not the Loops list; its state entry
+  carries `phoneRequires` (a small addition to `states.js`: a phone state takes its base's `phoneRequires` when the
+  control moves to another page on the phone).
+- D-UI 5. Neither the top-bar user nor the Account group shows when the console asks for no sign-in; the existing
+  states are unchanged.
+- The phone states use the `phone-*` form of `design/ds/` (the plan's "Update 2026-10-21"), so the plan's
+  `signin-phone`, `signin-error-phone` and `signin-topbar-phone` are `phone-signin`, `phone-signin-error` and
+  `phone-signin-topbar`, and Green (2) lists `phone-signin-*` and `phone-vi-signin-*` next to `signin-*` and
+  `vi-signin-*`. Two phone states were added beyond the plan's eight: `phone-signin-locked` and `phone-vi-signin`
+  (spec D13 asks for English and Vietnamese on the phone too, and the longest text is the too-many-attempts banner).
+- New test ids, listed under Test ids of `SYSTEM.md` for R5: `signin-form`, `signin-username`, `signin-password`,
+  `signin-submit`, `signin-error` (with `data-code`), `topbar-user`, `topbar-signout`, `settings-account`,
+  `settings-signout`. The top bar and Settings use their own ids, so a page never renders one id twice.
+- Text: 12 keys in `shared/i18n/en.ts` and `vi.ts` (`settings.account`, `signin.title`, `signin.desc`,
+  `signin.username`, `signin.password`, `signin.submit`, `signin.invalid`, `signin.locked.one`, `signin.locked.other`,
+  `signin.note`, `signin.signedInAs`, `signin.signOut`); the Vietnamese text is only in `vi.ts`. The sample user is
+  `owner`, a word, not a person.
+- `design/README.md` needs no change: it describes the preview and the system in general, and the new family and
+  states live in `SYSTEM.md` and `STATES.md`.
