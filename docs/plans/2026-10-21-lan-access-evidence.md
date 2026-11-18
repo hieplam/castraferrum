@@ -25,3 +25,27 @@ days failed with `integer out of range`). Pull request 444 fixed it. This sectio
 - Tools that scan the tree: none scans `.worktrees/` (vitest includes, tsc `include`, `FOLDERS` of test-addresses,
   `EXPECT_DIRS` of ratchets; lang-scan uses `git ls-files`). `.worktrees/` is in `.gitignore`.
 - Baseline for later tasks (never decrease): unit 1348, contract 276, api 442, e2e 190, uc-coverage 38.
+
+## L1 - Command-line flags `--host`, `--remote`, `--port`, `--help`
+
+- Base: `origin/main` 919d9b6 plus the branch `feat/cli-flags`. Test database of the lane: `loops_lanl1_test`.
+- **What npm 11.17.0 passes to the script** (measured 2026-11-18 with a scratch package whose `start` script prints
+  `process.argv` and `npm_config_*`):
+  - `npm start --remote`: argv `[]`, `npm_config_remote=true` (npm warns `Unknown cli config "--remote"`).
+  - `npm start --remote=false` and `npm start --no-remote`: `npm_config_remote=` (empty string).
+  - `npm start --remote --host=0.0.0.0 --port=7170`: `npm_config_remote=true`, `npm_config_host=0.0.0.0`, `npm_config_port=7170`.
+  - `npm start --host 0.0.0.0`: `npm_config_host=true` and the argument `0.0.0.0`. The parser rejects it
+    (`unexpected argument 0.0.0.0`; `npm_config_host=true` alone gives `--host needs a value`).
+- Decisions: `--remote` beats `npm_config_host` and `LOOPS_HOST` (spec D9). An empty `npm_config_remote` means off.
+  The README says `LOOPS_HOST` and `LOOPS_REMOTE` are not used by the server until L2.
+- Red (before the parser): `npx vitest run --project unit server/config.test.ts` exit 1, 15 failed, for example
+  `"(0 , __vite_ssr_import_1__.parseArgs) is not a function"` and `expected undefined to be '127.0.0.1'`.
+- Green: the same command, `Tests  28 passed (28)`. `npx vitest run --project api tests/api/cli.test.ts`: `Tests  4 passed (4)`.
+- `npm run verify` exit code: `0` (`reports/verify.log`). ratchets: `ratchets: ok`.
+  rule-lint: `rule-lint: ok (rule lines 18, without a check 7, new 0)`.
+- unit: `Tests  1363 passed | 3 skipped (1366)` (L0: 1348, up 15)
+- contract: `Tests  276 passed (276)` (L0: 276)
+- api: `Tests  446 passed | 2 skipped (448)` (L0: 442, up 4)
+- e2e: `190 passed (20.2m)` (L0: 190)
+- `phone overflow: 0/12`; `UCs with a green e2e: 38/38`.
+- Ratchet before to after: unit 1348 to 1363, api 442 to 446, contract 276 to 276, e2e 190 to 190, uc-coverage 38 to 38.
