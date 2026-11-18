@@ -1,10 +1,23 @@
 // Entry point of the server process: read the config, wire everything (compose.ts — the composition root), listen on the port, shut down gracefully.
 // Startup order (ARCHITECTURE.md § Composition root): open DB + migration → single-server lock → recovery → ticker → HTTP.
 import { composeServer, type ComposedServer } from './compose';
-import { loadConfig, loadDotEnv, redactUrl } from './config';
+import { loadConfig, loadDotEnv, redactUrl, UsageError, USAGE } from './config';
 
 loadDotEnv();
-const cfg = loadConfig();
+let cfg: ReturnType<typeof loadConfig>;
+try {
+  cfg = loadConfig(process.env, process.argv.slice(2));
+} catch (err) {
+  if (!(err instanceof UsageError)) throw err;
+  console.error(`${err.message}
+
+${err.usage}`);
+  process.exit(2);
+}
+if (cfg.help) {
+  console.log(USAGE);
+  process.exit(0);
+}
 const log = (msg: string) => console.log(msg);
 
 const server: ComposedServer = await composeServer({

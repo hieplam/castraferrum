@@ -9,6 +9,10 @@ type Env = Record<string, string | undefined>;
 
 export type Config = {
   port: number;
+  /** Interface to listen on (`--host`, `--remote`, `LOOPS_HOST`). Default `127.0.0.1`. */
+  host: string;
+  /** `--help` was given: the server prints `USAGE` and exits 0 before it opens the database. */
+  help: boolean;
   databaseUrl: string;
   /** LOOPS_TEST_MODE=1: only runs with a DB named *_test (the test routes wipe data). */
   testMode: boolean;
@@ -64,7 +68,86 @@ export function redactUrl(url: string): string {
   return url.replace(/\/\/([^:/@]+):[^@]*@/, '//$1:***@');
 }
 
-export function loadConfig(env: Env = process.env): Config {
+export const USAGE = `Usage: npm start -- [flags]
+
+Flags (a value is written --name=value or --name value):
+  --host=<address>   LOOPS_HOST=<address>   interface to listen on (default 127.0.0.1; 0.0.0.0 = every IPv4 interface)
+  --remote           LOOPS_REMOTE=1         same as --host=0.0.0.0 (phones on the same Wi-Fi)
+  --port=<1-65535>   LOOPS_PORT=<port>      API and UI port (default 7070)
+  --help             -                      print this text and exit 0
+
+Order of precedence: argument, then npm_config_<name> (npm start --host=...), then LOOPS_<NAME> (environment or .env), then the default.
+--remote beats npm_config_host and LOOPS_HOST. --remote and --host as arguments together are an error.`;
+
+/** A bad command line. main.ts prints the message and the usage, then exits 2. */
+export class UsageError extends Error {
+  readonly usage = USAGE;
+  constructor(message: string) {
+    super(message);
+    this.name = 'UsageError';
+  }
+}
+
+export type ParsedArgs = { host?: string; port?: string; remote: boolean; help: boolean };
+
+const VALUE_FLAGS = new Set(['host', 'port']);
+const SWITCH_FLAGS = new Set(['remote', 'help']);
+
+/** Parses --name=value, --name value and the switches --remote and --help. Throws UsageError for anything else. */
+export function parseArgs(argv: readonly string[]): ParsedArgs {
+  const out: ParsedArgs = { remote: false, help: false };
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i]!;
+    if (!arg.startsWith('--')) {
+      throw new UsageError(`unexpected argument ${arg} (write a value as --name=value)`);
+    }
+    const eq = arg.indexOf('=');
+    const name = arg.slice(2, eq === -1 ? undefined : eq);
+    const inline = eq === -1 ? undefined : arg.slice(eq + 1);
+    if (SWITCH_FLAGS.has(name)) {
+      if (inline !== undefined) throw new UsageError(`--${name} takes no value`);
+      out[name as 'remote' | 'help'] = true;
+    } else if (VALUE_FLAGS.has(name)) {
+      let value = inline;
+      if (value === undefined) {
+        const next = argv[i + 1];
+        if (next === undefined || next.startsWith('--')) throw new UsageError(`--${name} needs a value`);
+        value = next;
+        i++;
+      }
+      if (value === '') throw new UsageError(`--${name} needs a value`);
+      out[name as 'host' | 'port'] = value;
+    } else {
+      throw new UsageError(`unknown flag --${name}`);
+    }
+  }
+  if (out.remote && out.host !== undefined) throw new UsageError('--remote and --host cannot be used together');
+  return out;
+}
+
+/**
+ * Value of a flag from npm: `npm start --host=x` arrives as npm_config_host=x. A bare --host arrives as "true"
+ * (measured with npm 11.17.0), which is not a value.
+ */
+function npmValue(env: Env, name: string): string | undefined {
+  const raw = env[`npm_config_${name}`];
+  if (raw === undefined || raw === '') return undefined;
+  if (raw === 'true') throw new UsageError(`--${name} needs a value: write --${name}=<value>`);
+  return raw;
+}
+
+export function loadConfig(env: Env = process.env, argv: readonly string[] = []): Config {
+  const args = parseArgs(argv);
+  // npm hands `npm start --remote` over as npm_config_remote=true; --no-remote and --remote=false arrive as an empty string.
+  const remote = args.remote || env.npm_config_remote === 'true' || env.LOOPS_REMOTE === '1';
+  const host = args.host ?? (remote ? '0.0.0.0' : (npmValue(env, 'host') ?? (env.LOOPS_HOST || '127.0.0.1')));
+  const npmPort = args.port === undefined ? npmValue(env, 'port') : undefined;
+  const port =
+    args.port !== undefined
+      ? readPort({ '--port': args.port }, '--port', 7070)
+      : npmPort !== undefined
+        ? readPort({ npm_config_port: npmPort }, 'npm_config_port', 7070)
+        : readPort(env, 'LOOPS_PORT', 7070);
   const testMode = env.LOOPS_TEST_MODE === '1';
   const url = env.DATABASE_URL ?? databaseUrl(env, testMode ? 'test' : 'main');
   const dbName = new URL(url).pathname.slice(1);
@@ -80,7 +163,9 @@ export function loadConfig(env: Env = process.env): Config {
     throw new Error(`LOOPS_GH_BIN may only run against a DB named *_test, but it points at "${dbName}"`);
   }
   return {
-    port: readPort(env, 'LOOPS_PORT', 7070),
+    port,
+    host,
+    help: args.help,
     databaseUrl: url,
     testMode,
     mockExecutor: testMode || mockFlag,
