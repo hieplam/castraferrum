@@ -2,7 +2,7 @@
 // Startup order (ARCHITECTURE.md § Composition root): open DB + migration → single-server lock → recovery → ticker → HTTP.
 import { networkInterfaces } from 'node:os';
 import { composeServer, type ComposedServer } from './compose';
-import { isLoopbackHost, loadConfig, loadDotEnv, NETWORK_WARNING, networkUrls, redactUrl, UsageError, USAGE } from './config';
+import { isLoopbackHost, loadConfig, loadDotEnv, NETWORK_WARNING, networkLines, redactUrl, UsageError, USAGE } from './config';
 
 loadDotEnv();
 let cfg: ReturnType<typeof loadConfig>;
@@ -54,7 +54,7 @@ try {
   process.exit(1);
 }
 log(`Castraferrum: http://127.0.0.1:${cfg.port}  (DB ${redactUrl(cfg.databaseUrl)}${cfg.testMode ? ', test mode' : ''})`);
-for (const url of networkUrls(cfg.host, cfg.port, networkInterfaces())) log(`On your network: ${url}`);
+for (const line of networkLines(cfg.host, cfg.port, networkInterfaces())) log(line);
 if (!isLoopbackHost(cfg.host)) log(NETWORK_WARNING);
 
 let closing = false;

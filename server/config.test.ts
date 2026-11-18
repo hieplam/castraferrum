@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { databaseUrl, defaultEpicScript, isLoopbackHost, loadConfig, networkUrls, NETWORK_WARNING, parseArgs, readPort, redactUrl, UsageError, USAGE } from './config';
+import { databaseUrl, defaultEpicScript, isLoopbackHost, loadConfig, networkLines, networkUrls, NETWORK_WARNING, parseArgs, readPort, redactUrl, UsageError, USAGE } from './config';
 
 describe('config', () => {
   it('defaults: port 7070, the loops DB on the compose Postgres (55432)', () => {
@@ -197,6 +197,38 @@ describe('networkUrls', () => {
     expect(isLoopbackHost('0.0.0.0')).toBe(false);
     expect(isLoopbackHost('192.168.1.20')).toBe(false);
     expect(NETWORK_WARNING).toBe('Warning: anyone on this network can open the console and run agents on this machine.');
+  });
+
+  it('0.0.0.0 drops link-local 169.254.x.x and lists a virtual adapter after the real ones (issue 451)', () => {
+    const windows = {
+      'vEthernet (WSL)': [iface('172.20.80.1')],
+      Ethernet: [iface('169.254.56.112')],
+      'Wi-Fi': [iface('192.168.1.23')],
+    };
+    expect(networkUrls('0.0.0.0', 7070, windows)).toEqual(['http://192.168.1.23:7070', 'http://172.20.80.1:7070']);
+    expect(networkLines('0.0.0.0', 7070, windows)).toEqual([
+      'On your network: http://192.168.1.23:7070',
+      'On your network: http://172.20.80.1:7070 (virtual, this PC only)',
+    ]);
+  });
+
+  it('marks an interface named WSL or Hyper-V as virtual, and keeps 10.x and 172.16-31.x addresses', () => {
+    const nics2 = {
+      'Hyper-V Virtual Ethernet': [iface('172.31.0.1')],
+      eth0: [iface('10.0.0.7')],
+      'WSL bridge': [iface('172.16.5.5')],
+      wlan: [iface('172.18.0.9')],
+    };
+    expect(networkLines('0.0.0.0', 7070, nics2)).toEqual([
+      'On your network: http://10.0.0.7:7070',
+      'On your network: http://172.18.0.9:7070',
+      'On your network: http://172.31.0.1:7070 (virtual, this PC only)',
+      'On your network: http://172.16.5.5:7070 (virtual, this PC only)',
+    ]);
+  });
+
+  it('a specific address prints one line without a virtual mark', () => {
+    expect(networkLines('192.168.1.20', 7171, nics)).toEqual(['On your network: http://192.168.1.20:7171']);
   });
 
   it('0.0.0.0 on a machine with no non-internal IPv4 address lists nothing', () => {
