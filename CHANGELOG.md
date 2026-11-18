@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/hieplam/castraferrum/compare/v0.7.0...v0.7.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **db:** run duration_ms is a bigint, so a run older than 24.8 days no longer stops the server from starting (issue 443) ([#444](https://github.com/hieplam/castraferrum/issues/444)) ([0631804](https://github.com/hieplam/castraferrum/commit/06318043f8f3de8ee3c9d15909ecf1b21d60d1e9))
+
 ## [0.7.0](https://github.com/hieplam/castraferrum/compare/v0.6.0...v0.7.0) (2026-11-10)
 
 
