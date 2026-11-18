@@ -16,3 +16,6 @@ design/compare/
 design/ds/preview/messages.js
 design/ds/preview/schedule.js
 agent-plugins-checkout/
+
+# Git worktrees of this repository (owner rule: .worktrees/<branch-name>)
+.worktrees/
