@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.0](https://github.com/hieplam/castraferrum/compare/v0.9.0...v0.10.0) (2026-11-18)
+
+
+### Features
+
+* **server:** --username and --password flags with the sign-in startup lines (R1) ([#453](https://github.com/hieplam/castraferrum/issues/453)) ([324f8e0](https://github.com/hieplam/castraferrum/commit/324f8e0ed1b98bad9b4b19af8afb1ae6c8f34078))
+
+
+### Bug Fixes
+
+* **server:** drop link-local addresses and mark virtual adapters in the startup list (issue 451) ([#452](https://github.com/hieplam/castraferrum/issues/452)) ([0a50856](https://github.com/hieplam/castraferrum/commit/0a508561e9f9f0f6564050bd27d6493361befc03))
+
 ## [0.9.0](https://github.com/hieplam/castraferrum/compare/v0.8.0...v0.9.0) (2026-11-18)
 
 
