@@ -104,7 +104,7 @@ export class PgRunRepository implements RunRepository {
   async finish(id: string, outcome: RunOutcome): Promise<RunRecord> {
     const { rows } = await this.#pool.query(
       `UPDATE runs SET status = $2, finished_at = $3,
-                       duration_ms = round(extract(epoch FROM ($3::timestamptz - started_at)) * 1000)::int,
+                       duration_ms = round(extract(epoch FROM ($3::timestamptz - started_at)) * 1000)::bigint,
                        summary = $4, error = $5, cost_usd = $6, end_result = $7, end_pr = $8, tokens = $9
         WHERE id = $1 AND status IN ('running', 'held')
     RETURNING *`,
@@ -269,7 +269,7 @@ export class PgRunRepository implements RunRepository {
   async markAllRunningInterrupted(now: Date, aliveUntil: Date = now): Promise<number> {
     const res = await this.#pool.query(
       `UPDATE runs SET status = 'interrupted', finished_at = $1,
-                       duration_ms = greatest(0, round(extract(epoch FROM (least($2::timestamptz, $1::timestamptz) - started_at)) * 1000))::int
+                       duration_ms = greatest(0, round(extract(epoch FROM (least($2::timestamptz, $1::timestamptz) - started_at)) * 1000))::bigint
         WHERE status = 'running'`,
       [now, aliveUntil],
     );
@@ -279,7 +279,7 @@ export class PgRunRepository implements RunRepository {
   async markHeldInterrupted(now: Date, aliveUntil: Date, keepLoopIds: string[]): Promise<number> {
     const res = await this.#pool.query(
       `UPDATE runs SET status = 'interrupted', finished_at = $1,
-                       duration_ms = greatest(0, round(extract(epoch FROM (least($2::timestamptz, $1::timestamptz) - started_at)) * 1000))::int
+                       duration_ms = greatest(0, round(extract(epoch FROM (least($2::timestamptz, $1::timestamptz) - started_at)) * 1000))::bigint
         WHERE status = 'held' AND NOT (loop_id = ANY($3::uuid[]))`,
       [now, aliveUntil, keepLoopIds],
     );

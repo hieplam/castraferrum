@@ -76,8 +76,14 @@ export class ServerProcess {
     const proxy = new TcpProxy({ host: target.hostname, port: Number(target.port || 5432) });
     const sp = new ServerProcess(await freePort(), proxy, opts.env ?? {});
     sp.#dbProxyPort = await proxy.start();
-    await sp.start();
-    await sp.api('POST', '/api/__test/reset'); // a clean DB for each test; start() after kill() does NOT wipe (UC-17 needs the old data)
+    try {
+      await sp.start();
+      await sp.api('POST', '/api/__test/reset'); // a clean DB for each test; start() after kill() does NOT wipe (UC-17 needs the old data)
+    } catch (e) {
+      // A failed launch must not leave the proxy (a live handle) or the child behind: the caller would never exit (issue 443).
+      await sp.stop().catch(() => undefined);
+      throw e;
+    }
     return sp;
   }
 
