@@ -132,7 +132,7 @@ export const runs = pgTable(
     startedAt: ts('started_at').notNull(),
     deadlineAt: ts('deadline_at'),
     finishedAt: ts('finished_at'),
-    durationMs: integer('duration_ms'),
+    durationMs: bigint('duration_ms', { mode: 'number' }),
     promptSnapshot: text('prompt_snapshot').notNull(),
     executorKind: text('executor_kind').notNull(),
     executorConfig: jsonb('executor_config').notNull(),

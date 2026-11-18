@@ -405,6 +405,21 @@ export function repositoryContract(env: () => ContractEnv): void {
       expect(await r.executions.findById(randomUUID())).toBeNull();
     });
 
+    it('a run that lasted 30 days (more than 2^31 ms) is recovered, finished and counted without an integer overflow', async () => {
+      const DAY = 86_400;
+      const a = await activeLoop();
+      const b = await activeLoop();
+      const c = await activeLoop();
+      const ra = await started(a.loop.id, a.execution.id, { startedAt: at(0) });
+      const rb = await started(b.loop.id, b.execution.id, { startedAt: at(0) });
+      const rc = await started(c.loop.id, c.execution.id, { startedAt: at(0) });
+      await r.runs.finish(rc.id, { status: 'succeeded', finishedAt: at(30 * DAY) });
+      expect(await r.runs.findById(rc.id)).toMatchObject({ status: 'succeeded', durationMs: 30 * DAY * 1000 });
+      expect(await r.runs.markAllRunningInterrupted(at(30 * DAY))).toBe(2);
+      expect(await r.runs.findById(ra.id)).toMatchObject({ status: 'interrupted', durationMs: 30 * DAY * 1000 });
+      expect(await r.runs.findById(rb.id)).toMatchObject({ status: 'interrupted', durationMs: 30 * DAY * 1000 });
+    });
+
     it('listByLoop: newest first, cursor pagination with no duplicates and no gaps', async () => {
       const loop = await r.loops.insert(newLoop());
       for (let k = 1; k <= 5; k++) {
