@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.7.0](https://github.com/hieplam/castraferrum/compare/v0.6.0...v0.7.0) (2026-11-10)
+
+
+### Features
+
+* **budget:** token budget stops a loop at its limit (W4) ([#411](https://github.com/hieplam/castraferrum/issues/411)) ([1769b8e](https://github.com/hieplam/castraferrum/commit/1769b8eadfe00cf15295b639fc6fcb20a9a68dcb))
+* **gate:** gate pages and repository switch (K12) ([#379](https://github.com/hieplam/castraferrum/issues/379)) ([4d5ee09](https://github.com/hieplam/castraferrum/commit/4d5ee098e70c54278cec2d8751179bad23f3cfee))
+* **goal-cards:** an accepted card becomes epic, manifest PR and loop (W5) ([#390](https://github.com/hieplam/castraferrum/issues/390)) ([23c00ca](https://github.com/hieplam/castraferrum/commit/23c00ca1480cbff48b9604c489e78b171288e245))
+* **goals:** goal number and goal rows on the loop page (T6) ([#422](https://github.com/hieplam/castraferrum/issues/422)) ([f5ea0b5](https://github.com/hieplam/castraferrum/commit/f5ea0b5a582a4f85a8f89563743355e89cf97182))
+* **tools:** a worktree sweep removes the worktrees of finished tasks ([#406](https://github.com/hieplam/castraferrum/issues/406)) ([b0766a0](https://github.com/hieplam/castraferrum/commit/b0766a082528ab1ecb4db82ab1c2f91b5063f59f))
+* **web:** goal cards page and token budget field (W7) ([#420](https://github.com/hieplam/castraferrum/issues/420)) ([ecd7b4f](https://github.com/hieplam/castraferrum/commit/ecd7b4f2fecc5fb1338133aab5789f13e690a7f8))
+* **web:** loop state, editor fields and holds of a loop with a probe (P15) ([#392](https://github.com/hieplam/castraferrum/issues/392)) ([b6ccdd9](https://github.com/hieplam/castraferrum/commit/b6ccdd94b274b418343adc625e02b2b66d1287c6))
+
+
+### Bug Fixes
+
+* **gate:** a fork pull request or a stranger's text never acts by itself ([#400](https://github.com/hieplam/castraferrum/issues/400)) ([139c17e](https://github.com/hieplam/castraferrum/commit/139c17e5e55f520d8283d57bd2a266af93ac3b64))
+* **gate:** background git and gh calls never open a login window ([#404](https://github.com/hieplam/castraferrum/issues/404)) ([dd0787c](https://github.com/hieplam/castraferrum/commit/dd0787c2c1875f7cb1e6b9dbe8ea1e3a6ec59be7))
+* **gate:** fetches of one repository folder run one after another ([#394](https://github.com/hieplam/castraferrum/issues/394)) ([2ab7fbe](https://github.com/hieplam/castraferrum/commit/2ab7fbec247a3b06198c7f075f080d01a47b8148))
+* **tests:** layout.visual.ts starts one server for the file and gives its setup 180 s (issue 439) ([#440](https://github.com/hieplam/castraferrum/issues/440)) ([516b9ee](https://github.com/hieplam/castraferrum/commit/516b9ee43748a0fe628cfec21ef50378b4da143d))
+* **tests:** name no GitHub repository or owner but hieplam, and scan every form ([#418](https://github.com/hieplam/castraferrum/issues/418)) ([558c130](https://github.com/hieplam/castraferrum/commit/558c130a49ed5f8691665ad9cb1c4d99afc98ee0))
+* **tests:** the holds API test starts no ticker, so the live hold service cannot close its docker hold (issue 426) ([#431](https://github.com/hieplam/castraferrum/issues/431)) ([e085c45](https://github.com/hieplam/castraferrum/commit/e085c45344afade9487d90ceb4d00fe094f830de))
+* **tests:** the phone journey UC-34 no longer needs the first log line within 1 s of the tap ([#417](https://github.com/hieplam/castraferrum/issues/417)) ([64e890b](https://github.com/hieplam/castraferrum/commit/64e890b931a744780c1198c97bab66b14be61bcf))
+* **tests:** the process signals API test no longer races the gate ticker ([#419](https://github.com/hieplam/castraferrum/issues/419)) ([0bbad5f](https://github.com/hieplam/castraferrum/commit/0bbad5f525ed9a1889377670e991666cc5373073))
+* **tests:** the seeded probe row of the design shots survives a tick of the live ticker (issue 421) ([#423](https://github.com/hieplam/castraferrum/issues/423)) ([21e6e2d](https://github.com/hieplam/castraferrum/commit/21e6e2deeb9aa8d11c975bfc0d4424dee40a2b7c))
+* **tests:** the transcript API test waits for finished schedule ticks, not for a guessed limit (issue 424) ([#429](https://github.com/hieplam/castraferrum/issues/429)) ([11bf4bc](https://github.com/hieplam/castraferrum/commit/11bf4bc2b5af1f0e16a7b0ba43bf9486d5506a3c))
+* **tests:** UC-30 reads the token from a file that the prompt names, so the check does not depend on the model finding the output file ([#430](https://github.com/hieplam/castraferrum/issues/430)) ([0658c63](https://github.com/hieplam/castraferrum/commit/0658c63dd05fa933ba7ccb653f77b5367ef261eb))
+* **web:** a route change no longer waits for React scheduler tasks ([#425](https://github.com/hieplam/castraferrum/issues/425)) ([f770dab](https://github.com/hieplam/castraferrum/commit/f770dabf7f538e2b13e9f31866c99de15e15d454))
+* **web:** an earlier goal card opens its GitHub issue ([#442](https://github.com/hieplam/castraferrum/issues/442)) ([d8a44aa](https://github.com/hieplam/castraferrum/commit/d8a44aa524df58e29e052ac8163c2e71bb7e61ec))
+* **web:** probe settings show the empty placeholder and a shorter switch label ([#441](https://github.com/hieplam/castraferrum/issues/441)) ([f4ec96f](https://github.com/hieplam/castraferrum/commit/f4ec96f591d2466050b2682264cbef444470c38d))
+* **web:** the folder picker path field shows the opening folder with the list ([#408](https://github.com/hieplam/castraferrum/issues/408)) ([eabf50c](https://github.com/hieplam/castraferrum/commit/eabf50c9b9f65f42a23d3bc2379604953b3edcbe))
+
 ## [0.6.0](https://github.com/hieplam/castraferrum/compare/v0.5.0...v0.6.0) (2026-11-02)
 
 
