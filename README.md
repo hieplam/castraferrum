@@ -90,10 +90,14 @@ The startup log lists the addresses to open on the phone, one line for each non-
 Castraferrum: http://127.0.0.1:7070  (DB postgres://loops:***@127.0.0.1:55432/loops)
 On your network: http://192.168.1.20:7070
 Warning: anyone on this network can open the console and run agents on this machine.
+Set --username and --password to require sign-in.
 ```
 
-**Read the warning.** The console has no sign-in yet, and it runs agents with full permissions in your repositories.
-Use `--remote` only on a network that you trust.
+**Read the warning.** The console runs agents with full permissions in your repositories.
+Use `--remote` only on a network that you trust. To require a sign-in, set a username and a password (at least 8
+characters), best in `.env` as `LOOPS_USERNAME` and `LOOPS_PASSWORD`: a command line is visible to other processes
+and to shell history. With both set, the startup log prints `Sign-in: on (user <name>)` instead of the warning.
+Setting only one of them, or a shorter password, stops the server with exit code 2.
 
 On Windows the first start shows a firewall dialog for `node.exe`. Allow access on the **Private** network profile only.
 To add the rule yourself, run this once in an administrator PowerShell:
@@ -114,6 +118,8 @@ and Playwright all read it.
 | `LOOPS_PORT` | `--port` | 7070 | API and UI port |
 | `LOOPS_HOST` | `--host` | `127.0.0.1` | Interface to listen on (`0.0.0.0` = every IPv4 interface). |
 | `LOOPS_REMOTE` | `--remote` | off | `1` = same as `--host=0.0.0.0`. |
+| `LOOPS_USERNAME` | `--username` | unset | Turns sign-in on; needs `LOOPS_PASSWORD`. |
+| `LOOPS_PASSWORD` | `--password` | unset | At least 8 characters; needs `LOOPS_USERNAME`. Prefer `.env` to the flag (shell history). |
 | `LOOPS_PG_PORT` | - | 55432 | Postgres port on the host |
 | `LOOPS_E2E_PORT` | - | 7071 | Port of the e2e server |
 | `DATABASE_URL` | - | derived from `LOOPS_PG_PORT` | Use when Postgres is elsewhere |
