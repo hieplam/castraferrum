@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { databaseUrl, defaultEpicScript, loadConfig, parseArgs, readPort, redactUrl, UsageError, USAGE } from './config';
+import { databaseUrl, defaultEpicScript, isLoopbackHost, loadConfig, networkUrls, NETWORK_WARNING, parseArgs, readPort, redactUrl, UsageError, USAGE } from './config';
 
 describe('config', () => {
   it('defaults: port 7070, the loops DB on the compose Postgres (55432)', () => {
@@ -163,5 +163,43 @@ describe('config', () => {
         expect(USAGE).toContain(word);
       }
     });
+  });
+});
+
+describe('networkUrls', () => {
+  const iface = (address: string, internal = false, family: 'IPv4' | 'IPv6' = 'IPv4') => ({
+    address,
+    family,
+    internal,
+    netmask: '255.255.255.0',
+    mac: '00:00:00:00:00:00',
+    cidr: null,
+    scopeid: 0,
+  });
+  const nics = {
+    lo: [iface('127.0.0.1', true)],
+    wifi: [iface('192.168.1.20'), iface('fe80::1', false, 'IPv6')],
+    eth: [iface('10.0.0.7')],
+  };
+
+  it('0.0.0.0 lists one URL per non-internal IPv4 address (two interfaces, two URLs)', () => {
+    expect(networkUrls('0.0.0.0', 7070, nics)).toEqual(['http://192.168.1.20:7070', 'http://10.0.0.7:7070']);
+  });
+
+  it('a specific address lists that URL only', () => {
+    expect(networkUrls('192.168.1.20', 7171, nics)).toEqual(['http://192.168.1.20:7171']);
+  });
+
+  it('127.0.0.1 lists no network URL and needs no warning', () => {
+    expect(networkUrls('127.0.0.1', 7070, nics)).toEqual([]);
+    expect(isLoopbackHost('127.0.0.1')).toBe(true);
+    expect(isLoopbackHost('localhost')).toBe(true);
+    expect(isLoopbackHost('0.0.0.0')).toBe(false);
+    expect(isLoopbackHost('192.168.1.20')).toBe(false);
+    expect(NETWORK_WARNING).toBe('Warning: anyone on this network can open the console and run agents on this machine.');
+  });
+
+  it('0.0.0.0 on a machine with no non-internal IPv4 address lists nothing', () => {
+    expect(networkUrls('0.0.0.0', 7070, { lo: [iface('127.0.0.1', true)] })).toEqual([]);
   });
 });

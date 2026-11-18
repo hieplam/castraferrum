@@ -57,24 +57,27 @@ export class ServerProcess {
   #exited: Promise<void> = Promise.resolve();
   #exitCode: number | null = null;
   readonly #env: NodeJS.ProcessEnv;
+  readonly #args: string[];
 
-  private constructor(port: number, dbProxy: TcpProxy, env: NodeJS.ProcessEnv) {
+  private constructor(port: number, dbProxy: TcpProxy, env: NodeJS.ProcessEnv, args: string[]) {
     this.port = port;
     this.baseUrl = `http://127.0.0.1:${port}`;
     this.dbProxy = dbProxy;
     this.#env = env;
+    this.#args = args;
   }
 
   /**
    * Create its own DB (if missing), set up the Postgres proxy, start the server (test mode - has `/api/__test/reset`). `env` adds variables to
    * the server process (e.g. `CLAUDE_CONFIG_DIR` - the sample transcript folder of the transcript screen screenshots).
+   * `args` are extra command-line arguments of `server/main.ts` (e.g. `--remote`); `baseUrl` stays on 127.0.0.1, which every listen host answers.
    */
-  static async launch(opts: { env?: NodeJS.ProcessEnv } = {}): Promise<ServerProcess> {
+  static async launch(opts: { env?: NodeJS.ProcessEnv; args?: string[] } = {}): Promise<ServerProcess> {
     const url = liveDbUrl();
     await ensureDatabase(url);
     const target = new URL(url);
     const proxy = new TcpProxy({ host: target.hostname, port: Number(target.port || 5432) });
-    const sp = new ServerProcess(await freePort(), proxy, opts.env ?? {});
+    const sp = new ServerProcess(await freePort(), proxy, opts.env ?? {}, opts.args ?? []);
     sp.#dbProxyPort = await proxy.start();
     try {
       await sp.start();
@@ -110,7 +113,7 @@ export class ServerProcess {
     db.hostname = '127.0.0.1';
     db.port = String(this.#dbProxyPort);
     const env: NodeJS.ProcessEnv = { ...process.env, ...this.#env, LOOPS_PORT: String(this.port), LOOPS_TEST_MODE: '1', DATABASE_URL: db.toString() };
-    const child = spawn(process.execPath, ['--import', 'tsx', 'server/main.ts'], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
+    const child = spawn(process.execPath, ['--import', 'tsx', 'server/main.ts', ...this.#args], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
     child.stdout?.on('data', (b) => this.logs.push(String(b)));
     child.stderr?.on('data', (b) => this.logs.push(String(b)));
     let exited = false;

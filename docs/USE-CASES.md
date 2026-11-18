@@ -1,9 +1,9 @@
 # Castraferrum - use cases
 
-Thirty-two use cases describe what a person can see and do. Every row has an ID (`UC-NN`), a title with the
+Thirty-three use cases describe what a person can see and do. Every row has an ID (`UC-NN`), a title with the
 action, and the observable result that proves it works. The IDs are stable: end-to-end tests carry the tag
 `@UC-NN`, and `npm run uc-coverage` counts the use cases that have at least one green e2e test (the project
-keeps this at 34/34).
+keeps this at 39/39).
 
 Terms used below:
 
@@ -46,6 +46,7 @@ Terms used below:
 | UC-30 | **Run that waits for background tasks** - the agent starts a background command (for example `npm run verify`) and ends its turn to wait for the notification | The run stays `running` until Claude Code wakes the agent itself, the agent answers and the process exits by itself; the run screen shows Succeeded, the summary is the final text **after** the wake-up, the duration is at least the background command's time; the log has only the standard lifecycle lines; the session `.jsonl` ends with a `cost-state` line |
 | UC-31 | **Summary under each run** - open the loop page, the All runs page or an active period page | Under each run the whole of `runs.summary` is shown, cut at two lines; nothing needs hovering; no summary shows a dash; a run where the agent chose to skip is still Succeeded and differs only in its text |
 | UC-32 | **Run N runs in parallel** - set **Max concurrent runs** = 3 in the form, press Start, let ticks arrive; then edit it down to 2 while 3 runs are still going | The first 3 ticks (including the Start run) open 3 `running` runs at once; the 4th tick is `skipped` with "3 parallel runs already going (rounds #1, #2, #3 still running)"; lowering to 2 does **not** cancel the 3 running runs, they finish (`succeeded`); a tick with 2 or more runs going is `skipped`, with 1 going it opens a new run; the database never holds more than N `running` runs (a trigger enforces it); Stop cancels every running run |
+| UC-33 | **Open the console from another device** - start the server with `npm start --remote`, then open `http://<ipv4 of the machine>:<port>` on a phone on the same network | The list opens at the IPv4 address (a 390px touch screen), a loop starts and shows Running within 2 seconds, and it stops; the server output has one `On your network: http://<ipv4>:<port>` line for each non-internal IPv4 address and the warning line `Warning: anyone on this network can open the console and run agents on this machine.`; without a flag the server refuses the IPv4 address (`ECONNREFUSED`) and still answers on `127.0.0.1`, with neither line |
 | UC-34 | **Use the console on a phone** - 390px wide, touch | Every screen matches the approved phone preview; create, start, stop from the list, live log, transcript and repo registration all work by tapping, with no sideways scrolling; it works the same in WebKit |
 | UC-35 | **Queue a PR for the gate** - `POST /api/gate/jobs` for a repo and a PR number | With the gate on, the job takes the head commit of the PR; the same head again gives the same job; with the gate off (the default) the call is refused with `GATE_OFF` and nothing is queued |
 | UC-36 | **Ratify a guarded change** - the gate stops a PR that changes a guarded path, comments the paths on the task, and a person calls `POST /api/gate/jobs/:id/ratify` | The job takes the queue again for its own head commit and skips only the scope check, so every other step still runs; a moved head fails `scope`; an unknown job gives `GATE_JOB_NOT_FOUND`; a job in another state, or with a live job of the same head, gives `GATE_JOB_NOT_RATIFIABLE` and nothing moves |
