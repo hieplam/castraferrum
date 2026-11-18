@@ -29,7 +29,7 @@
 | Task | What | Goals |
 |---|---|---|
 | L0 | Baseline numbers (the phone overflow check moved to ui-uplift U0) | all (baseline) |
-| L1 | Command-line flags `--host`, `--port`, `--help` | G3 |
+| L1 | Command-line flags `--host`, `--remote`, `--port`, `--help` | G3 |
 | L2 | Listen on the chosen host; print the network URLs and the warning; UC-33 | G1, G2, G5 |
 | L3 | Superseded by epic #63 (ui-uplift U5 to U9) | - |
 | L4 | Superseded by epic #63 (ui-uplift U10) | - |
@@ -55,7 +55,7 @@ last line too.
 - **Stub check:** an evidence log without the counts gives L1 and L2 nothing to compare against.
 - **Ratchet:** none moves; the numbers become the baseline.
 
-## L1 - Command-line flags `--host`, `--port`, `--help`
+## L1 - Command-line flags `--host`, `--remote`, `--port`, `--help`
 
 **Files:** `server/config.ts` (`loadConfig(env, argv)`, `parseArgs`, `USAGE`), `server/config.test.ts`,
 `server/main.ts` (passes `process.argv.slice(2)`, prints usage and exits), `tests/api/server-lifecycle.test.ts`
@@ -64,6 +64,10 @@ or a new `tests/api/cli.test.ts` (process test), `README.md` (Configuration tabl
 Implement spec D2 and section 4. `Config` gains `host` (default `127.0.0.1`). The flags table in `USAGE` lists
 every flag with its environment variable and default. `--port` reuses `readPort` and its message. `main.ts`
 still listens on `127.0.0.1` in this task (L2 switches to `cfg.host`), so behaviour is unchanged.
+
+Addendum 2026-11-18 (spec D9): `--remote` is a shorthand for `--host=0.0.0.0`. It takes no value and also works as
+`npm_config_remote=true` (`npm start --remote`) and `LOOPS_REMOTE=1`. It beats `LOOPS_HOST` and `npm_config_host`.
+`--remote` with `--host` as arguments is a usage error. `USAGE` lists `--remote   LOOPS_REMOTE=1   same as --host=0.0.0.0`.
 
 **Verify**
 - **Goal:** G3.
@@ -75,9 +79,11 @@ still listens on `127.0.0.1` in this task (L2 switches to `cfg.host`), so behavi
   `unknown flag --hots` and the error carries the usage; `--host` without a value throws; `--help` sets
   `help: true`. (2) The process test: `node --import tsx server/main.ts --nope` exits 2 with stderr containing
   `unknown flag --nope` and `Usage:`; `--help` exits 0 with stdout containing `--host` and `--port`. (3)
-  `npm run verify` exits 0.
+  `npm run verify` exits 0. Extra cases for D9: `--remote` gives host `0.0.0.0`; `npm_config_remote=true` only gives
+  `0.0.0.0`; `LOOPS_REMOTE=1` only gives `0.0.0.0`; `--remote` beats `LOOPS_HOST=192.168.1.5`;
+  `--remote --host=0.0.0.0` throws; `--remote=yes` throws; `--help` stdout also contains `--remote`.
 - **Stub check:** a parser that ignores its input fails the precedence and unknown-flag cases. A `main.ts` that
-  does not read argv fails the exit-code test.
+  does not read argv fails the exit-code test. A parser that treats `--remote` as unknown, or ignores `npm_config_remote`, fails the D9 cases.
 - **Ratchet:** unit and api counts above L0.
 
 ## L2 - Listen on the chosen host; network URLs; UC-33

@@ -45,6 +45,7 @@ committed tools, never copied from this document.
 | D6 | **Touch has no hover.** On the phone layout, every action that is hover-only on the desktop (row Stop, row menu) has a visible, tappable control at least 44x44 CSS pixels. The preview decides where. | Without it a phone cannot stop a loop from the list. 44px is the common minimum touch target. |
 | D7 | **The Windows firewall is documented, not automated.** The README explains the first-run "allow access" dialog, the Private network profile, and the one PowerShell command that adds an inbound rule for the port. | Adding a firewall rule needs administrator rights and is the owner's decision. The console should not do it silently. |
 | D8 | **Out of scope:** HTTPS on the local network, a local host name (mDNS), installing as an app (PWA), IPv6 addresses in the startup list (`--host=::` may work but is not tested). | Keep the phase small. Phase 2 brings HTTPS through the tunnel. |
+| D9 | **`--remote` is a shorthand for `--host=0.0.0.0`.** It takes no value and works in three forms: `npm start --remote` (npm hands it over as `npm_config_remote=true`, measured with npm 11.17.0), `npm start -- --remote`, and `LOOPS_REMOTE=1` in the environment or `.env`. With `--remote` on from any source, `host` is `0.0.0.0` and beats `npm_config_host` and `LOOPS_HOST`. `--remote` and `--host` together as arguments stop the server with `--remote and --host cannot be used together` (exit 2 with the usage text). `--remote=x` stops it with `--remote takes no value`. `--no-remote` and `--remote=false` reach the script as `npm_config_remote=` (empty) and mean off. A bare `npm start --host 0.0.0.0` reaches the script as `npm_config_host=true` plus the argument `0.0.0.0`; the parser rejects both. | The owner asked for one short flag to open the console to a phone on the same Wi-Fi (2026-11-18). |
 
 ## 3. Goals
 
@@ -65,6 +66,7 @@ and it fails for an empty or stub implementation.
 | Flag | Environment | Default | Meaning |
 |---|---|---|---|
 | `--host=<address>` | `LOOPS_HOST` | `127.0.0.1` | Interface to listen on; `0.0.0.0` = every IPv4 interface |
+| `--remote` | `LOOPS_REMOTE=1` | off | Same as `--host=0.0.0.0` (phones on the same Wi-Fi); takes no value |
 | `--port=<1-65535>` | `LOOPS_PORT` | 7070 | API and UI port (the existing variable, now also a flag) |
 | `--help` | - | - | Print the usage text and exit 0 |
 

@@ -67,6 +67,8 @@ and `loops_test` (tests). To serve on another port, set `LOOPS_PORT` before `npm
 
 ```bash
 LOOPS_PORT=7170 npm start      # PowerShell: $env:LOOPS_PORT = '7170'; npm start
+npm start -- --port=7170       # the same, as a flag
+npm start --remote             # listen on every interface (phones on the same Wi-Fi); same as --host=0.0.0.0
 ```
 
 The server does not start by itself: leave the `npm start` window open while you use the UI. The UI is served
@@ -78,16 +80,18 @@ repository on the Repos page (**Add a repo** opens a folder picker), then create
 Defaults work with no configuration. To change ports copy `.env.example` to `.env`; compose, the server, Vitest
 and Playwright all read it.
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `LOOPS_PORT` | 7070 | API and UI port |
-| `LOOPS_PG_PORT` | 55432 | Postgres port on the host |
-| `LOOPS_E2E_PORT` | 7071 | Port of the e2e server |
-| `DATABASE_URL` | derived from `LOOPS_PG_PORT` | Use when Postgres is elsewhere |
-| `LOOPS_TEST_DATABASE_URL` | derived from `LOOPS_PG_PORT` | Test database |
-| `LOOPS_COMPOSE_PROJECT` | `loop-console` | Docker Compose project name |
-| `LOOPS_PG_CONTAINER` | `loop_console_pg` | Name of the Postgres container |
-| `LOOPS_PG_VOLUME` | `loop_console_pg` | Name of the Postgres data volume (the default holds real loop history) |
+| Variable | Flag | Default | Meaning |
+|---|---|---|---|
+| `LOOPS_PORT` | `--port` | 7070 | API and UI port |
+| `LOOPS_HOST` | `--host` | `127.0.0.1` | Interface to listen on (`0.0.0.0` = every IPv4 interface). Not used by the server yet (task L2) |
+| `LOOPS_REMOTE` | `--remote` | off | `1` = same as `--host=0.0.0.0`. Not used by the server yet (task L2) |
+| `LOOPS_PG_PORT` | - | 55432 | Postgres port on the host |
+| `LOOPS_E2E_PORT` | - | 7071 | Port of the e2e server |
+| `DATABASE_URL` | - | derived from `LOOPS_PG_PORT` | Use when Postgres is elsewhere |
+| `LOOPS_TEST_DATABASE_URL` | - | derived from `LOOPS_PG_PORT` | Test database |
+| `LOOPS_COMPOSE_PROJECT` | - | `loop-console` | Docker Compose project name |
+| `LOOPS_PG_CONTAINER` | - | `loop_console_pg` | Name of the Postgres container |
+| `LOOPS_PG_VOLUME` | - | `loop_console_pg` | Name of the Postgres data volume (the default holds real loop history) |
 
 `LOOPS_TEST_MODE=1` works only with a database whose name ends in `_test`. Several checkouts can run tests in
 parallel on one container if each one sets its own `LOOPS_TEST_DATABASE_URL` and `LOOPS_E2E_PORT`.
