@@ -11,6 +11,11 @@ export type Config = {
   port: number;
   /** Interface to listen on (`--host`, `--remote`, `LOOPS_HOST`). Default `127.0.0.1`. */
   host: string;
+  /**
+   * Sign-in credentials (`--username` and `--password`, `LOOPS_USERNAME` and `LOOPS_PASSWORD`). Unset = no sign-in, the console
+   * behaves as before. Kept in memory only; never printed.
+   */
+  auth?: { username: string; password: string };
   /** `--help` was given: the server prints `USAGE` and exits 0 before it opens the database. */
   help: boolean;
   databaseUrl: string;
@@ -74,10 +79,13 @@ Flags (a value is written --name=value or --name value):
   --host=<address>   LOOPS_HOST=<address>   interface to listen on (default 127.0.0.1; 0.0.0.0 = every IPv4 interface)
   --remote           LOOPS_REMOTE=1         same as --host=0.0.0.0 (phones on the same Wi-Fi)
   --port=<1-65535>   LOOPS_PORT=<port>      API and UI port (default 7070)
+  --username=<name>  LOOPS_USERNAME=<name>  turns sign-in on (needs --password)
+  --password=<text>  LOOPS_PASSWORD=<text>  at least 8 characters (needs --username)
   --help             -                      print this text and exit 0
 
 Order of precedence: argument, then npm_config_<name> (npm start --host=...), then LOOPS_<NAME> (environment or .env), then the default.
---remote beats npm_config_host and LOOPS_HOST. --remote and --host as arguments together are an error.`;
+--remote beats npm_config_host and LOOPS_HOST. --remote and --host as arguments together are an error.
+A command line is visible to other processes and to shell history: put LOOPS_PASSWORD in .env instead of using --password.`;
 
 /** A bad command line. main.ts prints the message and the usage, then exits 2. */
 export class UsageError extends Error {
@@ -88,9 +96,10 @@ export class UsageError extends Error {
   }
 }
 
-export type ParsedArgs = { host?: string; port?: string; remote: boolean; help: boolean };
+export type ParsedArgs = { host?: string; port?: string; username?: string; password?: string; remote: boolean; help: boolean };
 
-const VALUE_FLAGS = new Set(['host', 'port']);
+type ValueFlag = 'host' | 'port' | 'username' | 'password';
+const VALUE_FLAGS = new Set<string>(['host', 'port', 'username', 'password']);
 const SWITCH_FLAGS = new Set(['remote', 'help']);
 
 /** Parses --name=value, --name value and the switches --remote and --help. Throws UsageError for anything else. */
@@ -116,7 +125,7 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
         i++;
       }
       if (value === '') throw new UsageError(`--${name} needs a value`);
-      out[name as 'host' | 'port'] = value;
+      out[name as ValueFlag] = value;
     } else {
       throw new UsageError(`unknown flag --${name}`);
     }
@@ -148,6 +157,7 @@ export function loadConfig(env: Env = process.env, argv: readonly string[] = [])
       : npmPort !== undefined
         ? readPort({ npm_config_port: npmPort }, 'npm_config_port', 7070)
         : readPort(env, 'LOOPS_PORT', 7070);
+  const auth = credentials(env, args);
   const testMode = env.LOOPS_TEST_MODE === '1';
   const url = env.DATABASE_URL ?? databaseUrl(env, testMode ? 'test' : 'main');
   const dbName = new URL(url).pathname.slice(1);
@@ -165,6 +175,7 @@ export function loadConfig(env: Env = process.env, argv: readonly string[] = [])
   return {
     port,
     host,
+    ...(auth ? { auth } : {}),
     help: args.help,
     databaseUrl: url,
     testMode,
@@ -175,6 +186,17 @@ export function loadConfig(env: Env = process.env, argv: readonly string[] = [])
     ...(env.LOOPS_NOTIFY_WEBHOOK ? { notifyWebhook: webhookUrl(env.LOOPS_NOTIFY_WEBHOOK) } : {}),
     ...(testMode && env.LOOPS_TRANSCRIPT_PAGE ? { transcriptPage: transcriptPage(env.LOOPS_TRANSCRIPT_PAGE) } : {}),
   };
+}
+
+/** Spec D1: both or neither; one alone, or a password under 8 characters, is a usage error (exit 2). The message never echoes a value. */
+function credentials(env: Env, args: ParsedArgs): { username: string; password: string } | undefined {
+  const username = args.username ?? npmValue(env, 'username') ?? (env.LOOPS_USERNAME || undefined);
+  const password = args.password ?? npmValue(env, 'password') ?? (env.LOOPS_PASSWORD || undefined);
+  if (username === undefined && password === undefined) return undefined;
+  if (password === undefined) throw new UsageError('--password is missing');
+  if (username === undefined) throw new UsageError('--username is missing');
+  if (password.length < 8) throw new UsageError('the password needs at least 8 characters');
+  return { username, password };
 }
 
 function webhookUrl(raw: string): string {
@@ -196,6 +218,18 @@ function transcriptPage(raw: string): { minEntries: number; maxBytes: number } {
 
 /** The line that the server prints when it listens beyond loopback without a sign-in (spec D4). */
 export const NETWORK_WARNING = 'Warning: anyone on this network can open the console and run agents on this machine.';
+
+/** Spec D12: the line that follows the phase 1 warning when the console listens beyond loopback without credentials. */
+export const SIGN_IN_HINT = 'Set --username and --password to require sign-in.';
+
+/**
+ * The sign-in lines of the startup log (spec D12). With credentials: `Sign-in: on (user <name>)`, and never the password.
+ * Without them beyond loopback: the phase 1 warning plus the hint. Without them on loopback: nothing, as before.
+ */
+export function signInLines(host: string, auth: Config['auth']): string[] {
+  if (auth) return [`Sign-in: on (user ${auth.username})`];
+  return isLoopbackHost(host) ? [] : [NETWORK_WARNING, SIGN_IN_HINT];
+}
 
 /** True for the addresses that only this machine can reach: `127.x.x.x`, `::1` and `localhost`. */
 export function isLoopbackHost(host: string): boolean {
