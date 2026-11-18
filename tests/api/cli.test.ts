@@ -40,6 +40,28 @@ describe('server command line', () => {
     for (const flag of ['--host', '--remote', '--port', '--help']) expect(r.out).toContain(flag);
   });
 
+  it('--username alone exits 2 with --password is missing (remote-access spec D1)', () => {
+    const r = run(['--username=u']);
+    expect(r.code).toBe(2);
+    expect(r.err).toContain('--password is missing');
+  });
+
+  it('--password alone exits 2 with --username is missing, and a short password exits 2 without echoing it', () => {
+    const alone = run(['--password=password1']);
+    expect(alone.code).toBe(2);
+    expect(alone.err).toContain('--username is missing');
+    expect(alone.err + alone.out).not.toContain('password1');
+    const short = run(['--username=u', '--password=seven77']);
+    expect(short.code).toBe(2);
+    expect(short.err).toContain('the password needs at least 8 characters');
+    expect(short.err + short.out).not.toContain('seven77');
+  });
+
+  it('--help lists --username and --password', () => {
+    const r = run(['--help']);
+    for (const flag of ['--username', '--password']) expect(r.out).toContain(flag);
+  });
+
   it('--help wins over an unreachable database', () => {
     const r = run(['--help'], { DATABASE_URL: 'postgres://nobody:x@127.0.0.1:1/loops' });
     expect(r.code).toBe(0);

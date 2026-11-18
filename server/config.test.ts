@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { databaseUrl, defaultEpicScript, isLoopbackHost, loadConfig, networkLines, networkUrls, NETWORK_WARNING, parseArgs, readPort, redactUrl, UsageError, USAGE } from './config';
+import { databaseUrl, defaultEpicScript, isLoopbackHost, loadConfig, networkLines, networkUrls, NETWORK_WARNING, parseArgs, readPort, redactUrl, SIGN_IN_HINT, signInLines, UsageError, USAGE } from './config';
 
 describe('config', () => {
   it('defaults: port 7070, the loops DB on the compose Postgres (55432)', () => {
@@ -158,6 +158,63 @@ describe('config', () => {
       expect(() => loadConfig({}, ['--remote=yes'])).toThrow(/--remote takes no value/);
     });
 
+    describe('credentials (remote-access spec D1, D2)', () => {
+      it('--username and --password turn sign-in on, in the = form and the space form', () => {
+        expect(loadConfig({}, ['--username=u', '--password=password1']).auth).toEqual({ username: 'u', password: 'password1' });
+        expect(loadConfig({}, ['--username', 'u', '--password', 'password1']).auth).toEqual({ username: 'u', password: 'password1' });
+      });
+
+      it('npm_config_username plus npm_config_password (npm start --username=u --password=p)', () => {
+        expect(loadConfig({ npm_config_username: 'u', npm_config_password: 'password1' }, []).auth).toEqual({ username: 'u', password: 'password1' });
+      });
+
+      it('LOOPS_USERNAME plus LOOPS_PASSWORD (environment or .env)', () => {
+        expect(loadConfig({ LOOPS_USERNAME: 'u', LOOPS_PASSWORD: 'password1' }, []).auth).toEqual({ username: 'u', password: 'password1' });
+      });
+
+      it('precedence: argument beats npm_config_<name>, which beats LOOPS_<NAME>', () => {
+        const env = { npm_config_username: 'npm', npm_config_password: 'npm-password', LOOPS_USERNAME: 'env', LOOPS_PASSWORD: 'env-password' };
+        expect(loadConfig(env, []).auth).toEqual({ username: 'npm', password: 'npm-password' });
+        expect(loadConfig(env, ['--username=arg', '--password=arg-password']).auth).toEqual({ username: 'arg', password: 'arg-password' });
+        expect(loadConfig({ LOOPS_USERNAME: 'env', LOOPS_PASSWORD: 'env-password' }, ['--password=arg-password']).auth).toEqual({
+          username: 'env',
+          password: 'arg-password',
+        });
+      });
+
+      it('a username alone or a password alone is a usage error that names the missing flag', () => {
+        expect(() => loadConfig({}, ['--username=u'])).toThrow(UsageError);
+        expect(() => loadConfig({}, ['--username=u'])).toThrow('--password is missing');
+        expect(() => loadConfig({}, ['--password=password1'])).toThrow('--username is missing');
+        expect(() => loadConfig({ LOOPS_PASSWORD: 'password1' }, [])).toThrow('--username is missing');
+      });
+
+      it('a password shorter than 8 characters throws, and the message does not echo it', () => {
+        let caught: unknown;
+        try {
+          loadConfig({}, ['--username=u', '--password=seven77']);
+        } catch (err) {
+          caught = err;
+        }
+        expect(caught).toBeInstanceOf(UsageError);
+        expect((caught as Error).message).toBe('the password needs at least 8 characters');
+        expect(loadConfig({}, ['--username=u', '--password=eight888']).auth?.password).toBe('eight888');
+      });
+
+      it('neither gives auth undefined; empty values count as unset', () => {
+        expect(loadConfig({}, []).auth).toBeUndefined();
+        expect(loadConfig({ LOOPS_USERNAME: '', LOOPS_PASSWORD: '' }, []).auth).toBeUndefined();
+      });
+
+      it('a bare --username through npm (npm_config_username=true) is not a username', () => {
+        expect(() => loadConfig({ npm_config_username: 'true', npm_config_password: 'password1' }, [])).toThrow(/--username needs a value/);
+      });
+
+      it('USAGE lists both flags and says a command line is visible to other processes and to shell history', () => {
+        for (const word of ['--username', '--password', 'LOOPS_USERNAME', 'LOOPS_PASSWORD', 'shell history', '.env']) expect(USAGE).toContain(word);
+      });
+    });
+
     it('USAGE lists every flag with its environment variable', () => {
       for (const word of ['--host', '--remote', '--port', '--help', 'LOOPS_HOST', 'LOOPS_REMOTE', 'LOOPS_PORT', '127.0.0.1', '7070']) {
         expect(USAGE).toContain(word);
@@ -229,6 +286,22 @@ describe('networkUrls', () => {
 
   it('a specific address prints one line without a virtual mark', () => {
     expect(networkLines('192.168.1.20', 7171, nics)).toEqual(['On your network: http://192.168.1.20:7171']);
+  });
+
+  describe('startup sign-in lines (remote-access spec D12)', () => {
+    it('with credentials: Sign-in: on (user <name>), on loopback and beyond, never the password and never the warning', () => {
+      const auth = { username: 'u', password: 'password1' };
+      expect(signInLines('127.0.0.1', auth)).toEqual(['Sign-in: on (user u)']);
+      expect(signInLines('0.0.0.0', auth)).toEqual(['Sign-in: on (user u)']);
+      expect(signInLines('0.0.0.0', auth).join('\n')).not.toContain('password1');
+    });
+
+    it('without credentials beyond loopback: the phase 1 warning plus the hint; on loopback: nothing', () => {
+      expect(SIGN_IN_HINT).toBe('Set --username and --password to require sign-in.');
+      expect(signInLines('0.0.0.0', undefined)).toEqual([NETWORK_WARNING, SIGN_IN_HINT]);
+      expect(signInLines('192.168.1.20', undefined)).toEqual([NETWORK_WARNING, SIGN_IN_HINT]);
+      expect(signInLines('127.0.0.1', undefined)).toEqual([]);
+    });
   });
 
   it('0.0.0.0 on a machine with no non-internal IPv4 address lists nothing', () => {
