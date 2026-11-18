@@ -30,6 +30,9 @@ prefix of the first path.
 | GET | `/schedule/preview?cron=&tz=&lang=` | schedule sentence plus the next five runs (the UI computes the same with the shared domain function) | `INVALID_CRON` |
 | GET | `/executors` | executor list with configuration schemas | - |
 | GET | `/health` | `{ ok, db }` | - |
+| GET | `/auth/session` | sign-in state `{ required, signedIn, username? }` (`username` only while signed in); public | - |
+| POST | `/auth/login` | sign in `{ username, password }`, answers 204 and sets the session cookie; public. After 5 failed attempts of one client within 15 minutes it answers 429 with `Retry-After` and `details.retryAfterSec` | `VALIDATION_FAILED`, `INVALID_CREDENTIALS`, `TOO_MANY_ATTEMPTS`, `AUTH_NOT_CONFIGURED` |
+| POST | `/auth/logout` | sign out: ends the session, answers 204 and clears the cookie | `AUTH_NOT_CONFIGURED` |
 | GET | `/repos` | repo list `{ items: [{ id, name, path, createdAt, exists, loopCount }] }`, ordered by name (`exists` = the directory still exists, `loopCount` = loops using it) | - |
 | POST | `/repos` | register `{ path, name? }` (UC-19), answers 201 with the repo | `VALIDATION_FAILED`, `REPO_PATH_TAKEN`, `REPO_NAME_TAKEN` |
 | DELETE | `/repos/:id` | delete (UC-20), answers 204 | `REPO_NOT_FOUND`, `REPO_IN_USE` |
@@ -59,6 +62,20 @@ prefix of the first path.
 The console keeps at most one unread notice for each `dedupeKey`. If the variable `LOOPS_NOTIFY_WEBHOOK` holds an
 `http://` or `https://` URL, each new unread notice is also posted there once as JSON `{ kind, text, at }` (`text` is
 the English text, the wait is at most 5 seconds, a failed post is dropped). When the variable is unset, nothing is posted.
+
+## Sign-in
+
+When the console starts with `--username` and `--password` (remote-access spec D1 to D6), a guard runs before every route:
+every `/api/*` route answers 401 `UNAUTHENTICATED` without a valid session, except `GET /health`, `GET /auth/session` and
+`POST /auth/login` (and the test-mode routes). The guard also covers `/api/*` paths that match no route, and an SSE route
+answers 401 before its stream opens. The UI bundle outside `/api/` stays public. Without credentials the guard is not
+installed and the login and logout routes answer 404 `AUTH_NOT_CONFIGURED`.
+
+- The session is the cookie `castra_session=<32 random bytes, base64url>; Max-Age=2592000; Path=/; HttpOnly; SameSite=Lax`,
+  plus `; Secure` when the request carries `X-Forwarded-Proto: https`. Logout clears it with `Max-Age=0` and the same
+  attributes. Sessions live in memory for 30 days: sign-out or a restart ends them.
+- The attempt limit counts by the socket address, or by `CF-Connecting-IP` when the socket is loopback (`cloudflared` on
+  the same machine). A success clears the count of that client.
 
 ## Test-mode routes
 

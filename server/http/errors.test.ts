@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { API_ERROR_CODES } from '../../shared/contracts/common';
 import { DomainError, type ErrorCode } from '../../shared/domain/errors';
-import { HttpError, STATUS_OF, toErrorReply } from './errors';
+import { AUTH_STATUS, authError, HttpError, STATUS_OF, toErrorReply } from './errors';
 
 describe('toErrorReply — error → HTTP status + { error: { code, message, details? } }', () => {
   it('every business error code has a fixed HTTP status and is in the API code list', () => {
@@ -35,6 +35,15 @@ describe('toErrorReply — error → HTTP status + { error: { code, message, det
       const r = toErrorReply(new DomainError(code, 'm'));
       expect([code, r.status, r.body.error.code]).toEqual([code, STATUS_OF[code], code]);
     }
+  });
+
+  it('the sign-in codes have their statuses (remote-access spec section 5) and are API codes', () => {
+    expect(AUTH_STATUS).toEqual({ UNAUTHENTICATED: 401, INVALID_CREDENTIALS: 401, TOO_MANY_ATTEMPTS: 429, AUTH_NOT_CONFIGURED: 404 });
+    for (const code of Object.keys(AUTH_STATUS) as (keyof typeof AUTH_STATUS)[]) {
+      expect(API_ERROR_CODES).toContain(code);
+      expect(toErrorReply(authError(code, 'm'))).toEqual({ status: AUTH_STATUS[code], body: { error: { code, message: 'm' } } });
+    }
+    expect(toErrorReply(authError('TOO_MANY_ATTEMPTS', 'wait', { retryAfterSec: 60 })).body.error.details).toEqual({ retryAfterSec: 60 });
   });
 
   it('VALIDATION_FAILED: keeps the service details.issues as is; the repository { field } → one issue', () => {

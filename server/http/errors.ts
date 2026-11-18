@@ -47,6 +47,19 @@ export const STATUS_OF: Record<ErrorCode, number> = {
   GOAL_CARD_NOT_OPEN: 409,
 };
 
+/** Codes that only the sign-in layer produces (remote-access spec D5, section 5): the guard and the auth routes throw them as HttpError. */
+export const AUTH_STATUS = {
+  UNAUTHENTICATED: 401,
+  INVALID_CREDENTIALS: 401,
+  TOO_MANY_ATTEMPTS: 429,
+  AUTH_NOT_CONFIGURED: 404,
+} as const satisfies Partial<Record<ApiErrorCode, number>>;
+
+/** An HttpError for one of the sign-in codes, with its status from `AUTH_STATUS`. */
+export function authError(code: keyof typeof AUTH_STATUS, message: string, details?: unknown): HttpError {
+  return new HttpError(AUTH_STATUS[code], code, message, details);
+}
+
 export type ErrorReply = { status: number; body: ErrorBody };
 
 /** Whatever a handler throws → HTTP status + standard error body. Never leaks the stack / details of unknown errors. */

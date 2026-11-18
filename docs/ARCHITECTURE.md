@@ -117,7 +117,7 @@ TypeScript 7 does not ship.
 | `shared/i18n/` | UI texts | itself | everything else |
 | `server/ports/` | interfaces a service needs: repositories, executor, clock, event bus, id, active-run registry, DB probe, transcript source, folder browser | `shared/domain` | services, http, adapters, other libraries |
 | `server/services/` | use cases; every service is an interface plus a `Default...` class | `shared/domain`, `server/ports` | http, scheduler, adapters, `fastify`, `drizzle-orm`, `pg`, Node modules (go through a port) |
-| `server/adapters/` | implementations of the ports: `postgres/`, `memory/` (test double), `executors/` (`claude/` is the only place that imports the Agent SDK), `fs/`, `process/` (runs a command with no shell), `transcripts/claude-jsonl/`, clock, event bus, ids, active runs | ports, shared, libraries | services, http |
+| `server/adapters/` | implementations of the ports: `postgres/`, `memory/` (test double), `executors/` (`claude/` is the only place that imports the Agent SDK), `fs/`, `process/` (runs a command with no shell), `transcripts/claude-jsonl/`, `crypto/` (tokens and constant-time compares on Node `crypto`), clock, event bus, ids, active runs | ports, shared, libraries | services, http |
 | `server/http/`, `server/scheduler/` | entry layer: take a request or a tick, call a service through its interface, map domain to DTO and errors to HTTP codes | `shared/*`, interfaces in `server/services/contracts.ts` | adapters, ports, `Default...` classes |
 | `server/main.ts`, `compose.ts`, `config.ts` | composition root and process (port, signals); environment | everything except `web/` | nobody imports `main.ts` |
 
@@ -164,6 +164,8 @@ network. Component tests plug `FakeLoopsApi` and `FakeLiveEvents` into the same 
 - `SchedulingService.tick()` is called every second; `RecoveryService.recover()` once at startup;
   `HealthService.check()`; `LiveService` (`events`, `runLogs` as async iterables); `TranscriptService`
   (`page`, `follow`).
+- `AuthService` (sign-in, remote-access spec D3 to D6): `login` (under the attempt limit), `session(token)`, `status`,
+  `logout`, `clientKey`. `required` is false when the console starts without credentials.
 - Further services cover repos and the folder browser.
 
 ### Ports (what services call, `server/ports/`)
@@ -171,7 +173,8 @@ network. Component tests plug `FakeLoopsApi` and `FakeLiveEvents` into the same 
 Repositories (`LoopRepository`, `ExecutionRepository`, `RunRepository`, `RunLogRepository`,
 `HeartbeatRepository`, `RepoRepository`, `LoopProbeRepository`, `ClaimRepository`), `Clock`, `IdGenerator`, `DbProbe`,
 `DirectoryProbe`, `FolderBrowser`, `ActiveRunRegistry`, `EventPublisher` and `EventSource`, `TranscriptSource`,
-`CommandRunner` (runs a command with no shell, and kills a hung command with its whole process tree),
+`SessionStore` (the signed-in sessions; `adapters/memory/session-store.ts`), `Secrets` (random session tokens and the
+constant-time compare; `adapters/crypto/`), `CommandRunner` (runs a command with no shell, and kills a hung command with its whole process tree),
 `ClaimGateway` (runs the claim and release commands of a probe row, `adapters/claims/`), and `LoopExecutor`.
 
 Rules every repository follows (held by the contract tests):
@@ -616,6 +619,28 @@ now going. Figures per execution are one aggregate query with `count(*) FILTER (
   `connecting | open | down`. Going from `down` to `open` invalidates every query. The database lamp follows
   `/api/health` every 5 seconds. Browsers hide `:ping` comments from JavaScript, so a hung server whose TCP
   connection is still open is not detected; a dead server drops TCP and is noticed at once.
+
+## Sign-in
+
+With `--username` and `--password` (remote-access spec D1 to D6) the console needs a session for its API.
+
+- `compose.ts` always builds `DefaultAuthService` from the credentials (or none), a `MemorySessionStore`, `NodeSecrets`
+  and the clock, and hands it to the HTTP app as `api.auth`. Without credentials `required` is false and nothing below
+  is installed, so the console behaves as before.
+- **The guard** is one `onRequest` hook in `server/http/app.ts`, added before every route, so it runs first on all of
+  them, the not-found handler included. `needsSession` (`server/http/auth-routes.ts`) says yes for every `/api/*`
+  path except the D5 public list (`GET /api/health`, `GET /api/auth/session`, `POST /api/auth/login`) and the
+  test-mode routes. The hook reads the `castra_session` cookie and asks `AuthService.session(token)`; no session
+  answers 401 `UNAUTHENTICATED`. SSE routes answer 401 before their stream opens, because the hook runs before the
+  handler hijacks the response. The UI bundle stays public: it holds no data.
+- **The cookie**: `POST /api/auth/login` sets `castra_session=<32 random bytes, base64url>` with `Max-Age=2592000`,
+  `Path=/`, `HttpOnly`, `SameSite=Lax`, and `Secure` when `X-Forwarded-Proto` is `https` (`cloudflared` sets it).
+  `EventSource` cannot send headers but sends same-origin cookies, which is why sessions are cookies and not HTTP Basic.
+  Sessions live in memory: sign-out or a restart ends them.
+- **Login**: both the username and the password are compared every time, each as `timingSafeEqual` over SHA-256
+  digests, so a wrong username takes as long as a wrong password. 5 failures of one client within 15 minutes
+  (by the clock port) give 429 `TOO_MANY_ATTEMPTS` with `Retry-After` until the oldest of them leaves the window; a
+  success clears the count. The client is the socket address, or `CF-Connecting-IP` when the socket is loopback.
 
 ## Testing
 
