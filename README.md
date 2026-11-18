@@ -75,6 +75,35 @@ The server does not start by itself: leave the `npm start` window open while you
 from `dist/web`, so rerun `npm run build` after pulling new code. The first thing to do in the UI is register a
 repository on the Repos page (**Add a repo** opens a folder picker), then create a loop that uses it.
 
+## Open from another device
+
+To use the console from a phone on the same Wi-Fi, start it with `--remote`:
+
+```bash
+npm start --remote                     # listen on every IPv4 interface (same as --host=0.0.0.0)
+npm start -- --host=192.168.1.20       # the second form: listen on one address only
+```
+
+The startup log lists the addresses to open on the phone, one line for each non-internal IPv4 address:
+
+```text
+Castraferrum: http://127.0.0.1:7070  (DB postgres://loops:***@127.0.0.1:55432/loops)
+On your network: http://192.168.1.20:7070
+Warning: anyone on this network can open the console and run agents on this machine.
+```
+
+**Read the warning.** The console has no sign-in yet, and it runs agents with full permissions in your repositories.
+Use `--remote` only on a network that you trust.
+
+On Windows the first start shows a firewall dialog for `node.exe`. Allow access on the **Private** network profile only.
+To add the rule yourself, run this once in an administrator PowerShell:
+
+```powershell
+New-NetFirewallRule -DisplayName "Castraferrum 7070" -Direction Inbound -Protocol TCP -LocalPort 7070 -Action Allow -Profile Private
+```
+
+If the phone cannot connect, check that the phone and the machine are on the same network and that the network profile is Private.
+
 ## Configuration
 
 Defaults work with no configuration. To change ports copy `.env.example` to `.env`; compose, the server, Vitest
@@ -83,8 +112,8 @@ and Playwright all read it.
 | Variable | Flag | Default | Meaning |
 |---|---|---|---|
 | `LOOPS_PORT` | `--port` | 7070 | API and UI port |
-| `LOOPS_HOST` | `--host` | `127.0.0.1` | Interface to listen on (`0.0.0.0` = every IPv4 interface). Not used by the server yet (task L2) |
-| `LOOPS_REMOTE` | `--remote` | off | `1` = same as `--host=0.0.0.0`. Not used by the server yet (task L2) |
+| `LOOPS_HOST` | `--host` | `127.0.0.1` | Interface to listen on (`0.0.0.0` = every IPv4 interface). |
+| `LOOPS_REMOTE` | `--remote` | off | `1` = same as `--host=0.0.0.0`. |
 | `LOOPS_PG_PORT` | - | 55432 | Postgres port on the host |
 | `LOOPS_E2E_PORT` | - | 7071 | Port of the e2e server |
 | `DATABASE_URL` | - | derived from `LOOPS_PG_PORT` | Use when Postgres is elsewhere |
