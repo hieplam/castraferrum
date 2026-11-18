@@ -88,7 +88,7 @@ export function toRun(r: Row): RunRecord {
     startedAt: r.started_at as Date,
     deadlineAt: (r.deadline_at as Date | null) ?? null,
     finishedAt: (r.finished_at as Date | null) ?? null,
-    durationMs: (r.duration_ms as number | null) ?? null,
+    durationMs: r.duration_ms === null || r.duration_ms === undefined ? null : Number(r.duration_ms), // pg gives a bigint as a string
     promptSnapshot: r.prompt_snapshot as string,
     executorKind: r.executor_kind as string,
     executorConfig: r.executor_config,
