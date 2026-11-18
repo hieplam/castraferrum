@@ -49,3 +49,33 @@ days failed with `integer out of range`). Pull request 444 fixed it. This sectio
 - e2e: `190 passed (20.2m)` (L0: 190)
 - `phone overflow: 0/12`; `UCs with a green e2e: 38/38`.
 - Ratchet before to after: unit 1348 to 1363, api 442 to 446, contract 276 to 276, e2e 190 to 190, uc-coverage 38 to 38.
+
+## L2
+
+- Decisions: the startup lines come from `networkUrls` and `isLoopbackHost` in `server/config.ts`. A host of `0.0.0.0` or `::` lists
+  each non-internal IPv4 address, another non-loopback host lists itself, and a loopback host (`127.x.x.x`, `::1`, `localhost`) lists
+  none and prints no warning. The e2e needs a non-internal IPv4 address and fails with a message when there is none. The CI workflow
+  runs no e2e (typecheck, arch, ratchets, unit, build, contract), so the new e2e runs in `npm run verify` only.
+- The README no longer says that `LOOPS_HOST` and `LOOPS_REMOTE` are unused. `tests/tools/uc-coverage.test.ts` counts 39 use cases now.
+- Red (before the listen change): `npx vitest run --project unit server/config.test.ts` exit 1, `4 failed | 28 passed`,
+  `TypeError: networkUrls is not a function`. `npx playwright test --project=chromium tests/e2e/network.spec.ts` exit 1, the `@UC-33`
+  test: `page.goto: net::ERR_CONNECTION_REFUSED at http://192.168.100.94:61639/`; the second test passed.
+- Green: unit `Tests  32 passed (32)`; e2e `2 passed (14.3s)`.
+- Stub check: with the listen host hard-coded to `0.0.0.0`, the second e2e test failed: `Expected: "ECONNREFUSED"`, `Received: null`.
+- Green (4), `LOOPS_TEST_MODE=1 LOOPS_PORT=7173 npm start --remote` on `loops_lanl2_test` (the listener was `0.0.0.0:7173`, health 200, stopped by PID):
+
+```text
+Castraferrum: http://127.0.0.1:7173  (DB postgres://loops:***@127.0.0.1:55432/loops_lanl2_test, test mode)
+On your network: http://192.168.100.94:7173
+On your network: http://172.20.80.1:7173
+Warning: anyone on this network can open the console and run agents on this machine.
+```
+
+- `npm run verify` exit code: `0` (`reports/verify.log`). ratchets: `ratchets: ok`.
+  rule-lint: `rule-lint: ok (rule lines 18, without a check 7, new 0)`.
+- unit: `Tests  1367 passed | 3 skipped (1370)` (L1: 1363, up 4)
+- contract: `Tests  276 passed (276)` (L1: 276)
+- api: `Tests  446 passed | 2 skipped (448)` (L1: 446)
+- e2e: `192 passed (16.6m)` (L1: 190, up 2)
+- `phone overflow: 0/12`; `UCs with a green e2e: 39/39`.
+- Ratchet before to after: unit 1363 to 1367, api 446 to 446, contract 276 to 276, e2e 190 to 192, uc-coverage 38 to 39 (`--min 37` to `--min 38`).
