@@ -555,6 +555,9 @@
     repos, repoOrder, loops, executions, runs, many, transcripts, folders, goalLoop,
     // What Settings shows of the console: the address it is reached at and its version (package.json).
     console: { address: 'http://192.168.1.20:7070', version: '0.1.0' },
+    // Sign-in (remote access, spec D13): the signed-in user, the username typed on the error states, and the wait of the
+    // too-many-attempts state (the server's Retry-After of 690 seconds, rounded up to whole minutes).
+    auth: { user: 'owner', typed: 'owner', retryAfterSec: 690 },
     // The new loop the editor states fill in (the board m-form-light).
     formSample: {
       name: 'Nightly dependency check', repo: 'api',

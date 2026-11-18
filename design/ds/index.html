@@ -45,6 +45,7 @@
   /* Frames of the demos: the app frame is as tall as its bars, and the phone-only bars, the action bar and the folder
      picker sheet are drawn at every window width (a stage holds them, fixed bars included). */
   .ds-sec .app { min-height: 0; }
+  .ds-sec .signin { min-height: 0; }
   .ds-stage .navbar, .ds-stage .tabbar { display: grid; }
   .ds-stage .actionbar { display: flex; }
   .ds-stage .fullsheet .picker { display: flex; align-items: stretch; }
@@ -112,6 +113,42 @@
       <span class="conn is-ok">Connected</span>
       <span class="conn is-lost">Connection lost</span>
       <span class="conn is-db-down">Database down</span>
+    </div>
+  </section>
+
+  <!-- Sign-in -->
+  <section class="ds-sec">
+    <h2>Sign-in</h2>
+    <p class="ds-cap">.signin .signin-form .signin-brand: the screen outside the app frame (no bars). Rest, wrong credentials, too many attempts (Sign in disabled). .topbar-user: signed in, before Sign out.</p>
+    <div class="ds-stage">
+      <main class="signin">
+        <form class="signin-form" novalidate>
+          <span class="signin-brand">Castraferrum</span>
+          <h1 class="page-title">Sign in</h1>
+          <p class="page-desc">Sign in to use this console.</p>
+          <div class="card is-pad">
+            <div class="banner is-err" role="alert"><svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg><span class="banner-text">Wrong username or password.</span></div>
+            <div class="field"><label class="label" for="ds-signin-user">Username</label><input class="input" id="ds-signin-user" type="text" autocomplete="username" value="owner"></div>
+            <div class="field"><label class="label" for="ds-signin-pass">Password</label><input class="input" id="ds-signin-pass" type="password" autocomplete="current-password"></div>
+            <button class="btn primary lg block" type="button">Sign in</button>
+          </div>
+          <p class="note">Use the username and password the console was started with.</p>
+        </form>
+      </main>
+    </div>
+    <div class="ds-row">
+      <div class="banner is-warn" role="status"><svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg><span class="banner-text">Too many attempts. Try again in <span class="data">12</span>&nbsp;minutes.</span></div>
+      <button class="btn primary lg" type="button" disabled>Sign in</button>
+    </div>
+    <div class="app">
+      <header class="topbar">
+        <a class="topbar-brand" href="#">Castraferrum</a>
+        <div class="topbar-end">
+          <span class="conn is-ok">Connected</span>
+          <span class="topbar-user">Signed in as <b>owner</b></span>
+          <button class="btn sm" type="button">Sign out</button>
+        </div>
+      </header>
     </div>
   </section>
 

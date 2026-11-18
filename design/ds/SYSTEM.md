@@ -515,11 +515,33 @@ Screens put kit components together in `web/features/`. Never add a class that i
 - **States:** the selected folder (`aria-selected="true"`), git and repo tags.
 - **Wrapper:** `AddRepo.tsx` of the Repos page (U19), built from the overlay, the inset list and the fields.
 
+### Sign-in
+
+- **Classes:** `.signin`, `.signin-form`, `.signin-brand`, `.topbar-user`.
+- **Use it** for the sign-in screen of remote access (the remote-access spec, D13) and nothing else. `.signin` replaces
+  `.app` while nobody is signed in: no top bar, no tab bar, no navigation bar. Top to bottom, `.signin-form` holds the
+  `.signin-brand` (the brand of the top bar), the one `h1` (`.page-title`, Sign in), a `.page-desc`, a `.card.is-pad` with
+  the error `.banner`, the username and password `.field`s and the `.btn.primary.lg.block`, then a `.note` that says where
+  the credentials come from. The username field has `autocomplete="username"`, the password `current-password`.
+- **Errors.** They belong to the form, not to one field, and never say which field was wrong: wrong username or password
+  is a `.banner.is-err` at the top of the card (the username stays, the password is cleared); too many attempts is a
+  `.banner.is-warn` with the wait in whole minutes (the server's `Retry-After`, rounded up, the number in `.data`), and
+  Sign in is disabled until the wait is over.
+- **Signed in.** On the desktop the end of the top bar shows `.topbar-user` ("Signed in as" and the name as a `<b>`),
+  then Sign out as a `.btn.sm`. The phone has no top bar, so Settings starts with an Account group: one `.cell` with the
+  same sentence and Sign out as a `.btn` at its trailing edge. Neither shows when the console asks for no sign-in.
+- **Do not** put the sign-in form in a dialog over the app, or show anything of the app behind it.
+- **Phone:** the form sits `--space-10` under the safe area at the top (the keyboard does not cover it), `--space-4`
+  gutters. **Desktop:** the form is centred on the page, at most `--size-dialog` wide.
+- **States:** rest, the error, too many attempts (Sign in disabled); signed in (the top bar, the Account group).
+- **Wrapper:** the sign-in page of R5 (remote access), built from the kit's fields, button, banner and card; the top bar
+  is `web/app/TopNav.tsx`.
+
 ## Layout
 
 - **Frame.** Phone: no top bar; a navigation bar on pushed pages; the tab roots (`/`, `/repos`, `/settings`) show a
   large title; the tab bar is fixed at the bottom. Tablet and desktop: the top bar; no tab bar; a back link above the
-  page title on pushed pages.
+  page title on pushed pages. The sign-in screen is the one screen outside the frame (see [Sign-in](#sign-in)).
 - **Widths.** `.page` is at most `--size-page` wide, centred, with `--space-8` side padding (desktop) or `--space-4`
   (phone). `.page.is-narrow` (`--size-page-narrow`) is used by the editor, the settings page, the repos page and the
   loop settings page.
@@ -639,6 +661,9 @@ The state of an active period is the pill in the head of its page (`period.pill.
   `gate-step`, `gate-output`, `gate-requeue`, `goal-figures`, `goal-rows`, `goal-row`, `standing-goals`, `standing-row`,
   `goal-loops`, `goal-loop-row`, `score-figures`, `score-weeks`, `score-week`, `score-causes`, `score-cause`, `goal-card`,
   `card-status`, `card-door`, `card-accept`, `card-refuse`, `card-rows`, `card-history`.
+- Sign-in (remote access) adds these ids: `signin-form`, `signin-username`, `signin-password`, `signin-submit`,
+  `signin-error` (with `data-code`: `INVALID_CREDENTIALS` or `TOO_MANY_ATTEMPTS`), `topbar-user`, `topbar-signout`,
+  `settings-account`, `settings-signout`. The top bar and Settings use their own ids, so a page never renders one id twice.
 
 ## How to change the system
 
