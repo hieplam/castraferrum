@@ -202,16 +202,45 @@ export function isLoopbackHost(host: string): boolean {
   return host === 'localhost' || host === '::1' || /^127\./.test(host);
 }
 
+/** An address that Windows gives to an adapter with no network (`169.254.0.0/16`): no other device can reach it. */
+function isLinkLocal(address: string): boolean {
+  return /^169\.254\./.test(address);
+}
+
+/** True for a virtual adapter (WSL, Hyper-V) whose network exists only inside this machine. */
+function isVirtualInterface(name: string): boolean {
+  return /vEthernet|WSL|Hyper-V/i.test(name);
+}
+
+interface NetworkAddress {
+  url: string;
+  virtual: boolean;
+}
+
+/** The addresses behind `networkUrls`, real adapters first, then virtual ones, each with its virtual flag. */
+function networkAddresses(host: string, port: number, interfaces: ReturnType<typeof networkInterfaces>): NetworkAddress[] {
+  if (isLoopbackHost(host)) return [];
+  if (host !== '0.0.0.0' && host !== '::') return [{ url: `http://${host.includes(':') ? `[${host}]` : host}:${port}`, virtual: false }];
+  const found: NetworkAddress[] = [];
+  for (const [name, list] of Object.entries(interfaces)) {
+    for (const nic of list ?? []) {
+      if (nic.family !== 'IPv4' || nic.internal || isLinkLocal(nic.address)) continue;
+      found.push({ url: `http://${nic.address}:${port}`, virtual: isVirtualInterface(name) });
+    }
+  }
+  return [...found.filter((a) => !a.virtual), ...found.filter((a) => a.virtual)];
+}
+
 /**
  * The URLs, besides `127.0.0.1`, that the console answers on (spec D3). `0.0.0.0` (and `::`) gives one URL per non-internal IPv4
- * address of `interfaces` (`os.networkInterfaces()`). A specific address gives that address. A loopback address gives none.
+ * address of `interfaces` (`os.networkInterfaces()`), without link-local `169.254.x.x` addresses, and with virtual adapters
+ * (`vEthernet`, `WSL`, `Hyper-V`) after the real ones. A specific address gives that address. A loopback address gives none.
  */
 export function networkUrls(host: string, port: number, interfaces: ReturnType<typeof networkInterfaces>): string[] {
-  if (isLoopbackHost(host)) return [];
-  if (host !== '0.0.0.0' && host !== '::') return [`http://${host.includes(':') ? `[${host}]` : host}:${port}`];
-  const urls: string[] = [];
-  for (const list of Object.values(interfaces)) {
-    for (const nic of list ?? []) if (nic.family === 'IPv4' && !nic.internal) urls.push(`http://${nic.address}:${port}`);
-  }
-  return urls;
+  return networkAddresses(host, port, interfaces).map((a) => a.url);
+}
+
+/** The `On your network:` startup lines, one per `networkUrls` entry; a virtual adapter's line ends with `(virtual, this PC only)`. */
+export function networkLines(host: string, port: number, interfaces: ReturnType<typeof networkInterfaces>): string[] {
+  return networkAddresses(host, port, interfaces).map((a) => `On your network: ${a.url}${a.virtual ? ' (virtual, this PC only)' : ''}`);
 }

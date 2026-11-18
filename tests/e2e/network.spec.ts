@@ -14,7 +14,7 @@ const WARNING = 'Warning: anyone on this network can open the console and run ag
 /** The first non-internal IPv4 address of this machine. Throws (a red test, never a skip) when there is none. */
 function lanAddress(): string {
   for (const list of Object.values(networkInterfaces())) {
-    for (const nic of list ?? []) if (nic.family === 'IPv4' && !nic.internal) return nic.address;
+    for (const nic of list ?? []) if (nic.family === 'IPv4' && !nic.internal && !nic.address.startsWith('169.254.')) return nic.address;
   }
   throw new Error('This test needs a machine with at least one non-internal IPv4 address (a Wi-Fi or Ethernet interface), and this one has none.');
 }
