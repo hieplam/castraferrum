@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/hieplam/castraferrum/compare/v0.8.0...v0.9.0) (2026-11-18)
+
+
+### Features
+
+* **server:** listen on the chosen host, network URLs, UC-33 (issue 50) ([#449](https://github.com/hieplam/castraferrum/issues/449)) ([3449556](https://github.com/hieplam/castraferrum/commit/344955634f2a6ea7325601f2b8c964f111e2d766))
+
 ## [0.8.0](https://github.com/hieplam/castraferrum/compare/v0.7.1...v0.8.0) (2026-11-18)
 
 
