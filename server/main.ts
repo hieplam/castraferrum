@@ -30,6 +30,7 @@ const server: ComposedServer = await composeServer({
   notifyWebhook: cfg.notifyWebhook,
   ghBin: cfg.ghBin,
   epicScript: cfg.epicScript,
+  ...(cfg.auth ? { auth: cfg.auth } : {}),
   log,
 }).catch((err: Error) => {
   console.error(`Could not start (DB ${redactUrl(cfg.databaseUrl)}): ${err.message}`);

@@ -38,7 +38,15 @@ export const API_ERROR_CODES = [
   'GATE_JOB_NOT_RATIFIABLE',
   'GOAL_CARD_NOT_FOUND',
   'GOAL_CARD_NOT_OPEN',
-  /** `GET /schedule/preview`: cron sai. */
+  /** Sign-in (remote-access spec D5): a protected route was called without a valid session. */
+  'UNAUTHENTICATED',
+  /** `POST /auth/login`: the username or the password is wrong. */
+  'INVALID_CREDENTIALS',
+  /** `POST /auth/login`: 5 failed attempts within 15 minutes; `details.retryAfterSec` and `Retry-After` say how long to wait. */
+  'TOO_MANY_ATTEMPTS',
+  /** `POST /auth/login`, `POST /auth/logout`: the console was started without credentials. */
+  'AUTH_NOT_CONFIGURED',
+  /** `GET /schedule/preview`: an invalid cron expression. */
   'INVALID_CRON',
   /** No such path / method (includes `/api/__test/*` when not in test mode). */
   'NOT_FOUND',

@@ -47,6 +47,35 @@ export interface HealthService {
   check(): Promise<HealthReport>;
 }
 
+// ---------------------------------------------------------------- sign-in (remote-access spec D3 to D6)
+
+/** The answer of `GET /api/auth/session`. `username` only while signed in. */
+export type AuthStatus = { required: boolean; signedIn: boolean; username?: string };
+
+/** What a login attempt gave. `tooManyAttempts` carries the seconds until the client may try again (spec D6). */
+export type LoginResult =
+  | { kind: 'ok'; token: string; maxAgeSec: number }
+  | { kind: 'invalid' }
+  | { kind: 'tooManyAttempts'; retryAfterSec: number }
+  | { kind: 'notConfigured' };
+
+/** Where a request came from: the socket address and the `CF-Connecting-IP` header, if any. */
+export type ClientAddress = { socket: string | undefined; cfConnectingIp: string | undefined };
+
+export interface AuthService {
+  /** True when credentials are set: then every route but the public ones needs a session (spec D5). */
+  readonly required: boolean;
+  /** Checks the username and the password (both digests every time) under the attempt limit of `client`. */
+  login(input: { username: string; password: string }, client: string): LoginResult;
+  /** The session of a token, or null when it is unknown, expired or signed out. */
+  session(token: string | undefined): { username: string } | null;
+  status(token: string | undefined): AuthStatus;
+  /** Ends the session of the token (an unknown token is no error). */
+  logout(token: string | undefined): void;
+  /** The key the attempt limit counts by: `CF-Connecting-IP` only when the socket is loopback, else the socket address. */
+  clientKey(address: ClientAddress): string;
+}
+
 // ---------------------------------------------------------------- data types
 
 /** Data the user submits when creating / editing (SPEC § Model). Omitted fields take defaults. */

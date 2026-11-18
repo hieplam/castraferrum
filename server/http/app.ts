@@ -4,6 +4,7 @@ import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
 import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from 'fastify-type-provider-zod';
 import type {
+  AuthService,
   FolderService,
   HealthService,
   HoldService,
@@ -17,7 +18,8 @@ import type {
   RunService,
   TranscriptService,
 } from '../services/contracts';
-import { HttpError, sendError } from './errors';
+import { authRoutes, needsSession, sessionToken } from './auth-routes';
+import { authError, HttpError, sendError } from './errors';
 import { folderRoutes } from './folder-routes';
 import { gateRoutes } from './gate-routes';
 import { goalCardRoutes } from './goal-card-routes';
@@ -63,6 +65,8 @@ export type ApiServices = {
   goalView: GoalViewService;
   /** The open holds (spec 2.5). */
   holds: HoldService;
+  /** Sign-in (remote-access spec D3 to D6). With `required`, the guard asks every protected route for a session. */
+  auth: AuthService;
 };
 
 export type HttpDeps = {
@@ -92,8 +96,18 @@ export async function buildHttpApp(deps: HttpDeps) {
   const shutdown = new AbortController();
   app.addHook('preClose', async () => shutdown.abort());
 
+  // The session guard (remote-access spec D5). It is added before every route, so it runs first on all of them, the not-found
+  // handler included, and an SSE route answers 401 before its stream opens. Without credentials it is not installed at all.
+  if (deps.api?.auth.required) {
+    const { auth } = deps.api;
+    app.addHook('onRequest', async (req) => {
+      if (needsSession(req) && !auth.session(sessionToken(req.headers.cookie))) throw authError('UNAUTHENTICATED', 'Sign in first');
+    });
+  }
+
   await app.register(healthRoutes, { health: deps.health });
   if (deps.api) {
+    await app.register(authRoutes, { auth: deps.api.auth });
     const { loops, repos, folders, runs, live, transcripts, now, probes, notices, processEvents, scoreboard, gate, goalCards, goalView, holds } = deps.api;
     const sse = { heartbeatMs: deps.sseHeartbeatMs ?? 15_000, shutdown: shutdown.signal };
     await app.register(loopRoutes, { loops, runs });
