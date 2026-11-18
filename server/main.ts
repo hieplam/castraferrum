@@ -1,7 +1,8 @@
 // Entry point of the server process: read the config, wire everything (compose.ts — the composition root), listen on the port, shut down gracefully.
 // Startup order (ARCHITECTURE.md § Composition root): open DB + migration → single-server lock → recovery → ticker → HTTP.
+import { networkInterfaces } from 'node:os';
 import { composeServer, type ComposedServer } from './compose';
-import { loadConfig, loadDotEnv, redactUrl, UsageError, USAGE } from './config';
+import { isLoopbackHost, loadConfig, loadDotEnv, NETWORK_WARNING, networkUrls, redactUrl, UsageError, USAGE } from './config';
 
 loadDotEnv();
 let cfg: ReturnType<typeof loadConfig>;
@@ -46,13 +47,15 @@ log(
 
 server.startTicker();
 try {
-  await server.app.listen({ host: '127.0.0.1', port: cfg.port });
+  await server.app.listen({ host: cfg.host, port: cfg.port });
 } catch (err) {
-  console.error(`Cannot listen on port ${cfg.port}: ${(err as Error).message}`);
+  console.error(`Cannot listen on ${cfg.host}:${cfg.port}: ${(err as Error).message}`);
   await server.shutdown();
   process.exit(1);
 }
 log(`Castraferrum: http://127.0.0.1:${cfg.port}  (DB ${redactUrl(cfg.databaseUrl)}${cfg.testMode ? ', test mode' : ''})`);
+for (const url of networkUrls(cfg.host, cfg.port, networkInterfaces())) log(`On your network: ${url}`);
+if (!isLoopbackHost(cfg.host)) log(NETWORK_WARNING);
 
 let closing = false;
 async function shutdown(reason: string): Promise<void> {

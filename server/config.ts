@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { homedir, type networkInterfaces } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -192,4 +192,26 @@ function transcriptPage(raw: string): { minEntries: number; maxBytes: number } {
   const n = Number(raw);
   if (!Number.isInteger(n) || n < 1) throw new Error(`LOOPS_TRANSCRIPT_PAGE=${raw} must be an integer ≥ 1`);
   return { minEntries: n, maxBytes: 4 * 1024 * 1024 };
+}
+
+/** The line that the server prints when it listens beyond loopback without a sign-in (spec D4). */
+export const NETWORK_WARNING = 'Warning: anyone on this network can open the console and run agents on this machine.';
+
+/** True for the addresses that only this machine can reach: `127.x.x.x`, `::1` and `localhost`. */
+export function isLoopbackHost(host: string): boolean {
+  return host === 'localhost' || host === '::1' || /^127\./.test(host);
+}
+
+/**
+ * The URLs, besides `127.0.0.1`, that the console answers on (spec D3). `0.0.0.0` (and `::`) gives one URL per non-internal IPv4
+ * address of `interfaces` (`os.networkInterfaces()`). A specific address gives that address. A loopback address gives none.
+ */
+export function networkUrls(host: string, port: number, interfaces: ReturnType<typeof networkInterfaces>): string[] {
+  if (isLoopbackHost(host)) return [];
+  if (host !== '0.0.0.0' && host !== '::') return [`http://${host.includes(':') ? `[${host}]` : host}:${port}`];
+  const urls: string[] = [];
+  for (const list of Object.values(interfaces)) {
+    for (const nic of list ?? []) if (nic.family === 'IPv4' && !nic.internal) urls.push(`http://${nic.address}:${port}`);
+  }
+  return urls;
 }

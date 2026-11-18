@@ -654,7 +654,7 @@ in front of Postgres.
 
 | | |
 |---|---|
-| API and UI (built) | `127.0.0.1:7070` (`LOOPS_PORT`) |
+| API and UI (built) | `127.0.0.1:7070` (`LOOPS_PORT`); `--remote` or `--host=<address>` (`LOOPS_HOST`, `LOOPS_REMOTE=1`) changes the interface, and the startup log lists each `On your network:` URL |
 | Vite dev server | `127.0.0.1:5180`, proxying `/api` to 7070 |
 | E2E server | `127.0.0.1:7071` (`LOOPS_E2E_PORT`) |
 | Postgres (Docker project `loop-console`) | host `127.0.0.1:55432` (`LOOPS_PG_PORT`), databases `loops` and `loops_test`, volume `loop_console_pg` |
