@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/hieplam/castraferrum/compare/v0.7.1...v0.8.0) (2026-11-18)
+
+
+### Features
+
+* **server:** command-line flags --host, --remote, --port, --help (issue 49) ([#447](https://github.com/hieplam/castraferrum/issues/447)) ([9239257](https://github.com/hieplam/castraferrum/commit/92392571a66dbcfd796dd22fd3df036d589e9b35))
+
 ## [0.7.1](https://github.com/hieplam/castraferrum/compare/v0.7.0...v0.7.1) (2026-11-18)
 
 
