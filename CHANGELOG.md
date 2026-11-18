@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/hieplam/castraferrum/compare/v0.10.0...v0.11.0) (2026-11-18)
+
+
+### Features
+
+* **server:** sign-in on the server: session cookie, guard on every API route, attempt limit (R2) ([#457](https://github.com/hieplam/castraferrum/issues/457)) ([ffaf10e](https://github.com/hieplam/castraferrum/commit/ffaf10ee98781b65ac07da7837392398eaf657e4))
+
 ## [0.10.0](https://github.com/hieplam/castraferrum/compare/v0.9.0...v0.10.0) (2026-11-18)
 
 
