@@ -71,7 +71,8 @@
 
   // ── frame: the top bar (from 640px), the tab bar (below), banners ──
   // conn: 'ok' | 'lost' | 'db'. The nav counts are the loops and the repos of the sample world (o.repoCount for another
-  // world; null = not known yet, no count, as the app shows while the repo list loads).
+  // world; null = not known yet, no count, as the app shows while the repo list loads). o.user = signed in (the console asks
+  // for a username and password): "Signed in as <user>" and Sign out at the end of the bar.
   function topbar(o) {
     const conn = { ok: ['is-ok', 'conn.ok', 'ok', 'ok'], lost: ['is-lost', 'conn.lost', 'down', 'wait'], db: ['is-db-down', 'conn.dbDown', 'ok', 'down'] }[o.conn || 'ok'];
     const link = (k, id, label, count) => `<a class="topbar-link${o.tab === k ? ' is-on' : ''}" href="#" data-testid="${id}"${o.tab === k ? ' aria-current="page"' : ''}>${label}${count}</a>`;
@@ -79,7 +80,9 @@
       `<nav class="topbar-nav">${link('loops', 'nav-loops', t('nav.loops'), o.loopCount == null ? '' : ` <span>${o.loopCount}</span>`)}` +
       `${link('repos', 'nav-repos', t('nav.repos'), o.repoCount === null ? '' : ` <span data-testid="nav-repos-count">${o.repoCount === undefined ? D.repoOrder.length : o.repoCount}</span>`)}${link('settings', 'nav-settings', t('nav.settings'), '')}</nav>` +
       `<div class="topbar-end"><span class="conn ${conn[0]}" data-testid="conn" data-server="${conn[2]}" data-db="${conn[3]}">${t(conn[1])}</span>` +
-      `<button class="iconbtn" type="button" data-testid="toggle-theme" aria-label="${t('theme.switch')}">${icon('theme')}</button></div></header>`;
+      `<button class="iconbtn" type="button" data-testid="toggle-theme" aria-label="${t('theme.switch')}">${icon('theme')}</button>` +
+      (o.user ? `<span class="topbar-user" data-testid="topbar-user">${t('signin.signedInAs', { name: `<b>${esc(o.user)}</b>` })}</span>` +
+        `<button class="btn sm" type="button" data-testid="topbar-signout">${t('signin.signOut')}</button>` : '') + `</div></header>`;
   }
   function tabbar(tab) {
     const item = (k, id, ic, label) => `<a class="tabbar-item${tab === k ? ' is-on' : ''}" href="#" data-testid="${id}"${tab === k ? ' aria-current="page"' : ''}>${icon(ic)}${label}</a>`;
@@ -1088,11 +1091,34 @@
       (o.dbDown ? value('settings-db', t('settings.database'), 'd-fail', t('settings.notAnswering')) : value('settings-db', t('settings.database'), 'd-ok', t('settings.answering'))) +
       `<div class="cell" data-testid="settings-address"><span class="cell-main"><span class="cell-title is-plain">${t('settings.address')}</span><span class="cell-meta is-data">${esc(D.console.address)}</span></span></div>`;
     const device = `<div class="cell"><span class="cell-main"><span class="cell-title is-plain">${t('settings.homeScreen')}</span><span class="cell-meta">${t('settings.homeScreenHow')}</span></span></div>`;
+    // Signed in (o.user): the phone has no top bar, so the user and Sign out are the Account group, first on the page.
+    const account = `<div class="cell" data-testid="settings-account"><span class="cell-main"><span class="cell-title is-plain">${t('signin.signedInAs', { name: `<b>${esc(o.user || '')}</b>` })}</span></span>` +
+      `<button class="btn" type="button" data-testid="settings-signout">${t('signin.signOut')}</button></div>`;
     const about = `<div class="cell" data-testid="settings-version"><span class="cell-main"><span class="cell-title is-plain">${t('settings.version')}</span></span><span class="cell-value is-data">${esc(D.console.version)}</span></div>`;
     return `<div class="page-head"><h1 class="${PHONE ? 'large-title' : 'page-title'}">${t('settings.title')}</h1></div>` +
-      group(t('settings.appearance'), appearance) + group(t('settings.connection'), connection) + (PHONE ? group(t('settings.device'), device) : '') + group(t('settings.about'), about);
+      (PHONE && o.user ? group(t('settings.account'), account) : '') + group(t('settings.appearance'), appearance) + group(t('settings.connection'), connection) + (PHONE ? group(t('settings.device'), device) : '') + group(t('settings.about'), about);
   }
-  const settingsTabApp = (o = {}) => app({ tab: 'settings', loopCount: D.counts.all, narrow: true, conn: o.dbDown ? 'db' : 'ok', banner: o.dbDown ? 'db' : '', page: settingsPage(o) });
+  const settingsTabApp = (o = {}) => app({ tab: 'settings', loopCount: D.counts.all, narrow: true, conn: o.dbDown ? 'db' : 'ok', banner: o.dbDown ? 'db' : '', user: o.user, page: settingsPage(o) });
+
+  // Sign-in (remote access, spec D13): the screen outside the app frame (.signin: no top bar, no tab bar). o.error =
+  // 'invalid' (INVALID_CREDENTIALS: the username kept, the password cleared) or 'locked' (TOO_MANY_ATTEMPTS: the wait in
+  // whole minutes, rounded up from Retry-After, and Sign in disabled). The error belongs to the form, not to one field.
+  function signinScreen(o = {}) {
+    const A = D.auth, wait = Math.ceil(A.retryAfterSec / 60);
+    const error = o.error === 'invalid'
+      ? `<div class="banner is-err" data-testid="signin-error" data-code="INVALID_CREDENTIALS" role="alert">${icon('alert')}<span class="banner-text">${t('signin.invalid')}</span></div>`
+      : o.error === 'locked'
+        ? `<div class="banner is-warn" data-testid="signin-error" data-code="TOO_MANY_ATTEMPTS" role="alert">${icon('alert')}<span class="banner-text">${tn('signin.locked', wait, { n: `<span class="data">${wait}</span>` })}</span></div>`
+        : '';
+    const field = (id, type, auto, label, value) => `<div class="field"><label class="label" for="${id}">${label}</label>` +
+      `<input class="input" id="${id}" name="${id}" data-testid="${id}" type="${type}" autocomplete="${auto}" value="${esc(value)}"></div>`;
+    return SPRITE + `<main class="signin"><form class="signin-form" data-testid="signin-form" method="post" novalidate>` +
+      `<span class="signin-brand">${t('app.title')}</span><h1 class="page-title">${t('signin.title')}</h1><p class="page-desc">${t('signin.desc')}</p>` +
+      `<div class="card is-pad">${error}${field('signin-username', 'text', 'username', t('signin.username'), o.error ? A.typed : '')}` +
+      `${field('signin-password', 'password', 'current-password', t('signin.password'), '')}` +
+      `<button class="btn primary lg block" type="submit" data-testid="signin-submit"${o.error === 'locked' ? ' disabled' : ''}>${t('signin.submit')}</button></div>` +
+      `<p class="note">${t('signin.note')}</p></form></main>`;
+  }
 
   // ── states ──────────────────────────────────────────────────
   const R = {
@@ -1193,11 +1219,18 @@
     'scoreboard': () => scoreboardApp(),
     'card-two-way': () => cardApp(GL.cards.twoWay),
     'card-one-way': () => cardApp(GL.cards.oneWay),
+    'signin': () => signinScreen(),
+    'signin-error': () => signinScreen({ error: 'invalid' }),
+    'signin-locked': () => signinScreen({ error: 'locked' }),
+    // Signed in: the Loops list with the user in the top bar; the phone hides the top bar, so it shows Settings, whose
+    // Account group holds the user and Sign out.
+    'signin-topbar': () => (PHONE ? settingsTabApp({ user: D.auth.user }) : loops({ user: D.auth.user, page: loopsPage() })),
   };
   R['vi-repos-list'] = R['repos-list'];
   R['vi-repos-add'] = R['repos-add'];
   R['vi-form-errors'] = R['form-errors'];
   R['vi-loops-overview'] = R['loops-overview'];
+  R['vi-signin'] = R['signin'];
 
   // ── draw ────────────────────────────────────────────────────
   let html = '';

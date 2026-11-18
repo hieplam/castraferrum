@@ -25,11 +25,12 @@ body {
   position: sticky; top: 0; z-index: var(--z-bar); flex: none; display: flex; align-items: center; gap: var(--space-6);
   height: var(--size-topbar); padding: 0 var(--space-5); background: var(--surface); border-bottom: var(--border-w) solid var(--border);
 }
-.topbar-brand {
+/* The brand: in the top bar, and on the sign-in screen (`.signin-brand`, outside the app frame). */
+.topbar-brand, .signin-brand {
   display: inline-flex; align-items: center; gap: var(--space-2h); color: var(--text);
   font-size: var(--fs-h3); line-height: var(--lh-h3); font-weight: var(--fw-bold); letter-spacing: var(--track-snug);
 }
-.topbar-brand::before { content: ""; width: var(--space-3); height: var(--size-icon); border-radius: var(--space-0h); background: var(--accent); }
+.topbar-brand::before, .signin-brand::before { content: ""; width: var(--space-3); height: var(--size-icon); border-radius: var(--space-0h); background: var(--accent); }
 .topbar-nav { display: flex; align-self: stretch; gap: var(--space-1); }
 .topbar-link {
   display: inline-flex; align-items: center; gap: var(--space-1h); padding: 0 var(--space-3); color: var(--text-muted);
@@ -929,4 +930,24 @@ button.select { display: block; overflow: hidden; text-overflow: ellipsis; white
   .picker-places { flex-direction: column; gap: var(--space-1); max-height: var(--size-log); overflow-y: auto; }
   .picker-places .chip { justify-content: flex-start; height: var(--size-control-sm); border-radius: var(--radius-ctl); }
   .picker > .picker-list { max-height: var(--size-log); }
+}
+
+/* ── Sign-in: the screen outside the app frame, the signed-in user in the top bar ─────────────────── */
+/* The sign-in screen replaces .app while nobody is signed in: no top bar, no tab bar, one column centred on the page.
+   On the phone the column sits under the safe area at the top, so the keyboard does not cover the fields. */
+.signin {
+  min-height: 100dvh; display: grid; place-items: center; padding: var(--space-8);
+  background: var(--bg); color: var(--text);
+}
+.signin-form { width: 100%; max-width: var(--size-dialog); display: flex; flex-direction: column; gap: var(--space-5); }
+.signin-form > .page-desc { margin-top: calc(-1 * var(--space-3)); }
+.signin-form > .card .btn.primary { margin-top: var(--space-1); }
+/* "Signed in as <name>" in the top bar, before Sign out (a .btn.sm); the name is the <b>. */
+.topbar-user { color: var(--text-muted); font-size: var(--fs-sm); line-height: var(--lh-sm); white-space: nowrap; }
+.topbar-user b { color: var(--text); font-weight: var(--fw-semibold); }
+@media (max-width: 639.98px) {
+  .signin {
+    place-items: start center;
+    padding: calc(var(--space-10) + var(--safe-top)) var(--space-4) calc(var(--space-6) + var(--safe-bottom));
+  }
 }

@@ -3,8 +3,10 @@
 // Fields: id, screen, title; vp = [width, height] (default 1440 by 900); fixed = an overlay is open (shoot the viewport
 // only); lang = UI language (default en); base = the state a phone-<id> state draws; requires = the test ids the state
 // must show, as 'id' or 'id*count' (only visible elements count). A phone state inherits lang, fixed and requires from
-// its base; the frame adds 'topbar' from 640px and, below it, 'tabbar' on the tab roots (pushed pages such as the loop
-// page and the active period page show a navigation bar instead).
+// its base, and takes phoneRequires instead of requires when its base has them (a control that moves to another page on
+// the phone); the frame adds 'topbar' from 640px and, below it, 'tabbar' on the tab roots (pushed pages such as the loop
+// page and the active period page show a navigation bar instead). frame: false = a screen outside the app frame (the
+// sign-in screen): no top bar and no tab bar.
 window.PV_SCREENS = [
   ['frame', 'Frame and system', 'every route', []],
   ['loops', 'Loops page', '/', ['d-loops-light.png', 'm-loops-light.png', 'm-loops-dark.png', 'm-stop-light.png', 'm-stop-dark.png']],
@@ -17,6 +19,7 @@ window.PV_SCREENS = [
   ['gate', 'Gate page', '/repos/:id/gate', []],
   ['goals', 'Goals page', '/loops/:id/goals', []],
   ['goal-cards', 'Scoreboard and goal cards', '/scoreboard, /repos/:id/goal-cards', []],
+  ['signin', 'Sign-in', '/signin; the signed-in user in the top bar (Settings on the phone)', []],
 ];
 (function () {
   const PUSHED = ['loop', 'period', 'run', 'form'];
@@ -34,6 +37,7 @@ window.PV_SCREENS = [
   const OVERVIEW = ['summary', 'stat-active-loops', 'stat-running-runs', 'stat-runs-today', 'stat-errors-24h', 'loop-row*7', 'list-search'];
   const PROBE = ['loop-header', 'now-card', 'loop-figures', 'fig-active', 'fig-runs', 'fig-goals', 'fig-typical', 'probe-line', 'recent-runs', 'run-row*4'];
   const GATE = ['gate-switch', 'gate-queue', 'gate-record'];
+  const SIGNIN = ['signin-form', 'signin-username', 'signin-password', 'signin-submit'];
   const CARD = ['goal-card', 'card-status', 'card-door', 'card-accept', 'card-refuse', 'card-rows', 'card-history'];
   const desktop = [
     { id: 'frame-loading', screen: 'frame', title: 'First load: skeleton cells on the Loops page, figures -', requires: ['list-loading', 'summary'] },
@@ -137,21 +141,27 @@ window.PV_SCREENS = [
     { id: 'scoreboard', screen: 'goal-cards', title: 'The process scoreboard: four figures, one number per week, each cause around the date its check merged, no chart', requires: ['score-figures', 'score-weeks', 'score-week*5', 'score-causes', 'score-cause*3'] },
     { id: 'card-two-way', screen: 'goal-cards', title: 'A proposed goal card with a two-way door: starts by itself after the refusal window, Accept, Refuse, the earlier cards', requires: CARD },
     { id: 'card-one-way', screen: 'goal-cards', title: 'A proposed goal card with a one-way door: never starts alone, Accept, Refuse', requires: CARD },
+    { id: 'signin', screen: 'signin', title: 'The sign-in screen: the brand, Sign in, username, password, the Sign in button', frame: false, requires: SIGNIN },
+    { id: 'signin-error', screen: 'signin', title: 'Wrong username or password (INVALID_CREDENTIALS): the error above the fields, the password cleared', frame: false, requires: SIGNIN.concat('signin-error') },
+    { id: 'signin-locked', screen: 'signin', title: 'Too many attempts (TOO_MANY_ATTEMPTS): the wait in minutes, Sign in disabled', frame: false, requires: SIGNIN.concat('signin-error') },
+    { id: 'signin-topbar', screen: 'signin', title: 'Signed in: the Loops list with the user and Sign out in the top bar (on the phone, the Account group of Settings)', requires: ['topbar-user', 'topbar-signout', 'loop-row*7'], phoneRequires: ['settings-account', 'settings-signout'] },
+    { id: 'vi-signin', screen: 'signin', title: 'signin in Vietnamese', lang: 'vi', frame: false, requires: SIGNIN },
   ];
   const PHONE = ['frame-loading', 'frame-disconnected', 'not-found', 'loops-empty', 'loops-overview', 'loops-repo-filter', 'loops-stop-confirm', 'vi-loops-overview',
     'loop-running', 'loop-last-failed', 'loop-never-run', 'loop-stop-confirm', 'loop-help', 'loop-menu', 'loop-runs', 'loop-settings', 'period-running',
     'run-running', 'run-succeeded', 'run-transcript-running', 'form-new', 'form-sched-daily', 'form-sched-weekly', 'form-errors', 'form-repo-pick',
     'repos-list', 'repos-add', 'repos-delete-confirm', 'settings',
-    'probe-waiting', 'probe-held', 'probe-blocked', 'probe-complete', 'run-held', 'gate-queue', 'gate-failed', 'goal-rows', 'scoreboard', 'card-two-way', 'card-one-way'];
+    'probe-waiting', 'probe-held', 'probe-blocked', 'probe-complete', 'run-held', 'gate-queue', 'gate-failed', 'goal-rows', 'scoreboard', 'card-two-way', 'card-one-way',
+    'signin', 'signin-error', 'signin-locked', 'signin-topbar', 'vi-signin'];
   const byId = Object.fromEntries(desktop.map((s) => [s.id, s]));
   const phone = PHONE.map((id) => {
     const b = byId[id];
-    return { id: 'phone-' + id, screen: b.screen, title: b.title + ' (phone)', vp: [390, 844], fixed: b.fixed, lang: b.lang, base: id, requires: b.requires };
+    return { id: 'phone-' + id, screen: b.screen, title: b.title + ' (phone)', vp: [390, 844], fixed: b.fixed, lang: b.lang, frame: b.frame, base: id, requires: b.phoneRequires || b.requires };
   });
   // vi-settings is a phone-only state (spec 5.8): Settings in Vietnamese, drawn by its base settings.
   phone.push({ id: 'phone-vi-settings', screen: 'settings', title: 'Settings in Vietnamese (phone)', vp: [390, 844], lang: 'vi', base: 'settings', requires: SETTINGS });
   window.PV_STATES = desktop.concat(phone).map((s) => {
-    const frame = (s.vp ? s.vp[0] : 1440) >= 640 ? ['topbar'] : PUSHED.includes(s.screen) ? [] : ['tabbar'];
+    const frame = s.frame === false ? [] : (s.vp ? s.vp[0] : 1440) >= 640 ? ['topbar'] : PUSHED.includes(s.screen) ? [] : ['tabbar'];
     return Object.assign({}, s, { requires: (s.requires || []).concat(frame) });
   });
 })();
