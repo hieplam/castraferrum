@@ -216,3 +216,23 @@ separate id `phone-<id>` that draws its base state at 390 by 844. Open a state l
 | `phone-card-two-way` | `card-two-way` on the phone | - |
 | `card-one-way` | A proposed goal card with a one-way door: never starts alone, Accept, Refuse | - |
 | `phone-card-one-way` | `card-one-way` on the phone | - |
+
+## Sign-in (`signin`, route `/signin`; the top bar; Settings on the phone)
+
+Remote access (spec [docs/specs/2026-10-21-remote-access.md](../../docs/specs/2026-10-21-remote-access.md), D13, G4).
+The sign-in screen is drawn outside the app frame (`.signin`): no top bar, no tab bar. The sample user is `owner`; the
+too-many-attempts wait is 12 minutes (the server's `Retry-After`, rounded up to whole minutes). The top bar is hidden on
+the phone, so there the signed-in user and Sign out are the Account group of Settings.
+
+| id | State | Board |
+|---|---|---|
+| `signin` | The sign-in screen: the brand, Sign in, username, password, the Sign in button, the note on where the credentials come from | - |
+| `phone-signin` | `signin` on the phone | - |
+| `signin-error` | Wrong username or password (`INVALID_CREDENTIALS`): the error at the top of the card, the username kept, the password cleared | - |
+| `phone-signin-error` | `signin-error` on the phone | - |
+| `signin-locked` | Too many attempts (`TOO_MANY_ATTEMPTS`): the wait in minutes, Sign in disabled | - |
+| `phone-signin-locked` | `signin-locked` on the phone | - |
+| `signin-topbar` | Signed in: the Loops list, the top bar shows "Signed in as owner" and Sign out | - |
+| `phone-signin-topbar` | `signin-topbar` on the phone: Settings, its Account group with the user and Sign out | - |
+| `vi-signin` | `signin` in Vietnamese | - |
+| `phone-vi-signin` | `vi-signin` on the phone | - |
