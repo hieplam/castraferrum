@@ -66,4 +66,14 @@ describe('server command line', () => {
     const r = run(['--help'], { DATABASE_URL: 'postgres://nobody:x@127.0.0.1:1/loops' });
     expect(r.code).toBe(0);
   });
+
+  it('--public-url=http://x exits 2 with the reason (local-name spec D9)', () => {
+    const r = run(['--public-url=http://x']);
+    expect(r.code).toBe(2);
+    expect(r.err).toContain('--public-url must start with https://');
+  });
+
+  it('--help lists --public-url', () => {
+    expect(run(['--help']).out).toContain('--public-url');
+  });
 });

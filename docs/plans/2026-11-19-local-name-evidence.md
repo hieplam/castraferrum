@@ -83,6 +83,35 @@ EXIT=1
 
 Baseline: `local name: 0/8`. Unit tests: 1412 before, 1431 after.
 
+## N1
+
+Task N1: Castraferrum behind a reverse proxy, UC-42, goals G5 and G6.
+
+**Red (before the change)**
+- `npx vitest run --project unit server/services/auth-service.test.ts server/config.test.ts`: `Tests 4 failed | 60 passed (64)`.
+  `clientKey({ socket: '127.0.0.1', realIp: '192.0.2.10' })` returned `127.0.0.1`; `--public-url` was `unknown flag --public-url`.
+- `npx vitest run --project api tests/api/auth-api.test.ts tests/api/cli.test.ts`: `Tests 3 failed | 20 passed (23)`.
+- `npx playwright test tests/e2e/reverse-proxy.spec.ts` with the `clientKey` change removed: `Expected: 204 / Received: 429`, `1 failed`
+  (device B shares the count of device A).
+
+**Green (after the change)**
+- unit: `Test Files 2 passed (2)`, `Tests 64 passed (64)`.
+- api (`auth-api`, `cli`, `sign-in-startup`, `api-surface`): `Test Files 4 passed (4)`, `Tests 78 passed (78)`.
+- e2e `tests/e2e/reverse-proxy.spec.ts`: `1 passed (8.2s)`.
+- `npm run verify` (second run, after the uc-coverage tool test counted UC-42): unit `Tests 1432 passed | 3 skipped (1435)`, contract
+  `Tests 276 passed (276)`, api `Tests 472 passed | 2 skipped (474)`, then the e2e and visual step `3 failed`, `2 did not run`,
+  `195 passed (16.8m)`. The 3 failures:
+  - `tests/visual/ds/signin.visual.ts:106` (desktop sign-in, signed in: the user and Sign out in the top bar) and
+    `tests/visual/ds/signin.visual.ts:128` (phone sign-in, signed in: the Account group of Settings). Both also fail on
+    main 3ecf528 without any change. Coordinator decision: they are filed (tracked in https://github.com/hieplam/castraferrum/issues/475) and fixed by another lane. The shots and
+    the test are not changed here.
+  - `tests/e2e/probe-idle.spec.ts:84`: `Expected: "waiting"`, `Received: "active"`. The change does not touch the probe code.
+    `npx playwright test tests/e2e/probe-idle.spec.ts --repeat-each=3` gave `6 passed (24.5s)`. Filed as a flaky test:
+    https://github.com/hieplam/castraferrum/issues/481 . Not fixed here.
+  So `verify` is met like for like: the 2 known visual failures, plus the one filed flaky test, and every other step green.
+
+**Ratchet:** `uc-coverage --min` 39 to 40 in the `verify` script. UC ids in `docs/USE-CASES.md`: 40 to 41 (UC-42 added; UC-41 belongs to task N0). Unit tests: 1428 to 1432 passed in the verify run.
+
 ## N2
 
 Base: `main` 3ecf528. Commands and literal output only.

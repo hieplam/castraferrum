@@ -75,7 +75,9 @@ installed and the login and logout routes answer 404 `AUTH_NOT_CONFIGURED`.
   plus `; Secure` when the request carries `X-Forwarded-Proto: https`. Logout clears it with `Max-Age=0` and the same
   attributes. Sessions live in memory for 30 days: sign-out or a restart ends them.
 - The attempt limit counts by the socket address, or by `CF-Connecting-IP` when the socket is loopback (`cloudflared` on
-  the same machine). A success clears the count of that client.
+  the same machine). When that header is absent, it counts by `X-Real-IP`, again only when the socket is loopback (a reverse
+  proxy such as nginx on the same machine sets it to the device address). A header from a non-loopback socket is ignored.
+  A success clears the count of that client.
 
 ## Test-mode routes
 
