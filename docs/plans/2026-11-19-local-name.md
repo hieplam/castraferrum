@@ -1,7 +1,7 @@
 # Plan: a local name and HTTPS on the home network (phase 3)
 
 - Date: 2026-11-19
-- Spec: [../specs/2026-11-19-local-name.md](../specs/2026-11-19-local-name.md) (goals G1 to G7, decisions D1 to D12)
+- Spec: [../specs/2026-11-19-local-name.md](../specs/2026-11-19-local-name.md) (goals G1 to G8, decisions D1 to D12)
 - Decision record: [ADR 0005](../adr/0005-local-name-through-dns-and-reverse-proxy.md)
 - Evidence log: `docs/plans/2026-11-19-local-name-evidence.md` (task N0 creates it; each task adds a section
   `## N<k>` with its before and after numbers: commands and literal output only)
@@ -28,8 +28,9 @@ address. The check tool finds it at run time.
 | N0 | Baseline numbers; the check tool `scripts/local-name-check.mjs` | G1 to G4 (the oracle) | - |
 | N1 | Castraferrum behind a reverse proxy: `X-Real-IP` for the sign-in limit, `--public-url`, UC-42 | G5, G6 | - |
 | N2 | The nginx configuration, the README section, the real e2e file | G7, G2 | - |
-| N3 | **Machine setup on the owner's PC and router** (needs a person: the router password and administrator rights) | G1 to G4, G7 | N0, N1, N2 |
-| N4 | Verify every goal and do the agent acceptance | G1 to G7 | N3 |
+| N5 | The per-machine name and the name-limited issuer (spec update of 2026-11-19) | G2, G7, G8 | N0, N1, N2 |
+| N3 | **Machine setup on the owner's PC and router** (needs a person: the router password and administrator rights) | G1 to G4, G7, G8 | N5 |
+| N4 | Verify every goal and do the agent acceptance | G1 to G8 | N3 |
 
 N0, N1 and N2 can run at the same time. They touch different files.
 
@@ -143,6 +144,73 @@ The README section has these steps, each with its command:
   that case.
 - **Ratchet:** unit count above N0.
 
+## N5 - The per-machine name and the name-limited issuer
+
+The owner changed spec D1 and D6 on 2026-11-19, after N0, N1 and N2 started, and spec D13 keeps the owner's own name
+out of the repository (spec, "Update 2026-11-19"). This task changes the merged configuration, the check tool and
+the README to match. It does not change the server code of N1. Every file keeps the sample name `castra.home.arpa`.
+
+**Files:**
+- `deploy/local-name/ca.cnf` (new): the `openssl` configuration of spec D6 and D13. Section `[ca_ext]`:
+  `basicConstraints = critical, CA:true, pathlen:0`, `keyUsage = critical, keyCertSign, cRLSign`,
+  `nameConstraints = critical, permitted;DNS:$ENV::LOCAL_NAME_LIMIT`, `subjectKeyIdentifier = hash`. Section
+  `[server_ext]`: `basicConstraints = critical, CA:false`, `keyUsage = critical, digitalSignature, keyEncipherment`,
+  `extendedKeyUsage = serverAuth`, `subjectAltName = DNS:$ENV::LOCAL_NAME`, `authorityKeyIdentifier = keyid`.
+  Comments say which command uses which section, and that both variables must be set.
+- `deploy/local-name/nginx.conf`: the placeholder `LOCAL_NAME` in `server_name`, in the redirect target and in the
+  certificate file names (`CERT_DIR/LOCAL_NAME.pem`, `CERT_DIR/LOCAL_NAME-key.pem`).
+- `deploy/local-name/README.md`: the files, the three values of spec D13, and the commands of README step 3 below.
+- `scripts/local-name-check.mjs` and `tests/tools/local-name-check.test.ts`: the name comes from the host of
+  `LOOPS_PUBLIC_URL` (`--name=<name>` replaces it) and the limit from `LOCAL_NAME_LIMIT` (`--limit=<name>`). A missing
+  value fails the checks that need it, with the reason. `tls` verifies against
+  `%LOCALAPPDATA%\castraferrum\tls\local-ca.pem` (`--ca=<path>` replaces it) instead of the mkcert folder. Two new
+  checks come after `tls`: `ca-name-limit` (the trusted `local-ca.pem` has a critical name limit equal to
+  `LOCAL_NAME_LIMIT`, read with `openssl x509 -text`) and `ca-key-absent` (no `local-ca-key.pem` in the tls folder,
+  and no file there holds a private key except `<name>-key.pem`). The last line becomes
+  `local name: <passed>/10 checks pass`.
+- `tests/tools/ca-name-limit.test.ts` (new): spec G8 (a), with `LOCAL_NAME=castra.home.arpa` and
+  `LOCAL_NAME_LIMIT=castra.home.arpa`. It finds `openssl` on `PATH`, or at
+  `C:\Program Files\Git\usr\bin\openssl.exe` on Windows, and makes every file in a temporary folder.
+- `tests/tools/nginx-config.test.ts`: `server_name LOCAL_NAME` and `return 301 https://LOCAL_NAME$request_uri`.
+- `tests/e2e/local-name-real.spec.ts`: the address comes from `LOOPS_PUBLIC_URL`.
+- `.env.example`: commented `LOCAL_NAME=castra.home.arpa` and `LOCAL_NAME_LIMIT=castra.home.arpa` lines.
+- `README.md`, the section "Open with a name on your network": a first step sets the three values of spec D13 in
+  `.env` and in the PowerShell session. Step 2 makes the zone and the A record of `LOCAL_NAME`. Step 3 replaces mkcert
+  with these steps, each with its command:
+  1. In `%LOCALAPPDATA%\castraferrum\tls\`, make the issuer: `openssl req -x509 -newkey ec -pkeyopt
+     ec_paramgen_curve:P-256 -nodes -keyout local-ca-key.pem -out local-ca.pem -days 3650 -subj "/CN=local home
+     issuer" -config <repo>/deploy/local-name/ca.cnf -extensions ca_ext`.
+  2. Make the server key and request, then sign it: `openssl req -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes
+     -keyout "$env:LOCAL_NAME-key.pem" -out server.csr -subj "/CN=$env:LOCAL_NAME"`, then `openssl x509 -req -in
+     server.csr -CA local-ca.pem -CAkey local-ca-key.pem -CAcreateserial -days 825 -extfile
+     <repo>/deploy/local-name/ca.cnf -extensions server_ext -out "$env:LOCAL_NAME.pem"`.
+  3. Trust the issuer on the PC, for the current user only: `certutil -user -addstore Root local-ca.pem`.
+  4. Move `local-ca-key.pem` to a USB stick and keep the stick out of the PC, or delete the file. Without it, a new
+     server certificate needs a new issuer (spec D6, rule B).
+
+  Step 4 (nginx) replaces both placeholders, `LOCAL_NAME` and `CERT_DIR`, in the deployed copy. Step 10 copies
+  `local-ca.pem` (renamed to `local-ca.crt`) only to the phones that need the console (rule C), with the iPhone and
+  Android steps and how to remove it. It says in one sentence why the issuer key must never be copied. Write the
+  exact menu names as "not verified on every phone".
+
+**Verify**
+- **Goal:** G8 (a), and G2 and G7 with a per-machine name.
+- **Red:** (1) `npx vitest run --project unit tests/tools/ca-name-limit.test.ts` fails on the missing
+  `deploy/local-name/ca.cnf`. (2) `npx vitest run --project unit tests/tools/nginx-config.test.ts` fails after the
+  test change, because the file still says `server_name castra.home.arpa`.
+- **Green:** (1) The ca-name-limit test passes. The client that trusts only the throwaway issuer connects to the
+  server for `castra.home.arpa`. The connection to the server for `bank.example` fails with an error whose code is
+  not empty (record the literal code). A second case makes an issuer without `nameConstraints` and shows that the
+  same client then accepts `bank.example`, so the test can see the difference. (2)
+  `npx vitest run --project unit tests/tools/local-name-check.test.ts tests/tools/nginx-config.test.ts` passes, with
+  the new cases: a `local-ca.pem` without the limit gives `FAIL ca-name-limit`; a `local-ca-key.pem` in the folder
+  gives `FAIL ca-key-absent`; no `LOOPS_PUBLIC_URL` gives a FAIL with the reason; all fakes good give
+  `local name: 10/10 checks pass`. (3) `node scripts/lang-scan.mjs --check-baseline` prints `baseline check: ok`.
+  (4) `npm run verify` exits 0, or fails only with the failures that `main` has at the time (write them down).
+- **Stub check:** a `ca.cnf` without `nameConstraints` makes the `bank.example` case connect, so Green (1) fails. A
+  check tool that only counts to 10 without the two checks fails the new cases.
+- **Ratchet:** unit count up by the new cases.
+
 ## N3 - Machine setup on the owner's PC and router
 
 **Who:** an agent and the owner. The issue carries `loop:needs-human`, because two steps need what only the owner
@@ -154,16 +222,16 @@ other steps and prepares each command for the owner.
 **Steps:** the README section of N2, in order, on the owner's PC.
 
 **Verify**
-- **Goal:** G1 to G4 and G7 on the real machine.
-- **Red:** `npm run local-name:check` prints the N0 baseline, for example `local name: 0/8 checks pass`, and exits 1.
-- **Green:** `npm run local-name:check` prints 8 `PASS` lines and `local name: 8/8 checks pass`, and exits 0.
+- **Goal:** G1 to G4, G7 and G8 on the real machine.
+- **Red:** `npm run local-name:check` prints the baseline, for example `local name: 0/10 checks pass`, and exits 1.
+- **Green:** `npm run local-name:check` prints 10 `PASS` lines and `local name: 10/10 checks pass`, and exits 0.
 - **Stub check:** each check talks to the real program on the real port. A step that is not done leaves its check at
   `FAIL`.
-- **Ratchet:** `local name: <n>/8` goes from the N0 baseline to 8/8.
+- **Ratchet:** `local name: <n>/10` goes from the baseline to 10/10.
 
 ## N4 - Verify every goal and do the agent acceptance
 
-**Files:** `goals/verify/local-name.json` (new: one entry per goal G1 to G7, with the command and its expected
+**Files:** `goals/verify/local-name.json` (new: one entry per goal G1 to G8, with the command and its expected
 output), `docs/plans/2026-11-19-local-name-evidence.md` (section `## N4`).
 
 The agent does what the owner would do, from the PC:
@@ -173,13 +241,13 @@ The agent does what the owner would do, from the PC:
 - `E check --dry-run` on N0 to N3.
 
 **Verify**
-- **Goal:** G1 to G7 hold together on `main` and on the real machine.
+- **Goal:** G1 to G8 hold together on `main` and on the real machine.
 - **Red:** before the manifest exists, `npm run goal:check -- goals/verify/local-name.json` fails on the missing file.
-- **Green:** (1) `npm run goal:check -- goals/verify/local-name.json` prints `goals passed: 7/7`. (2) The real e2e reports
+- **Green:** (1) `npm run goal:check -- goals/verify/local-name.json` prints `goals passed: 8/8`. (2) The real e2e reports
   1 passed. (3) `E check --dry-run` gives PASS for N0 to N3.
 - **Stub check:** a manifest entry with a command that always exits 0 is not allowed. Each entry runs one of the
   oracles of spec section 3. A failing goal becomes a fix issue that blocks this task.
-- **Ratchet:** goals passed 0/7 to 7/7.
+- **Ratchet:** goals passed 0/8 to 8/8.
 
 ## Follow-up outside the phase
 
