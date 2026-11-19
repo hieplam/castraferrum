@@ -121,6 +121,11 @@ type Attempt = {
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const firstLine = (text: string) => text.split(/\r?\n/).find((line) => line.trim() !== '') ?? text;
+/** The text of a throw and the stderr it carries, as a step row keeps it. */
+function thrownOutput(e: unknown): string {
+  const stderr = (e as { stderr?: unknown }).stderr;
+  return [message(e), typeof stderr === 'string' ? stderr : ''].filter(Boolean).join('\n');
+}
 const combined = (result: CommandResult) => [result.stdout, result.stderr, result.error].filter(Boolean).join('\n');
 /** Gives the reason when the PR comes from a fork, else null. A fork PR ends as `failed`, so nobody can ratify it. */
 export const forkRefusal = (pr: { fromFork: boolean }): string | null => (pr.fromFork ? 'a pull request from a fork needs a person' : null);
@@ -383,7 +388,15 @@ export class DefaultGateService implements GateService {
   private async endFailed(run: JobRun, e: unknown): Promise<void> {
     const { gate, host, clock } = this.deps;
     const ended = e instanceof JobEnded ? e : new JobEnded(run.current, message(e), 'failed');
-    if (!(e instanceof JobEnded)) run.errors.push({ loopId: run.job.id, message: message(e) });
+    if (!(e instanceof JobEnded)) {
+      run.errors.push({ loopId: run.job.id, message: message(e) });
+      // A throw outside a step (the merged check, the pending status) wrote no row: the record keeps its text (issue 456).
+      try {
+        await gate.appendStep({ jobId: run.job.id, seq: run.seq++, step: ended.step, status: 'fail', exitCode: null, ms: 0, outputTail: outputTail(thrownOutput(e)) });
+      } catch (rowError) {
+        run.errors.push({ loopId: run.job.id, message: message(rowError) });
+      }
+    }
     await gate.finish(run.job.id, { state: ended.state, failedStep: ended.step, at: clock.now() });
     try {
       await host.setStatus(run.setting.githubRepo, run.job.headSha, { state: 'failure', description: `${ended.step}: ${ended.line}` });
@@ -420,8 +433,7 @@ export class DefaultGateService implements GateService {
     } catch (e) {
       if (e instanceof GateStopped || run.signal.aborted) throw new GateStopped();
       const exitCode = typeof (e as { exitCode?: unknown }).exitCode === 'number' ? (e as { exitCode: number }).exitCode : null;
-      const stderr = (e as { stderr?: unknown }).stderr;
-      end = fail(firstLine(message(e)), [message(e), typeof stderr === 'string' ? stderr : ''].filter(Boolean).join('\n'), exitCode);
+      end = fail(firstLine(message(e)), thrownOutput(e), exitCode);
     }
     if (run.signal.aborted) throw new GateStopped();
     await gate.appendStep({

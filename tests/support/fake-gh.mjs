@@ -30,8 +30,11 @@
 //   api -X POST repos/hieplam/tribe/issues/<n>/sub_issues -F sub_issue_id=<id>      adds the child number to `world.subIssues[n]`
 // A test makes one call fail: `world.failNext` lists `<group> <sub>` texts, for example `pr create`. The next such call exits 1 and leaves the list without that text.
 // `--json` takes comma-separated GitHub field names. Every call, a failed one too, is appended to `calls`.
+// Calls can run at the same time (the background tick of the server runs the gate and the goal-card ingest together):
+// each call holds the file `<world>.lock` from its read of the world to its write, so no call reads a half-written
+// world or loses the change of another (issue 456).
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { closeSync, mkdtempSync, openSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -43,6 +46,31 @@ class Exit extends Error {
   constructor(code, message) {
     super(message);
     this.code = code;
+  }
+}
+
+/** How long a lock can stay before it counts as left by a killed call. A call holds it for far less. */
+const STALE_LOCK_MS = 30_000;
+const LOCK_WAIT_MS = 5;
+const pause = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+
+/** Takes `<world>.lock`, waiting while another call holds it. Gives the function that frees it. */
+function lockWorld() {
+  if (!worldPath) return () => {};
+  const lockPath = `${worldPath}.lock`;
+  for (;;) {
+    try {
+      closeSync(openSync(lockPath, 'wx'));
+      return () => rmSync(lockPath, { force: true });
+    } catch (e) {
+      if (e?.code !== 'EEXIST' && e?.code !== 'EPERM') throw e;
+    }
+    try {
+      if (Date.now() - statSync(lockPath).mtimeMs > STALE_LOCK_MS) rmSync(lockPath, { force: true });
+    } catch {
+      // The holder freed it between the two calls.
+    }
+    pause(LOCK_WAIT_MS);
   }
 }
 
@@ -306,6 +334,7 @@ function apiCmd(w, rest) {
 
 let exit = 0;
 let world = null;
+const unlock = lockWorld();
 try {
   world = loadWorld();
   const [group, sub, ...rest] = args;
@@ -321,8 +350,12 @@ try {
   exit = e instanceof Exit ? e.code : 1;
   process.stderr.write(`${e instanceof Exit ? e.message : `fake-gh: ${e?.stderr || e?.message || e}`}\n`);
 }
-if (world) {
-  world.calls.push({ args, exit });
-  writeFileSync(worldPath, JSON.stringify(world, null, 2));
+try {
+  if (world) {
+    world.calls.push({ args, exit });
+    writeFileSync(worldPath, JSON.stringify(world, null, 2));
+  }
+} finally {
+  unlock();
 }
 process.exitCode = exit;
