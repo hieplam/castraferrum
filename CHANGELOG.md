@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/hieplam/castraferrum/compare/v0.12.0...v0.12.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **test:** the fake gh locks its world file, and the gate records a throw outside a step ([#462](https://github.com/hieplam/castraferrum/issues/462)) ([90f2c6d](https://github.com/hieplam/castraferrum/commit/90f2c6dea5eeee5a22183cb494d4f91d0edb42c1))
+
 ## [0.12.0](https://github.com/hieplam/castraferrum/compare/v0.11.0...v0.12.0) (2026-11-18)
 
 
