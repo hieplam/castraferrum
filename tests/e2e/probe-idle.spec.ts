@@ -90,7 +90,13 @@ test('G1: a probe that says wait, skip, done starts no session; the loop ends as
   const first = await probeLoop(request, repoId, 'first', [WAIT, SKIP, DONE]);
   await until(() => callsOf(first.world), (n) => n === 1);
   await until(() => callsOf(witness.world), (n) => n === 1);
-  expect((await db.query('SELECT state FROM loop_probes WHERE loop_id = $1', [first.id])).rows[0].state).toBe('waiting');
+  // The probe writes `calls.log` before it prints its line, and the server writes the state only after the probe exits.
+  // So wait for that write: `record` sets `last_line` and `state` in one UPDATE, and `last_line` is null until the first call is recorded.
+  const recorded = await until(
+    async () => (await db.query('SELECT state, last_line FROM loop_probes WHERE loop_id = $1', [first.id])).rows[0] as { state: string; last_line: string | null },
+    (row) => row.last_line !== null,
+  );
+  expect(recorded).toEqual({ state: 'waiting', last_line: WAIT });
 
   await advance(60_000);
   await until(() => callsOf(first.world), (n) => n === 2);
