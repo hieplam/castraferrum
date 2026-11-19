@@ -88,6 +88,8 @@ const manifestPathOf = (body: string) => T3_MANIFEST_LINE.exec(body)![1]!;
 const manifestOf = (issue: number) => JSON.parse(bare.show(goalCardBranch(issue), manifestPathOf(epicsOf()[0]!.body))) as { epic: number; opened: { at: string; passed: number; total: number }; setup: string[]; goals: { id: string; outcome: string; checks: { run: string; expect: string[] }[] }[] };
 const loops = async () => (await server.app.inject({ method: 'GET', url: '/api/loops' })).json().items as { id: string; name: string; status: string }[];
 const gateJobs = async () => (await pool.query('SELECT state, failed_step, pr_number FROM gate_jobs')).rows as { state: string; failed_step: string | null; pr_number: number }[];
+/** The steps of every gate job, so that a failed assertion shows the thrown text (issue 456). */
+const gateSteps = async () => (await pool.query('SELECT step, status, exit_code, output_tail FROM gate_steps ORDER BY job_id, seq')).rows as { step: string; status: string; exit_code: number | null; output_tail: string }[];
 
 beforeAll(async () => {
   gh = createFakeGh();
@@ -243,7 +245,7 @@ describe('goal card start', { timeout: 60_000 }, () => {
     for (let i = 0; i < GATE_TICKS; i++) await tick();
 
     const row = await rowOf(issue);
-    expect(await gateJobs()).toEqual([{ state: 'needs_ratification', failed_step: 'scope', pr_number: row.prNumber }]);
+    expect(await gateJobs(), `gate_steps: ${JSON.stringify(await gateSteps(), null, 2)}`).toEqual([{ state: 'needs_ratification', failed_step: 'scope', pr_number: row.prNumber }]);
     expect(gh.read().prs.map((p) => p.state)).toEqual(['OPEN']);
     expect(gh.read().calls.filter((c) => c.args[0] === 'pr' && c.args[1] === 'merge')).toEqual([]);
     expect(bare.sha('main')).toBe(main);

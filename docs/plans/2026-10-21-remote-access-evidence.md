@@ -335,3 +335,50 @@ owner's gate: the owner approves the preview and the system addition together (n
   `owner`, a word, not a person.
 - `design/README.md` needs no change: it describes the preview and the system in general, and the new family and
   states live in `SYSTEM.md` and `STATES.md`.
+
+## Issue 456 (flaky gate-on case of goal-card-start)
+
+- `main` SHA of the runs: `423cf0f` (release 0.10.0); rebased on `e633896` (release 0.12.0) before the merge, then
+  `npx vitest run tests/tools/fake-gh.test.ts tests/api/goal-card-start.test.ts server/services/gate-service.test.ts`:
+  `Tests  62 passed (62)`. Date: 2026-11-19. Local Windows machine, lane database `loops_flake456_test`, e2e port 7456.
+- Cause, measured: the background tick runs the gate and the goal-card ingest at the same time
+  (`Promise.all` in `server/compose.ts`). Each fake `gh` call reads the one world file, changes it and writes it with
+  `writeFileSync`, which empties the file first. The gate's `gh pr view` (the merged check in `attempts`, before any
+  step) read an empty world: `fake-gh: Unexpected end of JSON input`, exit 1. The throw reached `endFailed` with
+  `run.current = 'scope'`, so the job ended `failed` at `scope` and wrote no step row.
+- 16 parallel fake `gh` calls on `main` (scratch script): `{"failed":1,"firstError":"fake-gh: Unexpected end of JSON input","callsLogged":9}`.
+- Decision (standing rule "a test is flaky: fix the root cause"): the fix is in the test support, because the race is in
+  the fake `gh` and the real `gh` has no shared file. Each fake `gh` call holds `<world>.lock` from its read to its
+  write. No retry, no longer sleep, no looser assertion.
+- Decision: the gate now writes a `fail` row (text and stderr) for a throw outside a step. Before, such a job had no
+  row, so the record and the test could not show why it failed.
+
+### Red
+
+- Injection of the found cause (scratch diff, not committed): `pr view` starts 800 ms late and `issue list` keeps the
+  world file empty for 1500 ms during its write. Old fake `gh`:
+  `npx vitest run --project api tests/api/goal-card-start.test.ts -t "gate on"` ->
+  `AssertionError: gate_steps: []: expected [ { state: 'failed', …(2) } ] to deeply equal [ { …(3) } ]`,
+  `Tests  1 failed | 9 skipped (10)`.
+- Same, with the new row of `endFailed`: `"output_tail": "gh pr view failed: exit 1\nfake-gh: Unexpected end of JSON input"`.
+- `npx vitest run --project unit tests/tools/fake-gh.test.ts -t "parallel"`, 3 runs on the old fake `gh`: each failed,
+  with `SyntaxError: Unexpected non-whitespace character after JSON`, `expected [ 1, 2, 3, 4, 5 ] to deeply equal [ 1, 2, 3, 4, 5, 6, 7, 8 ]`
+  and `"err": "fake-gh: Unexpected end of JSON input"`.
+
+### Green
+
+- Same injection, new fake `gh`: `Tests  1 passed | 9 skipped (10)`, 2 runs.
+- `npx vitest run --project unit tests/tools/fake-gh.test.ts`: `Tests  16 passed (16)`, 3 runs.
+- Gate tests (`server/services/gate*`, `tests/api/gate*`, the fake `gh` test): `Tests  192 passed (192)`.
+- `npm run verify`, 3 runs one after another, each exit 0. Each run: unit `Tests  1382 passed | 3 skipped (1385)`,
+  contract `Tests  276 passed (276)`, api `Tests  451 passed | 2 skipped (453)` (no failure of
+  `goal-card-start.test.ts`), e2e `192 passed`.
+
+### Stub check
+
+- The lock removed (the old `tests/support/fake-gh.mjs`) with the new gate row: the injection gives the recorded
+  failure again (`failed` at `scope`, `fake-gh: Unexpected end of JSON input`), and the parallel test fails 3 of 3.
+
+### Ratchet
+
+- Flaky failures of `goal-card-start.test.ts` in full verify runs: 1 -> 0 (3 runs).
