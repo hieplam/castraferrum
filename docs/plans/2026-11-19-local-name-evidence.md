@@ -152,3 +152,60 @@ npm run uc-coverage -- --min 39  -> UCs with a green e2e: 40/40
 
 **Ratchet** - unit tests (`npm run test:unit`): before 1412 passed, after `Tests  1428 passed | 3 skipped (1431)`
 (before = after minus the 16 cases of `tests/tools/nginx-config.test.ts`). Api: `467 passed | 2 skipped`. Contract: 276 passed.
+
+## N5
+
+Base: `main` 8a9b123. Commands and literal output only. `openssl` 3.5.9 (`/ucrt64/bin/openssl`, Git for Windows).
+
+**Decision on `$ENV::`** - `$ENV::LOCAL_NAME_LIMIT` in `nameConstraints` and `$ENV::LOCAL_NAME` in `subjectAltName` both expand
+on this platform. The test reads the made certificates with `openssl x509 -noout -text` and asserts
+`X509v3 Name Constraints: critical`, `Permitted:` with `DNS:castra.home.arpa`, `CA:TRUE, pathlen:0`, and the SAN
+`DNS:castra.home.arpa`. No `-addext` is needed, so the README commands and `ca.cnf` stay as the plan writes them.
+
+**Red (1)** - `npx vitest run --project unit tests/tools/ca-name-limit.test.ts` before `ca.cnf` existed:
+
+```text
+ ❯ |unit| tests/tools/ca-name-limit.test.ts (4 tests | 4 failed)
+Can't open ".../deploy/local-name/ca.cnf" for reading, No such file or directory
+```
+
+**Red (2)** - `npx vitest run --project unit tests/tools/nginx-config.test.ts` after the test change (`LOCAL_NAME`), before the change of `nginx.conf`:
+`Tests  3 failed | 13 passed (16)`. And `tests/tools/local-name-check.test.ts` after its change, before the tool change:
+`Tests  27 failed | 5 passed (32)`.
+
+**Green (1)** - `npx vitest run --project unit tests/tools/ca-name-limit.test.ts`: `Tests  4 passed (4)`. Literal result of the case
+outside the limit (the client trusts only the issuer, server certificate for `bank.example`):
+
+```text
+ca-name-limit: bank.example gave err.code=UNSPECIFIED message=permitted subtree violation
+```
+
+The case for `castra.home.arpa` connects. The control case (an issuer made from `ca.cnf` without the `nameConstraints` line) connects for `bank.example`.
+
+**Green (2)** - `npx vitest run --project unit tests/tools/local-name-check.test.ts tests/tools/nginx-config.test.ts tests/tools/ca-name-limit.test.ts`:
+`Test Files  3 passed (3)`, `Tests  52 passed (52)`. The cases: all good fakes give `local name: 10/10 checks pass`; no name limit in the
+issuer gives `FAIL ca-name-limit: ... has no name limit: an issuer without it can sign any name`; `local-ca-key.pem` in the folder gives
+`FAIL ca-key-absent: local-ca-key.pem is in ...`; no `LOOPS_PUBLIC_URL` gives `FAIL dns-direct: no name: set LOOPS_PUBLIC_URL (https://<name>) in .env, or pass --name=<name>` (and the other name checks).
+Run on a real issuer made with `ca.cnf` (not a fake): `PASS ca-name-limit` and, with `local-ca-key.pem` beside it, `FAIL ca-key-absent`; after removing the key file, `PASS ca-key-absent`.
+
+**Stub check** - `ca.cnf` without the `nameConstraints` line: `Tests  2 failed | 2 passed (4)` (the certificate-text case and the `bank.example` rejection case).
+A check tool that only counts to 10 fails the new cases of `local-name-check.test.ts` (27 fail before the change).
+
+**Green (3)** - `node scripts/lang-scan.mjs --check-baseline`: `baseline check: ok`.
+
+**Green (4)** - `npm run verify`, log ends `EXIT=1`. The only failures are the 2 sign-in visual tests that `main` also has (issue 475):
+
+```text
+  1) [visual] › tests\visual\ds\signin.visual.ts:106:3 › desktop sign-in against the preview › signed in: the user and Sign out in the top bar
+  2) [visual] › tests\visual\ds\signin.visual.ts:128:3 › phone sign-in against the preview › signed in: the Account group of Settings
+  2 failed
+  1 skipped
+  2 did not run
+  196 passed (16.0m)
+```
+
+Run alone, because they come after `test:e2e` in `npm run verify`: `phone overflow: 0/12`, `UCs with a green e2e: 41/41`.
+Unit step: `Tests  1468 passed | 3 skipped (1471)`. Contract: 276 passed. Api: `472 passed | 2 skipped`.
+
+**Ratchet** - unit tests: before 1451 passed, after 1468 passed (+13 cases in `local-name-check.test.ts`, 19 to 32; +4 in the new `ca-name-limit.test.ts`).
+Checks of the tool: 8 to 10.
