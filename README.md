@@ -108,6 +108,90 @@ New-NetFirewallRule -DisplayName "Castraferrum 7070" -Direction Inbound -Protoco
 
 If the phone cannot connect, check that the phone and the machine are on the same network and that the network profile is Private.
 
+## Open with a name on your network
+
+This section gives the console the address `https://castra.home.arpa` on your home network. Three programs on the PC
+do the work: Technitium DNS Server (the name), nginx (HTTPS) and mkcert (the certificate). The design is in
+[ADR 0005](docs/adr/0005-local-name-through-dns-and-reverse-proxy.md) and the files are in
+[`deploy/local-name/`](deploy/local-name/README.md). In the commands, `<pc-ip>` is the IP address of this PC on the home
+network. `%LOCALAPPDATA%` is the Windows folder of your user data.
+
+Read these two conditions first:
+
+- The router must give the PC as the **only** DNS server. A device asks any DNS server that it knows. A public
+  second server answers that the name does not exist, so the name then fails at random.
+- If the router also gives IPv6 DNS servers, turn that off for the same reason.
+
+When the PC is off, the Wi-Fi finds no names until the PC starts again.
+
+1. Install the three programs. Run each command in a normal PowerShell.
+
+   ```powershell
+   winget install --id nginxinc.nginx        # nginx (nginx.org/en/download.html is the other source)
+   winget install --id FiloSottile.mkcert    # mkcert
+   ```
+
+   Technitium DNS Server has no winget package. Download the installer from <https://technitium.com/dns/> and run it.
+   It installs a Windows service that starts at boot.
+2. Open the Technitium web page (`http://localhost:5380`). Make the primary zone `home.arpa`. Add the A record
+   `castra` with the value `<pc-ip>`. In Settings, Proxy & Forwarders, set the forwarder `1.1.1.1`.
+3. Make the certificate. The `tls` folder must exist first.
+
+   ```powershell
+   mkcert -install
+   New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\castraferrum\tls"
+   Set-Location "$env:LOCALAPPDATA\castraferrum\tls"
+   mkcert castra.home.arpa
+   ```
+
+   The files `castra.home.arpa.pem` and `castra.home.arpa-key.pem` stay in that folder. Never commit them.
+4. Copy `deploy/local-name/nginx.conf` into the nginx folder, for example `C:\nginx\conf\castra.conf`. In the copy,
+   replace `CERT_DIR` with the `tls` folder from step 3, written with forward slashes. Then check the copy:
+
+   ```powershell
+   nginx -t -c C:/nginx/conf/castra.conf
+   ```
+
+   The output must say `syntax is ok` and `test is successful`.
+5. Make nginx start at boot. nginx for Windows has no service mode, so use Task Scheduler. Run this in an
+   administrator PowerShell, with the real paths:
+
+   ```powershell
+   $action  = New-ScheduledTaskAction -Execute "C:\nginx\nginx.exe" -Argument "-c C:/nginx/conf/castra.conf" -WorkingDirectory "C:\nginx"
+   $trigger = New-ScheduledTaskTrigger -AtStartup
+   Register-ScheduledTask -TaskName "Castraferrum nginx" -Action $action -Trigger $trigger -User "SYSTEM" -RunLevel Highest
+   Start-ScheduledTask -TaskName "Castraferrum nginx"
+   ```
+6. Open the firewall for DNS and HTTPS on the Private profile only, and close port 7070. Run this in an
+   administrator PowerShell:
+
+   ```powershell
+   New-NetFirewallRule -DisplayName "Castraferrum DNS" -Direction Inbound -Protocol UDP -LocalPort 53 -Action Allow -Profile Private
+   New-NetFirewallRule -DisplayName "Castraferrum nginx" -Direction Inbound -Protocol TCP -LocalPort 80,443 -Action Allow -Profile Private
+   Remove-NetFirewallRule -DisplayName "Castraferrum 7070"
+   ```
+7. In the router, open the DHCP settings. Set the DNS server to `<pc-ip>` and leave the second DNS server empty.
+   If the router gives IPv6 DNS servers, turn that off. Then renew the lease on each device (or reconnect it to the
+   Wi-Fi).
+8. Start Castraferrum **without** `--remote`, so that only nginx can reach port 7070. Put this in `.env`:
+
+   ```text
+   LOOPS_PUBLIC_URL=https://castra.home.arpa
+   ```
+
+   The startup log then prints `Open: https://castra.home.arpa`.
+9. Check the whole chain: DNS, certificate, redirect, live updates and the closed port.
+
+   ```bash
+   npm run local-name:check
+   ```
+
+   The last line is `local name: 8/8 checks pass` when all is well. The script `local-name:check` comes from the
+   task N0 of the same epic, so it can arrive on `main` before or after this section.
+10. On each phone, copy `rootCA.pem` from the folder that `mkcert -CAROOT` prints, and trust it (on iOS: install the
+    profile, then turn it on in Settings, General, About, Certificate Trust Settings). Turn "Private DNS" (Android) or
+    any DNS profile (iOS) off, or set it to automatic. Then open `https://castra.home.arpa`.
+
 ## Configuration
 
 Defaults work with no configuration. To change ports copy `.env.example` to `.env`; compose, the server, Vitest
