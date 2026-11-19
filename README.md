@@ -110,143 +110,136 @@ If the phone cannot connect, check that the phone and the machine are on the sam
 
 ## Open with a name on your network
 
-This section gives the console the address `https://castra.home.arpa` on your home network. Three programs on the PC
-do the work: Technitium DNS Server (the name), nginx (HTTPS) and `openssl` (the certificates). The design is in
-[ADR 0005](docs/adr/0005-local-name-through-dns-and-reverse-proxy.md) and the files are in
-[`deploy/local-name/`](deploy/local-name/README.md). In the commands, `<pc-ip>` is the IP address of this PC on the home
-network. `%LOCALAPPDATA%` is the Windows folder of your user data. `<repo>` is the folder of this repository.
-The repository holds only the sample name `castra.home.arpa`. Your own name stays on your machine (spec D13).
+This section gives the console the address `https://castra.example.com` on your home network. It needs a domain that
+you own. Three parts do the work: a public DNS record (the name), nginx (HTTPS) and win-acme (a free Let's Encrypt
+certificate that renews itself). The design is in [ADR 0005](docs/adr/0005-local-name-through-dns-and-reverse-proxy.md)
+and the files are in [`deploy/local-name/`](deploy/local-name/README.md). In the commands, `<pc-ip>` is the IP address
+of this PC on the home network, `<name>` is your console name, and `<repo>` is the folder of this repository.
+The repository holds only the sample name `castra.example.com`. Your own name stays on your machine (spec D13).
 
-Read these two conditions first:
+Two limits to know first:
 
-- The router must give the PC as the **only** DNS server. A device asks any DNS server that it knows. A public
-  second server answers that the name does not exist, so the name then fails at random.
-- If the router also gives IPv6 DNS servers, turn that off for the same reason.
+- The public record points to a private address (`<pc-ip>`). Many routers delete such an answer. So each device that
+  opens the console must ask Cloudflare DNS directly (step 4). A device without that setting cannot open the console,
+  for example a guest's phone or a TV.
+- When the PC is off, the console does not open.
 
-When the PC is off, the Wi-Fi finds no names until the PC starts again.
-
-1. Choose the three values, then install the programs. The values are:
+1. Choose the two values and put them in `.env` (they are commented in `.env.example`):
 
    | Value | Meaning | Sample |
    |---|---|---|
-   | `LOCAL_NAME` | The name of the console on this machine. | `castra.home.arpa` |
-   | `LOCAL_NAME_LIMIT` | The only name that the issuer may sign: `LOCAL_NAME` or a parent of it. | `castra.home.arpa` |
-   | `LOOPS_PUBLIC_URL` | `https://` plus `LOCAL_NAME`. | `https://castra.home.arpa` |
+   | `LOCAL_NAME` | The name of the console on this machine. | `castra.example.com` |
+   | `LOOPS_PUBLIC_URL` | `https://` plus `LOCAL_NAME`. | `https://castra.example.com` |
 
-   Put all three in `.env` (they are commented in `.env.example`). Set the first two in the PowerShell session too,
-   because `ca.cnf` and the next steps read them from the environment:
-
-   ```powershell
-   $env:LOCAL_NAME = "castra.home.arpa"        # your own name here
-   $env:LOCAL_NAME_LIMIT = "castra.home.arpa"  # the same name, or a parent of it
-   ```
-
-   Install the programs in a normal PowerShell:
+   Write your own name instead of the sample.
+2. At your DNS provider, add an A record for `LOCAL_NAME` with the value `<pc-ip>`. At Cloudflare, set it to "DNS only"
+   (proxy off): the Cloudflare proxy cannot reach a private address. Test it:
 
    ```powershell
-   winget install --id nginxinc.nginx        # nginx (nginx.org/en/download.html is the other source)
-   winget install --id Git.Git               # Git for Windows: it holds openssl in C:\Program Files\Git\usr\bin
+   Resolve-DnsName <name> -Server 1.1.1.1 -DnsOnly
    ```
 
-   Technitium DNS Server has no winget package. Download the installer from <https://technitium.com/dns/> and run it.
-   It installs a Windows service that starts at boot. If `openssl` is not on `PATH`, run
-   `$env:Path += ";C:\Program Files\Git\usr\bin"` in the session.
-2. Open the Technitium web page (`http://localhost:5380`). Make the primary zone `home.arpa`. Add the A record
-   for `LOCAL_NAME` (for the sample, the record `castra`) with the value `<pc-ip>`. In Settings, Proxy & Forwarders, set the forwarder `1.1.1.1`.
+   The answer is `<pc-ip>`.
+3. In the router, reserve `<pc-ip>` for this PC (the router page often called "Reserved IP" or "static lease"). The
+   record holds a fixed address. When the PC gets another address, the name points to the old one.
+4. Set the DNS servers of each device that opens the console. The router deletes the answer of a public name that points
+   to a private address, so the device must not ask the router. On the PC, in an administrator PowerShell
+   (`Get-NetAdapter` lists the adapter names):
 
-   When Docker Desktop or WSL runs, the Windows service Internet Connection Sharing (`SharedAccess`) holds
-   `0.0.0.0:53`. Technitium then listens on IPv6 only, and every IPv4 DNS question gets a refused connection. Check it
-   with `Get-NetUDPEndpoint -LocalPort 53`. In that case, open Settings, General, DNS Server Local End Points in
-   Technitium, and replace `0.0.0.0:53` with `<pc-ip>:53`. A specific address can share the port with ICS. Then test:
-   `Resolve-DnsName <your name> -Server <pc-ip> -DnsOnly` must answer `<pc-ip>`.
+   ```powershell
+   Set-DnsClientServerAddress -InterfaceAlias "<adapter>" -ServerAddresses ("1.1.1.1","1.0.0.1","2606:4700:4700::1111","2606:4700:4700::1001")
+   ```
 
-   The Technitium installer sets the DNS server of this PC to `127.0.0.1` and `::1`. Step 7 sets it back to automatic.
-3. Make the name-limited issuer and the server certificate. The issuer can sign only the names under
-   `LOCAL_NAME_LIMIT`, so a stolen issuer key cannot fake another website (spec D6). Run these commands with the two
-   variables of step 1 set.
+   Both address families are needed. Otherwise Windows can ask the IPv6 DNS address of the router and get an empty
+   answer. The menu names below are not verified on every phone:
+   - Android: Settings, Network & internet, Private DNS, "Private DNS provider hostname", `one.one.one.one`.
+   - iPhone: Settings, Wi-Fi, the "i" of your network, Configure DNS, Manual. Delete the old servers and add the same
+     four servers.
+5. Install nginx and win-acme. nginx has a winget package. win-acme has none (`winget search win-acme` finds no
+   package), so download it:
 
-   1. Make the folder and the issuer:
+   ```powershell
+   winget install --id nginxinc.nginx
+   ```
 
-      ```powershell
-      New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\castraferrum\tls"
-      Set-Location "$env:LOCALAPPDATA\castraferrum\tls"
-      openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -keyout local-ca-key.pem -out local-ca.pem -days 3650 -subj "/CN=local home issuer" -config <repo>/deploy/local-name/ca.cnf -extensions ca_ext
-      ```
-   2. Make the server key and request, then sign it:
+   - win-acme: download the release ZIP from <https://www.win-acme.com/> (its Download menu links to the GitHub
+     releases). Take the **pluggable** x64 ZIP, because the trimmed build does not load plugins. Unzip it to a folder that stays, for example
+     `C:\Program Files\win-acme`.
+   - The Cloudflare DNS plugin: <https://www.win-acme.com/reference/plugins/validation/dns/cloudflare>. Unzip it into
+     the folder of `wacs.exe` and unblock the `.dll` files (file Properties, General, Unblock).
+6. Make the Cloudflare API token with two permissions, Zone DNS Edit and Zone Zone Read, for the one zone of your
+   domain (Cloudflare, My Profile, API Tokens, Create Token). The token goes only into win-acme. Never put it in a chat,
+   in `.env`, in the repository or in a log. The plugin page of win-acme says that it lists "All zones" for the
+   resources. Not verified: whether the plugin accepts a token for one zone. Task N3 checks it.
+7. Make the folder for the certificate files and limit it to SYSTEM and Administrators, in an administrator PowerShell:
 
-      ```powershell
-      openssl req -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -keyout "$env:LOCAL_NAME-key.pem" -out server.csr -subj "/CN=$env:LOCAL_NAME"
-      openssl x509 -req -in server.csr -CA local-ca.pem -CAkey local-ca-key.pem -CAcreateserial -days 825 -extfile <repo>/deploy/local-name/ca.cnf -extensions server_ext -out "$env:LOCAL_NAME.pem"
-      ```
-   3. Trust the issuer on this PC, for the current user only:
+   ```powershell
+   New-Item -ItemType Directory -Force C:\ProgramData\castraferrum\tls
+   icacls C:\ProgramData\castraferrum\tls /inheritance:r /grant:r "SYSTEM:(OI)(CI)F" "Administrators:(OI)(CI)F"
+   ```
+8. In the same administrator PowerShell, run win-acme with full options: a manual name, DNS validation through
+   Cloudflare, the PEM store in that folder, and a script step that reloads nginx after each renewal. The option
+   names come from the win-acme documentation. The menu texts and the whole command are not verified on this PC. Task
+   N3 corrects them.
 
-      ```powershell
-      certutil -user -addstore Root local-ca.pem
-      ```
-   4. Move `local-ca-key.pem` to a USB stick and keep the stick out of the PC, or delete the file. Without it, a new
-      server certificate needs a new issuer. `npm run local-name:check` fails while the file is in the folder.
+   ```powershell
+   .\wacs.exe --target manual --host <name> --validation cloudflare --cloudflareapitoken <token> `
+     --store pemfiles --pemfilespath C:\ProgramData\castraferrum\tls `
+     --installation script --script C:\nginx\nginx.exe --scriptparameters "-p C:/nginx/ -c C:/nginx/conf/castra.conf -s reload" `
+     --accepttos --emailaddress <your email>
+   ```
 
-   The files `$env:LOCAL_NAME.pem`, `$env:LOCAL_NAME-key.pem` and `local-ca.pem` stay in that folder. Never commit
-   them.
-4. Copy `deploy/local-name/nginx.conf` into the nginx folder, for example `C:\nginx\conf\castra.conf`. In the copy,
-   replace `LOCAL_NAME` with your name, and replace `CERT_DIR` with the `tls` folder from step 3, written with forward
-   slashes. Then check the copy:
+   win-acme writes `<name>-chain.pem` (the certificate and its intermediate certificates) and `<name>-key.pem` into
+   the folder, and makes its own Task Scheduler task for the renewal.
+9. Copy `deploy/local-name/nginx.conf` into the nginx folder, for example `C:\nginx\conf\castra.conf`. In the copy,
+   replace `LOCAL_NAME` with your name, and replace `CERT_DIR` with `C:/ProgramData/castraferrum/tls` (forward
+   slashes). Then check the copy:
 
    ```powershell
    nginx -t -c C:/nginx/conf/castra.conf
    ```
 
    The output must say `syntax is ok` and `test is successful`.
-5. Make nginx start at boot. nginx for Windows has no service mode, so use Task Scheduler. Run this in an
-   administrator PowerShell, with the real paths:
+10. Make nginx start at boot. nginx for Windows has no service mode, so use Task Scheduler. Run this in an
+    administrator PowerShell, with the real paths:
 
-   ```powershell
-   $action  = New-ScheduledTaskAction -Execute "C:\nginx\nginx.exe" -Argument "-c C:/nginx/conf/castra.conf" -WorkingDirectory "C:\nginx"
-   $trigger = New-ScheduledTaskTrigger -AtStartup
-   Register-ScheduledTask -TaskName "Castraferrum nginx" -Action $action -Trigger $trigger -User "SYSTEM" -RunLevel Highest
-   Start-ScheduledTask -TaskName "Castraferrum nginx"
-   ```
-6. Open the firewall for DNS and HTTPS on the Private profile only, and close port 7070. Run this in an
-   administrator PowerShell:
+    ```powershell
+    $action  = New-ScheduledTaskAction -Execute "C:\nginx\nginx.exe" -Argument "-c C:/nginx/conf/castra.conf" -WorkingDirectory "C:\nginx"
+    $trigger = New-ScheduledTaskTrigger -AtStartup
+    Register-ScheduledTask -TaskName "Castraferrum nginx" -Action $action -Trigger $trigger -User "SYSTEM" -RunLevel Highest
+    Start-ScheduledTask -TaskName "Castraferrum nginx"
+    ```
+11. Open the firewall for HTTP and HTTPS on the Private profile only, and close port 7070. Run this in an
+    administrator PowerShell:
 
-   ```powershell
-   New-NetFirewallRule -DisplayName "Castraferrum DNS" -Direction Inbound -Protocol UDP -LocalPort 53 -Action Allow -Profile Private
-   New-NetFirewallRule -DisplayName "Castraferrum nginx" -Direction Inbound -Protocol TCP -LocalPort 80,443 -Action Allow -Profile Private
-   Remove-NetFirewallRule -DisplayName "Castraferrum 7070"
-   ```
-7. In the router, open the DHCP settings. Set the DNS server to `<pc-ip>` and leave the second DNS server empty.
-   If the router gives IPv6 DNS servers, turn that off. Add a DHCP reservation (also called a static lease) that
-   always gives `<pc-ip>` to this PC: the DNS server and nginx listen on that address, so a new address after a reboot
-   stops DNS for the whole Wi-Fi. Then renew the lease on each device (or reconnect it to the Wi-Fi). On this PC, set
-   the DNS server of the Wi-Fi adapter back to automatic in an administrator PowerShell:
-   `Set-DnsClientServerAddress -InterfaceAlias "<adapter>" -ResetServerAddresses` (`Get-NetAdapter` lists the names).
-8. Start Castraferrum **without** `--remote`, so that only nginx can reach port 7070. Put this in `.env`:
+    ```powershell
+    New-NetFirewallRule -DisplayName "Castraferrum nginx" -Direction Inbound -Protocol TCP -LocalPort 80,443 -Action Allow -Profile Private
+    Remove-NetFirewallRule -DisplayName "Castraferrum 7070"
+    ```
+12. Start Castraferrum **without** `--remote`, so that only nginx can reach port 7070. `LOOPS_PUBLIC_URL` is in `.env`
+    (step 1). The startup log then prints `Open: <that address>`.
+13. Check the whole chain: public DNS, the DNS servers of the PC, certificate, redirect, live updates and the closed port.
 
-   ```text
-   LOOPS_PUBLIC_URL=https://castra.home.arpa
-   ```
+    ```bash
+    npm run local-name:check
+    ```
 
-   Write your own name instead of the sample. The startup log then prints `Open: <that address>`.
-9. Check the whole chain: DNS, certificate, redirect, live updates and the closed port.
+    The last line is `local name: 10/10 checks pass` when all is well. The tool reads the name from `LOOPS_PUBLIC_URL`.
 
-   ```bash
-   npm run local-name:check
-   ```
+### If you set up the first design
 
-   The last line is `local name: 10/10 checks pass` when all is well. The tool reads the name from
-   `LOOPS_PUBLIC_URL` and the limit from `LOCAL_NAME_LIMIT`.
-10. Copy the issuer to the phones that need the console only (rule C of spec D6). Copy `local-ca.pem` from the `tls`
-    folder, renamed to `local-ca.crt`. Copy only this public file. Never copy `local-ca-key.pem` or the server key: a
-    device that trusts the issuer trusts every certificate that its key signs, so the name limit protects only
-    while the key stays off every device. The menu names below are not verified on every phone.
-    - iPhone: open the file, allow the profile, then install it in Settings, General, VPN & Device Management. Then
-      turn it on in Settings, General, About, Certificate Trust Settings. To remove it, delete the profile in the
-      same place.
-    - Android: Settings, Security (or Security & privacy), More security settings, Encryption & credentials, Install
-      a certificate, CA certificate. To remove it, use Settings, Encryption & credentials, Trusted credentials, User.
+An earlier design of this section used Technitium DNS Server and an own issuer of certificates
+(`CN=local home issuer`). Remove them. The check `own-issuer-absent` fails until you do.
 
-    Turn "Private DNS" (Android) or any DNS profile (iOS) off, or set it to automatic. Then open the address of
-    `LOOPS_PUBLIC_URL`.
+```powershell
+certutil -user -delstore Root "local home issuer"
+Remove-Item -Recurse -Force "$env:LOCALAPPDATA\castraferrum\tls"
+Remove-NetFirewallRule -DisplayName "Castraferrum DNS"
+```
+
+Uninstall Technitium DNS Server in Windows Settings, Apps. Then set the DNS servers of the PC as in step 4, because the
+Technitium installer set them to `127.0.0.1` and `::1`. Also remove the DNS server that you gave in the DHCP settings of
+the router.
 
 ## Configuration
 
@@ -277,7 +270,7 @@ parallel on one container if each one sets its own `LOOPS_TEST_DATABASE_URL` and
 |---|---|
 | `node scripts/logon-task.mjs [--console-dir <abs>] [--port 7070] [--task-name Castraferrum] [--out <file>]` | Prints Windows Task Scheduler XML that starts the console at log-on. With `--out` it writes the XML file and prints the one `schtasks /Create` line for you to run. The script never installs the task. |
 | `node scripts/merge-audit.mjs -R <owner/name> --since <ISO date> [--json]` | Lists each PR merged since the date whose head commit has no `castraferrum/gate` status of `success`. Writes nothing to GitHub. Exit 0: none. Exit 1: incidents. Exit 2: a bad argument or a failed `gh` call. |
-| `npm run local-name:check -- [--pc-ip=<address>] [--nginx-conf=<path>] [--name=<name>] [--limit=<name>] [--ca=<path>]` | Tests the local name chain on this PC: DNS, nginx, TLS, the name limit of the issuer, the absence of the issuer key, redirect, live updates, port 7070. The name is the host of `LOOPS_PUBLIC_URL` (`--name` replaces it), the limit is `LOCAL_NAME_LIMIT` (`--limit`), the issuer file is `%LOCALAPPDATA%\castraferrum\tls\local-ca.pem` (`--ca`). Prints `PASS` or `FAIL <id>: <reason>` for 10 checks and `local name: <n>/10 checks pass`. Exit 0 only when all 10 pass. It only reads; it changes no setting. |
+| `npm run local-name:check -- [--pc-ip=<address>] [--nginx=<path>] [--nginx-conf=<path>] [--name=<name>] [--public-dns=<address>]` | Tests the local name chain on this PC: the public DNS record, the DNS servers of the PC, nginx, TLS, the Let's Encrypt certificate and its age, the absence of the old own issuer, redirect, live updates, port 7070. The name is the host of `LOOPS_PUBLIC_URL` (`--name` replaces it); the public DNS server is `1.1.1.1` (`--public-dns` replaces it). Prints `PASS` or `FAIL <id>: <reason>` for 10 checks and `local name: <n>/10 checks pass`. Exit 0 only when all 10 pass. It only reads; it changes no setting. |
 
 ## Documentation
 

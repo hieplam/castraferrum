@@ -1,45 +1,58 @@
-// The local-name check tool (phase 3, task N0): every check passes with good fakes, and each failure case fails its own check.
-import { describe, expect, it } from 'vitest';
-import { CHECK_IDS, nameFromUrl, parseNameLimit, pcIpFrom, runChecks } from '../../scripts/local-name-check.mjs';
+// The local-name check tool (phase 3, tasks N0 and N6): every check passes with good fakes, and each failure case fails its own check.
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import tls from 'node:tls';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { CHECK_IDS, nameFromUrl, pcIpFrom, peerCert, runChecks, serverAddress, tlsVerify } from '../../scripts/local-name-check.mjs';
 
 const IP = '192.168.1.50';
-const NAME = 'castra.home.arpa';
-const CA_TEXT = `Certificate:
-        X509v3 extensions:
-            X509v3 Basic Constraints: critical
-                CA:TRUE, pathlen:0
-            X509v3 Name Constraints: critical
-                Permitted:
-                  DNS:castra.home.arpa
-            X509v3 Subject Key Identifier:
-                AB:CD
-`;
+const NAME = 'castra.example.com';
 const NGINX_OK = { code: 0, stdout: '', stderr: 'nginx: the configuration file x syntax is ok\nnginx: configuration file x test is successful\n' };
+const DAY = 86_400_000;
+const FROM = Date.parse('2026-11-20T00:00:00Z');
+const LIFETIME = 90 * DAY;
+const SERIAL = '04A1B2C3D4';
+
+/** A certificate object like `getPeerCertificate()`, `age` is the part of the lifetime that has passed. */
+function cert(over: Record<string, unknown> = {}) {
+  return {
+    issuer: { O: "Let's Encrypt", CN: 'R11' },
+    subjectaltname: `DNS:${NAME}`,
+    valid_from: new Date(FROM).toUTCString(),
+    valid_to: new Date(FROM + LIFETIME).toUTCString(),
+    serialNumber: SERIAL,
+    ...over,
+  };
+}
+const at = (age: number) => () => FROM + age * LIFETIME;
+const INFO = `serial ${SERIAL}, valid ${cert().valid_from} to ${cert().valid_to}`;
+
+type Call = { url: string; method?: string };
+const HEALTHY_HTTP = async ({ url, method }: Call) => {
+  if (url.startsWith('http://')) return { status: 301, headers: { location: `https://${NAME}/x` } };
+  if (method === 'POST') return { status: 200, headers: { 'set-cookie': ['castra_session=abc; Path=/; HttpOnly'] } };
+  return { status: 200, headers: {} };
+};
+const PS_EMPTY = { code: 0, stdout: '', stderr: '' };
 
 /** Fakes that make all 10 checks pass. A test overrides one function. */
 function good(over: Record<string, unknown> = {}) {
   return {
     pcIp: IP,
-    env: { LOOPS_USERNAME: 'u', LOOPS_PASSWORD: 'p', LOOPS_PUBLIC_URL: `https://${NAME}`, LOCAL_NAME_LIMIT: NAME },
-    caPath: 'C:/tls/local-ca.pem',
-    caText: async () => CA_TEXT,
-    listTls: async () => [
-      { name: 'local-ca.pem', privateKey: false },
-      { name: `${NAME}.pem`, privateKey: false },
-      { name: `${NAME}-key.pem`, privateKey: true },
-    ],
+    env: { LOOPS_USERNAME: 'u', LOOPS_PASSWORD: 'p', LOOPS_PUBLIC_URL: `https://${NAME}` },
+    oldTlsDir: 'C:/old/tls',
+    listFolder: async () => [] as string[],
     limitMs: 1000,
     nginxConf: 'C:/nginx/conf/nginx.conf',
+    now: at(0.5),
     dnsQuery: async () => [IP],
     dnsServers: async () => [IP],
-    exec: async () => NGINX_OK,
-    readFile: () => Buffer.from('PEM'),
+    exec: async (cmd: string) => (cmd === 'powershell.exe' ? PS_EMPTY : NGINX_OK),
     tlsVerify: async () => ({ authorized: true }),
-    http: async ({ url, method }: { url: string; method?: string }) => {
-      if (url.startsWith('http://')) return { status: 301, headers: { location: 'https://castra.home.arpa/x' } };
-      if (method === 'POST') return { status: 200, headers: { 'set-cookie': ['castra_session=abc; Path=/; HttpOnly'] } };
-      return { status: 200, headers: {} };
-    },
+    peerCert: async () => cert(),
+    http: HEALTHY_HTTP,
     sseLines: async () => [':ok', ':ping'],
     tcp: async (host: string) => host === '127.0.0.1',
     ...over,
@@ -58,73 +71,121 @@ async function failing(over: Record<string, unknown>, id: string, failures = 1) 
 describe('local-name-check runChecks', () => {
   it('prints 10 PASS lines in order, the total line and exit 0 when all fakes are good', async () => {
     const r = await runChecks(good());
-    expect(r.lines).toEqual([...CHECK_IDS.map((id) => `PASS ${id}`), 'local name: 10/10 checks pass']);
-    expect(CHECK_IDS).toEqual(['dns-direct', 'dns-system', 'dns-only-pc', 'nginx-test', 'tls', 'ca-name-limit', 'ca-key-absent', 'redirect', 'sse', 'port-closed']);
+    expect(CHECK_IDS).toEqual(['dns-public', 'dns-pc-servers', 'dns-system', 'nginx-test', 'tls', 'cert-issuer', 'own-issuer-absent', 'redirect', 'sse', 'port-closed']);
+    expect(r.lines).toEqual([...CHECK_IDS.map((id) => (id === 'cert-issuer' ? `PASS cert-issuer ${INFO}` : `PASS ${id}`)), 'local name: 10/10 checks pass']);
     expect(r.exitCode).toBe(0);
   });
 
-  it('asks the PC directly and the system resolver 20 times', async () => {
+  it('asks the public server 1.1.1.1, each DNS server of the PC and the system resolver 20 times', async () => {
     const asked: Array<string | null> = [];
     await runChecks(good({ dnsQuery: async (s: string | null) => (asked.push(s), [IP]) }));
-    expect(asked.filter((s) => s === IP)).toHaveLength(1);
+    expect(asked.filter((s) => s === '1.1.1.1:53')).toHaveLength(1);
+    expect(asked.filter((s) => s === `${IP}:53`)).toHaveLength(1);
     expect(asked.filter((s) => s === null)).toHaveLength(20);
   });
 
-  it('fails dns-direct when the PC answers another address', async () => {
-    await failing({ dnsQuery: async (s: string | null) => (s === IP ? ['1.1.1.1'] : [IP]) }, 'dns-direct');
+  it('asks the server of --public-dns instead of 1.1.1.1', async () => {
+    const asked: Array<string | null> = [];
+    await runChecks(good({ publicDns: '9.9.9.9', dnsQuery: async (s: string | null) => (asked.push(s), [IP]) }));
+    expect(asked).toContain('9.9.9.9:53');
+    expect(asked).not.toContain('1.1.1.1:53');
   });
 
-  it('fails dns-system when the resolver answers 1.1.1.1 once in 20', async () => {
+  it('fails dns-public with both addresses when the public server answers another address', async () => {
+    const r = await failing({ dnsQuery: async (s: string | null) => (s === '1.1.1.1:53' ? ['203.0.113.9'] : [IP]) }, 'dns-public');
+    expect(r.lines).toContain(`FAIL dns-public: 1.1.1.1 answered 203.0.113.9, expected ${IP}`);
+  });
+
+  it('fails dns-public on an empty answer and on a resolver error', async () => {
+    await failing({ dnsQuery: async (s: string | null) => (s === '1.1.1.1:53' ? [] : [IP]) }, 'dns-public');
+    await failing({ dnsQuery: async (s: string | null) => { if (s === '1.1.1.1:53') throw new Error('ETIMEOUT'); return [IP]; } }, 'dns-public');
+  });
+
+  it('fails dns-pc-servers and names the IPv6 server with an empty answer, written as [address]:53', async () => {
+    const asked: Array<string | null> = [];
+    const r = await failing(
+      {
+        dnsServers: async () => ['192.0.2.53', 'fd00::53'],
+        dnsQuery: async (s: string | null) => {
+          asked.push(s);
+          if (s === '[fd00::53]:53') return [];
+          return [IP];
+        },
+      },
+      'dns-pc-servers',
+    );
+    expect(asked).toContain('[fd00::53]:53');
+    expect(asked).toContain('192.0.2.53:53');
+    const line = r.lines.find((l: string) => l.startsWith('FAIL'))!;
+    expect(line).toContain('fd00::53 gave an empty answer');
+    expect(line).not.toContain('192.0.2.53 gave');
+  });
+
+  it('fails dns-pc-servers for each server that gives another answer, and when the adapter lists none', async () => {
+    const r = await failing({ dnsServers: async () => ['192.0.2.53', '192.0.2.54'], dnsQuery: async (s: string | null) => (s?.startsWith('192.0.2') ? ['203.0.113.9'] : [IP]) }, 'dns-pc-servers');
+    const line = r.lines.find((l: string) => l.startsWith('FAIL'))!;
+    expect(line).toContain('192.0.2.53 gave 203.0.113.9');
+    expect(line).toContain('192.0.2.54 gave 203.0.113.9');
+    await failing({ dnsServers: async () => [] }, 'dns-pc-servers');
+  });
+
+  it('writes an IPv6 server as [address]:53 and an IPv4 server as address:53', () => {
+    expect(serverAddress('2606:4700:4700::1111')).toBe('[2606:4700:4700::1111]:53');
+    expect(serverAddress('1.0.0.1')).toBe('1.0.0.1:53');
+  });
+
+  it('fails dns-system when the resolver answers another address once in 20, and when it throws ENOTFOUND', async () => {
     let n = 0;
     await failing({ dnsQuery: async (s: string | null) => (s === null && ++n === 7 ? ['1.1.1.1'] : [IP]) }, 'dns-system');
-  });
-
-  it('fails dns-system when the resolver throws ENOTFOUND', async () => {
     await failing({ dnsQuery: async (s: string | null) => { if (s === null) throw new Error('ENOTFOUND'); return [IP]; } }, 'dns-system');
   });
 
-  it('fails dns-only-pc with two DNS servers, and with a server other than the PC', async () => {
-    await failing({ dnsServers: async () => [IP, '1.1.1.1'] }, 'dns-only-pc');
-    await failing({ dnsServers: async () => ['192.168.1.1'] }, 'dns-only-pc');
-  });
-
   it('fails nginx-test with "nginx not found" when nginx is missing, and when the test is not successful', async () => {
-    const r = await failing({ exec: async () => ({ notFound: true, code: -1, stdout: '', stderr: 'ENOENT' }) }, 'nginx-test');
+    const missing = { notFound: true, code: -1, stdout: '', stderr: 'ENOENT' };
+    const r = await failing({ exec: async (c: string) => (c === 'powershell.exe' ? PS_EMPTY : missing) }, 'nginx-test');
     expect(r.lines).toContain('FAIL nginx-test: nginx not found');
-    await failing({ exec: async () => ({ code: 1, stdout: '', stderr: 'nginx: [emerg] unknown directive' }) }, 'nginx-test');
+    await failing({ exec: async (c: string) => (c === 'powershell.exe' ? PS_EMPTY : { code: 1, stdout: '', stderr: 'nginx: [emerg] unknown directive' }) }, 'nginx-test');
   });
 
   it('passes the deployed config path to nginx -t', async () => {
     const calls: string[][] = [];
-    await runChecks(good({ nginxConf: 'D:/x/nginx.conf', exec: async (c: string, a: string[]) => (calls.push([c, ...a]), NGINX_OK) }));
+    await runChecks(good({ nginxConf: 'D:/x/nginx.conf', exec: async (c: string, a: string[]) => (calls.push([c, ...a]), c === 'powershell.exe' ? PS_EMPTY : NGINX_OK) }));
     expect(calls).toContainEqual(['nginx', '-t', '-c', 'D:/x/nginx.conf']);
   });
 
   it('runs a given nginx program with its own folder as the prefix, so nginx finds logs/ there and not in the current folder', async () => {
     const calls: string[][] = [];
-    await runChecks(good({ nginx: 'D:/web/nginx/nginx.exe', nginxConf: 'D:/web/nginx/conf/site.conf', exec: async (c: string, a: string[]) => (calls.push([c, ...a]), NGINX_OK) }));
+    await runChecks(good({ nginx: 'D:/web/nginx/nginx.exe', nginxConf: 'D:/web/nginx/conf/site.conf', exec: async (c: string, a: string[]) => (calls.push([c, ...a]), c === 'powershell.exe' ? PS_EMPTY : NGINX_OK) }));
     expect(calls).toContainEqual(['D:/web/nginx/nginx.exe', '-t', '-p', 'D:/web/nginx/', '-c', 'D:/web/nginx/conf/site.conf']);
   });
 
-  it('fails tls when local-ca.pem cannot be read', async () => {
-    const r = await failing({ readFile: () => { throw new Error('ENOENT'); } }, 'tls', 2); // sse needs the CA too
-    expect(r.lines).toContain('FAIL tls: cannot read C:/tls/local-ca.pem: ENOENT');
+  it('gives no ca option to any TLS or HTTPS connection', async () => {
+    const seen: unknown[][] = [];
+    const rec = <T>(f: (...a: never[]) => Promise<T>) => async (...a: unknown[]) => (seen.push(a), (f as (...x: unknown[]) => Promise<T>)(...a));
+    await runChecks(
+      good({
+        tlsVerify: rec(async () => ({ authorized: true })),
+        peerCert: rec(async () => cert()),
+        http: rec(HEALTHY_HTTP as never),
+        sseLines: rec(async () => [':ok', ':ping']),
+      }),
+    );
+    expect(seen.length).toBe(6);
+    for (const args of seen) {
+      for (const a of args) if (a && typeof a === 'object') expect(Object.keys(a)).not.toContain('ca');
+      expect(args.length).toBeLessThanOrEqual(2);
+    }
+    expect(JSON.stringify(seen)).not.toMatch(/local-ca|\.pem/);
   });
 
-  it('verifies against the local-ca.pem path, not a mkcert folder', async () => {
-    const read: string[] = [];
-    await runChecks(good({ readFile: (p: string) => (read.push(p), Buffer.from('PEM')) }));
-    expect(new Set(read)).toEqual(new Set(['C:/tls/local-ca.pem']));
-  });
-
-  it('fails tls when the CA did not sign the certificate, and when /api/health is not 200', async () => {
-    await failing({ tlsVerify: async () => ({ authorized: false, error: 'SELF_SIGNED_CERT_IN_CHAIN' }) }, 'tls');
-    await failing({ http: async ({ url, method }: { url: string; method?: string }) => (url.endsWith('/api/health') ? { status: 502, headers: {} } : good().http({ url, method })) }, 'tls');
+  it('fails tls when the certificate is not trusted, and when /api/health is not 200', async () => {
+    await failing({ tlsVerify: async () => ({ authorized: false, error: 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY' }) }, 'tls');
+    await failing({ http: async ({ url, method }: Call) => (url.endsWith('/api/health') ? { status: 502, headers: {} } : HEALTHY_HTTP({ url, method })) }, 'tls');
   });
 
   it('fails redirect on a wrong status and on a wrong Location', async () => {
-    await failing({ http: async ({ url, method }: { url: string; method?: string }) => (url.startsWith('http://') ? { status: 302, headers: { location: 'https://castra.home.arpa/x' } } : good().http({ url, method })) }, 'redirect');
-    await failing({ http: async ({ url, method }: { url: string; method?: string }) => (url.startsWith('http://') ? { status: 301, headers: { location: 'https://castra.home.arpa/' } } : good().http({ url, method })) }, 'redirect');
+    await failing({ http: async ({ url, method }: Call) => (url.startsWith('http://') ? { status: 302, headers: { location: `https://${NAME}/x` } } : HEALTHY_HTTP({ url, method })) }, 'redirect');
+    await failing({ http: async ({ url, method }: Call) => (url.startsWith('http://') ? { status: 301, headers: { location: `https://${NAME}/` } } : HEALTHY_HTTP({ url, method })) }, 'redirect');
   });
 
   it('fails sse without :ping, after the 20 seconds that it asked for', async () => {
@@ -134,9 +195,9 @@ describe('local-name-check runChecks', () => {
   });
 
   it('fails sse when the credentials are missing, the sign-in is refused, or no cookie comes back', async () => {
-    await failing({ env: { LOOPS_PUBLIC_URL: `https://${NAME}`, LOCAL_NAME_LIMIT: NAME } }, 'sse');
-    await failing({ http: async ({ url, method }: { url: string; method?: string }) => (method === 'POST' ? { status: 401, headers: {} } : good().http({ url, method })) }, 'sse');
-    await failing({ http: async ({ url, method }: { url: string; method?: string }) => (method === 'POST' ? { status: 200, headers: {} } : good().http({ url, method })) }, 'sse');
+    await failing({ env: { LOOPS_PUBLIC_URL: `https://${NAME}` } }, 'sse');
+    await failing({ http: async ({ url, method }: Call) => (method === 'POST' ? { status: 401, headers: {} } : HEALTHY_HTTP({ url, method })) }, 'sse');
+    await failing({ http: async ({ url, method }: Call) => (method === 'POST' ? { status: 200, headers: {} } : HEALTHY_HTTP({ url, method })) }, 'sse');
   });
 
   it('sends the sign-in cookie to the event stream', async () => {
@@ -152,7 +213,7 @@ describe('local-name-check runChecks', () => {
 
   it('fails a check that does not answer within its limit', async () => {
     const r = await runChecks(good({ limitMs: 20, dnsServers: () => new Promise(() => {}) }));
-    expect(r.lines).toContain('FAIL dns-only-pc: no answer within 0.02 s');
+    expect(r.lines).toContain('FAIL dns-pc-servers: no answer within 0.02 s');
     expect(r.lines.at(-1)).toBe('local name: 9/10 checks pass');
   });
 
@@ -164,72 +225,89 @@ describe('local-name-check runChecks', () => {
   });
 });
 
-describe('local-name-check name and issuer checks', () => {
+describe('local-name-check cert-issuer', () => {
+  it('fails when the issuer organization is not Let\'s Encrypt', async () => {
+    const r = await failing({ peerCert: async () => cert({ issuer: { O: 'Some Other CA' } }) }, 'cert-issuer');
+    expect(r.lines.find((l: string) => l.startsWith('FAIL'))).toContain('Some Other CA');
+  });
+
+  it('fails when the name is not in the subject alternative names', async () => {
+    await failing({ peerCert: async () => cert({ subjectaltname: 'DNS:other.example.com' }) }, 'cert-issuer');
+    await failing({ peerCert: async () => cert({ subjectaltname: undefined }) }, 'cert-issuer');
+  });
+
+  it('fails at 80 % of the lifetime and passes at 50 %, with the serial number in both lines', async () => {
+    const old = await failing({ now: at(0.8) }, 'cert-issuer');
+    expect(old.lines.find((l: string) => l.startsWith('FAIL'))).toContain(`serial ${SERIAL}`);
+    const ok = await runChecks(good({ now: at(0.5) }));
+    expect(ok.lines).toContain(`PASS cert-issuer ${INFO}`);
+  });
+
+  it('fails a certificate that is expired or not valid yet', async () => {
+    await failing({ now: at(1.2) }, 'cert-issuer');
+    await failing({ now: at(-0.1) }, 'cert-issuer');
+  });
+
+  it('fails with the reason when the certificate cannot be read', async () => {
+    const r = await failing({ peerCert: async () => { throw new Error('ECONNREFUSED'); } }, 'cert-issuer');
+    expect(r.lines.find((l: string) => l.startsWith('FAIL'))).toContain('ECONNREFUSED');
+  });
+});
+
+describe('local-name-check own-issuer-absent', () => {
+  it('fails when a Root store holds the certificate CN=local home issuer', async () => {
+    const calls: string[][] = [];
+    const r = await failing(
+      { exec: async (c: string, a: string[]) => (c === 'powershell.exe' ? (calls.push(a), { code: 0, stdout: 'CurrentUser\\Root AB12CD\r\n', stderr: '' }) : NGINX_OK) },
+      'own-issuer-absent',
+    );
+    expect(r.lines.find((l: string) => l.startsWith('FAIL'))).toContain('AB12CD');
+    const script = calls[0]!.join(' ');
+    expect(script).toContain('CN=local home issuer');
+    expect(script).toContain('Cert:\\CurrentUser\\Root');
+    expect(script).toContain('Cert:\\LocalMachine\\Root');
+  });
+
+  it('fails when the old tls folder holds a file, and passes when it is empty or missing', async () => {
+    const r = await failing({ listFolder: async () => ['local-ca.pem'] }, 'own-issuer-absent');
+    expect(r.lines.find((l: string) => l.startsWith('FAIL'))).toContain('local-ca.pem');
+    const ok = await runChecks(good({ listFolder: async () => [] }));
+    expect(ok.lines).toContain('PASS own-issuer-absent');
+  });
+
+  it('fails with the reason when PowerShell is missing or fails', async () => {
+    await failing({ exec: async (c: string) => (c === 'powershell.exe' ? { notFound: true, code: -1, stdout: '', stderr: 'ENOENT' } : NGINX_OK) }, 'own-issuer-absent');
+    await failing({ exec: async (c: string) => (c === 'powershell.exe' ? { code: 1, stdout: '', stderr: 'access denied' } : NGINX_OK) }, 'own-issuer-absent');
+  });
+});
+
+describe('local-name-check name checks', () => {
   it('takes the name from the host of LOOPS_PUBLIC_URL and asks DNS for it', async () => {
     const asked: string[] = [];
-    await runChecks(good({ env: { LOOPS_PUBLIC_URL: 'https://box.home.arpa/', LOCAL_NAME_LIMIT: 'home.arpa', LOOPS_USERNAME: 'u', LOOPS_PASSWORD: 'p' }, dnsQuery: async (_s: string | null, n: string) => (asked.push(n), [IP]) }));
-    expect(new Set(asked)).toEqual(new Set(['box.home.arpa']));
+    await runChecks(good({ env: { LOOPS_PUBLIC_URL: 'https://box.example.com/', LOOPS_USERNAME: 'u', LOOPS_PASSWORD: 'p' }, dnsQuery: async (_s: string | null, n: string) => (asked.push(n), [IP]) }));
+    expect(new Set(asked)).toEqual(new Set(['box.example.com']));
   });
 
   it('lets --name replace the name of LOOPS_PUBLIC_URL', async () => {
     const asked: string[] = [];
-    await runChecks(good({ name: 'other.home.arpa', dnsQuery: async (_s: string | null, n: string) => (asked.push(n), [IP]) }));
-    expect(new Set(asked)).toEqual(new Set(['other.home.arpa']));
+    await runChecks(good({ name: 'other.example.com', dnsQuery: async (_s: string | null, n: string) => (asked.push(n), [IP]) }));
+    expect(new Set(asked)).toEqual(new Set(['other.example.com']));
   });
 
   it('fails the checks that need the name, with the reason, when LOOPS_PUBLIC_URL is missing', async () => {
-    const r = await runChecks(good({ env: { LOOPS_USERNAME: 'u', LOOPS_PASSWORD: 'p', LOCAL_NAME_LIMIT: NAME } }));
+    const r = await runChecks(good({ env: { LOOPS_USERNAME: 'u', LOOPS_PASSWORD: 'p' } }));
     const fails = r.lines.filter((l: string) => l.startsWith('FAIL'));
-    expect(fails.map((l: string) => l.split(':')[0])).toEqual(['FAIL dns-direct', 'FAIL dns-system', 'FAIL tls', 'FAIL ca-key-absent', 'FAIL redirect', 'FAIL sse']);
+    expect(fails.map((l: string) => l.split(':')[0])).toEqual(['FAIL dns-public', 'FAIL dns-pc-servers', 'FAIL dns-system', 'FAIL tls', 'FAIL cert-issuer', 'FAIL redirect', 'FAIL sse']);
     for (const l of fails) expect(l).toContain('LOOPS_PUBLIC_URL');
     expect(r.exitCode).toBe(1);
   });
-
-  it('fails ca-name-limit with the reason when LOCAL_NAME_LIMIT is missing', async () => {
-    const r = await failing({ env: { LOOPS_USERNAME: 'u', LOOPS_PASSWORD: 'p', LOOPS_PUBLIC_URL: `https://${NAME}` } }, 'ca-name-limit');
-    expect(r.lines.find((l: string) => l.startsWith('FAIL'))).toContain('LOCAL_NAME_LIMIT');
-  });
-
-  it('fails ca-name-limit when local-ca.pem has no name limit', async () => {
-    const r = await failing({ caText: async () => CA_TEXT.replace(/ {12}X509v3 Name Constraints[\s\S]*?DNS:castra.home.arpa\n/, '') }, 'ca-name-limit');
-    expect(r.lines).toContain('FAIL ca-name-limit: C:/tls/local-ca.pem has no name limit: an issuer without it can sign any name');
-  });
-
-  it('fails ca-name-limit when the limit is not critical, or is another name', async () => {
-    await failing({ caText: async () => CA_TEXT.replace('Name Constraints: critical', 'Name Constraints:') }, 'ca-name-limit');
-    await failing({ caText: async () => CA_TEXT.replace('DNS:castra.home.arpa', 'DNS:example.org') }, 'ca-name-limit');
-  });
-
-  it('fails ca-name-limit when openssl cannot read the issuer', async () => {
-    await failing({ caText: async () => { throw new Error('openssl not found'); } }, 'ca-name-limit');
-  });
-
-  it('fails ca-key-absent when local-ca-key.pem is in the tls folder', async () => {
-    const r = await failing({ listTls: async () => [{ name: 'local-ca-key.pem', privateKey: true }, { name: `${NAME}-key.pem`, privateKey: true }] }, 'ca-key-absent');
-    expect(r.lines.find((l: string) => l.startsWith('FAIL'))).toContain('local-ca-key.pem is in C:/tls');
-  });
-
-  it('fails ca-key-absent when another file holds a private key, but not for the server key', async () => {
-    const r = await failing({ listTls: async () => [{ name: 'backup.pem', privateKey: true }, { name: `${NAME}-key.pem`, privateKey: true }] }, 'ca-key-absent');
-    expect(r.lines.find((l: string) => l.startsWith('FAIL'))).toContain('backup.pem');
-    expect(r.lines.find((l: string) => l.startsWith('FAIL'))).not.toContain(`${NAME}-key.pem,`);
-  });
-
-  it('fails ca-key-absent when the tls folder cannot be listed', async () => {
-    await failing({ listTls: async () => { throw new Error('cannot read C:/tls: ENOENT'); } }, 'ca-key-absent');
-  });
 });
 
-describe('nameFromUrl and parseNameLimit', () => {
+describe('nameFromUrl', () => {
   it('reads the host of the public address', () => {
-    expect(nameFromUrl('https://castra.home.arpa')).toBe('castra.home.arpa');
+    expect(nameFromUrl(`https://${NAME}`)).toBe(NAME);
     expect(() => nameFromUrl(undefined)).toThrow(/LOOPS_PUBLIC_URL/);
     expect(() => nameFromUrl('not a url')).toThrow(/not a URL/);
-  });
-
-  it('reads the permitted names of openssl output', () => {
-    expect(parseNameLimit(CA_TEXT)).toEqual({ present: true, critical: true, permitted: ['castra.home.arpa'] });
-    expect(parseNameLimit('X509v3 Basic Constraints: critical\n  CA:TRUE')).toEqual({ present: false, critical: false, permitted: [] });
   });
 });
 
@@ -247,5 +325,55 @@ describe('pcIpFrom', () => {
   it('falls back to a virtual address, and gives undefined when there is none', () => {
     expect(pcIpFrom({ 'vEthernet (WSL)': [nic('172.20.0.1')] } as never)).toBe('172.20.0.1');
     expect(pcIpFrom({} as never)).toBeUndefined();
+  });
+});
+
+// The real TLS functions against a local TLS server with a throwaway self-signed certificate.
+const WIN_OPENSSL = 'C:/Program Files/Git/usr/bin/openssl.exe';
+function findOpenssl(): string | undefined {
+  try {
+    execFileSync('openssl', ['version'], { stdio: 'ignore' });
+    return 'openssl';
+  } catch {
+    return existsSync(WIN_OPENSSL) ? WIN_OPENSSL : undefined;
+  }
+}
+const OPENSSL = findOpenssl();
+
+describe.skipIf(!OPENSSL)('the real TLS functions against a self-signed certificate', () => {
+  let dir: string;
+  let server: tls.Server;
+  let port: number;
+  beforeAll(async () => {
+    dir = mkdtempSync(join(tmpdir(), 'local-name-tls-'));
+    const subj = '/O=Test Org/CN=localhost';
+    execFileSync(OPENSSL!, ['req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256', '-nodes', '-keyout', 'k.pem', '-out', 'c.pem', '-days', '30', '-subj', subj], { cwd: dir, stdio: 'ignore' });
+    server = tls.createServer({ cert: readFileSync(join(dir, 'c.pem')), key: readFileSync(join(dir, 'k.pem')) }, (s) => s.end());
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    port = (server.address() as { port: number }).port;
+  });
+  afterAll(async () => {
+    await new Promise<void>((r) => server.close(() => r()));
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('tlsVerify gives authorized false with the error code of an untrusted certificate', async () => {
+    const v = await tlsVerify('127.0.0.1', port);
+    expect(v.authorized).toBe(false);
+    expect(v.error).toBe('DEPTH_ZERO_SELF_SIGNED_CERT');
+  });
+
+  it('a run with the real tlsVerify gives FAIL tls', async () => {
+    const r = await runChecks(good({ name: '127.0.0.1', tlsVerify: (h: string) => tlsVerify(h, port) }));
+    expect(r.lines).toContain('FAIL tls: certificate not trusted: DEPTH_ZERO_SELF_SIGNED_CERT');
+  });
+
+  it('peerCert reads the certificate although it is untrusted, so cert-issuer can name the issuer', async () => {
+    const c = await peerCert('127.0.0.1', port);
+    expect(c.issuer.O).toBe('Test Org');
+    expect(typeof c.serialNumber).toBe('string');
+    expect(c.valid_from).toBeTruthy();
+    const r = await runChecks(good({ name: 'localhost', peerCert: () => peerCert('127.0.0.1', port), now: () => Date.now() }));
+    expect(r.lines.find((l: string) => l.startsWith('FAIL cert-issuer'))).toContain('the issuer organization is Test Org');
   });
 });
