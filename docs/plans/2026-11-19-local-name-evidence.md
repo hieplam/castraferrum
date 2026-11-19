@@ -1,5 +1,88 @@
 # Evidence: a local name and HTTPS on the home network (phase 3)
 
+## N0
+
+Base: `main` 3ecf528. Commands and literal output only. The real PC address and router addresses are replaced by
+`<pc-ip>`, `<router-ip>` and `<router-ipv6>`, because the repository never holds them. The Playwright output has two
+non-ASCII separator characters. They are written here as `>` and `-`.
+
+### Baseline: `npm run verify` on `main` 3ecf528, without the change
+
+Exit 1. Counts: unit 1412 passed, 3 skipped (102 files); contract 276 passed; api 467 passed, 2 skipped (44 files);
+e2e `195 passed`. Every step that ran, except the e2e step, is green. The failure list (the literal lines):
+
+```
+  2 failed
+    [visual] > tests\visual\ds\signin.visual.ts:106:3 > desktop sign-in against the preview > signed in: the user and Sign out in the top bar
+    [visual] > tests\visual\ds\signin.visual.ts:128:3 > phone sign-in against the preview > signed in: the Account group of Settings
+  2 did not run
+  195 passed (16.4m)
+EXIT=1
+```
+
+The two failures are 0.7 to 0.96 % of pixels off (for example `signin-topbar-light - top bar: 0.96 % off (775/80640 px)`).
+They fail on `main` without any change, and again when run alone
+(`npx playwright test --project=visual tests/visual/ds/signin.visual.ts`: `2 failed`, `2 did not run`). Issue 475 tracks them
+and blocks task N4, not this task. Because `verify` joins its steps with `&&`, `phone:check` and `uc-coverage` do not run
+after the e2e failure.
+
+### After: `npm run verify` with this change
+
+Exit 1, with the same two failures and nothing else. Unit 1431 passed, 3 skipped (103 files; baseline 1412, 102 files).
+Contract 276 passed; api 467 passed, 2 skipped.
+
+```
+  2 failed
+    [visual] > tests\visual\ds\signin.visual.ts:106:3 > desktop sign-in against the preview > signed in: the user and Sign out in the top bar
+    [visual] > tests\visual\ds\signin.visual.ts:128:3 > phone sign-in against the preview > signed in: the Account group of Settings
+  2 did not run
+  195 passed (18.0m)
+EXIT=1
+```
+
+### Red
+
+`npx vitest run --project unit tests/tools/local-name-check.test.ts` with no `scripts/local-name-check.mjs`:
+
+```
+ Test Files  1 failed (1)
+      Tests  no tests
+```
+
+### Green
+
+`npx vitest run --project unit tests/tools/local-name-check.test.ts`:
+
+```
+ Test Files  1 passed (1)
+      Tests  19 passed (19)
+```
+
+### Stub check
+
+A module that always returns `8/8` (`runChecks` gives 8 `PASS` lines and exit 0):
+
+```
+      Tests  18 failed | 1 passed (19)
+```
+
+### Ratchet: `npm run local-name:check` on the owner's PC (nothing of the setup is installed, the console is stopped)
+
+```
+FAIL dns-direct: queryA ECONNREFUSED castra.home.arpa
+FAIL dns-system: 20 of 20 answers were not <pc-ip> (first: error getaddrinfo ENOTFOUND castra.home.arpa)
+FAIL dns-only-pc: DNS servers are [<router-ip>, <router-ipv6>, <router-ipv6>], expected only <pc-ip>
+FAIL nginx-test: nginx not found
+FAIL tls: mkcert not found
+FAIL redirect: getaddrinfo ENOTFOUND castra.home.arpa
+FAIL sse: LOOPS_USERNAME or LOOPS_PASSWORD missing in .env
+FAIL port-closed: 127.0.0.1:7070 refuses connections, expected open
+local name: 0/8 checks pass
+EXIT=1
+```
+
+Baseline: `local name: 0/8`. Unit tests: 1412 before, 1431 after.
+
 ## N2
 
 Base: `main` 3ecf528. Commands and literal output only.
