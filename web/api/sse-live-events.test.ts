@@ -164,3 +164,20 @@ describe('SseLiveEvents - log stream', () => {
     expect(s.last().url).toBe('/api/runs/r2/transcript/stream?after=42');
   });
 });
+
+describe('SseLiveEvents - closed while signed out, opened again after sign-in (remote-access task R5)', () => {
+  it('connect() after close() starts afresh: connecting, then open, never a reconnect after a loss', () => {
+    const s = setup();
+    s.live.connect();
+    s.last().fail(); // the stream is refused (401) before the app knows the browser is signed out
+    expect(s.live.connection()).toMatchObject({ status: 'down', attempt: 1 });
+    s.live.close();
+    expect(s.last().closed).toBe(true);
+
+    s.live.connect();
+    expect(s.live.connection().status).toBe('connecting');
+    expect(s.sources).toHaveLength(2);
+    s.last().open();
+    expect(s.states.map((x) => x.status)).toEqual(['down', 'connecting', 'open']);
+  });
+});

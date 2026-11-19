@@ -36,6 +36,8 @@ export const qk = {
   /** The goal cards of a repo. A new card can arrive at any tick, so the page reads them again every few seconds. */
   goalCards: (repoId: string) => ['goal-cards', repoId] as const,
   health: () => ['health'] as const,
+  /** The sign-in session (web/data/auth.ts) - outside every other prefix: only sign-in, Sign out, a 401 and a lost live connection touch it. */
+  session: () => ['auth', 'session'] as const,
   executors: () => ['executors'] as const,
   schedulePreview: (cron: string, tz: string, lang: string) => ['schedule-preview', cron, tz, lang] as const,
 };

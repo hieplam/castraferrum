@@ -1,6 +1,7 @@
 // HTTP interface of the web (ARCHITECTURE.md section "Web-side layers"): each route of the API table in
 // SPEC-phase-1.md section "API contract" is one function. It only uses the types of shared/contracts - the layers above do not know HTTP exists.
 // Real: http-loops-api.ts (only web/main.tsx creates it); fake for tests: fake-loops-api.ts.
+import type { AuthSessionDto } from '../../shared/contracts/auth';
 import type { ApiErrorCode, ValidationIssueDto } from '../../shared/contracts/common';
 import type { HealthResponse } from '../../shared/contracts/health';
 import type {
@@ -100,6 +101,12 @@ export interface LoopsApi {
   listNotices(): Promise<NoticeDto[]>;
   /** `POST /notices/:id/read`. */
   markNoticeRead(id: string): Promise<void>;
+  /** `GET /auth/session` (remote-access spec D5, public): whether the console asks for sign-in, and whether this browser holds a session. */
+  session(): Promise<AuthSessionDto>;
+  /** `POST /auth/login`: sets the session cookie. Errors: `INVALID_CREDENTIALS`; `TOO_MANY_ATTEMPTS` with `retryAfterSec` (spec D6). */
+  login(username: string, password: string): Promise<void>;
+  /** `POST /auth/logout`: ends the session on the server and clears the cookie. */
+  logout(): Promise<void>;
   /** `/api/health` - also returns on 503 (`{ ok: false, db: 'down' }`); only throws when the server cannot be reached. */
   health(): Promise<HealthResponse>;
 }
@@ -128,6 +135,14 @@ export class ApiError extends Error {
     return Array.isArray(issues) ? (issues as ValidationIssueDto[]) : [];
   }
 
+  /**
+   * `TOO_MANY_ATTEMPTS`: the seconds to wait before the next sign-in attempt (the server's `Retry-After`), else `null`.
+   */
+  get retryAfterSec(): number | null {
+    const sec = (this.details as { retryAfterSec?: unknown } | undefined)?.retryAfterSec;
+    return typeof sec === 'number' && Number.isFinite(sec) && sec > 0 ? sec : null;
+  }
+
   /** First error of a field (`field` = field path, e.g. `name`, `executor.config.durationSec`). */
   issueFor(field: string): ValidationIssueDto | undefined {
     return this.issues.find((i) => i.field === field);
@@ -136,4 +151,12 @@ export class ApiError extends Error {
 
 export function isApiError(err: unknown, code?: UiErrorCode): err is ApiError {
   return err instanceof ApiError && (code === undefined || err.code === code);
+}
+
+/**
+ * The typed error of a call made without a session (remote-access spec D5): every protected route answers 401 `UNAUTHENTICATED`,
+ * and the web goes to the sign-in screen on it (web/data/auth.ts).
+ */
+export function isUnauthenticated(err: unknown): err is ApiError {
+  return isApiError(err, 'UNAUTHENTICATED');
 }

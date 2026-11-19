@@ -1,5 +1,6 @@
 // Router of the new UI (spec section 5): every path of the new screens inside the frame; an unknown path shows MissingRoute
-// (Not found). Only add / change paths here.
+// (Not found). The sign-in screen is the one path outside the frame, and AuthGate guards the frame (remote-access task R5).
+// Only add / change paths here.
 import { Route, Routes } from 'react-router';
 import { EditorRoute } from '../pages/EditorRoute';
 import { GateJobRoute } from '../pages/GateJobRoute';
@@ -16,28 +17,33 @@ import { ReposRoute } from '../pages/ReposRoute';
 import { RunRoute } from '../pages/RunRoute';
 import { ScoreboardRoute } from '../pages/ScoreboardRoute';
 import { SettingsRoute } from '../pages/SettingsRoute';
+import { SignInRoute } from '../pages/SignInRoute';
+import { AuthGate } from './AuthGate';
 import { Frame } from './Frame';
 
 export function AppRoutes() {
   return (
     <Routes>
-      <Route element={<Frame />}>
-        <Route index element={<LoopsRoute />} />
-        <Route path="loops/new" element={<EditorRoute />} />
-        <Route path="loops/:id/edit" element={<EditorRoute />} />
-        <Route path="loops/:id/runs" element={<LoopRunsRoute />} />
-        <Route path="loops/:id/goals" element={<GoalsRoute />} />
-        <Route path="loops/:id/settings" element={<LoopSettingsRoute />} />
-        <Route path="loops/:id" element={<LoopRoute />} />
-        <Route path="executions/:id" element={<PeriodRoute />} />
-        <Route path="runs/:id" element={<RunRoute />} />
-        <Route path="repos" element={<ReposRoute />} />
-        <Route path="repos/:id/gate" element={<GateRoute />} />
-        <Route path="repos/:id/goal-cards" element={<GoalCardsRoute />} />
-        <Route path="repos/:id/gate/jobs/:jobId" element={<GateJobRoute />} />
-        <Route path="settings" element={<SettingsRoute />} />
-        <Route path="scoreboard" element={<ScoreboardRoute />} />
-        <Route path="*" element={<MissingRoute />} />
+      <Route path="signin" element={<SignInRoute />} />
+      <Route element={<AuthGate />}>
+        <Route element={<Frame />}>
+          <Route index element={<LoopsRoute />} />
+          <Route path="loops/new" element={<EditorRoute />} />
+          <Route path="loops/:id/edit" element={<EditorRoute />} />
+          <Route path="loops/:id/runs" element={<LoopRunsRoute />} />
+          <Route path="loops/:id/goals" element={<GoalsRoute />} />
+          <Route path="loops/:id/settings" element={<LoopSettingsRoute />} />
+          <Route path="loops/:id" element={<LoopRoute />} />
+          <Route path="executions/:id" element={<PeriodRoute />} />
+          <Route path="runs/:id" element={<RunRoute />} />
+          <Route path="repos" element={<ReposRoute />} />
+          <Route path="repos/:id/gate" element={<GateRoute />} />
+          <Route path="repos/:id/goal-cards" element={<GoalCardsRoute />} />
+          <Route path="repos/:id/gate/jobs/:jobId" element={<GateJobRoute />} />
+          <Route path="settings" element={<SettingsRoute />} />
+          <Route path="scoreboard" element={<ScoreboardRoute />} />
+          <Route path="*" element={<MissingRoute />} />
+        </Route>
       </Route>
     </Routes>
   );

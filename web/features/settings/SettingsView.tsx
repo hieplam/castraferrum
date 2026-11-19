@@ -1,12 +1,15 @@
 // The Settings page (spec 5.8, `m-settings-light`): Appearance (theme, language), Connection (server, database, console address),
-// This device (Add to Home Screen, phone only) and About (version). Every row is a cell of an inset list.
+// This device (Add to Home Screen, phone only) and About (version). Every row is a cell of an inset list. Signed in on the phone (the
+// phone has no top bar), Account comes first: the signed-in user and Sign out (remote-access task R5).
 import { Link } from 'react-router';
+import { signedInUser, useLogout, useSession } from '../../data/auth';
 import { useSharedServerStatus } from '../../data/connection';
 import { useScoreboard } from '../../data/scoreboard';
 import { MESSAGES, type Lang } from '../../prefs/messages';
 import { usePrefs, useT } from '../../prefs/prefs';
+import { Button } from '../../ui/kit/Button';
 import { FieldCell, Segmented } from '../../ui/kit/Field';
-import { Cell, Group } from '../../ui/kit/Group';
+import { Cell, Group, RowCell } from '../../ui/kit/Group';
 import { Icon } from '../../ui/kit/Icon';
 import { Page, PageHead, useLayout } from '../../ui/kit/Layout';
 
@@ -18,6 +21,8 @@ export function SettingsView() {
   const { lang, themeChoice, setLang, setThemeChoice } = usePrefs();
   const status = useSharedServerStatus();
   const layout = useLayout();
+  const user = signedInUser(useSession().data);
+  const logout = useLogout();
   // The entry to the scoreboard shows only when a cause repeated in the last 30 days: a failed request or no cause hides it.
   const scoreboard = useScoreboard();
   const hasCauses = (scoreboard.data?.figures.causes ?? 0) > 0;
@@ -28,6 +33,18 @@ export function SettingsView() {
   return (
     <Page narrow>
       <PageHead title={t('settings.title')} large />
+      {layout === 'phone' && user !== null ? (
+        <Group caption={t('settings.account')}>
+          <RowCell testId="settings-account">
+            <span className="cell-main">
+              <span className="cell-title is-plain">{t.node('signin.signedInAs', { name: <b>{user}</b> })}</span>
+            </span>
+            <Button data-testid="settings-signout" disabled={logout.isPending} onClick={() => logout.mutate()}>
+              {t('signin.signOut')}
+            </Button>
+          </RowCell>
+        </Group>
+      ) : null}
       <Group caption={t('settings.appearance')}>
         <FieldCell label={t('settings.theme')}>
           <Segmented
