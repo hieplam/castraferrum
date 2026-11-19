@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.14.0](https://github.com/hieplam/castraferrum/compare/v0.13.0...v0.14.0) (2026-11-19)
+
+
+### Features
+
+* **deploy:** nginx config, README section and real e2e for the local name ([#476](https://github.com/hieplam/castraferrum/issues/476)) ([84143cb](https://github.com/hieplam/castraferrum/commit/84143cbfec1188556a3cf2fb1357644e74e6024c))
+* **local-name:** per-machine name and a name-limited issuer (task N5) ([#483](https://github.com/hieplam/castraferrum/issues/483)) ([1c9ab4f](https://github.com/hieplam/castraferrum/commit/1c9ab4f6bea0a492ec57badd64e7fee46060e594))
+* run the console behind a reverse proxy (UC-42) ([#482](https://github.com/hieplam/castraferrum/issues/482)) ([8a9b123](https://github.com/hieplam/castraferrum/commit/8a9b123036bd7c573f901a3b3a7488566e23227b))
+* **tools:** local-name check tool with 8 checks and a baseline ([#480](https://github.com/hieplam/castraferrum/issues/480)) ([81b310d](https://github.com/hieplam/castraferrum/commit/81b310d1f98c1203595bfca30f8b14400930e3cf))
+
+
+### Bug Fixes
+
+* **design:** re-shoot the 20 sign-in shots on the owner's machine ([#484](https://github.com/hieplam/castraferrum/issues/484)) ([d799a21](https://github.com/hieplam/castraferrum/commit/d799a21bed63957ba84d6e857cda04a9439a91d3))
+* **tools:** local-name check runs nginx with its own prefix; README notes from the real setup ([#486](https://github.com/hieplam/castraferrum/issues/486)) ([c5d3f15](https://github.com/hieplam/castraferrum/commit/c5d3f150f6188fc10e563cb8aba1044f64575380))
+
 ## [0.13.0](https://github.com/hieplam/castraferrum/compare/v0.12.1...v0.13.0) (2026-11-19)
 
 
