@@ -100,6 +100,12 @@ describe('local-name-check runChecks', () => {
     expect(calls).toContainEqual(['nginx', '-t', '-c', 'D:/x/nginx.conf']);
   });
 
+  it('runs a given nginx program with its own folder as the prefix, so nginx finds logs/ there and not in the current folder', async () => {
+    const calls: string[][] = [];
+    await runChecks(good({ nginx: 'D:/web/nginx/nginx.exe', nginxConf: 'D:/web/nginx/conf/site.conf', exec: async (c: string, a: string[]) => (calls.push([c, ...a]), NGINX_OK) }));
+    expect(calls).toContainEqual(['D:/web/nginx/nginx.exe', '-t', '-p', 'D:/web/nginx/', '-c', 'D:/web/nginx/conf/site.conf']);
+  });
+
   it('fails tls when local-ca.pem cannot be read', async () => {
     const r = await failing({ readFile: () => { throw new Error('ENOENT'); } }, 'tls', 2); // sse needs the CA too
     expect(r.lines).toContain('FAIL tls: cannot read C:/tls/local-ca.pem: ENOENT');
