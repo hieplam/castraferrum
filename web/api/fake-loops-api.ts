@@ -2,6 +2,7 @@
 // Enough rules for the screens to work: create / edit (`version` lock) / Start / Stop / duplicate / archive / restore + the error codes
 // of the spec. It runs no run: runs, executions and logs are seeded by the test (`seedLoop`, `seedExecution`, `seedRun`, `seedLogs`).
 // the phase 1 screens extend it when their screens need more - the real business rules stay on the server (e2e checks them).
+import type { AuthSessionDto } from '../../shared/contracts/auth';
 import type { HealthResponse } from '../../shared/contracts/health';
 import type {
   ExecutionDetailDto,
@@ -44,6 +45,12 @@ export class FakeLoopsApi implements LoopsApi {
   holds: HoldDto[] = [];
   notices: NoticeDto[] = [];
   healthState: HealthResponse | 'unreachable' = { ok: true, db: 'up' };
+  /** Sign-in (remote-access spec D1): `null` = the console asks for none (the default); otherwise the one user and password. */
+  credentials: { username: string; password: string } | null = null;
+  /** The user signed in on this "browser", or `null`. */
+  signedInAs: string | null = null;
+  /** The answer of the next failed login: `TOO_MANY_ATTEMPTS` with this wait when set (the fake has no limiter of its own). */
+  lockedForSec: number | null = null;
   /** Every call in order (tests read it to assert the web called the right function). */
   readonly calls: string[] = [];
   now: () => Date = () => new Date();
@@ -341,6 +348,26 @@ export class FakeLoopsApi implements LoopsApi {
     this.calls.push(`markNoticeRead ${id}`);
     this.notices = this.notices.filter((n) => n.id !== id);
   }
+  async session(): Promise<AuthSessionDto> {
+    this.calls.push('session');
+    if (!this.credentials) return { required: false, signedIn: false };
+    return this.signedInAs === null ? { required: true, signedIn: false } : { required: true, signedIn: true, username: this.signedInAs };
+  }
+
+  async login(username: string, password: string): Promise<void> {
+    this.calls.push(`login:${username}`);
+    if (!this.credentials) throw new ApiError('AUTH_NOT_CONFIGURED', 404, 'Sign-in is off');
+    if (this.lockedForSec !== null) throw new ApiError('TOO_MANY_ATTEMPTS', 429, 'Too many attempts', { retryAfterSec: this.lockedForSec });
+    if (username !== this.credentials.username || password !== this.credentials.password) throw new ApiError('INVALID_CREDENTIALS', 401, 'Wrong username or password');
+    this.signedInAs = username;
+  }
+
+  async logout(): Promise<void> {
+    this.calls.push('logout');
+    if (!this.credentials) throw new ApiError('AUTH_NOT_CONFIGURED', 404, 'Sign-in is off');
+    this.signedInAs = null;
+  }
+
   async health(): Promise<HealthResponse> {
     this.calls.push('health');
     if (this.healthState === 'unreachable') throw new ApiError('NETWORK', 0, 'cannot reach the server');

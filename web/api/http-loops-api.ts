@@ -1,6 +1,7 @@
 // LoopsApi over real HTTP (fetch) - only web/main.tsx creates it. Responses are decoded with the very zod codecs of shared/contracts
 // (D20): ISO string -> Date, a wrong shape -> throw early instead of letting a screen break silently.
 import { z } from 'zod';
+import { authSessionDto } from '../../shared/contracts/auth';
 import { API_ERROR_CODES, errorBody } from '../../shared/contracts/common';
 import { probeEnvelopeDto, type ProbeInputBody } from '../../shared/contracts/goal-loop';
 import { goalViewDto } from '../../shared/contracts/goals';
@@ -162,6 +163,15 @@ export class HttpLoopsApi implements LoopsApi {
   listExecutors() {
     return this.#call('GET', '/executors', {}, executorListDto).then((r) => r.items);
   }
+  session() {
+    return this.#call('GET', '/auth/session', {}, authSessionDto);
+  }
+  async login(username: string, password: string) {
+    await this.#call('POST', '/auth/login', { body: { username, password } }, null);
+  }
+  async logout() {
+    await this.#call('POST', '/auth/logout', {}, null);
+  }
   health() {
     return this.#call('GET', '/health', { okStatuses: [200, 503] }, healthResponse);
   }
@@ -185,7 +195,7 @@ export class HttpLoopsApi implements LoopsApi {
     const text = await res.text().catch(() => '');
     const json = parse(text);
     const ok = opts.okStatuses ? opts.okStatuses.includes(res.status) : res.ok;
-    if (!ok) throw toApiError(res.status, json, `${method} ${path}`);
+    if (!ok) throw toApiError(res.status, json, `${method} ${path}`, res.headers.get('retry-after'));
     if (schema === null) return undefined as never;
     return z.decode(schema, json as z.input<typeof schema>) as never;
   }
@@ -210,15 +220,22 @@ function parse(text: string): unknown {
   }
 }
 
+/** A `Retry-After` header in seconds (remote-access spec D6) goes into `details.retryAfterSec`, where `ApiError.retryAfterSec` reads it. */
+function withRetryAfter(details: unknown, retryAfter: string | null): unknown {
+  const sec = retryAfter === null ? Number.NaN : Number(retryAfter);
+  if (!Number.isFinite(sec) || sec <= 0) return details;
+  return { ...(typeof details === 'object' && details !== null ? details : {}), retryAfterSec: sec };
+}
+
 /**
  * An error body that follows the contract -> ApiError carrying the server's `code`. The real server always returns a body that follows the contract (a 500 too), so
  * a 5xx that does not follow the contract comes from something in between (the Vite dev proxy when the server is off) -> `NETWORK`; an odd 4xx -> `BAD_REQUEST`.
  */
-function toApiError(status: number, json: unknown, what: string): ApiError {
+function toApiError(status: number, json: unknown, what: string, retryAfter: string | null = null): ApiError {
   const parsed = errorBody.safeParse(json);
   if (parsed.success) {
     const { code, message, details } = parsed.data.error;
-    return new ApiError(code, status, message, details);
+    return new ApiError(code, status, message, withRetryAfter(details, retryAfter));
   }
   const code = (json as { error?: { code?: string } } | null)?.error?.code;
   if ((API_ERROR_CODES as readonly string[]).includes(code ?? '')) return new ApiError(code as ApiError['code'], status, `${what} → HTTP ${status}`);

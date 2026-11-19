@@ -149,7 +149,8 @@ type DataAttrs = Record<`data-${string}`, string | undefined>;
 
 /**
  * A one-line text field. `time` = a 24-hour `HH:MM` text field (a browser's time field shows 12 hours in an English browser);
- * `data` = the data font. An invalid field sets `aria-invalid="true"`.
+ * `data` = the data font. An invalid field sets `aria-invalid="true"`. `autoComplete` = what the browser may fill in (the sign-in
+ * fields: `username`, `current-password`); every other field leaves it off.
  */
 export function Input({
   id,
@@ -164,8 +165,18 @@ export function Input({
   time,
   data,
   placeholder,
+  autoComplete = 'off',
   attrs,
-}: FieldBase & { value: string; onChange: (value: string) => void; type?: 'text' | 'number'; time?: boolean; data?: boolean; placeholder?: string; attrs?: DataAttrs }) {
+}: FieldBase & {
+  value: string;
+  onChange: (value: string) => void;
+  type?: 'text' | 'number' | 'password';
+  time?: boolean;
+  data?: boolean;
+  placeholder?: string;
+  autoComplete?: 'off' | 'username' | 'current-password';
+  attrs?: DataAttrs;
+}) {
   return (
     <input
       className={cx('input', invalid && 'is-err', data && 'is-data')}
@@ -178,7 +189,8 @@ export function Input({
       aria-invalid={invalid ? true : undefined}
       aria-label={label}
       disabled={disabled}
-      autoComplete="off"
+      name={autoComplete === 'off' ? undefined : id}
+      autoComplete={autoComplete}
       spellCheck={false}
       {...(time ? { inputMode: 'numeric' as const, maxLength: 5, pattern: '([01][0-9]|2[0-3]):[0-5][0-9]' } : {})}
       {...attrs}

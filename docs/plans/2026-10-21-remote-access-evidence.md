@@ -382,3 +382,111 @@ owner's gate: the owner approves the preview and the system addition together (n
 ### Ratchet
 
 - Flaky failures of `goal-card-start.test.ts` in full verify runs: 1 -> 0 (3 runs).
+
+## R5
+
+- `main` SHA: `a37516e` (R4 merged as pull request 464). Date of the runs: 2026-11-19. Same container as R1 (Node 24, local
+  Postgres 16, Chromium 1243 mapped to 1248, no WebKit, no Claude login), default `loops_test`, e2e port 7071.
+- Baseline (the R5 claim comment on issue 60): unit `1397 passed | 4 skipped`, api `467 passed | 2 skipped`, contract `276`,
+  e2e like for like against the 45 container failures of R1 (`118 passed`).
+
+### Red
+
+The tests were written first and committed alone (4d73185), then run on the build of `main`:
+
+- `npm run build` then `npx playwright test --project=chromium tests/e2e/signin.spec.ts`: `3 failed`. Both `@UC-40` cases
+  (desktop and phone) fail at `expect(locator).toBeVisible() failed`, `Locator: getByTestId('signin-form')`,
+  `Error: element(s) not found`: a server started with credentials shows no sign-in screen. The no-credentials case fails
+  at `expect(page).toHaveURL(expected) failed`, `Expected pattern: /\/settings$/`,
+  `Received string: "http://127.0.0.1:7071/signin?next=%2Fsettings"` (no route leads on from `/signin`).
+- `npx playwright test --project=visual tests/visual/ds/signin.visual.ts`: `2 failed`, `2 did not run`; both views fail at
+  `Locator: getByTestId('signin-form')`, `Error: element(s) not found`: no sign-in screen to compare.
+
+### Green
+
+- `npx playwright test --project=chromium tests/e2e/signin.spec.ts`: `3 passed (10.2s)`. On a `ServerProcess` launched
+  with credentials, on the desktop (1440x900) and on a 390x844 touch view: `/loops/new` shows the sign-in screen at
+  `/signin?next=%2Floops%2Fnew` with no top bar and no tab bar; a wrong password gives 401 and the `signin.invalid` text of
+  `en.ts` (`data-code` `INVALID_CREDENTIALS`), the username kept, the password cleared; the right one gives 204 and returns
+  to `/loops/new`; a loop created through the page's own session shows in the list within 2 seconds (live update);
+  Sign out (the top bar on the desktop, the Account group of Settings on the phone) returns to sign-in and the page's own
+  `fetch('/api/loops')` then answers 401; five more failures answer 401 and the sixth 429, with
+  `signin.locked.other` for 15 minutes and Sign in disabled. On the shared e2e server (no credentials) there is no sign-in
+  screen, no `topbar-user`, no `topbar-signout`, no `settings-account`, and `/signin?next=%2Fsettings` leads to `/settings`.
+- `npx playwright test --project=visual tests/visual/ds/signin.visual.ts`: `4 passed (14.5s)`; the report of the run:
+  `"pairs": 20, "worstRatio": 0.00006` (`MAX_RATIO` 0.001). Every sign-in screen pair (`signin`, `signin-error`,
+  `signin-locked`, `vi-signin` and their phone twins, light and dark) is `0` off; `signin-topbar` is top bar `0`, page
+  `0.00006` (light) and `0.00005` (dark); `phone-signin-topbar` page `0` and tab bar `0`.
+- Unit: `npx vitest run --project unit web/data/auth.test.ts web/api/http-loops-api.test.ts web/api/sse-live-events.test.ts`:
+  `Tests  17 passed (17)`.
+- `npm run verify` on the branch (86795cf): exit code `1` at the e2e step, like the baseline.
+  - design:states `states with shots: 152/152`; lang-scan `baseline check: ok`; arch `dependency-cruiser: 0 violations`,
+    `arch-fixtures: 25/25 violations caught`; ratchets `ratchets: ok` (`unknown classes: 0`, `native title: 0`,
+    `literal styles: 0`); rule-lint `rule-lint: ok (rule lines 18, without a check 7, new 0)`
+  - unit: `Tests  1411 passed | 4 skipped (1415)`
+  - contract: `Tests  276 passed (276)` (`memory: 129 passed · postgres: 129 passed`)
+  - api: `Tests  467 passed | 2 skipped (469)`
+  - api-smoke: `... sessionIds of execution #1 = 1, #2 = 1 ok`
+  - e2e: `45 failed`, `29 did not run`, `125 passed (10.1m)`. `diff` of the sorted failure lists (the R1 baseline list
+    against this run): no difference. The 7 new tests (3 e2e, 4 visual) pass; none needs WebKit.
+- `npm run phone:check -- --max 0`: `phone overflow: 0/12`.
+- `npm run uc-coverage -- --min 39` on that report: `UCs with a green e2e: 35/40`,
+  `Missing: UC-19 UC-26 UC-27 UC-30 UC-34` (the container failures of the baseline list: no Claude login, no WebKit),
+  `Below the ratchet floor: 35 < 39`. The same container gives `34/39` on `main` with the same five missing; on a machine
+  with WebKit and a Claude login the count is 40/40.
+- The first `npm run verify` run (6a31000) stopped at the unit step: `tests/tools/uc-coverage.test.ts`
+  `Tests  4 failed` (`expected [...] to have a length of 39 but got 40`, `expected 'UCs with a green e2e: 2/40 ...' to
+  contain 'UCs with a green e2e: 2/39'`). The test pins the number of use cases of `docs/USE-CASES.md`; it now pins 40
+  (UC-19 to UC-40 as the last 22), which is the new use case, not a weaker check.
+
+### Stub check
+
+- No redirect (`mustSignIn` always false): `npx playwright test --project=chromium tests/e2e/signin.spec.ts -g desktop`
+  `1 failed`, `Locator: getByTestId('signin-form')`, `Error: element(s) not found`.
+- A Sign out that only clears the client state (the mutation skips `POST /api/auth/logout`): `1 failed`,
+  `Expected: 401`, `Received: 200` at `tests/e2e/signin.spec.ts:101` (the page's own `GET /api/loops`).
+- Missing CSS (the `.signin` and `.signin-form` rules removed from `design/ds/components.css`):
+  `signin-light · sign-in screen: 16.19 % off (77397/478080 px)`, `signin-dark · sign-in screen: 16.85 % off`,
+  `signin-error-light · sign-in screen: 14.72 % off`, and every other sign-in pair above `MAX_RATIO`.
+
+### Ratchet
+
+- uc-coverage 39/39 to 40/40 on a full machine (here 34/39 to 35/40, the same five container misses); the verify floor
+  `--min` 38 to 39. Unit 1397 to 1411 (+14), api 467 to 467, contract 276 to 276, e2e passed 118 to 125 (+3 e2e, +4 visual)
+  with the same 45 container failures; visual sign-in pairs 0 to 20.
+
+### Decisions
+
+Made by the standing rules of the epic; the spec leaves them open.
+
+- **UC number.** The spec and the plan call sign-in UC-35, but `docs/USE-CASES.md` gave UC-35 to UC-39 to the gate and the
+  goal loop after the spec was written. The IDs are stable, so sign-in is UC-40 (`@UC-40`); the plan's
+  `UCs with a green e2e: 35/35` and `--min 35` no longer fit the tree, and the equivalent is 40/40 with the floor raised
+  by one (38 to 39). The plan's R5 section carries a note; R6 will take the next free number for the tunnel.
+- **Visual test path.** The plan's update note moved the screen to the kit of the new UI and its compare to
+  `tests/visual/ds/`, so the test is `tests/visual/ds/signin.visual.ts` (run with
+  `npx playwright test --project=visual tests/visual/ds/signin.visual.ts`), not `tests/visual/signin.visual.ts`.
+- **App and preview.** The app matched every one of the 20 approved shots (worst 0.00006), so the preview needed no
+  correction and `design/APPROVED.md` no new entry. The kit gained no class: `Input` takes `type="password"` and an
+  `autoComplete` of `username` or `current-password`, and `Banner` takes `data-*` attributes (the error code).
+- **When the session ends in the web.** A 401 `UNAUTHENTICATED` from any query or mutation marks the session ended in
+  the cache at once (no second request). A lost live connection asks `GET /api/auth/session` again; only an answer of
+  `signedIn: false` shows the sign-in screen, and an unreachable server changes nothing (the frame shows the lost
+  connection, as before). Until the session is known the guard draws nothing, so the app never flashes behind sign-in.
+- **The live connection.** It closes while signed out (it would only be refused) and opens again at once after sign-in,
+  as a fresh start (`connecting`, then `open`), so the frame shows neither the lost nor the Reconnected banner; the data of
+  the signed-out user leaves the cache.
+- **`next`.** Only a path of this console is followed (it starts with one `/`, has no backslash, is not `/signin`);
+  anything else leads to `/`, so the sign-in link cannot send the browser to another site.
+- **The wait.** The minutes count down from the `Retry-After` of the 429 (the header, else `details.retryAfterSec`),
+  rounded up, at least 1; Sign in is enabled again when the wait is over. An empty field is not sent: it takes the focus.
+- **Tests.** Each view of the e2e and of the visual test has its own server, because the attempt limit of one would lock
+  the other; the visual locked state winds the server clock 210 seconds after the fifth failure, so `Retry-After` is 690
+  seconds, the preview's 12 minutes. The test password is `password1` and the wrong ones `password2` to `password7`.
+
+### CI
+
+- The `lang-scan` job of the pull request fails on a commit of `main`, not of this branch:
+  `(commit message):3  [coupling/issue-ref]` on commit `a37516efeb9ecce2eb85f1c9379864f573f4a8ee`, the squash commit of
+  R4, whose body closes issue 59 and issue 459 on one line (the second issue reference is the hit). The same command fails on `main` itself. Filed as issue 466 (sub-issue of issue 55) with its
+  evidence and Verify block; it blocks the merge of this task.

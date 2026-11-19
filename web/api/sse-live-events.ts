@@ -65,6 +65,9 @@ export class SseLiveEvents implements LiveEvents {
   connect(): void {
     if (this.#es || this.#retry !== null) return;
     this.#closed = false;
+    // Opened again after close() (signed in after the sign-in screen): a fresh start, not a reconnect after a loss, so the
+    // frame shows neither the lost banner nor the Reconnected one.
+    if (this.#state.status === 'down') this.#set(CONNECTING);
     this.#open();
   }
 
