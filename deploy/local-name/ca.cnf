@@ -1,0 +1,21 @@
+# openssl configuration for the name-limited issuer of the local name (local-name spec D6 and D13).
+#
+# Both variables must be set in the shell before you run any command that reads this file:
+#   LOCAL_NAME        the console name, for example castra.home.arpa
+#   LOCAL_NAME_LIMIT  the name limit of the issuer: LOCAL_NAME or a parent of it
+# The sections hold no name. openssl reads the names from the environment ($ENV::).
+
+# Used by `openssl req -x509 ... -config ca.cnf -extensions ca_ext` (makes the issuer certificate).
+[ca_ext]
+basicConstraints     = critical, CA:true, pathlen:0
+keyUsage             = critical, keyCertSign, cRLSign
+nameConstraints      = critical, permitted;DNS:$ENV::LOCAL_NAME_LIMIT
+subjectKeyIdentifier = hash
+
+# Used by `openssl x509 -req ... -extfile ca.cnf -extensions server_ext` (signs the server certificate).
+[server_ext]
+basicConstraints       = critical, CA:false
+keyUsage               = critical, digitalSignature, keyEncipherment
+extendedKeyUsage       = serverAuth
+subjectAltName         = DNS:$ENV::LOCAL_NAME
+authorityKeyIdentifier = keyid

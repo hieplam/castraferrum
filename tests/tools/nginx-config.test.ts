@@ -18,9 +18,9 @@ const directives = config
 
 const REQUIRED = [
   'listen 443 ssl',
-  'server_name castra.home.arpa',
+  'server_name LOCAL_NAME',
   'listen 80',
-  'return 301 https://castra.home.arpa$request_uri',
+  'return 301 https://LOCAL_NAME$request_uri',
   'proxy_pass http://127.0.0.1:7070',
   'proxy_http_version 1.1',
   'proxy_set_header Connection ""',
@@ -52,7 +52,7 @@ describe('deploy/local-name/nginx.conf', () => {
   });
 
   it('has the two certificate placeholders that the machine setup fills in', () => {
-    expect(directives).toContain('ssl_certificate CERT_DIR/castra.home.arpa.pem');
-    expect(directives).toContain('ssl_certificate_key CERT_DIR/castra.home.arpa-key.pem');
+    expect(directives).toContain('ssl_certificate CERT_DIR/LOCAL_NAME.pem');
+    expect(directives).toContain('ssl_certificate_key CERT_DIR/LOCAL_NAME-key.pem');
   });
 });

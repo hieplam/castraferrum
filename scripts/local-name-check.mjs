@@ -1,29 +1,33 @@
 #!/usr/bin/env node
 // Tests the whole local-name chain on the real machine (phase 3 spec D11, task N0): DNS, nginx, TLS, redirect, SSE, port 7070.
 //
-//   node scripts/local-name-check.mjs [--pc-ip=<address>] [--nginx-conf=<path>] [--name=castra.home.arpa]
+//   node scripts/local-name-check.mjs [--pc-ip=<address>] [--nginx-conf=<path>] [--name=<name>] [--limit=<name>] [--ca=<path>]
 //
-// One line per check (`PASS <id>` or `FAIL <id>: <reason>`), then `local name: <passed>/8 checks pass`.
-// Exit 0 only when all 8 checks pass. The tool only reads: it changes no system setting.
+// The name is the host of LOOPS_PUBLIC_URL (.env or the environment); --name replaces it. The name limit of the issuer is
+// LOCAL_NAME_LIMIT; --limit replaces it. The issuer certificate is %LOCALAPPDATA%/castraferrum/tls/local-ca.pem; --ca replaces it.
+// One line per check (`PASS <id>` or `FAIL <id>: <reason>`), then `local name: <passed>/10 checks pass`.
+// Exit 0 only when all 10 checks pass. The tool only reads: it changes no system setting.
 // `runChecks(deps)` takes every outside effect as a function, so the unit test runs it with fakes.
 import { spawn } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import dns from 'node:dns';
 import http from 'node:http';
 import https from 'node:https';
 import net from 'node:net';
-import { networkInterfaces } from 'node:os';
-import { join, resolve } from 'node:path';
+import { homedir, networkInterfaces } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import tls from 'node:tls';
 import { pathToFileURL } from 'node:url';
 
-const NAME = 'castra.home.arpa';
+const WIN_OPENSSL = 'C:/Program Files/Git/usr/bin/openssl.exe';
+const CA_FILE = 'local-ca.pem';
+const CA_KEY_FILE = 'local-ca-key.pem';
 const CHECK_LIMIT_MS = 25_000;
 const SSE_WAIT_MS = 20_000;
 const SYSTEM_QUERIES = 20;
 const COOKIE_NAME = 'castra_session'; // SESSION_COOKIE of shared/contracts/auth.ts (a .mjs script cannot import the .ts file)
 
-export const CHECK_IDS = ['dns-direct', 'dns-system', 'dns-only-pc', 'nginx-test', 'tls', 'redirect', 'sse', 'port-closed'];
+export const CHECK_IDS = ['dns-direct', 'dns-system', 'dns-only-pc', 'nginx-test', 'tls', 'ca-name-limit', 'ca-key-absent', 'redirect', 'sse', 'port-closed'];
 
 // The same rule as `networkAddresses` in server/config.ts (lan-access D3): the first IPv4 address that is not internal,
 // not link-local and not on a virtual adapter. That function is TypeScript and not exported, so a .mjs script cannot reuse it.
@@ -52,38 +56,69 @@ function same(list, ip) {
   return list.length > 0 && list.every((a) => a === ip);
 }
 
-/** The root CA file of mkcert, or a thrown Error with the reason. */
-async function rootCa(d) {
-  const root = await d.exec('mkcert', ['-CAROOT']);
-  if (root.notFound) throw new Error('mkcert not found');
-  const caDir = root.stdout.trim();
-  if (root.code !== 0 || !caDir) throw new Error(`mkcert -CAROOT failed: ${root.stderr.trim()}`);
+/** The name of the console: the host of LOOPS_PUBLIC_URL, or a thrown Error with the reason. */
+export function nameFromUrl(url) {
+  if (!url) throw new Error('no name: set LOOPS_PUBLIC_URL (https://<name>) in .env, or pass --name=<name>');
   try {
-    return d.readFile(join(caDir, 'rootCA.pem'));
-  } catch (e) {
-    throw new Error(`cannot read rootCA.pem: ${msg(e)}`);
+    return new URL(url).hostname;
+  } catch {
+    throw new Error(`LOOPS_PUBLIC_URL is not a URL: ${url}`);
   }
+}
+
+/** The Name Constraints extension in `openssl x509 -text` output: is it there, is it critical, which DNS names are permitted. */
+export function parseNameLimit(text) {
+  const lines = text.split(/\r?\n/);
+  const at = lines.findIndex((l) => /X509v3 Name Constraints:/.test(l));
+  if (at < 0) return { present: false, critical: false, permitted: [] };
+  const indent = (l) => l.length - l.trimStart().length;
+  const permitted = [];
+  let inPermitted = false;
+  for (const l of lines.slice(at + 1)) {
+    if (l.trim() === '' || indent(l) <= indent(lines[at])) break;
+    if (/^\s*Permitted:/.test(l)) inPermitted = true;
+    else if (/^\s*Excluded:/.test(l)) inPermitted = false;
+    else if (inPermitted) permitted.push(...[...l.matchAll(/DNS:([^\s,]+)/g)].map((m) => m[1]));
+  }
+  return { present: true, critical: /Name Constraints:\s*critical/.test(lines[at]), permitted };
 }
 
 /** Every check: resolves when it passes, throws an Error with the reason when it fails. */
 function checks(d) {
   const ip = d.pcIp;
+  const needName = () => {
+    if (!d.name) throw new Error('no name: set LOOPS_PUBLIC_URL (https://<name>) in .env, or pass --name=<name>');
+    return d.name;
+  };
+  const needLimit = () => {
+    if (!d.limit) throw new Error('no name limit: set LOCAL_NAME_LIMIT in .env or the environment, or pass --limit=<name>');
+    return d.limit;
+  };
+  const caPem = () => {
+    try {
+      return d.readFile(d.caPath);
+    } catch (e) {
+      throw new Error(`cannot read ${d.caPath}: ${msg(e)}`);
+    }
+  };
   const needIp = () => {
     if (!ip) throw new Error('no PC IP address found; pass --pc-ip=<address>');
   };
   return {
     async 'dns-direct'() {
       needIp();
-      const got = await d.dnsQuery(ip, d.name);
+      const name = needName();
+      const got = await d.dnsQuery(ip, name);
       if (!same(got, ip)) throw new Error(`${ip}:53 answered ${got.join(', ') || 'nothing'}, expected ${ip}`);
     },
     async 'dns-system'() {
       needIp();
+      const name = needName();
       const bad = [];
       for (let i = 0; i < SYSTEM_QUERIES; i += 1) {
         let got;
         try {
-          got = await d.dnsQuery(null, d.name);
+          got = await d.dnsQuery(null, name);
         } catch (e) {
           got = [`error ${msg(e)}`];
         }
@@ -105,27 +140,47 @@ function checks(d) {
       }
     },
     async tls() {
-      const ca = await rootCa(d);
-      const v = await d.tlsVerify(d.name, 443, ca);
+      const name = needName();
+      const ca = caPem();
+      const v = await d.tlsVerify(name, 443, ca);
       if (!v.authorized) throw new Error(`certificate not trusted: ${v.error ?? 'unknown'}`);
-      const r = await d.http({ url: `https://${d.name}/api/health`, ca });
+      const r = await d.http({ url: `https://${name}/api/health`, ca });
       if (r.status !== 200) throw new Error(`GET /api/health gave ${r.status}, expected 200`);
     },
+    async 'ca-name-limit'() {
+      const limit = needLimit();
+      const lim = parseNameLimit(await d.caText(d.caPath));
+      if (!lim.present) throw new Error(`${d.caPath} has no name limit: an issuer without it can sign any name`);
+      if (!lim.critical) throw new Error('the name limit of the issuer is not marked critical');
+      if (lim.permitted.length !== 1 || lim.permitted[0] !== limit) {
+        throw new Error(`the issuer permits [${lim.permitted.join(', ')}], expected only ${limit}`);
+      }
+    },
+    async 'ca-key-absent'() {
+      const name = needName();
+      const dir = dirname(d.caPath);
+      const files = await d.listTls(dir);
+      if (files.some((f) => f.name === CA_KEY_FILE)) throw new Error(`${CA_KEY_FILE} is in ${dir}: move it off this PC or delete it`);
+      const keys = files.filter((f) => f.privateKey && f.name !== `${name}-key.pem`).map((f) => f.name);
+      if (keys.length) throw new Error(`private key in ${dir} besides ${name}-key.pem: ${keys.join(', ')}`);
+    },
     async redirect() {
-      const r = await d.http({ url: `http://${d.name}/x` });
-      const want = `https://${d.name}/x`;
+      const name = needName();
+      const r = await d.http({ url: `http://${name}/x` });
+      const want = `https://${name}/x`;
       if (r.status !== 301) throw new Error(`GET /x gave ${r.status}, expected 301`);
       if (r.headers.location !== want) throw new Error(`Location was ${r.headers.location ?? 'missing'}, expected ${want}`);
     },
     async sse() {
       const { LOOPS_USERNAME: username, LOOPS_PASSWORD: password } = d.env;
       if (!username || !password) throw new Error('LOOPS_USERNAME or LOOPS_PASSWORD missing in .env');
-      const ca = await rootCa(d);
-      const login = await d.http({ url: `https://${d.name}/api/auth/login`, method: 'POST', body: { username, password }, ca });
+      const name = needName();
+      const ca = caPem();
+      const login = await d.http({ url: `https://${name}/api/auth/login`, method: 'POST', body: { username, password }, ca });
       if (login.status !== 200) throw new Error(`sign-in gave ${login.status}, expected 200`);
       const setCookie = [].concat(login.headers['set-cookie'] ?? []).find((c) => c.startsWith(`${COOKIE_NAME}=`));
       if (!setCookie) throw new Error(`sign-in set no ${COOKIE_NAME} cookie`);
-      const lines = await d.sseLines({ url: `https://${d.name}/api/events`, cookie: setCookie.split(';')[0], ca, waitMs: SSE_WAIT_MS });
+      const lines = await d.sseLines({ url: `https://${name}/api/events`, cookie: setCookie.split(';')[0], ca, waitMs: SSE_WAIT_MS });
       if (!lines.includes(':ok')) throw new Error('stream sent no :ok');
       if (!lines.includes(':ping')) throw new Error(`no :ping within ${SSE_WAIT_MS / 1000} s`);
     },
@@ -137,9 +192,17 @@ function checks(d) {
   };
 }
 
-/** Runs the 8 checks in order and returns { lines, passed, total, exitCode }. Never stops at the first failure. */
+/** Runs the 10 checks in order and returns { lines, passed, total, exitCode }. Never stops at the first failure. */
 export async function runChecks(deps) {
-  const d = { name: NAME, env: {}, limitMs: CHECK_LIMIT_MS, ...deps };
+  const d = { env: {}, limitMs: CHECK_LIMIT_MS, ...deps };
+  d.name ??= (() => {
+    try {
+      return nameFromUrl(d.env.LOOPS_PUBLIC_URL);
+    } catch {
+      return undefined;
+    }
+  })();
+  d.limit ??= d.env.LOCAL_NAME_LIMIT;
   const table = checks(d);
   const lines = [];
   let passed = 0;
@@ -157,6 +220,39 @@ export async function runChecks(deps) {
 }
 
 // ---- real implementations ----
+
+async function caText(file) {
+  for (const bin of ['openssl', WIN_OPENSSL]) {
+    const r = await exec(bin, ['x509', '-in', file, '-noout', '-text']);
+    if (r.notFound) continue;
+    if (r.code !== 0) throw new Error(`openssl x509 failed: ${(r.stderr || r.stdout).trim().split('\n')[0]}`);
+    return r.stdout;
+  }
+  throw new Error('openssl not found');
+}
+
+async function listTls(dir) {
+  let names;
+  try {
+    names = readdirSync(dir);
+  } catch (e) {
+    throw new Error(`cannot read ${dir}: ${msg(e)}`);
+  }
+  const out = [];
+  for (const name of names) {
+    const p = join(dir, name);
+    let privateKey = false;
+    try {
+      const st = statSync(p);
+      if (!st.isFile()) continue;
+      privateKey = st.size < 1_000_000 && /-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(readFileSync(p, 'latin1'));
+    } catch {
+      continue;
+    }
+    out.push({ name, privateKey });
+  }
+  return out;
+}
 
 function exec(cmd, args) {
   return new Promise((res) => {
@@ -277,11 +373,16 @@ function readDotEnv(file) {
 export async function main(argv) {
   const arg = (k) => argv.find((a) => a.startsWith(`--${k}=`))?.slice(k.length + 3);
   const pcIp = arg('pc-ip') ?? pcIpFrom(networkInterfaces());
+  const env = readDotEnv(resolve('.env'));
+  for (const k of ['LOOPS_PUBLIC_URL', 'LOCAL_NAME_LIMIT']) if (process.env[k]) env[k] = process.env[k];
+  const appData = process.env.LOCALAPPDATA ?? join(homedir(), 'AppData', 'Local');
   const result = await runChecks({
     pcIp,
-    name: arg('name') ?? NAME,
+    name: arg('name'),
+    limit: arg('limit'),
+    caPath: arg('ca') ?? join(appData, 'castraferrum', 'tls', CA_FILE),
     nginxConf: arg('nginx-conf') ?? 'C:/nginx/conf/nginx.conf',
-    env: readDotEnv(resolve('.env')),
+    env,
     dnsQuery,
     dnsServers,
     exec,
@@ -290,6 +391,8 @@ export async function main(argv) {
     sseLines,
     tcp,
     readFile: (p) => readFileSync(p),
+    caText,
+    listTls,
   });
   for (const l of result.lines) console.log(l);
   return result.exitCode;
