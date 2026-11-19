@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/hieplam/castraferrum/compare/v0.11.0...v0.12.0) (2026-11-18)
+
+
+### Features
+
+* **design:** sign-in screen preview, the signed-in user and Sign out (R3) ([#460](https://github.com/hieplam/castraferrum/issues/460)) ([2c8d20a](https://github.com/hieplam/castraferrum/commit/2c8d20ae70df560c00f15dcbaf7e7e22aac3c403))
+
 ## [0.11.0](https://github.com/hieplam/castraferrum/compare/v0.10.0...v0.11.0) (2026-11-18)
 
 
