@@ -1,6 +1,6 @@
 # ADR 0005: a local name and HTTPS through a DNS server and a reverse proxy
 
-- Status: proposed (2026-11-19)
+- Status: accepted (2026-11-19). Amended the same day: the name and the certificate issuer.
 - Spec: [../specs/2026-11-19-local-name.md](../specs/2026-11-19-local-name.md)
 
 ## Context
@@ -30,10 +30,11 @@ One program cannot do both jobs. A reverse proxy such as nginx does not answer D
 
 The local name is a machine setup outside the console. The console only learns to work behind a reverse proxy.
 
-- **Name:** `castra.home.arpa`. The suffix `home.arpa` is reserved for home networks (RFC 8375). Nobody can buy it,
+- **Name:** each machine sets its own name under `home.arpa`. The repository holds only the sample name
+  `castra.home.arpa` (spec D13), because a personal name does not belong in a public repository. The suffix `home.arpa` is reserved for home networks (RFC 8375). Nobody can buy it,
   so the name never belongs to a stranger, and a public CA never signs it.
-- **DNS server:** Technitium DNS Server on the PC, as a Windows service. It holds the zone `home.arpa` with one A
-  record, `castra`, that points to the IP address of the PC. Technitium sends every other name to a public DNS
+- **DNS server:** Technitium DNS Server on the PC, as a Windows service. It holds the zone `home.arpa` with one
+  A record, `castra`, that points to the IP address of the PC. Technitium sends every other name to a public DNS
   server. The router's DHCP setting gives the PC as the **only** DNS server. A second, public DNS server is not set,
   because devices send questions to either server, and a public server answers that `castra.home.arpa` does not
   exist. The owner accepts the result (2026-11-19): when the PC is off, the devices on the Wi-Fi cannot find any
@@ -41,9 +42,18 @@ The local name is a machine setup outside the console. The console only learns t
 - **Reverse proxy:** nginx on the PC, on TCP ports 443 (HTTPS) and 80 (a redirect to HTTPS). The repository holds the
   nginx configuration. nginx sends every request to `127.0.0.1:7070` and adds `X-Forwarded-Proto: https` and
   `X-Real-IP`. It does not buffer responses, so Server-Sent Events arrive at once.
-- **Certificate:** mkcert makes a local CA (Certificate Authority) and a certificate for `castra.home.arpa`. The PC
-  trusts the CA through `mkcert -install`. Each other device trusts it after the owner copies the CA file to it one
-  time. The key files stay outside the repository.
+- **Certificate:** an own issuer (CA, Certificate Authority), made with `openssl`, signs the certificate for
+  `castra.home.arpa`. A device that trusts an issuer trusts every certificate that the issuer signs. So a
+  stolen issuer key can make a false website, a bank too, that the devices show with a lock. On this Wi-Fi the PC is
+  also the DNS server, so one bad program on the PC can steal the key and send the phones to a false server. Three
+  rules, ratified by the owner on 2026-11-19, reduce this risk:
+  1. The issuer has a name limit, `castra.home.arpa`. A browser rejects a certificate from it for any other name.
+  2. The issuer's secret key leaves the PC after it signs the server certificate: the owner moves it to a USB stick or
+     deletes it.
+  3. Only the PC and the phones that need the console trust the issuer.
+
+  The server key stays on the PC for nginx. A stolen server key can only pretend to be `castra.home.arpa`.
+  No key file enters the repository.
 - **Castraferrum** listens on `127.0.0.1` again (no `--remote`). So only nginx can reach port 7070. Behind the proxy,
   the sign-in attempt limit reads `X-Real-IP`, but only when the socket address is loopback. This is the same rule
   that it uses for `CF-Connecting-IP`. `--public-url` prints the name at startup.
@@ -65,7 +75,12 @@ same. So this setup behaves like a public host.
 - **The DNS server in a Docker container:** rejected. Docker Desktop starts only after a person signs in to Windows,
   so DNS stops for the whole Wi-Fi when nobody is signed in.
 - **Caddy as the reverse proxy:** rejected by the owner, who chose nginx (2026-11-19). Caddy makes its own
-  certificates. nginx needs mkcert for that.
+  certificates. nginx needs an outside tool for that.
+- **mkcert as the issuer:** rejected (2026-11-19). mkcert cannot write a name limit, so its issuer can sign any name,
+  and it keeps the issuer key in a folder on the PC.
+- **A public issuer through a bought or free public name (Let's Encrypt):** not chosen now. It removes the own issuer
+  and its key, but it needs a public name and an account. A bought domain later changes only the DNS server and the
+  certificate.
 - **Castraferrum terminates TLS itself:** rejected. Certificate handling then lives in the console, and the setup no
   longer matches a public host, where a proxy holds the certificate.
 - **Tailscale, or DuckDNS with Let's Encrypt:** rejected for now. Both need an outside account, and Tailscale needs an
