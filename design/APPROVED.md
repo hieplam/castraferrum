@@ -480,3 +480,15 @@ Task Z2 opened every new screen on the real build next to its approved shot. On 
 
 - **What changed:** `design/ds/preview/preview.js` passes the count to the top bar of `probe-waiting`, `probe-held`, `probe-blocked`, `probe-complete` and `run-held` (`counts.all` + 1) and of `goal-rows` (`counts.all` + 1 + the loops of `goalLoop.goals.loops`). Only these 12 images changed: those 6 states, light and dark, in [`ds/preview/shots/`](ds/preview/shots/), re-shot with `npm run design:shots -- --design design/ds --only probe-waiting,probe-held,probe-blocked,probe-complete,run-held,goal-rows --compress`.
 - **What did not change:** every element of the page itself, every phone shot (the tab bar shows no count), and the other goal-loop states (the gate, the scoreboard and the goal cards count 7 loops in the app too). No class, token, colour or text of the system changed.
+
+## the sign-in screen - the 20 shots of the 10 sign-in states (remote-access task R4), 2026-11-19
+
+The owner approved the sign-in preview of phase 2 of the network-access epic (issue 59, task R4).
+
+- **Owner's words:** "Approve R4".
+- **Where:** the session chat of the coordinator of phase 2, on 2026-11-19, after the coordinator sent five of the shots and posted on issue 59 what to open.
+- **What the approval covers:** the 10 states `signin`, `signin-error`, `signin-locked`, `signin-topbar`, `vi-signin` and their phone twins `phone-signin`, `phone-signin-error`, `phone-signin-locked`, `phone-signin-topbar`, `phone-vi-signin`, light and dark. That is 20 shots in [`ds/preview/shots/`](ds/preview/shots/), with their rows in [`ds/STATES.md`](ds/STATES.md) and the sign-in texts of `shared/i18n/en.ts` and `shared/i18n/vi.ts`. Task R3 made them in merge commit 2c8d20a (`feat(design): sign-in screen preview, the signed-in user and Sign out (R3) (PR 460)`).
+- **The design-system addition it approves** (design-system gap issue 459): the Sign-in family in [`ds/components.css`](ds/components.css), built only from existing tokens: `.signin` (a screen outside the app frame), `.signin-form`, `.signin-brand` (it shares the `.topbar-brand` rule) and `.topbar-user`, drawn in the Sign-in section of [`ds/index.html`](ds/index.html) and described in [`ds/SYSTEM.md`](ds/SYSTEM.md).
+- **The decisions it approves:** the sign-in screen has no top bar and no tab bar; one column at most `--size-dialog` wide, centred on the desktop and near the top on the phone; wrong credentials show `.banner.is-err`, keep the username and clear the password; too many attempts show `.banner.is-warn` with the wait in whole minutes (from `Retry-After`, rounded up) and disable Sign in; the desktop top bar shows "Signed in as <user>" and Sign out; the phone has no top bar, so Settings gets an Account group with the user and Sign out.
+- **Browser note:** the shots were rendered with Chromium build 1243 in a cloud container (the pinned build 1248 could not be downloaded there). If they differ on the owner's machine, only these 10 ids are re-shot, and that is not a new design decision.
+- **What it unblocks:** task R5 builds the sign-in screen and Sign out in the app against these shots.
