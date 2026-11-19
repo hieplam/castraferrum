@@ -1,7 +1,7 @@
 # Plan: a local name and HTTPS on the home network (phase 3)
 
 - Date: 2026-11-19
-- Spec: [../specs/2026-11-19-local-name.md](../specs/2026-11-19-local-name.md) (goals G1 to G8, decisions D1 to D12)
+- Spec: [../specs/2026-11-19-local-name.md](../specs/2026-11-19-local-name.md) (goals G1 to G9, decisions D1 to D16)
 - Decision record: [ADR 0005](../adr/0005-local-name-through-dns-and-reverse-proxy.md)
 - Evidence log: `docs/plans/2026-11-19-local-name-evidence.md` (task N0 creates it; each task adds a section
   `## N<k>` with its before and after numbers: commands and literal output only)
@@ -17,6 +17,8 @@ plan"):
 - Counts never go down. `npm run verify` exits 0 at the end of each code task.
 - The running console on `127.0.0.1:7070` is off limits for tests. Only N3 and N4 change how it starts.
 - This plan file wins over the copy of a section in an issue.
+- The spec update of 2026-11-20 (a bought domain) adds task N6 and rewrites N3 and N4. The sections of N0, N1, N2 and
+  N5 stay as they were merged, with the old sample name `castra.home.arpa`. N6 says what changes in their files.
 
 Machine facts in this plan use `<pc-ip>` for the IP address of the owner's PC. The repository never holds the real
 address. The check tool finds it at run time.
@@ -29,10 +31,12 @@ address. The check tool finds it at run time.
 | N1 | Castraferrum behind a reverse proxy: `X-Real-IP` for the sign-in limit, `--public-url`, UC-42 | G5, G6 | - |
 | N2 | The nginx configuration, the README section, the real e2e file | G7, G2 | - |
 | N5 | The per-machine name and the name-limited issuer (spec update of 2026-11-19) | G2, G7, G8 | N0, N1, N2 |
-| N3 | **Machine setup on the owner's PC and router** (needs a person: the router password and administrator rights) | G1 to G4, G7, G8 | N5 |
-| N4 | Verify every goal and do the agent acceptance | G1 to G8 | N3 |
+| N6 | The check tool v2, the deploy files and the README for a bought domain (spec update of 2026-11-20) | G1, G2, G7, G8, G9 (a) | N5 |
+| N3 | **Machine setup on the owner's PC, the DNS record and the phones** (needs a person: the Cloudflare login and API token, the router password and administrator rights) | G1 to G4, G7 to G9 | N6 |
+| N4 | Verify every goal and do the agent acceptance | G1 to G9 | N3 |
 
-N0, N1 and N2 can run at the same time. They touch different files.
+N0, N1 and N2 can run at the same time. They touch different files. N0, N1, N2 and N5 are merged (pull requests 480,
+482, 476 and 483).
 
 ---
 
@@ -211,44 +215,169 @@ the README to match. It does not change the server code of N1. Every file keeps 
   check tool that only counts to 10 without the two checks fails the new cases.
 - **Ratchet:** unit count up by the new cases.
 
-## N3 - Machine setup on the owner's PC and router
+## N6 - The check tool v2, the deploy files and the README for a bought domain
 
-**Who:** an agent and the owner. The issue carries `loop:needs-human`, because two steps need what only the owner
-has: the router's admin password (step 7) and the Windows administrator prompt (steps 1, 5 and 6). The agent does the
-other steps and prepares each command for the owner.
+The spec update of 2026-11-20 replaces the DNS server on the PC and the own issuer (spec D1, D2, D6, D13 to D16).
+This task changes the merged files of N0, N2 and N5 to match. It does not change the server code of N1. Every file
+uses the sample name `castra.example.com`.
+
+**Files:**
+- `scripts/local-name-check.mjs` and `tests/tools/local-name-check.test.ts`: the 10 checks below, in this order. Each
+  prints `PASS <id>` or `FAIL <id>: <reason>`. The last line stays `local name: <passed>/10 checks pass`. The flags
+  `--limit` and `--ca` and the value `LOCAL_NAME_LIMIT` go away. A new flag `--public-dns=<address>` replaces the
+  default `1.1.1.1`. No check gives a `ca` option to TLS or HTTPS: every connection uses Node's default trusted roots.
+
+  | Id | What it does |
+  |---|---|
+  | `dns-public` | Asks the public DNS server (`1.1.1.1`) directly for the A record of the name. Expects `<pc-ip>`. The reason of a FAIL names both addresses. |
+  | `dns-pc-servers` | Reads the DNS servers of the PC's adapter, IPv4 and IPv6 (the PowerShell function of the old `dns-only-pc`). Asks each server directly. Expects `<pc-ip>` from each one. The reason of a FAIL names each server that gave another answer or an empty answer. An IPv6 server is written `[<address>]:53`. |
+  | `dns-system` | Unchanged: the system resolver, 20 times. |
+  | `nginx-test` | Unchanged. |
+  | `tls` | Opens TLS to `<name>:443` with Node's default trusted roots and no `ca` option. Then `GET /api/health` expects 200. |
+  | `cert-issuer` | Opens its own TLS connection to `<name>:443` and reads the certificate (`getPeerCertificate`). Expects the issuer organization `Let's Encrypt`, the name in the subject alternative names, and an age below 3/4 of the lifetime: `now - valid_from < 0.75 * (valid_to - valid_from)`. The line prints `serial <serialNumber>, valid <valid_from> to <valid_to>` after `PASS cert-issuer` and after the reason of a FAIL. |
+  | `own-issuer-absent` | Asks PowerShell (`powershell.exe -NoProfile`) for the certificates in `Cert:\CurrentUser\Root` and `Cert:\LocalMachine\Root` with the subject `CN=local home issuer`. Expects none. Also expects no folder `%LOCALAPPDATA%\castraferrum\tls\`, or an empty one. |
+  | `redirect` | Unchanged. |
+  | `sse` | Unchanged, without the `ca` option. |
+  | `port-closed` | Unchanged. |
+- `deploy/local-name/nginx.conf`: `ssl_certificate CERT_DIR/LOCAL_NAME-chain.pem` (the certificate and its
+  intermediate certificates, as win-acme writes them) and `ssl_certificate_key CERT_DIR/LOCAL_NAME-key.pem`. The
+  comments name Let's Encrypt and the folder `C:/ProgramData/castraferrum/tls` for `CERT_DIR`.
+- `deploy/local-name/README.md`: the files, the two values of spec D13, and `CERT_DIR`.
+- `deploy/local-name/ca.cnf` and `tests/tools/ca-name-limit.test.ts`: deleted (spec D16).
+- `tests/tools/nginx-config.test.ts`: the two certificate lines.
+- `.env.example`: commented `LOCAL_NAME=castra.example.com` and `LOOPS_PUBLIC_URL=https://castra.example.com` lines,
+  and no `LOCAL_NAME_LIMIT`.
+- The sample name: each `castra.home.arpa` outside `docs/` becomes `castra.example.com`. Today it is in
+  `server/config.test.ts`, `tests/api/sign-in-startup.test.ts`, `tests/e2e/local-name-real.spec.ts`, the check tool
+  test, the deploy files and the README.
+- `README.md`, the section "Open with a name on your network", rewritten. Each step has its command:
+  1. Choose the two values of spec D13 and put them in `.env`.
+  2. At the DNS provider, add the A record of the name with the value `<pc-ip>`. At Cloudflare, set it to "DNS only".
+     Test it: `Resolve-DnsName <name> -Server 1.1.1.1 -DnsOnly` answers `<pc-ip>`.
+  3. In the router, reserve `<pc-ip>` for this PC (spec D15).
+  4. Set the DNS of each device that opens the console (spec D14). The PC, in an administrator PowerShell:
+     `Set-DnsClientServerAddress -InterfaceAlias "<adapter>" -ServerAddresses ("1.1.1.1","1.0.0.1","2606:4700:4700::1111","2606:4700:4700::1001")`.
+     Android and iPhone: the menus of D14, marked "not verified on every phone". Two sentences give the reason (the
+     router deletes the answer) and the limit (a device without the setting cannot open the console).
+  5. Install nginx (`winget install --id nginxinc.nginx`) and win-acme with its Cloudflare plugin. Find the win-acme
+     winget id with `winget search win-acme`. If it has none, give the download page. Give the page of the plugin.
+  6. Make the Cloudflare API token: the two permissions of spec D6 (C), for the one zone. The token goes only into
+     win-acme.
+  7. Make the folder `C:\ProgramData\castraferrum\tls` and limit it to SYSTEM and Administrators, in an administrator
+     PowerShell: `icacls C:\ProgramData\castraferrum\tls /inheritance:r /grant:r "SYSTEM:(OI)(CI)F" "Administrators:(OI)(CI)F"`.
+  8. In the same administrator PowerShell, run win-acme with full options: a manual name, DNS validation through
+     Cloudflare, the PEM store in that folder, and a script step that runs
+     `C:\nginx\nginx.exe -p C:/nginx/ -c C:/nginx/conf/castra.conf -s reload`. Mark the menu texts "not verified".
+     Task N3 corrects them.
+  9. Copy `deploy/local-name/nginx.conf`, replace `LOCAL_NAME` and `CERT_DIR` in the copy, and run `nginx -t`.
+  10. The Task Scheduler task `Castraferrum nginx` (unchanged).
+  11. The firewall rule for TCP 80 and 443 on the Private profile, and the removal of the rule for TCP 7070.
+  12. Start Castraferrum without `--remote`.
+  13. `npm run local-name:check`: the last line is `local name: 10/10 checks pass`.
+
+  A last part, "If you set up the first design", removes the issuer
+  (`certutil -user -delstore Root "local home issuer"`), deletes `%LOCALAPPDATA%\castraferrum\tls`, and removes
+  Technitium and the firewall rule `Castraferrum DNS` if they exist.
+
+**Verify**
+- **Goal:** the oracles of G1, G2, G8 and G9 (a) in the check tool, and G7 with the file names of win-acme.
+- **Red:** (0) Record the counts of `npm run verify` on `main`. On the owner's PC, run `npm run local-name:check` and
+  record the old last line. (1) Write the test cases first.
+  `npx vitest run --project unit tests/tools/local-name-check.test.ts` fails: `CHECK_IDS` has no `dns-public`,
+  `dns-pc-servers`, `cert-issuer` or `own-issuer-absent`. (2)
+  `npx vitest run --project unit tests/tools/nginx-config.test.ts` fails: the file says `CERT_DIR/LOCAL_NAME.pem`.
+- **Green:** (1) `npx vitest run --project unit tests/tools/local-name-check.test.ts tests/tools/nginx-config.test.ts`
+  passes, with at least these cases:
+  - all fakes good: 10 `PASS` lines, `local name: 10/10 checks pass`, exit 0;
+  - the public server answers another address: `FAIL dns-public` with both addresses;
+  - the adapter lists `192.0.2.53` and `fd00::53`, and `fd00::53` gives an empty answer: `FAIL dns-pc-servers` that
+    names `fd00::53`, and the fake resolver received `[fd00::53]:53`;
+  - the TLS and HTTPS fakes record their options: no check gives a `ca` option;
+  - the real TLS function against a local TLS server with a self-signed certificate: `FAIL tls` (record the literal
+    error code);
+  - an issuer organization other than `Let's Encrypt`: `FAIL cert-issuer`. A certificate without the name:
+    `FAIL cert-issuer`. A certificate at 80 % of its lifetime: `FAIL cert-issuer`. At 50 %: `PASS cert-issuer` with
+    its serial number;
+  - one Root certificate `CN=local home issuer`: `FAIL own-issuer-absent`. One file in the old tls folder:
+    `FAIL own-issuer-absent`;
+  - each failure gives exit 1.
+
+  (2) `git ls-files deploy/local-name/ca.cnf tests/tools/ca-name-limit.test.ts` prints nothing. (3)
+  `git grep -n -e "home.arpa" -e "Technitium" -e "mkcert" -e "LOCAL_NAME_LIMIT" -- . ":!docs"` prints only the lines
+  of the README part "If you set up the first design". (4) `node scripts/lang-scan.mjs --check-baseline` prints
+  `baseline check: ok`. (5) `npm run verify` exits 0, or fails only with the failures that `main` has at the time
+  (write them down). (6) On the owner's PC, `npm run local-name:check` prints the 10 new ids and a last line
+  `local name: <n>/10 checks pass`. Record `<n>` as the baseline of N3.
+- **Stub check:** a tool that keeps the old checks fails each case of a new id. A `tls` check that gives the old
+  `local-ca.pem` as `ca` fails the "no `ca` option" case. A `cert-issuer` that reads only the issuer passes the 80 %
+  certificate, so that case fails.
+- **Ratchet:** the 4 cases of `tests/tools/ca-name-limit.test.ts` go away with the deleted file. The unit count after
+  N6 must still be above the count before N6. `local name: <n>/10` with the new checks is the baseline of N3.
+
+## N3 - Machine setup on the owner's PC, the DNS record and the phones
+
+**Who:** an agent and the owner. The issue carries `loop:needs-human`, because some steps need what only the owner
+has: the Cloudflare login (the record and the token), the token itself, the router password (step 3) and the Windows
+administrator prompt. The agent prepares each command. It runs each administrator step as one script through
+`Start-Process -Verb RunAs` with a log file, so the owner clicks one prompt. The agent never sees or types the token
+or a password.
 
 **Files:** `docs/plans/2026-11-19-local-name-evidence.md` (section `## N3`). No code.
 
-**Steps:** the README section of N2, in order, on the owner's PC.
+**Steps:** the README section of N6, in order, on the owner's PC, with these points:
+1. Red: `npm run local-name:check` prints the baseline of N6.
+2. The owner adds the A record in Cloudflare, "DNS only". The agent tests it with `Resolve-DnsName` against `1.1.1.1`.
+3. The router: the owner makes or confirms the DHCP reservation of `<pc-ip>` (spec D15).
+4. The DNS of the PC (spec D14), through the administrator script. Then `Get-DnsClientServerAddress` of the Wi-Fi
+   adapter shows only the four Cloudflare addresses.
+5. The owner makes the token and types it into win-acme in the administrator window. The agent records the PEM file
+   names and the name of the win-acme task. If the file names differ from `<name>-chain.pem` and `<name>-key.pem`, the
+   agent opens a fix issue for `deploy/local-name/nginx.conf` that blocks this task.
+6. nginx: the deployed `C:\nginx\conf\castra.conf` gets the new name and `CERT_DIR` = `C:/ProgramData/castraferrum/tls`.
+   `nginx -t` passes, then nginx reloads.
+7. The own issuer leaves the PC (spec D16).
+8. The `.env` of the main checkout: `LOCAL_NAME` and `LOOPS_PUBLIC_URL` with the new name, and no `LOCAL_NAME_LIMIT`.
+   The console starts without `--remote`.
+9. The check runs to 10/10.
+10. Goal G9 (b) and (c): an administrator script makes win-acme renew at once (`wacs.exe --renew --force`, not
+    verified), and writes the win-acme task (`Get-ScheduledTask`, `Get-ScheduledTaskInfo`) into its log. Then the
+    check runs again. This uses 2 of the 5 certificates that Let's Encrypt gives for one name in 7 days.
 
 **Verify**
-- **Goal:** G1 to G4, G7 and G8 on the real machine.
-- **Red:** `npm run local-name:check` prints the baseline, for example `local name: 0/10 checks pass`, and exits 1.
-- **Green:** `npm run local-name:check` prints 10 `PASS` lines and `local name: 10/10 checks pass`, and exits 0.
+- **Goal:** G1 to G4 and G7 to G9 on the real machine.
+- **Red:** `npm run local-name:check` prints the baseline of N6 and exits 1.
+- **Green:** (1) `npm run local-name:check` prints 10 `PASS` lines and `local name: 10/10 checks pass`, and exits 0.
+  (2) After step 10, the `cert-issuer` line shows a serial number other than the one in (1), and the tool still prints
+  `local name: 10/10 checks pass`. (3) The log of the step 10 script shows the win-acme task with a daily trigger and
+  an action that runs `wacs.exe` with `--renew`.
 - **Stub check:** each check talks to the real program on the real port. A step that is not done leaves its check at
-  `FAIL`.
-- **Ratchet:** `local name: <n>/10` goes from the baseline to 10/10.
+  `FAIL`. Without the reload step of win-acme, (2) shows the old serial number.
+- **Ratchet:** `local name: <n>/10` goes from the baseline of N6 to 10/10.
 
 ## N4 - Verify every goal and do the agent acceptance
 
-**Files:** `goals/verify/local-name.json` (new: one entry per goal G1 to G8, with the command and its expected
+**Files:** `goals/verify/local-name.json` (new: one entry per goal G1 to G9, with the command and its expected
 output), `docs/plans/2026-11-19-local-name-evidence.md` (section `## N4`).
 
-The agent does what the owner would do, from the PC:
+The agent does what the owner does, from the PC:
 - `npm run goal:check -- goals/verify/local-name.json`;
 - `LC_LOCAL_NAME=1 npx playwright test tests/e2e/local-name-real.spec.ts`: Chromium, with certificate errors not
-  ignored, opens `https://castra.home.arpa`, signs in, starts a loop and sees Running within 2 seconds;
-- `E check --dry-run` on N0 to N3.
+  ignored, opens the address of `LOOPS_PUBLIC_URL`, signs in, starts a loop and sees Running in 2 seconds;
+- `E check --dry-run` on N0, N1, N2, N3, N5 and N6.
+
+The entry of G9 runs the check tool and expects `PASS cert-issuer`. Its parts (b) and (c) need administrator rights,
+so the entry cites the N3 evidence section and does not run them again.
 
 **Verify**
-- **Goal:** G1 to G8 hold together on `main` and on the real machine.
+- **Goal:** G1 to G9 hold together on `main` and on the real machine.
 - **Red:** before the manifest exists, `npm run goal:check -- goals/verify/local-name.json` fails on the missing file.
-- **Green:** (1) `npm run goal:check -- goals/verify/local-name.json` prints `goals passed: 8/8`. (2) The real e2e reports
-  1 passed. (3) `E check --dry-run` gives PASS for N0 to N3.
+- **Green:** (1) `npm run goal:check -- goals/verify/local-name.json` prints `goals passed: 9/9`. (2) The real e2e reports
+  1 passed. (3) `E check --dry-run` gives PASS for N0, N1, N2, N3, N5 and N6.
 - **Stub check:** a manifest entry with a command that always exits 0 is not allowed. Each entry runs one of the
   oracles of spec section 3. A failing goal becomes a fix issue that blocks this task.
-- **Ratchet:** goals passed 0/8 to 8/8.
+- **Ratchet:** goals passed 0/9 to 9/9.
 
 ## Follow-up outside the phase
 
-The real phone: copy `rootCA.pem` to the phone, open `https://castra.home.arpa`, and sign in. No goal waits for it.
+- The real phone: set its DNS (spec D14), open the name, and sign in. No goal waits for it.
+- Task R6 (the Cloudflare tunnel, issue 61): the owner takes it off hold after this phase (2026-11-20).
