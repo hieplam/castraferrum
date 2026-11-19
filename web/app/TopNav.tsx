@@ -1,11 +1,13 @@
 // The top bar of the desktop (spec 4.5, App frame): the brand, the three links with their counts, the connection status and the
-// theme button. The phone shows the tab bar instead; CSS hides this bar there.
+// theme button, then, when the console asks for sign-in, the signed-in user and Sign out (remote-access task R5). The phone shows
+// the tab bar instead (CSS hides this bar there); its Sign out is the Account group of Settings.
 import { Link, useLocation } from 'react-router';
 import type { ServerStatus } from '../data/connection';
+import { signedInUser, useLogout, useSession } from '../data/auth';
 import { useOverview } from '../data/overview';
 import { useRepos } from '../data/repos';
 import { usePrefs, useT } from '../prefs/prefs';
-import { IconButton } from '../ui/kit/Button';
+import { Button, IconButton } from '../ui/kit/Button';
 import { cx } from '../ui/kit/cx';
 import { activeTab, type Tab } from './active-tab';
 
@@ -24,6 +26,8 @@ export function TopNav({ status }: { status: ServerStatus }) {
   const loops = useOverview().data?.loops.all;
   const repos = useRepos().data?.length;
   const conn = connOf(status);
+  const user = signedInUser(useSession().data);
+  const logout = useLogout();
   const link = (key: Tab, to: string, id: string, label: string, count?: { value: number | undefined; testId?: string }) => (
     <Link to={to} className={cx('topbar-link', tab === key && 'is-on')} aria-current={tab === key ? 'page' : undefined} data-testid={id}>
       {label}
@@ -43,6 +47,16 @@ export function TopNav({ status }: { status: ServerStatus }) {
           {t(conn.text)}
         </span>
         <IconButton icon="theme" label={t('theme.switch')} tooltip="below-end" data-testid="toggle-theme" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} />
+        {user !== null ? (
+          <>
+            <span className="topbar-user" data-testid="topbar-user">
+              {t.node('signin.signedInAs', { name: <b>{user}</b> })}
+            </span>
+            <Button size="sm" data-testid="topbar-signout" disabled={logout.isPending} onClick={() => logout.mutate()}>
+              {t('signin.signOut')}
+            </Button>
+          </>
+        ) : null}
       </div>
     </header>
   );

@@ -1,17 +1,23 @@
 // Data provider: puts LoopsApi + LiveEvents in context (the layers above know only the interface - web/main.tsx creates the Http/Sse versions,
 // tests plug in the Fake versions), wraps TanStack Query, opens the live connection and wires events -> cache.
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { LiveEvents } from '../api/live-events';
 import type { LoopsApi } from '../api/loops-api';
+import { onAuthError } from './session-cache';
 import { connectLiveToCache } from './live-sync';
 
 type Deps = { api: LoopsApi; live: LiveEvents };
 const DepsContext = createContext<Deps | null>(null);
 
-/** Default QueryClient of the app: no reload on tab change (SSE already exists), retry once, no retry on a 4xx error. */
+/**
+ * Default QueryClient of the app: no reload on tab change (SSE already exists), retry once, no retry on a 4xx error. A 401
+ * `UNAUTHENTICATED` from any query or mutation ends the session in the cache, so the routes show the sign-in screen (web/data/session-cache.ts).
+ */
 export function createQueryClient(): QueryClient {
-  return new QueryClient({
+  const client: QueryClient = new QueryClient({
+    queryCache: new QueryCache({ onError: (err) => onAuthError(client, err) }),
+    mutationCache: new MutationCache({ onError: (err) => onAuthError(client, err) }),
     defaultOptions: {
       queries: {
         refetchOnWindowFocus: false,
@@ -23,6 +29,7 @@ export function createQueryClient(): QueryClient {
       },
     },
   });
+  return client;
 }
 
 export function DataProvider({ api, live, client, children }: Deps & { client?: QueryClient; children: ReactNode }) {

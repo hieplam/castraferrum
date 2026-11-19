@@ -3,7 +3,7 @@
 Thirty-three use cases describe what a person can see and do. Every row has an ID (`UC-NN`), a title with the
 action, and the observable result that proves it works. The IDs are stable: end-to-end tests carry the tag
 `@UC-NN`, and `npm run uc-coverage` counts the use cases that have at least one green e2e test (the project
-keeps this at 39/39).
+keeps this at 40/40).
 
 Terms used below:
 
@@ -54,3 +54,4 @@ Terms used below:
 | UC-38 | **See what a probe says on the loop page** - open the page of a loop that has a probe, after the console has called the probe | The page shows the state of the probe in its own word: Waiting for you (action `wait`, with the reason), Blocked (action `blocked`, with each blocking issue, the tasks it blocks and its link), Held (action `hold`, with the hold banner and the open hold), Goal met (action `done`, with the closed active period and Start) or Probe failed; it shows the last probe line and the goals figure; opening the page marks the notice of the loop read |
 
 | UC-39 | **The next goal card appears when a goal ends** - a goal-writing loop has a probe, the repository has `goals/charter.json` on `origin/main` and a `repo_gate` row, and the last goal (an open issue with the line `Goal manifest: goals/<name>.json`) ends | While the goal is open, the probe says `skip`: 0 runs, 0 cards. When the goal ends, the probe says `plan`, the writer run opens the card as an issue with the label `goal-card`, and `GET /api/goal-cards` shows 1 card in state `proposed` and `GET /api/notices` holds one `goal_card` notice, with no owner message. A goal that stays open gives no run and no card. A repository with no charter on `origin/main` gives a `blocked` probe, no run and no card |
+| UC-40 | **Sign in and sign out** - the console was started with a username and password (`--username` and `--password`, or `LOOPS_USERNAME` and `LOOPS_PASSWORD`) | Every page first shows the sign-in screen and returns to that page after signing in; a wrong username or password shows an error and keeps the username; the sixth failure in 15 minutes is refused with the wait in minutes and Sign in disabled; after signing in the console works and live updates arrive within 2 seconds; Sign out (the top bar on the desktop, Settings on the phone) ends the session on the server and returns to the sign-in screen; a console started without credentials shows no sign-in and no Sign out |

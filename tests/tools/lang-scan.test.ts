@@ -395,10 +395,14 @@ describe('history allowlist', () => {
     }, 30_000);
   });
 
-  it('the repository allowlist pins the open-in-terminal squash commit by its full SHA, and only that commit', () => {
+  it('the repository allowlist pins exactly the open-in-terminal squash commit and the sign-in approval squash commit, by full SHA', () => {
     const entries = JSON.parse(fs.readFileSync(path.join(scripts, 'lang-history-allowlist.json'), 'utf8')) as Array<Record<string, unknown>>;
     const commits = entries.filter((e) => 'commit' in e);
-    expect(commits).toEqual([{ commit: '066e95c3ddf1ef1118231a13765fd3b279f61556', line: 1, kind: 'coupling' }]);
+    expect(commits).toEqual([
+      { commit: '066e95c3ddf1ef1118231a13765fd3b279f61556', line: 1, kind: 'coupling' },
+      // The squash commit of the sign-in approval (task R4) names a three-digit issue in its body (issue 466).
+      { commit: 'a37516efeb9ecce2eb85f1c9379864f573f4a8ee', line: 3, kind: 'coupling' },
+    ]);
   });
 });
 

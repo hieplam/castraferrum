@@ -641,6 +641,14 @@ With `--username` and `--password` (remote-access spec D1 to D6) the console nee
   digests, so a wrong username takes as long as a wrong password. 5 failures of one client within 15 minutes
   (by the clock port) give 429 `TOO_MANY_ATTEMPTS` with `Retry-After` until the oldest of them leaves the window; a
   success clears the count. The client is the socket address, or `CF-Connecting-IP` when the socket is loopback.
+- **In the web** (task R5): `LoopsApi` gains `session()`, `login()` and `logout()`, and a 401 `UNAUTHENTICATED` from any
+  call is the typed `ApiError` that `isUnauthenticated` names. `web/data/auth.ts` holds the session query; the query
+  client's error handler (`web/data/session-cache.ts`) marks the session ended on that 401. `web/app/AuthGate.tsx` guards
+  the frame: a signed-out browser goes to `/signin?next=<path>`, the one route outside the frame
+  (`web/pages/SignInRoute.tsx`, `web/features/signin/SignInView.tsx`), which leads back to `next` (a path of this
+  console only) after signing in. `useAuthSync` closes the live connection while signed out, opens it again at once after
+  sign-in, and asks the session again when the live connection is lost, so a server restart (which ends every session)
+  shows the sign-in screen. The desktop top bar shows the user and Sign out; the phone has them in Settings (Account).
 
 ## Testing
 

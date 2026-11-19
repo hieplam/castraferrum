@@ -140,6 +140,11 @@ issue, and on approval an entry goes into `design/APPROVED.md` with the owner's 
 **Update 2026-10-21:** build the screen with the kit of the new UI (`web/ui/kit/`), and compare it in
 `tests/visual/ds/` against `design/ds/preview/shots/` (epic #63).
 
+**Update 2026-11-19 (R5):** `docs/USE-CASES.md` had already given UC-35 to the gate (later epics added UC-35 to UC-39),
+so sign-in is **UC-40** there and in the e2e tag (`@UC-40`), and `uc-coverage` goes from 39/39 to 40/40 (the verify floor
+`--min` from 38 to 39). The visual test is `tests/visual/ds/signin.visual.ts`, run with
+`npx playwright test --project=visual tests/visual/ds/signin.visual.ts`. The evidence log (section R5) records why.
+
 **Files:** `web/api/` (`LoopsApi` gains `session()`, `login()`, `logout()`; a 401 `UNAUTHENTICATED` from any call
 raises a typed error), `web/data/` (a session query; on that error, or on an SSE failure followed by
 `signedIn: false`, go to `/signin?next=<path>`), `web/pages/` and `web/features/` (the sign-in screen), `web/app/TopBar.tsx`
