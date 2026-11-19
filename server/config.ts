@@ -39,6 +39,8 @@ export type Config = {
   transcriptPage?: { minEntries: number; maxBytes: number };
   /** `LOOPS_NOTIFY_WEBHOOK`: a URL that gets one JSON post for each new notice. Unset (the default) = nothing is pushed. */
   notifyWebhook?: string;
+  /** `--public-url`, `LOOPS_PUBLIC_URL`: the https address that people open (a reverse proxy in front). Startup prints it. */
+  publicUrl?: string;
 };
 
 /** Where the epic-loop skill keeps its script. */
@@ -81,6 +83,7 @@ Flags (a value is written --name=value or --name value):
   --port=<1-65535>   LOOPS_PORT=<port>      API and UI port (default 7070)
   --username=<name>  LOOPS_USERNAME=<name>  turns sign-in on (needs --password)
   --password=<text>  LOOPS_PASSWORD=<text>  at least 8 characters (needs --username)
+  --public-url=<url> LOOPS_PUBLIC_URL=<url> the https address people open behind a reverse proxy; startup prints it
   --help             -                      print this text and exit 0
 
 Order of precedence: argument, then npm_config_<name> (npm start --host=...), then LOOPS_<NAME> (environment or .env), then the default.
@@ -96,10 +99,10 @@ export class UsageError extends Error {
   }
 }
 
-export type ParsedArgs = { host?: string; port?: string; username?: string; password?: string; remote: boolean; help: boolean };
+export type ParsedArgs = { host?: string; port?: string; username?: string; password?: string; publicUrl?: string; remote: boolean; help: boolean };
 
-type ValueFlag = 'host' | 'port' | 'username' | 'password';
-const VALUE_FLAGS = new Set<string>(['host', 'port', 'username', 'password']);
+type ValueFlag = 'host' | 'port' | 'username' | 'password' | 'public-url';
+const VALUE_FLAGS = new Set<string>(['host', 'port', 'username', 'password', 'public-url']);
 const SWITCH_FLAGS = new Set(['remote', 'help']);
 
 /** Parses --name=value, --name value and the switches --remote and --help. Throws UsageError for anything else. */
@@ -125,7 +128,8 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
         i++;
       }
       if (value === '') throw new UsageError(`--${name} needs a value`);
-      out[name as ValueFlag] = value;
+      if (name === 'public-url') out.publicUrl = value;
+      else out[name as Exclude<ValueFlag, 'public-url'>] = value;
     } else {
       throw new UsageError(`unknown flag --${name}`);
     }
@@ -158,6 +162,7 @@ export function loadConfig(env: Env = process.env, argv: readonly string[] = [])
         ? readPort({ npm_config_port: npmPort }, 'npm_config_port', 7070)
         : readPort(env, 'LOOPS_PORT', 7070);
   const auth = credentials(env, args);
+  const publicUrl = readPublicUrl(env, args);
   const testMode = env.LOOPS_TEST_MODE === '1';
   const url = env.DATABASE_URL ?? databaseUrl(env, testMode ? 'test' : 'main');
   const dbName = new URL(url).pathname.slice(1);
@@ -176,6 +181,7 @@ export function loadConfig(env: Env = process.env, argv: readonly string[] = [])
     port,
     host,
     ...(auth ? { auth } : {}),
+    ...(publicUrl ? { publicUrl } : {}),
     help: args.help,
     databaseUrl: url,
     testMode,
@@ -197,6 +203,20 @@ function credentials(env: Env, args: ParsedArgs): { username: string; password: 
   if (username === undefined) throw new UsageError('--username is missing');
   if (password.length < 8) throw new UsageError('the password needs at least 8 characters');
   return { username, password };
+}
+
+/** Spec D9: an absolute `https://` URL, or a usage error (exit 2). */
+function readPublicUrl(env: Env, args: ParsedArgs): string | undefined {
+  const raw = args.publicUrl ?? npmValue(env, 'public_url') ?? (env.LOOPS_PUBLIC_URL || undefined);
+  if (raw === undefined) return undefined;
+  let ok = false;
+  try {
+    ok = raw.startsWith('https://') && new URL(raw).hostname !== '';
+  } catch {
+    ok = false;
+  }
+  if (!ok) throw new UsageError('--public-url must start with https://');
+  return raw;
 }
 
 function webhookUrl(raw: string): string {

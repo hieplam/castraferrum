@@ -62,7 +62,10 @@ export const authRoutes: FastifyPluginAsyncZod<AuthRouteDeps> = async (app, { au
   );
 
   app.post('/api/auth/login', { onRequest: configured, schema: { body: loginRequest } }, async (req, reply) => {
-    const client = auth.clientKey({ socket: req.socket.remoteAddress, cfConnectingIp: firstValue(req.headers['cf-connecting-ip']) });
+    const client = auth.clientKey({
+      socket: req.socket.remoteAddress, cfConnectingIp: firstValue(req.headers['cf-connecting-ip']),
+      realIp: firstValue(req.headers['x-real-ip']),
+    });
     const result = auth.login(req.body, client);
     switch (result.kind) {
       case 'ok':

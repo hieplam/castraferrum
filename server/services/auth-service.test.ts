@@ -161,6 +161,15 @@ describe('DefaultAuthService client key (spec D6)', () => {
     expect(auth.clientKey({ socket: undefined, cfConnectingIp: '203.0.113.7' })).toBe('unknown');
   });
 
+  it('uses X-Real-IP from a loopback socket, ignores it from another socket, and CF-Connecting-IP wins over it (local-name spec D8)', () => {
+    const { auth } = setup();
+    expect(auth.clientKey({ socket: '127.0.0.1', cfConnectingIp: undefined, realIp: '192.0.2.10' })).toBe('192.0.2.10');
+    expect(auth.clientKey({ socket: '::1', cfConnectingIp: undefined, realIp: '192.0.2.10' })).toBe('192.0.2.10');
+    expect(auth.clientKey({ socket: '192.0.2.7', cfConnectingIp: undefined, realIp: '192.0.2.10' })).toBe('192.0.2.7');
+    expect(auth.clientKey({ socket: '127.0.0.1', cfConnectingIp: '203.0.113.7', realIp: '192.0.2.10' })).toBe('203.0.113.7');
+    expect(auth.clientKey({ socket: '127.0.0.1', cfConnectingIp: undefined, realIp: undefined })).toBe('127.0.0.1');
+  });
+
   it('a LAN client cannot dodge the limit with a forged CF-Connecting-IP', () => {
     const { auth } = setup();
     for (let i = 0; i < 5; i++) {

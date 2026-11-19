@@ -87,8 +87,9 @@ export class DefaultAuthService implements AuthService {
   clientKey(address: ClientAddress): string {
     const socket = address.socket;
     if (!socket) return 'unknown';
-    const forwarded = address.cfConnectingIp?.trim();
-    return forwarded && isLoopback(socket) ? forwarded : socket;
+    if (!isLoopback(socket)) return socket;
+    // Only a program on this machine (cloudflared, nginx) can send these headers with effect: a LAN client has a non-loopback socket.
+    return address.cfConnectingIp?.trim() || address.realIp?.trim() || socket;
   }
 
   #recentFailures(client: string, now: number): number[] {

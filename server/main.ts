@@ -57,6 +57,7 @@ try {
 log(`Castraferrum: http://127.0.0.1:${cfg.port}  (DB ${redactUrl(cfg.databaseUrl)}${cfg.testMode ? ', test mode' : ''})`);
 for (const line of networkLines(cfg.host, cfg.port, networkInterfaces())) log(line);
 for (const line of signInLines(cfg.host, cfg.auth)) log(line);
+if (cfg.publicUrl) log(`Open: ${cfg.publicUrl}`);
 
 let closing = false;
 async function shutdown(reason: string): Promise<void> {
