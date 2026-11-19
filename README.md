@@ -153,6 +153,14 @@ When the PC is off, the Wi-Fi finds no names until the PC starts again.
    `$env:Path += ";C:\Program Files\Git\usr\bin"` in the session.
 2. Open the Technitium web page (`http://localhost:5380`). Make the primary zone `home.arpa`. Add the A record
    for `LOCAL_NAME` (for the sample, the record `castra`) with the value `<pc-ip>`. In Settings, Proxy & Forwarders, set the forwarder `1.1.1.1`.
+
+   When Docker Desktop or WSL runs, the Windows service Internet Connection Sharing (`SharedAccess`) holds
+   `0.0.0.0:53`. Technitium then listens on IPv6 only, and every IPv4 DNS question gets a refused connection. Check it
+   with `Get-NetUDPEndpoint -LocalPort 53`. In that case, open Settings, General, DNS Server Local End Points in
+   Technitium, and replace `0.0.0.0:53` with `<pc-ip>:53`. A specific address can share the port with ICS. Then test:
+   `Resolve-DnsName <your name> -Server <pc-ip> -DnsOnly` must answer `<pc-ip>`.
+
+   The Technitium installer sets the DNS server of this PC to `127.0.0.1` and `::1`. Step 7 sets it back to automatic.
 3. Make the name-limited issuer and the server certificate. The issuer can sign only the names under
    `LOCAL_NAME_LIMIT`, so a stolen issuer key cannot fake another website (spec D6). Run these commands with the two
    variables of step 1 set.
@@ -207,8 +215,11 @@ When the PC is off, the Wi-Fi finds no names until the PC starts again.
    Remove-NetFirewallRule -DisplayName "Castraferrum 7070"
    ```
 7. In the router, open the DHCP settings. Set the DNS server to `<pc-ip>` and leave the second DNS server empty.
-   If the router gives IPv6 DNS servers, turn that off. Then renew the lease on each device (or reconnect it to the
-   Wi-Fi).
+   If the router gives IPv6 DNS servers, turn that off. Add a DHCP reservation (also called a static lease) that
+   always gives `<pc-ip>` to this PC: the DNS server and nginx listen on that address, so a new address after a reboot
+   stops DNS for the whole Wi-Fi. Then renew the lease on each device (or reconnect it to the Wi-Fi). On this PC, set
+   the DNS server of the Wi-Fi adapter back to automatic in an administrator PowerShell:
+   `Set-DnsClientServerAddress -InterfaceAlias "<adapter>" -ResetServerAddresses` (`Get-NetAdapter` lists the names).
 8. Start Castraferrum **without** `--remote`, so that only nginx can reach port 7070. Put this in `.env`:
 
    ```text

@@ -1,15 +1,18 @@
 #!/usr/bin/env node
 // Tests the whole local-name chain on the real machine (phase 3 spec D11, task N0): DNS, nginx, TLS, redirect, SSE, port 7070.
 //
-//   node scripts/local-name-check.mjs [--pc-ip=<address>] [--nginx-conf=<path>] [--name=<name>] [--limit=<name>] [--ca=<path>]
+//   node scripts/local-name-check.mjs [--pc-ip=<address>] [--nginx=<path>] [--nginx-conf=<path>] [--name=<name>] [--limit=<name>] [--ca=<path>]
 //
+// nginx is C:/nginx/nginx.exe when that file exists, else `nginx` on PATH; --nginx replaces it. A given program runs with
+// its own folder as the prefix (-p), so `nginx -t` finds logs/ there. The config is C:/nginx/conf/castra.conf (the README
+// example); --nginx-conf replaces it.
 // The name is the host of LOOPS_PUBLIC_URL (.env or the environment); --name replaces it. The name limit of the issuer is
 // LOCAL_NAME_LIMIT; --limit replaces it. The issuer certificate is %LOCALAPPDATA%/castraferrum/tls/local-ca.pem; --ca replaces it.
 // One line per check (`PASS <id>` or `FAIL <id>: <reason>`), then `local name: <passed>/10 checks pass`.
 // Exit 0 only when all 10 checks pass. The tool only reads: it changes no system setting.
 // `runChecks(deps)` takes every outside effect as a function, so the unit test runs it with fakes.
 import { spawn } from 'node:child_process';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import dns from 'node:dns';
 import http from 'node:http';
 import https from 'node:https';
@@ -132,7 +135,9 @@ function checks(d) {
       if (servers.length !== 1 || servers[0] !== ip) throw new Error(`DNS servers are [${servers.join(', ')}], expected only ${ip}`);
     },
     async 'nginx-test'() {
-      const r = await d.exec('nginx', ['-t', '-c', d.nginxConf]);
+      const program = d.nginx ?? 'nginx';
+      const prefix = program === 'nginx' ? [] : ['-p', `${dirname(program).replace(/\\/g, '/')}/`];
+      const r = await d.exec(program, ['-t', ...prefix, '-c', d.nginxConf]);
       if (r.notFound) throw new Error('nginx not found');
       const out = `${r.stdout}\n${r.stderr}`;
       if (!/syntax is ok/.test(out) || !/test is successful/.test(out)) {
@@ -381,7 +386,8 @@ export async function main(argv) {
     name: arg('name'),
     limit: arg('limit'),
     caPath: arg('ca') ?? join(appData, 'castraferrum', 'tls', CA_FILE),
-    nginxConf: arg('nginx-conf') ?? 'C:/nginx/conf/nginx.conf',
+    nginx: arg('nginx') ?? (existsSync('C:/nginx/nginx.exe') ? 'C:/nginx/nginx.exe' : 'nginx'),
+    nginxConf: arg('nginx-conf') ?? 'C:/nginx/conf/castra.conf',
     env,
     dnsQuery,
     dnsServers,
