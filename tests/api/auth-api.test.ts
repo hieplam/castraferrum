@@ -154,6 +154,14 @@ describe('with credentials', () => {
     expect((await lan('198.51.100.200', CREDENTIALS)).statusCode).toBe(429);
   });
 
+  it('X-Real-IP from a loopback socket gives each device its own count (local-name spec D8)', async () => {
+    const dev = (ip: string, body: unknown) =>
+      server.app.inject({ method: 'POST', url: '/api/auth/login', payload: body as object, headers: { 'x-real-ip': ip } });
+    for (let i = 0; i < 5; i++) expect((await dev('192.0.2.10', { username: 'owner', password: 'password2' })).statusCode).toBe(401);
+    expect((await dev('192.0.2.10', CREDENTIALS)).statusCode).toBe(429);
+    expect((await dev('192.0.2.11', { username: 'owner', password: 'password2' })).statusCode).toBe(401);
+  });
+
   it('a session ends after 30 wound days', async () => {
     const cookie = await signIn();
     const advance = (ms: number) => server.app.inject({ method: 'POST', url: '/api/__test/clock', payload: { advanceMs: ms } });

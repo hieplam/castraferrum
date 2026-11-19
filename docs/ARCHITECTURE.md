@@ -640,7 +640,7 @@ With `--username` and `--password` (remote-access spec D1 to D6) the console nee
 - **Login**: both the username and the password are compared every time, each as `timingSafeEqual` over SHA-256
   digests, so a wrong username takes as long as a wrong password. 5 failures of one client within 15 minutes
   (by the clock port) give 429 `TOO_MANY_ATTEMPTS` with `Retry-After` until the oldest of them leaves the window; a
-  success clears the count. The client is the socket address, or `CF-Connecting-IP` when the socket is loopback.
+  success clears the count. The client is the socket address, or `CF-Connecting-IP`, then `X-Real-IP`, when the socket is loopback.
 - **In the web** (task R5): `LoopsApi` gains `session()`, `login()` and `logout()`, and a 401 `UNAUTHENTICATED` from any
   call is the typed `ApiError` that `isUnauthenticated` names. `web/data/auth.ts` holds the session query; the query
   client's error handler (`web/data/session-cache.ts`) marks the session ended on that 401. `web/app/AuthGate.tsx` guards
@@ -649,6 +649,16 @@ With `--username` and `--password` (remote-access spec D1 to D6) the console nee
   console only) after signing in. `useAuthSync` closes the live connection while signed out, opens it again at once after
   sign-in, and asks the session again when the live connection is lost, so a server restart (which ends every session)
   shows the sign-in screen. The desktop top bar shows the user and Sign out; the phone has them in Settings (Account).
+
+### Behind a reverse proxy
+
+A reverse proxy such as nginx can run on the same machine and forward to the console on `127.0.0.1` (local-name spec D4,
+D7, D8). The proxy sets `X-Forwarded-Proto: https`, so the session cookie gets `Secure`, and sets `X-Real-IP` to the
+address of the device. `clientKey` trusts `CF-Connecting-IP` and `X-Real-IP` only when the socket is loopback, so each
+device has its own sign-in count and a device on the network cannot forge its address. The proxy must not buffer, or the
+live updates of SSE do not arrive. `--public-url` (`LOOPS_PUBLIC_URL`) holds the `https://` address; startup prints it
+as `Open: <url>`. `tests/support/fake-reverse-proxy.mjs` stands in for nginx in the e2e test of UC-42.
+
 
 ## Testing
 

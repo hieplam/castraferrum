@@ -32,4 +32,22 @@ describe('sign-in startup lines (spec D12)', () => {
       await sp.stop();
     }
   }, 60_000);
+
+  it('a server started with --public-url prints Open: <url> (local-name spec D9)', async () => {
+    const sp = await ServerProcess.launch({ args: ['--public-url=https://castra.home.arpa'] });
+    try {
+      expect(sp.logs.join('').split(/\r?\n/)).toContain('Open: https://castra.home.arpa');
+    } finally {
+      await sp.stop();
+    }
+  }, 60_000);
+
+  it('a server started without --public-url prints no Open line', async () => {
+    const sp = await ServerProcess.launch();
+    try {
+      expect(sp.logs.join('')).not.toContain('Open:');
+    } finally {
+      await sp.stop();
+    }
+  }, 60_000);
 });

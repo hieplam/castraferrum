@@ -60,7 +60,7 @@ export type LoginResult =
   | { kind: 'notConfigured' };
 
 /** Where a request came from: the socket address and the `CF-Connecting-IP` header, if any. */
-export type ClientAddress = { socket: string | undefined; cfConnectingIp: string | undefined };
+export type ClientAddress = { socket: string | undefined; cfConnectingIp: string | undefined; realIp?: string | undefined };
 
 export interface AuthService {
   /** True when credentials are set: then every route but the public ones needs a session (spec D5). */
