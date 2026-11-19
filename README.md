@@ -111,10 +111,11 @@ If the phone cannot connect, check that the phone and the machine are on the sam
 ## Open with a name on your network
 
 This section gives the console the address `https://castra.home.arpa` on your home network. Three programs on the PC
-do the work: Technitium DNS Server (the name), nginx (HTTPS) and mkcert (the certificate). The design is in
+do the work: Technitium DNS Server (the name), nginx (HTTPS) and `openssl` (the certificates). The design is in
 [ADR 0005](docs/adr/0005-local-name-through-dns-and-reverse-proxy.md) and the files are in
 [`deploy/local-name/`](deploy/local-name/README.md). In the commands, `<pc-ip>` is the IP address of this PC on the home
-network. `%LOCALAPPDATA%` is the Windows folder of your user data.
+network. `%LOCALAPPDATA%` is the Windows folder of your user data. `<repo>` is the folder of this repository.
+The repository holds only the sample name `castra.home.arpa`. Your own name stays on your machine (spec D13).
 
 Read these two conditions first:
 
@@ -124,29 +125,64 @@ Read these two conditions first:
 
 When the PC is off, the Wi-Fi finds no names until the PC starts again.
 
-1. Install the three programs. Run each command in a normal PowerShell.
+1. Choose the three values, then install the programs. The values are:
+
+   | Value | Meaning | Sample |
+   |---|---|---|
+   | `LOCAL_NAME` | The name of the console on this machine. | `castra.home.arpa` |
+   | `LOCAL_NAME_LIMIT` | The only name that the issuer may sign: `LOCAL_NAME` or a parent of it. | `castra.home.arpa` |
+   | `LOOPS_PUBLIC_URL` | `https://` plus `LOCAL_NAME`. | `https://castra.home.arpa` |
+
+   Put all three in `.env` (they are commented in `.env.example`). Set the first two in the PowerShell session too,
+   because `ca.cnf` and the next steps read them from the environment:
+
+   ```powershell
+   $env:LOCAL_NAME = "castra.home.arpa"        # your own name here
+   $env:LOCAL_NAME_LIMIT = "castra.home.arpa"  # the same name, or a parent of it
+   ```
+
+   Install the programs in a normal PowerShell:
 
    ```powershell
    winget install --id nginxinc.nginx        # nginx (nginx.org/en/download.html is the other source)
-   winget install --id FiloSottile.mkcert    # mkcert
+   winget install --id Git.Git               # Git for Windows: it holds openssl in C:\Program Files\Git\usr\bin
    ```
 
    Technitium DNS Server has no winget package. Download the installer from <https://technitium.com/dns/> and run it.
-   It installs a Windows service that starts at boot.
+   It installs a Windows service that starts at boot. If `openssl` is not on `PATH`, run
+   `$env:Path += ";C:\Program Files\Git\usr\bin"` in the session.
 2. Open the Technitium web page (`http://localhost:5380`). Make the primary zone `home.arpa`. Add the A record
-   `castra` with the value `<pc-ip>`. In Settings, Proxy & Forwarders, set the forwarder `1.1.1.1`.
-3. Make the certificate. The `tls` folder must exist first.
+   for `LOCAL_NAME` (for the sample, the record `castra`) with the value `<pc-ip>`. In Settings, Proxy & Forwarders, set the forwarder `1.1.1.1`.
+3. Make the name-limited issuer and the server certificate. The issuer can sign only the names under
+   `LOCAL_NAME_LIMIT`, so a stolen issuer key cannot fake another website (spec D6). Run these commands with the two
+   variables of step 1 set.
 
-   ```powershell
-   mkcert -install
-   New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\castraferrum\tls"
-   Set-Location "$env:LOCALAPPDATA\castraferrum\tls"
-   mkcert castra.home.arpa
-   ```
+   1. Make the folder and the issuer:
 
-   The files `castra.home.arpa.pem` and `castra.home.arpa-key.pem` stay in that folder. Never commit them.
+      ```powershell
+      New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\castraferrum\tls"
+      Set-Location "$env:LOCALAPPDATA\castraferrum\tls"
+      openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -keyout local-ca-key.pem -out local-ca.pem -days 3650 -subj "/CN=local home issuer" -config <repo>/deploy/local-name/ca.cnf -extensions ca_ext
+      ```
+   2. Make the server key and request, then sign it:
+
+      ```powershell
+      openssl req -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -keyout "$env:LOCAL_NAME-key.pem" -out server.csr -subj "/CN=$env:LOCAL_NAME"
+      openssl x509 -req -in server.csr -CA local-ca.pem -CAkey local-ca-key.pem -CAcreateserial -days 825 -extfile <repo>/deploy/local-name/ca.cnf -extensions server_ext -out "$env:LOCAL_NAME.pem"
+      ```
+   3. Trust the issuer on this PC, for the current user only:
+
+      ```powershell
+      certutil -user -addstore Root local-ca.pem
+      ```
+   4. Move `local-ca-key.pem` to a USB stick and keep the stick out of the PC, or delete the file. Without it, a new
+      server certificate needs a new issuer. `npm run local-name:check` fails while the file is in the folder.
+
+   The files `$env:LOCAL_NAME.pem`, `$env:LOCAL_NAME-key.pem` and `local-ca.pem` stay in that folder. Never commit
+   them.
 4. Copy `deploy/local-name/nginx.conf` into the nginx folder, for example `C:\nginx\conf\castra.conf`. In the copy,
-   replace `CERT_DIR` with the `tls` folder from step 3, written with forward slashes. Then check the copy:
+   replace `LOCAL_NAME` with your name, and replace `CERT_DIR` with the `tls` folder from step 3, written with forward
+   slashes. Then check the copy:
 
    ```powershell
    nginx -t -c C:/nginx/conf/castra.conf
@@ -179,18 +215,27 @@ When the PC is off, the Wi-Fi finds no names until the PC starts again.
    LOOPS_PUBLIC_URL=https://castra.home.arpa
    ```
 
-   The startup log then prints `Open: https://castra.home.arpa`.
+   Write your own name instead of the sample. The startup log then prints `Open: <that address>`.
 9. Check the whole chain: DNS, certificate, redirect, live updates and the closed port.
 
    ```bash
    npm run local-name:check
    ```
 
-   The last line is `local name: 8/8 checks pass` when all is well. The script `local-name:check` comes from the
-   task N0 of the same epic, so it can arrive on `main` before or after this section.
-10. On each phone, copy `rootCA.pem` from the folder that `mkcert -CAROOT` prints, and trust it (on iOS: install the
-    profile, then turn it on in Settings, General, About, Certificate Trust Settings). Turn "Private DNS" (Android) or
-    any DNS profile (iOS) off, or set it to automatic. Then open `https://castra.home.arpa`.
+   The last line is `local name: 10/10 checks pass` when all is well. The tool reads the name from
+   `LOOPS_PUBLIC_URL` and the limit from `LOCAL_NAME_LIMIT`.
+10. Copy the issuer to the phones that need the console only (rule C of spec D6). Copy `local-ca.pem` from the `tls`
+    folder, renamed to `local-ca.crt`. Copy only this public file. Never copy `local-ca-key.pem` or the server key: a
+    device that trusts the issuer trusts every certificate that its key signs, so the name limit protects only
+    while the key stays off every device. The menu names below are not verified on every phone.
+    - iPhone: open the file, allow the profile, then install it in Settings, General, VPN & Device Management. Then
+      turn it on in Settings, General, About, Certificate Trust Settings. To remove it, delete the profile in the
+      same place.
+    - Android: Settings, Security (or Security & privacy), More security settings, Encryption & credentials, Install
+      a certificate, CA certificate. To remove it, use Settings, Encryption & credentials, Trusted credentials, User.
+
+    Turn "Private DNS" (Android) or any DNS profile (iOS) off, or set it to automatic. Then open the address of
+    `LOOPS_PUBLIC_URL`.
 
 ## Configuration
 
@@ -221,7 +266,7 @@ parallel on one container if each one sets its own `LOOPS_TEST_DATABASE_URL` and
 |---|---|
 | `node scripts/logon-task.mjs [--console-dir <abs>] [--port 7070] [--task-name Castraferrum] [--out <file>]` | Prints Windows Task Scheduler XML that starts the console at log-on. With `--out` it writes the XML file and prints the one `schtasks /Create` line for you to run. The script never installs the task. |
 | `node scripts/merge-audit.mjs -R <owner/name> --since <ISO date> [--json]` | Lists each PR merged since the date whose head commit has no `castraferrum/gate` status of `success`. Writes nothing to GitHub. Exit 0: none. Exit 1: incidents. Exit 2: a bad argument or a failed `gh` call. |
-| `npm run local-name:check -- [--pc-ip=<address>] [--nginx-conf=<path>]` | Tests the local name chain on this PC (`castra.home.arpa`): DNS, nginx, TLS, redirect, live updates, port 7070. Prints `PASS` or `FAIL <id>: <reason>` for 8 checks and `local name: <n>/8 checks pass`. Exit 0 only when all 8 pass. It only reads; it changes no setting. |
+| `npm run local-name:check -- [--pc-ip=<address>] [--nginx-conf=<path>] [--name=<name>] [--limit=<name>] [--ca=<path>]` | Tests the local name chain on this PC: DNS, nginx, TLS, the name limit of the issuer, the absence of the issuer key, redirect, live updates, port 7070. The name is the host of `LOOPS_PUBLIC_URL` (`--name` replaces it), the limit is `LOCAL_NAME_LIMIT` (`--limit`), the issuer file is `%LOCALAPPDATA%\castraferrum\tls\local-ca.pem` (`--ca`). Prints `PASS` or `FAIL <id>: <reason>` for 10 checks and `local name: <n>/10 checks pass`. Exit 0 only when all 10 pass. It only reads; it changes no setting. |
 
 ## Documentation
 

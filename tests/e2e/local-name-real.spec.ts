@@ -1,14 +1,13 @@
 // E2E on the real machine behind the local name (local-name spec G2 and G3). It runs only with LC_LOCAL_NAME=1,
-// because it needs Technitium, nginx and mkcert from task N3 and the owner's real console. Otherwise it is skipped.
+// because it needs Technitium, nginx and the local issuer from task N3 and the owner's real console. Otherwise it is skipped.
 //
-// Chromium does not ignore certificate errors: the mkcert CA must be trusted by the machine. The test signs in with
+// Chromium does not ignore certificate errors: the machine must trust the local issuer. The address is LOOPS_PUBLIC_URL (sample: castra.home.arpa). The test signs in with
 // LOOPS_USERNAME and LOOPS_PASSWORD, starts one loop named "local-name acceptance" and sees it running in 2 seconds.
 // It makes no other data, and it stops and archives that loop at the end (the console has no other way to remove a loop).
 import { expect, test } from '@playwright/test';
 import { t } from '../support/ui-text';
 
-const NAME = 'castra.home.arpa';
-const URL = `https://${NAME}`;
+const URL = (process.env.LOOPS_PUBLIC_URL ?? 'https://castra.home.arpa').replace(/\/+$/, '');
 const LOOP_NAME = 'local-name acceptance';
 
 test('the console opens at the local name with a trusted certificate, signs in, and a started loop shows Running in 2 seconds', async ({ browser }) => {
