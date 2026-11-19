@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/hieplam/castraferrum/compare/v0.12.1...v0.13.0) (2026-11-19)
+
+
+### Features
+
+* **web:** sign-in screen and Sign out in the app (R5, UC-40) ([#465](https://github.com/hieplam/castraferrum/issues/465)) ([c9a06ca](https://github.com/hieplam/castraferrum/commit/c9a06ca9e3fe8a46b217d67f925ec17321696ae9))
+
 ## [0.12.1](https://github.com/hieplam/castraferrum/compare/v0.12.0...v0.12.1) (2026-11-19)
 
 
