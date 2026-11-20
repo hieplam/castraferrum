@@ -237,5 +237,36 @@ describe('fake gh', { timeout: 60_000 }, () => {
     expect(after.issues.map((i) => i.number).sort((a, b) => a - b)).toEqual(Array.from({ length: n / 2 }, (_, i) => i + 1));
     expect(after.calls).toHaveLength(n);
   });
+  it('a reader that takes no lock never sees a half-written world while calls rewrite it', async () => {
+    const { gh } = setup();
+    const world = gh.read();
+    // A large world makes each write long, so a write that is not atomic leaves a half file for a long time.
+    world.labels.push('x'.repeat(2_000_000));
+    writeFileSync(gh.world, JSON.stringify(world));
+    let writing = true;
+    const writer = (async () => {
+      while (writing) {
+        await new Promise<void>((done) => {
+          const child = spawn(process.execPath, [gh.script, 'issue', 'list', '--json', 'number'], { env: { ...process.env, ...gh.env }, stdio: 'ignore' });
+          child.on('close', () => done());
+        });
+      }
+    })();
+    const failures: string[] = [];
+    try {
+      for (let i = 0; i < 300; i++) {
+        try {
+          gh.read();
+        } catch (e) {
+          failures.push(String((e as Error).message));
+        }
+        await new Promise((done) => setTimeout(done, 1));
+      }
+    } finally {
+      writing = false;
+      await writer;
+    }
+    expect(failures).toEqual([]);
+  });
 });
 
