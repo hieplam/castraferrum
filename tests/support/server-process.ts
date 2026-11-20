@@ -112,7 +112,8 @@ export class ServerProcess {
     const db = new URL(liveDbUrl());
     db.hostname = '127.0.0.1';
     db.port = String(this.#dbProxyPort);
-    const env: NodeJS.ProcessEnv = { ...process.env, ...this.#env, LOOPS_PORT: String(this.port), LOOPS_TEST_MODE: '1', DATABASE_URL: db.toString() };
+    // LOOPS_PUBLIC_URL is empty unless the test sets it: the server loads the developer's .env, which can hold one (task N3).
+    const env: NodeJS.ProcessEnv = { ...process.env, LOOPS_PUBLIC_URL: '', ...this.#env, LOOPS_PORT: String(this.port), LOOPS_TEST_MODE: '1', DATABASE_URL: db.toString() };
     const child = spawn(process.execPath, ['--import', 'tsx', 'server/main.ts', ...this.#args], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
     child.stdout?.on('data', (b) => this.logs.push(String(b)));
     child.stderr?.on('data', (b) => this.logs.push(String(b)));
