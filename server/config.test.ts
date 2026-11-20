@@ -311,15 +311,15 @@ describe('networkUrls', () => {
 
 describe('--public-url (local-name spec D9)', () => {
   it('reads the flag, npm_config_public_url and LOOPS_PUBLIC_URL, in that order', () => {
-    expect(loadConfig({}, ['--public-url=https://castra.home.arpa']).publicUrl).toBe('https://castra.home.arpa');
-    expect(loadConfig({ npm_config_public_url: 'https://npm.home.arpa' }).publicUrl).toBe('https://npm.home.arpa');
-    expect(loadConfig({ LOOPS_PUBLIC_URL: 'https://env.home.arpa' }).publicUrl).toBe('https://env.home.arpa');
-    expect(loadConfig({ LOOPS_PUBLIC_URL: 'https://env.home.arpa', npm_config_public_url: 'https://npm.home.arpa' }, ['--public-url=https://arg.home.arpa']).publicUrl).toBe('https://arg.home.arpa');
+    expect(loadConfig({}, ['--public-url=https://castra.example.com']).publicUrl).toBe('https://castra.example.com');
+    expect(loadConfig({ npm_config_public_url: 'https://npm.example.com' }).publicUrl).toBe('https://npm.example.com');
+    expect(loadConfig({ LOOPS_PUBLIC_URL: 'https://env.example.com' }).publicUrl).toBe('https://env.example.com');
+    expect(loadConfig({ LOOPS_PUBLIC_URL: 'https://env.example.com', npm_config_public_url: 'https://npm.example.com' }, ['--public-url=https://arg.example.com']).publicUrl).toBe('https://arg.example.com');
     expect(loadConfig({}).publicUrl).toBeUndefined();
   });
 
   it('a value that is not an absolute https URL is a usage error', () => {
-    for (const bad of ['http://x', 'castra.home.arpa', 'https://']) {
+    for (const bad of ['http://x', 'castra.example.com', 'https://']) {
       expect(() => loadConfig({}, [`--public-url=${bad}`])).toThrow(UsageError);
     }
     expect(() => loadConfig({}, ['--public-url=http://x'])).toThrow('--public-url must start with https://');
