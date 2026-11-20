@@ -330,3 +330,49 @@ describe('--public-url (local-name spec D9)', () => {
     expect(USAGE).toContain('--public-url');
   });
 });
+
+describe('--cloudflare and --cloudflared (remote-access spec D7, D8)', () => {
+  const creds = { LOOPS_USERNAME: 'owner', LOOPS_PASSWORD: 'password1' };
+
+  it('--cloudflare, npm_config_cloudflare and LOOPS_CLOUDFLARE each set the token, in that order', () => {
+    expect(loadConfig(creds, ['--cloudflare=t']).tunnel?.token).toBe('t');
+    expect(loadConfig({ ...creds, npm_config_cloudflare: 'npm-t' }).tunnel?.token).toBe('npm-t');
+    expect(loadConfig({ ...creds, LOOPS_CLOUDFLARE: 'env-t' }).tunnel?.token).toBe('env-t');
+    expect(loadConfig({ ...creds, LOOPS_CLOUDFLARE: 'env-t', npm_config_cloudflare: 'npm-t' }, ['--cloudflare=arg-t']).tunnel?.token).toBe('arg-t');
+    expect(loadConfig({ ...creds, LOOPS_CLOUDFLARE: 'env-t' }, ['--cloudflare', 'space-t']).tunnel?.token).toBe('space-t');
+    expect(loadConfig(creds).tunnel).toBeUndefined();
+    expect(loadConfig({ ...creds, LOOPS_CLOUDFLARE: '' }).tunnel).toBeUndefined();
+  });
+
+  it('--cloudflare without credentials is a usage error: a tunnel needs --username and --password', () => {
+    expect(() => loadConfig({}, ['--cloudflare=t'])).toThrow(UsageError);
+    expect(() => loadConfig({}, ['--cloudflare=t'])).toThrow('a tunnel needs --username and --password');
+    expect(() => loadConfig({ LOOPS_CLOUDFLARE: 't' })).toThrow('a tunnel needs --username and --password');
+    expect(() => loadConfig({ npm_config_cloudflare: 't' })).toThrow('a tunnel needs --username and --password');
+  });
+
+  it('the message of a usage error never holds the token', () => {
+    try {
+      loadConfig({}, ['--cloudflare=secret-token-value']);
+      expect.unreachable();
+    } catch (err) {
+      expect((err as Error).message).not.toContain('secret-token-value');
+    }
+  });
+
+  it('--cloudflared: default cloudflared on PATH; a path that ends in .mjs runs with the current Node binary', () => {
+    expect(loadConfig(creds, ['--cloudflare=t']).tunnel?.command).toEqual(['cloudflared']);
+    expect(loadConfig(creds, ['--cloudflare=t', '--cloudflared=C:/tools/cloudflared.exe']).tunnel?.command).toEqual(['C:/tools/cloudflared.exe']);
+    expect(loadConfig({ ...creds, LOOPS_CLOUDFLARED: 'fake.mjs' }, ['--cloudflare=t']).tunnel?.command).toEqual([process.execPath, 'fake.mjs']);
+    expect(loadConfig({ ...creds, npm_config_cloudflared: 'npm.mjs', LOOPS_CLOUDFLARED: 'env.mjs' }, ['--cloudflare=t']).tunnel?.command).toEqual([process.execPath, 'npm.mjs']);
+    expect(loadConfig(creds, ['--cloudflare=t', '--cloudflared=FAKE.MJS']).tunnel?.command).toEqual([process.execPath, 'FAKE.MJS']);
+  });
+
+  it('a bare npm --cloudflare (npm_config_cloudflare=true) is a usage error, not the token "true"', () => {
+    expect(() => loadConfig({ ...creds, npm_config_cloudflare: 'true' })).toThrow('--cloudflare needs a value');
+  });
+
+  it('both flags are listed in the usage text with their variables', () => {
+    for (const word of ['--cloudflare=<token>', 'LOOPS_CLOUDFLARE', '--cloudflared=<path>', 'LOOPS_CLOUDFLARED']) expect(USAGE).toContain(word);
+  });
+});
