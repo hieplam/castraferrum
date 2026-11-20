@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.15.0](https://github.com/hieplam/castraferrum/compare/v0.14.0...v0.15.0) (2026-11-20)
+
+
+### Features
+
+* **local-name:** check tool v2, deploy files and README for a bought domain (task N6) ([#490](https://github.com/hieplam/castraferrum/issues/490)) ([aa732f0](https://github.com/hieplam/castraferrum/commit/aa732f0a1f9d8559413e0c844641d3928d12b776))
+
+
+### Bug Fixes
+
+* **repo:** LF line endings in 11 files, and a test that keeps them ([#493](https://github.com/hieplam/castraferrum/issues/493)) ([f3d7d85](https://github.com/hieplam/castraferrum/commit/f3d7d85d5c4c6056581adafb0f520d0bfa56145d))
+
 ## [0.14.0](https://github.com/hieplam/castraferrum/compare/v0.13.0...v0.14.0) (2026-11-19)
 
 
