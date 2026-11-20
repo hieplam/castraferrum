@@ -340,3 +340,51 @@ The old tool against the new tests: see Red (1).
 ### Ratchet
 
 Unit tests (`npx vitest run --project unit`): before 1469 passed, 3 skipped (main 1dcd581); after 1470 passed, 3 skipped. The 4 cases of the deleted `ca-name-limit.test.ts` are gone. Checks of the tool: 10 to 10, with new ids. `local name: 1/10 checks pass` on the owner PC is the baseline of task N3.
+
+## N3 fix (check tool and README from the real setup)
+
+Found on the owner PC on 2026-11-20 (two checks failed, `nginx-test` and `sse`). Two defects: the sign-in of the console answers 204 and the tool expected 200, and `nginx -t` cannot read the key folder as the normal user (spec D6 A). Fix: `sse` accepts 204 (and 200); `nginx-test` runs nginx on a temporary copy of the deployed file whose two ssl lines point to a throwaway self-signed pair made with openssl, and deletes the folder.
+
+### Red
+
+Unit tests with the new cases, against the old tool (`npx vitest run --project unit tests/tools/local-name-check.test.ts`):
+
+```text
+⎯⎯⎯⎯⎯⎯ Failed Tests 27 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  1 failed (1)
+      Tests  27 failed | 14 passed (41)
+```
+
+The real tool before the fix, on the owner PC:
+
+```text
+FAIL nginx-test: nginx -t said: nginx: [emerg] cannot load certificate "C:/ProgramData/castraferrum/tls/<name>-chain.pem": BIO_new_file() failed (SSL: error:80000005:system library::Input/output error
+FAIL sse: sign-in gave 204, expected 200
+```
+
+### Green
+
+```text
+Test Files  1 passed (1)
+Tests  41 passed (41)
+```
+
+The real tool of this branch, run from the main checkout on the owner PC:
+
+```text
+PASS dns-public
+PASS dns-pc-servers
+PASS dns-system
+PASS nginx-test
+PASS tls
+PASS cert-issuer serial 054AE97FC8AF29941FCF2C4FFB5E32E60A5B, valid Nov 20 10:09:22 2026 GMT to Feb 18 10:09:21 2027 GMT
+PASS own-issuer-absent
+PASS redirect
+PASS sse
+PASS port-closed
+local name: 10/10 checks pass
+```
+
+### Ratchet
+
+`local name: 7/10` (issue baseline) to `local name: 10/10`.

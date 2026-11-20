@@ -32,9 +32,10 @@ const INFO = `serial ${SERIAL}, valid ${cert().valid_from} to ${cert().valid_to}
 type Call = { url: string; method?: string };
 const HEALTHY_HTTP = async ({ url, method }: Call) => {
   if (url.startsWith('http://')) return { status: 301, headers: { location: `https://${NAME}/x` } };
-  if (method === 'POST') return { status: 200, headers: { 'set-cookie': ['castra_session=abc; Path=/; HttpOnly'] } };
+  if (method === 'POST') return { status: 204, headers: { 'set-cookie': ['castra_session=abc; Path=/; HttpOnly'] } };
   return { status: 200, headers: {} };
 };
+const DEPLOYED_CONF = ['server {', '    listen 443 ssl;', '    ssl_certificate     C:/ProgramData/castraferrum/tls/castra.example.com-chain.pem;', '    ssl_certificate_key C:/ProgramData/castraferrum/tls/castra.example.com-key.pem;', '}', ''].join('\n');
 const PS_EMPTY = { code: 0, stdout: '', stderr: '' };
 
 /** Fakes that make all 10 checks pass. A test overrides one function. */
@@ -46,6 +47,7 @@ function good(over: Record<string, unknown> = {}) {
     listFolder: async () => [] as string[],
     limitMs: 1000,
     nginxConf: 'C:/nginx/conf/nginx.conf',
+    readText: async () => DEPLOYED_CONF,
     now: at(0.5),
     dnsQuery: async () => [IP],
     dnsServers: async () => [IP],
@@ -142,21 +144,56 @@ describe('local-name-check runChecks', () => {
 
   it('fails nginx-test with "nginx not found" when nginx is missing, and when the test is not successful', async () => {
     const missing = { notFound: true, code: -1, stdout: '', stderr: 'ENOENT' };
-    const r = await failing({ exec: async (c: string) => (c === 'powershell.exe' ? PS_EMPTY : missing) }, 'nginx-test');
+    const r = await failing({ exec: async (c: string) => (c === 'powershell.exe' ? PS_EMPTY : c === 'openssl' ? NGINX_OK : missing) }, 'nginx-test');
     expect(r.lines).toContain('FAIL nginx-test: nginx not found');
     await failing({ exec: async (c: string) => (c === 'powershell.exe' ? PS_EMPTY : { code: 1, stdout: '', stderr: 'nginx: [emerg] unknown directive' }) }, 'nginx-test');
   });
 
-  it('passes the deployed config path to nginx -t', async () => {
+  it('runs nginx -t on a temporary copy of the deployed config whose ssl paths point to a temporary pair, and deletes the folder', async () => {
     const calls: string[][] = [];
-    await runChecks(good({ nginxConf: 'D:/x/nginx.conf', exec: async (c: string, a: string[]) => (calls.push([c, ...a]), c === 'powershell.exe' ? PS_EMPTY : NGINX_OK) }));
-    expect(calls).toContainEqual(['nginx', '-t', '-c', 'D:/x/nginx.conf']);
+    const read: string[] = [];
+    let copyText = '';
+    let copyPath = '';
+    const r = await runChecks(
+      good({
+        nginx: 'D:/web/nginx/nginx.exe',
+        nginxConf: 'D:/web/nginx/conf/site.conf',
+        readText: async (f: string) => (read.push(f), DEPLOYED_CONF),
+        exec: async (c: string, a: string[]) => {
+          calls.push([c, ...a]);
+          if (c === 'D:/web/nginx/nginx.exe') {
+            copyPath = a[a.indexOf('-c') + 1]!;
+            copyText = readFileSync(copyPath, 'utf8');
+          }
+          return c === 'powershell.exe' ? PS_EMPTY : NGINX_OK;
+        },
+      }),
+    );
+    expect(r.lines).toContain('PASS nginx-test');
+    expect(read).toEqual(['D:/web/nginx/conf/site.conf']);
+    const nginxCall = calls.find((c) => c[0] === 'D:/web/nginx/nginx.exe')!;
+    expect(nginxCall.slice(0, 4)).toEqual(['D:/web/nginx/nginx.exe', '-p', 'D:/web/nginx/', '-t']);
+    expect(copyPath).not.toBe('D:/web/nginx/conf/site.conf');
+    const dir = copyPath.replace(/\\/g, '/').replace(/\/[^/]+$/, '');
+    expect(copyText).not.toContain('ProgramData');
+    expect(copyText).toContain(`ssl_certificate     ${dir}/`);
+    expect(copyText).toMatch(/ssl_certificate_key\s+[^;\s]*key\.pem;/);
+    expect(copyText).toContain('listen 443 ssl;');
+    const gen = calls.find((c) => c[0] === 'openssl' && c[1] === 'req')!;
+    expect(gen).toContain('ec_paramgen_curve:P-256');
+    expect(existsSync(dir)).toBe(false);
   });
 
-  it('runs a given nginx program with its own folder as the prefix, so nginx finds logs/ there and not in the current folder', async () => {
-    const calls: string[][] = [];
-    await runChecks(good({ nginx: 'D:/web/nginx/nginx.exe', nginxConf: 'D:/web/nginx/conf/site.conf', exec: async (c: string, a: string[]) => (calls.push([c, ...a]), c === 'powershell.exe' ? PS_EMPTY : NGINX_OK) }));
-    expect(calls).toContainEqual(['D:/web/nginx/nginx.exe', '-t', '-p', 'D:/web/nginx/', '-c', 'D:/web/nginx/conf/site.conf']);
+  it('deletes the temporary folder also when nginx -t fails', async () => {
+    let copyPath = '';
+    const r = await runChecks(good({ exec: async (c: string, a: string[]) => (c === 'nginx' ? ((copyPath = a[a.indexOf('-c') + 1]!), { code: 1, stdout: '', stderr: 'nginx: [emerg] bad' }) : c === 'powershell.exe' ? PS_EMPTY : NGINX_OK) }));
+    expect(r.lines.some((l: string) => l.startsWith('FAIL nginx-test: nginx -t said'))).toBe(true);
+    expect(existsSync(copyPath.replace(/\\/g, '/').replace(/\/[^/]+$/, ''))).toBe(false);
+  });
+
+  it('fails nginx-test with the reason when openssl is missing', async () => {
+    const r = await failing({ exec: async (c: string) => (c === 'powershell.exe' ? PS_EMPTY : c === 'nginx' ? NGINX_OK : { notFound: true, code: -1, stdout: '', stderr: 'ENOENT' }) }, 'nginx-test');
+    expect(r.lines.find((l: string) => l.startsWith('FAIL nginx-test'))).toContain('openssl');
   });
 
   it('gives no ca option to any TLS or HTTPS connection', async () => {
@@ -197,7 +234,19 @@ describe('local-name-check runChecks', () => {
   it('fails sse when the credentials are missing, the sign-in is refused, or no cookie comes back', async () => {
     await failing({ env: { LOOPS_PUBLIC_URL: `https://${NAME}` } }, 'sse');
     await failing({ http: async ({ url, method }: Call) => (method === 'POST' ? { status: 401, headers: {} } : HEALTHY_HTTP({ url, method })) }, 'sse');
-    await failing({ http: async ({ url, method }: Call) => (method === 'POST' ? { status: 200, headers: {} } : HEALTHY_HTTP({ url, method })) }, 'sse');
+    await failing({ http: async ({ url, method }: Call) => (method === 'POST' ? { status: 204, headers: {} } : HEALTHY_HTTP({ url, method })) }, 'sse');
+  });
+
+  it('accepts a sign-in of 204 with the cookie (the real server) and of 200 with the cookie', async () => {
+    const r = await runChecks(good());
+    expect(r.lines).toContain('PASS sse');
+    const ok200 = await runChecks(good({ http: async ({ url, method }: Call) => (method === 'POST' ? { status: 200, headers: { 'set-cookie': ['castra_session=abc; Path=/'] } } : HEALTHY_HTTP({ url, method })) }));
+    expect(ok200.lines).toContain('PASS sse');
+  });
+
+  it('fails sse with the status when the sign-in answers 401', async () => {
+    const r = await failing({ http: async ({ url, method }: Call) => (method === 'POST' ? { status: 401, headers: {} } : HEALTHY_HTTP({ url, method })) }, 'sse');
+    expect(r.lines).toContain('FAIL sse: sign-in gave 401, expected 204');
   });
 
   it('sends the sign-in cookie to the event stream', async () => {
