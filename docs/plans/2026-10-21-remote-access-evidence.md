@@ -533,7 +533,7 @@ G9). Lane R6a, test database `loops_r6a_test`, e2e port 7191.
 
 ### Red
 
-The tests were written first (commit `1b51114`) and run before the code. The e2e Red ran in a second worktree at that
+The tests were written first (the first commit of the branch, `f9799b5` after the rebase) and run before the code. The e2e Red ran in a second worktree at that
 commit, so the code of the next commits could not change it.
 
 ```text
