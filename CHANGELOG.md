@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/hieplam/castraferrum/compare/v0.15.2...v0.16.0) (2026-11-20)
+
+
+### Features
+
+* **remote-access:** R6c retire the home path in the repository ([#508](https://github.com/hieplam/castraferrum/issues/508)) ([0631d0b](https://github.com/hieplam/castraferrum/commit/0631d0b0de5f5f3b85c6ee99d3dc979f661fd056))
+
 ## [0.15.2](https://github.com/hieplam/castraferrum/compare/v0.15.1...v0.15.2) (2026-11-20)
 
 
