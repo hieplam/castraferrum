@@ -175,7 +175,8 @@ Repositories (`LoopRepository`, `ExecutionRepository`, `RunRepository`, `RunLogR
 `DirectoryProbe`, `FolderBrowser`, `ActiveRunRegistry`, `EventPublisher` and `EventSource`, `TranscriptSource`,
 `SessionStore` (the signed-in sessions; `adapters/memory/session-store.ts`), `Secrets` (random session tokens and the
 constant-time compare; `adapters/crypto/`), `CommandRunner` (runs a command with no shell, and kills a hung command with its whole process tree),
-`ClaimGateway` (runs the claim and release commands of a probe row, `adapters/claims/`), and `LoopExecutor`.
+`ClaimGateway` (runs the claim and release commands of a probe row, `adapters/claims/`), `TunnelRunner` and
+`TunnelStatus` (the `cloudflared` child process and its state; `adapters/tunnel/cloudflared-runner.ts`), and `LoopExecutor`.
 
 Rules every repository follows (held by the contract tests):
 
@@ -215,7 +216,8 @@ file shows every wire.
 
 Startup order: open the database and apply migrations; take the instance lock (a Postgres advisory lock on a
 dedicated connection, one database - one server); build the clock, bus, repositories, executors, services; run
-recovery (before the ticker and before HTTP); build the HTTP app; then `startTicker()` and `listen`.
+recovery (before the ticker and before HTTP); build the HTTP app; then `startTicker()` and `listen`; then, with
+`--cloudflare`, `startTunnel()`.
 `startTicker()` starts the schedule ticker and the background ticker. The array `background` in `compose.ts`
 lists the services of the background ticker.
 
@@ -225,7 +227,7 @@ it queues the pull request last. Each step stores its result on the row before t
 request or loop. The manifest reaches `main` only through that pull request: `goals/**` is guarded, so a gate job ends at `needs_ratification`.
 `LOOPS_EPIC_SCRIPT` replaces the path of `epic.mjs`, and the default is the script of the epic-loop skill.
 
-Graceful shutdown: stop the tickers (wait for the running ticks; a hung probe adds at most its 30 second limit
+Graceful shutdown: stop the tunnel first (no request arrives through it after that), stop the tickers (wait for the running ticks; a hung probe adds at most its 30 second limit
 and the 1 second kill grace), `app.close()` (a `preClose` hook aborts every
 SSE stream, otherwise Fastify waits forever), abort every running run **without writing a result**, wait for
 them to settle, write a last heartbeat, release the lock, close the database. Runs left `running` are handled by
@@ -658,6 +660,29 @@ address of the device. `clientKey` trusts `CF-Connecting-IP` and `X-Real-IP` onl
 device has its own sign-in count and a device on the network cannot forge its address. The proxy must not buffer, or the
 live updates of SSE do not arrive. `--public-url` (`LOOPS_PUBLIC_URL`) holds the `https://` address; startup prints it
 as `Open: <url>`. `tests/support/fake-reverse-proxy.mjs` stands in for nginx in the e2e test of UC-42.
+
+### Through a Cloudflare tunnel
+
+With `--cloudflare=<token>` (`LOOPS_CLOUDFLARE`; remote-access spec D7 to D11, ADR 0006) the console runs the tunnel
+connector itself. `config.ts` refuses the flag without `--username` and `--password` (exit 2, D8) and turns
+`--cloudflared=<path>` into a command (a path that ends in `.mjs` runs with the current Node binary). `compose.ts` builds a
+`CloudflaredRunner` (`server/adapters/tunnel/`) and gives its state to `DefaultHealthService`; without the flag the state is
+`off`. `main.ts` calls `startTunnel()` after `listen`. If the program cannot start (`ENOENT`), startup stops with exit
+code 1 and the `winget install --id Cloudflare.cloudflared` message.
+
+- The runner starts `cloudflared tunnel --no-autoupdate --metrics 127.0.0.1:<free port> run`. The token is only in the
+  child's `TUNNEL_TOKEN`: never an argument, and `LOOPS_CLOUDFLARE` is removed from the child's environment.
+- Each output line goes to the console log as `[cloudflared] <line>`. The token, and each part of it longer than 8
+  characters, becomes `***`.
+- State (`GET /api/health` field `tunnel`): `connecting` until `GET /ready` on the metrics address answers 200, then
+  `connected`; `down` after an exit. After an exit that the console did not ask for, the runner starts it again after 1,
+  2, 4, 8, 16, then every 30 seconds; a connection sets the wait back to 1 second. Each change prints `Tunnel: <state>`.
+- The tunnel ends at the console on `127.0.0.1`. The edge adds `CF-Connecting-IP` and `X-Forwarded-Proto: https`, so the
+  cookie gets `Secure` and `clientKey` counts sign-ins for each device, as behind a reverse proxy.
+- The tunnel lives only while the console runs: shutdown stops it first (a kill, then a forced kill after 5 seconds).
+  A console that is killed without a shutdown cannot stop its child.
+- `tests/support/fake-cloudflared.mjs` stands in for `cloudflared` in the unit tests of the runner and in the e2e test of
+  UC-41 (`tests/e2e/tunnel.spec.ts`).
 
 
 ## Testing

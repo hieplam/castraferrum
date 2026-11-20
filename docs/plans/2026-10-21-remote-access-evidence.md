@@ -525,3 +525,132 @@ machine: stopping nginx and win-acme is task R6d.
      test against its own fake, so it is filed as a follow-up outside this epic if it comes back.
 - **Ratchet.** Unit count: 1475 passed with this task, 1474 on `main` (the task adds exactly one case, the new
   directive, and removes none).
+
+## R6a
+
+The tunnel in the console: `--cloudflare`, the `cloudflared` runner, health `tunnel`, UC-41 (goals G5 and the unit part of
+G9). Lane R6a, test database `loops_r6a_test`, e2e port 7191.
+
+### Red
+
+The tests were written first (the first commit of the branch, `90b944a` after the rebase) and run before the code. The e2e Red ran in a second worktree at that
+commit, so the code of the next commits could not change it.
+
+```text
+$ npx vitest run --project unit server/adapters/tunnel
+Error: Failed to resolve import "./cloudflared-runner" from "server/adapters/tunnel/cloudflared-runner.test.ts"
+ Test Files  1 failed (1)
+      Tests  no tests
+
+$ npx vitest run --project unit server/config.test.ts -t cloudflare
+ FAIL  ... --cloudflare, npm_config_cloudflare and LOOPS_CLOUDFLARE each set the token, in that order
+UsageError: unknown flag --cloudflare
+ FAIL  ... --cloudflare without credentials is a usage error: a tunnel needs --username and --password
+AssertionError: expected [Function] to throw error including 'a tunnel needs --username and --passw…' but got 'unknown flag --cloudflare'
+      Tests  5 failed | 1 passed | 49 skipped (55)
+
+$ npm run build && npx playwright test --project=chromium tests/e2e/tunnel.spec.ts
+  ✘  1 [chromium] › tests\e2e\tunnel.spec.ts:42:1 › @UC-41 through the tunnel: ...
+    Error: expect(received).toBe(expected)   Expected: "connected"   Received: undefined
+  ✘  2 [chromium] › tests\e2e\tunnel.spec.ts:123:1 › @UC-41 a tunnel without credentials: ...
+    Expected substring: "a tunnel needs --username and --password"   Received string: "unknown flag --cloudflare
+  ✘  3 [chromium] › tests\e2e\tunnel.spec.ts:135:1 › @UC-41 a wrong token: ...
+    Error: expect(received).toBe(expected)   Expected: "down"   Received: undefined
+  3 failed
+```
+
+`/api/health` had no `tunnel` field (`undefined`), so nothing ran a tunnel and nothing answered on the proxy port.
+
+### Green
+
+```text
+$ npx vitest run --project unit server/adapters/tunnel
+ ✓ is off before start
+ ✓ gives the token only in TUNNEL_TOKEN: not in the arguments, not in LOOPS_CLOUDFLARE of the child
+ ✓ reports connecting, then connected when /ready answers 200
+ ✓ forwards each line with the prefix [cloudflared] and never the token or a part of it longer than 8 characters
+ ✓ after an exit: down, then starts again after 1, 2 and 4 seconds of a wound clock
+ ✓ stop() ends the child in 5 seconds, and it is not started again
+ ✓ a program that does not exist (ENOENT): start() rejects with the winget install command
+ ✓ replaces the token and each part of it longer than 8 characters, and keeps the rest of the line
+      Tests  8 passed (8)
+
+$ npx vitest run --project unit server/config.test.ts
+      Tests  55 passed (55)
+
+$ npx playwright test --project=chromium tests/e2e/tunnel.spec.ts tests/e2e/smoke.spec.ts
+  ✓  1 [chromium] › tests\e2e\smoke.spec.ts:4:1 › the home page opens from the build, server + DB alive @smoke (909ms)
+  ✓  2 [chromium] › tests\e2e\tunnel.spec.ts:42:1 › @UC-41 through the tunnel: a phone signs in, starts a loop and sees it live; the tunnel stops with the console (10.0s)
+  ✓  3 [chromium] › tests\e2e\tunnel.spec.ts:123:1 › @UC-41 a tunnel without credentials: startup exits 2 with the D8 message (3.4s)
+  ✓  4 [chromium] › tests\e2e\tunnel.spec.ts:135:1 › @UC-41 a wrong token: the console stays up, reports the tunnel down and prints the error of cloudflared (6.0s)
+  4 passed (31.3s)
+```
+
+```text
+$ npm run verify
+ Test Files  106 passed | 1 skipped (107)
+      Tests  1489 passed | 3 skipped (1492)          (unit)
+      Tests  276 passed (276)                        (contract)
+      Tests  472 passed | 2 skipped (474)            (api)
+  1 skipped
+  203 passed (20.1m)                                 (e2e and visual)
+> node scripts/uc-coverage.mjs --min 41
+UCs with a green e2e: 42/42
+EXIT=0
+```
+
+During the e2e part of this run, another lane took the heavy slot (its owner file said `G11fix`), so two heavy runs
+overlapped for some minutes. The run passed with no failure, so it needed no second run.
+
+### Stub check
+
+- A runner that never starts the child: the e2e Red above (no runner) leaves health without `tunnel` and the proxy port
+  closed, so test 1 fails at its first step.
+- The token as an argument (`... 'run', '--token', <token>` added in the runner): `Tests  5 failed | 3 passed (8)`, with
+  `× gives the token only in TUNNEL_TOKEN: not in the arguments, not in LOOPS_CLOUDFLARE of the child`. The fake also
+  refuses arguments after `run`.
+- No restart logic (the call to `#restart()` deleted): `Tests  1 failed | 7 passed (8)`, with
+  `× after an exit: down, then starts again after 1, 2 and 4 seconds of a wound clock`.
+
+### Ratchet
+
+- `uc-coverage`: 41/41 on `main` (41 use case ids, UC-41 not written) to 42/42; the verify floor `--min` 40 to 41.
+- Unit 1474 to 1489 (+15: 8 runner cases, 6 config cases, 1 health case). The count on `main` is the count of this
+  branch minus the 15 new cases; the other test files are the same as on `main`.
+  After the rebase on task R6c (which adds 1 case), the same count is 1475 on `main` to 1490.
+- e2e passed 200 to 203 (+3, the three `@UC-41` tests); contract 276 to 276; api 472 to 472.
+
+### Decisions
+
+Made by the standing rules of the epic; the spec leaves them open.
+
+- **The Playwright command.** The plan writes `npx playwright test --project chromium tests/e2e/tunnel.spec.ts`. In this
+  tree that form fails before any test: `Error: Project(s) "tests/e2e/tunnel.spec.ts" not found`. The equivalent
+  `--project=chromium` runs the same file and proves the same goal (standing rule: a plan command that no longer fits).
+- **`localhost` and the `Secure` cookie.** The e2e opens `http://localhost:<proxy port>`. Chromium kept the `Secure`
+  cookie there (`context.cookies()` gives `[['castra_session', true]]`), so the fake needed no HTTPS certificate.
+- **`ok` of health.** `tunnel` does not change `ok`: a tunnel that is `down` keeps health at 200, because `ok` tells the
+  web whether the database answers, and a restart of the console must not wait on the tunnel.
+- **Backoff after a connection.** The wait starts again at 1 second after the state reaches `connected`. A connector that
+  never connects (a wrong token) goes 1, 2, 4, 8, 16, then every 30 seconds, as D9 says.
+- **Redaction.** The runner replaces the whole token and each part of it longer than 8 characters by `***`, the same
+  limit that the check `token-hidden` of task R6b uses.
+- **The child's environment.** The runner removes `LOOPS_CLOUDFLARE` from the environment of `cloudflared`, so the token
+  is only in `TUNNEL_TOKEN` (D9).
+- **Startup order.** `main.ts` starts the tunnel after `listen` and after the startup lines, and prints `Tunnel: <state>`
+  at each change. `ENOENT` prints `Cannot start the tunnel: cloudflared was not found: install it with winget install
+  --id Cloudflare.cloudflared, ...`, shuts down and exits 1. Shutdown stops the tunnel first.
+- **Test servers.** `ServerProcess`, the Playwright web server and `api-smoke` set `LOOPS_CLOUDFLARE` to empty, because the
+  server loads the developer's `.env`. After task R6d that file holds the real token, and a test must never start the
+  real tunnel.
+- **The sample token.** The unit tests use `fake-tunnel-token-for-tests-not-a-secret`. A first sample, a base64 string,
+  made the GitGuardian check of the pull request fail (`Generic High Entropy Secret`), so the branch was written again
+  with the new value before the merge. The value was never a real token.
+- **The fake leaves with its parent.** `tests/support/fake-cloudflared.mjs` exits when its parent process is gone, so a test
+  that kills the console leaves no process. The real `cloudflared` does not do this (see the finding below).
+
+### Found
+
+- Issue 507 (sub-issue of issue 55, blocks R6d and R7): `scripts/restart-console.ps1` stops the console with
+  `Stop-Process -Force`, so the console cannot stop its `cloudflared` child, and goal G8 fails after a restart. Read from
+  the code, not verified on the machine.

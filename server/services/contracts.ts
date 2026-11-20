@@ -22,7 +22,7 @@ export type { ExecutorDescriptor } from '../ports/executor';
 export type { LoopFilter } from '../ports/loop-repository';
 export type { Page, PageRequest } from '../ports/page';
 
-export type HealthReport = { ok: boolean; db: 'up' | 'down' };
+export type HealthReport = { ok: boolean; db: 'up' | 'down'; tunnel: 'off' | 'connecting' | 'connected' | 'down' };
 
 /** One row of `goals/health.json`, with its command as an argv array. */
 export type StandingRow = { id: string; outcome: string; run: string[]; timeoutSec: number; verbatim?: boolean };

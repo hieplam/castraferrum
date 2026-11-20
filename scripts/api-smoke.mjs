@@ -50,7 +50,8 @@ function freePort() {
 /** Starts the real server and waits for `/api/health` to answer 200. The server log is kept to print on failure. */
 async function startServer(port, logs) {
   // The normal build (no test mode) but with the Mock executor: the real console only offers Claude, Mock is for tests, on a *_test DB.
-  const env = { ...process.env, LOOPS_PORT: String(port), DATABASE_URL: dbUrl, LOOPS_MOCK_EXECUTOR: '1' };
+  // LOOPS_CLOUDFLARE is empty: a tunnel token in the developer's .env must never start the real tunnel from this check.
+  const env = { ...process.env, LOOPS_PORT: String(port), DATABASE_URL: dbUrl, LOOPS_MOCK_EXECUTOR: '1', LOOPS_CLOUDFLARE: '' };
   delete env.LOOPS_TEST_MODE;
   const child = spawn(process.execPath, ['--import', 'tsx', 'server/main.ts'], {
     cwd: root,

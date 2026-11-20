@@ -283,6 +283,8 @@ and Playwright all read it.
 | `LOOPS_REMOTE` | `--remote` | off | `1` = same as `--host=0.0.0.0`. |
 | `LOOPS_USERNAME` | `--username` | unset | Turns sign-in on; needs `LOOPS_PASSWORD`. |
 | `LOOPS_PASSWORD` | `--password` | unset | At least 8 characters; needs `LOOPS_USERNAME`. Prefer `.env` to the flag (shell history). |
+| `LOOPS_CLOUDFLARE` | `--cloudflare` | unset | The token of a named Cloudflare tunnel: the console starts `cloudflared` and stops it on shutdown. Needs `LOOPS_USERNAME` and `LOOPS_PASSWORD`. Write `--cloudflare=<token>`, or better put it in `.env`. |
+| `LOOPS_CLOUDFLARED` | `--cloudflared` | `cloudflared` on `PATH` | The `cloudflared` program (`winget install --id Cloudflare.cloudflared`). |
 | `LOOPS_PG_PORT` | - | 55432 | Postgres port on the host |
 | `LOOPS_E2E_PORT` | - | 7071 | Port of the e2e server |
 | `DATABASE_URL` | - | derived from `LOOPS_PG_PORT` | Use when Postgres is elsewhere |
