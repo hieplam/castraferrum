@@ -564,3 +564,43 @@ Findings that need a fix: none open. The one defect (the Mock executor in the re
 Goals passed `0/9` (no manifest) to `9/9`.
 
 Decision: the plan names `goals/verify/local-name.json`, but `goals/verify/` holds the verify entries of the merge gate (`tests/tools/gate-data.test.ts` parses each file there as `{"v":1,"tasks":{}}`). The manifest of `goal:check` lives next to the other goal files, so the file is `goals/local-name.json`. The goals and checks are the same.
+
+### N4 re-run by the coordinator, from the main checkout
+
+The goal manifest is meant to run from the main checkout, where `.env` holds the real values. The first run there,
+at `c905cce`, gave:
+
+```text
+G1 pass
+G2 FAIL: run `node scripts/local-name-goal-run.mjs e2e`: exit 1, expected 0; missing "1 passed"
+G3 FAIL: run `node scripts/local-name-goal-run.mjs e2e`: exit 1, expected 0; missing "1 passed"
+G4 pass
+G5 FAIL: run `npx playwright test tests/e2e/reverse-proxy.spec.ts --project=chromium`: exit 1, expected 0; missing "1 passed"
+G6 FAIL: run `npx vitest run --project api tests/api/sign-in-startup.test.ts tests/api/cli.test.ts -t "public-url"`: exit 1, expected 0
+G7 pass
+G8 pass
+G9 pass
+goals passed: 5/9
+```
+
+- G2, G3 and G5: the main checkout's test database `loops_test` had the table `notices` without its migration record
+  (`Failed query: CREATE TABLE "notices"`). A stale test database, not a code defect: the coordinator recreated
+  `loops_test` (the owner's database `loops` was not touched).
+- G6: the server-process test helper let the server read `LOOPS_PUBLIC_URL` from the developer's `.env`. Fixed in
+  pull request 500 (issue 499).
+
+Second run at `83a781a`:
+
+```text
+G1 pass
+G2 pass
+G3 pass
+G4 pass
+G5 pass
+G6 pass
+G7 pass
+G8 pass
+G9 pass
+goals passed: 9/9
+EXIT=0
+```
