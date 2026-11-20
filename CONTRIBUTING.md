@@ -40,6 +40,8 @@ may only move in the good direction. The pull request template asks which compon
 5. Open a pull request with a `## Verify` section that states the red command and output, the green command and
    output, and why an empty implementation would fail it. Squash-merge when green.
 
+Text files use LF line endings. `tests/tools/line-endings.test.ts` fails when a tracked text file holds a CR byte.
+
 ## Releases
 
 Releases are cut by [release-please](https://github.com/googleapis/release-please) (`.github/workflows/release-please.yml`).
