@@ -30,7 +30,6 @@ const PORT_WAIT_MS = 3_000;
 const HOME_PORTS = [80, 443, 7070];
 const TOKEN_PART = 9; // a part of the token longer than 8 characters must not appear anywhere
 const COOKIE_NAME = 'castra_session'; // SESSION_COOKIE of shared/contracts/auth.ts (a .mjs script cannot import the .ts file)
-const LETS_ENCRYPT_SERIES = /^(R|E)\d+$/; // the issuers that nginx served in phase 3
 const here = dirname(fileURLToPath(import.meta.url));
 
 export const CHECK_IDS = ['dns-edge', 'connector', 'runner', 'token-hidden', 'edge-path', 'sign-in-wall', 'secure-cookie', 'sse', 'ports-closed'];
@@ -191,10 +190,10 @@ function checks(d) {
         throw new Error(`TLS to ${address} with the name ${name} failed: ${msg(e)}`);
       }
       if (!r.authorized) throw new Error(`certificate not trusted: ${r.error ?? 'unknown'}`);
-      const issuer = [].concat(r.issuer?.O ?? []).join(', ');
-      const series = [].concat(r.issuer?.CN ?? []).join(', ');
-      if (issuer === "Let's Encrypt" && LETS_ENCRYPT_SERIES.test(series)) throw new Error(`the certificate comes from Let's Encrypt ${series}, the series that nginx served`);
+      // The edge is proved by what only the edge gives, whatever authority signed its certificate.
+      if (!r.peer || !edge.check(r.peer, familyOf(r.peer))) throw new Error(`the connection went to ${r.peer ?? 'an unknown address'}, which is not a Cloudflare address: the request did not pass the edge`);
       if (!r.headers['cf-ray']) throw new Error('the response has no cf-ray header: it did not pass the Cloudflare edge');
+      if (String(r.headers.server ?? '').toLowerCase() !== 'cloudflare') throw new Error(`the response has the server header "${r.headers.server ?? ''}", not cloudflare: it did not pass the Cloudflare edge`);
     },
     async 'sign-in-wall'() {
       const connect = await edgeAddress();
@@ -324,7 +323,7 @@ export function edgeRequest(address, name, path, headers = {}) {
     const req = https.request({ host: address, servername: name, path, method: 'GET', headers: { host: name, ...headers }, rejectUnauthorized: false }, (r) => {
       const socket = r.socket;
       const cert = socket.getPeerCertificate();
-      const out = { authorized: socket.authorized, error: socket.authorizationError ? String(socket.authorizationError) : undefined, issuer: cert?.issuer, status: r.statusCode ?? 0, headers: r.headers };
+      const out = { authorized: socket.authorized, error: socket.authorizationError ? String(socket.authorizationError) : undefined, issuer: cert?.issuer, status: r.statusCode ?? 0, headers: r.headers, peer: socket.remoteAddress };
       r.resume();
       r.on('end', () => res(out));
     });

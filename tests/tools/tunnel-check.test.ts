@@ -32,7 +32,7 @@ function good(over: Record<string, unknown> = {}) {
     processes: async () => GOOD_PROCESSES,
     listener: async () => CONSOLE_PID,
     readText: async () => 'console started\n',
-    edgeRequest: async () => ({ authorized: true, issuer: { O: 'Google Trust Services', CN: 'WE1' }, status: 200, headers: { 'cf-ray': '8a1b2c3d4e5f-AMS' } }),
+    edgeRequest: async () => ({ authorized: true, issuer: { O: 'Google Trust Services', CN: 'WE1' }, status: 200, peer: EDGE_IP, headers: { 'cf-ray': '8a1b2c3d4e5f-AMS', server: 'cloudflare' } }),
     http: HEALTHY_HTTP,
     sseLines: async () => [':ok', ':ping'],
     tcp: async (host: string) => host === '127.0.0.1',
@@ -156,18 +156,30 @@ describe('tunnel-check runChecks', () => {
     expect(holdsTokenPart('anything', '')).toBe(false);
   });
 
-  it('fails edge-path for the Let\'s Encrypt R series of nginx, for a missing cf-ray, and for an untrusted certificate', async () => {
-    const edge = (over: Record<string, unknown>) => async () => ({ authorized: true, issuer: { O: 'Google Trust Services', CN: 'WE1' }, status: 200, headers: { 'cf-ray': 'x' }, ...over });
-    const r = await failing({ edgeRequest: edge({ issuer: { O: "Let's Encrypt", CN: 'R11' } }) }, 'edge-path');
-    expect(r.lines.find((l: string) => l.startsWith('FAIL edge-path'))).toContain('R11');
-    const r2 = await failing({ edgeRequest: edge({ headers: {} }) }, 'edge-path');
+  it("passes edge-path for a Let's Encrypt certificate, because the edge is proved by the peer address and the headers", async () => {
+    const edge = async () => ({ authorized: true, issuer: { O: "Let's Encrypt", CN: 'E6' }, status: 200, peer: EDGE_IP, headers: { 'cf-ray': 'x', server: 'cloudflare' } });
+    const r = await runChecks(good({ edgeRequest: edge }));
+    expect(r.lines).toContain('PASS edge-path');
+  });
+
+  it('fails edge-path for a private peer address, for a missing cf-ray, for a missing server cloudflare, and for an untrusted certificate', async () => {
+    const edge = (over: Record<string, unknown>) => async () => ({ authorized: true, issuer: { O: 'Google Trust Services', CN: 'WE1' }, status: 200, peer: EDGE_IP, headers: { 'cf-ray': 'x', server: 'cloudflare' }, ...over });
+    const r = await failing({ edgeRequest: edge({ peer: PC_IP }) }, 'edge-path');
+    expect(r.lines.find((l: string) => l.startsWith('FAIL edge-path'))).toContain(PC_IP);
+    await failing({ edgeRequest: edge({ peer: '192.168.1.1' }) }, 'edge-path');
+    await failing({ edgeRequest: edge({ peer: undefined }) }, 'edge-path');
+    // The Cloudflare address and cf-ray alone are not enough: nginx sends no cf-ray, and a private peer fails above.
+    await failing({ edgeRequest: edge({ peer: PC_IP, headers: { 'cf-ray': 'x', server: 'cloudflare' } }) }, 'edge-path');
+    const r2 = await failing({ edgeRequest: edge({ headers: { server: 'cloudflare' } }) }, 'edge-path');
     expect(r2.lines.find((l: string) => l.startsWith('FAIL edge-path'))).toContain('cf-ray');
+    const r3 = await failing({ edgeRequest: edge({ headers: { 'cf-ray': 'x', server: 'nginx' } }) }, 'edge-path');
+    expect(r3.lines.find((l: string) => l.startsWith('FAIL edge-path'))).toContain('server');
     await failing({ edgeRequest: edge({ authorized: false, error: 'CERT_UNTRUSTED' }) }, 'edge-path');
   });
 
   it('connects edge-path to the first edge address with the name as SNI, and sends the Access headers when .env has them', async () => {
     const seen: unknown[][] = [];
-    await runChecks(good({ edgeRequest: async (...a: unknown[]) => (seen.push(a), { authorized: true, issuer: { O: 'G' }, status: 200, headers: { 'cf-ray': 'x' } }), env: { ...good().env, CF_ACCESS_CLIENT_ID: 'id1', CF_ACCESS_CLIENT_SECRET: 'sample-access-value' } }));
+    await runChecks(good({ edgeRequest: async (...a: unknown[]) => (seen.push(a), { authorized: true, issuer: { O: 'G' }, status: 200, peer: EDGE_IP, headers: { 'cf-ray': 'x', server: 'cloudflare' } }), env: { ...good().env, CF_ACCESS_CLIENT_ID: 'id1', CF_ACCESS_CLIENT_SECRET: 'sample-access-value' } }));
     expect(seen[0]).toEqual([EDGE_IP, NAME, '/api/health', { 'CF-Access-Client-Id': 'id1', 'CF-Access-Client-Secret': 'sample-access-value' }]);
   });
 
