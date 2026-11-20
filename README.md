@@ -209,13 +209,17 @@ Two limits to know first:
    ```
 9. Copy `deploy/local-name/nginx.conf` into the nginx folder, for example `C:\nginx\conf\castra.conf`. In the copy,
    replace `LOCAL_NAME` with your name, and replace `CERT_DIR` with `C:/ProgramData/castraferrum/tls` (forward
-   slashes). Then check the copy:
+   slashes). Then check the copy in the same administrator PowerShell. A normal user cannot read the certificate
+   folder, so `nginx -t` fails there with an input/output error:
 
    ```powershell
-   nginx -t -c C:/nginx/conf/castra.conf
+   C:
+ginx
+ginx.exe -p C:/nginx/ -t -c C:/nginx/conf/castra.conf
    ```
 
-   The output must say `syntax is ok` and `test is successful`.
+   The output must say `syntax is ok` and `test is successful`. Without administrator rights, use
+   `npm run local-name:check`: its `nginx-test` check tests the copy with a temporary key pair.
 10. Make nginx start at boot. nginx for Windows has no service mode, so use Task Scheduler. Run this in an
     administrator PowerShell, with the real paths:
 
