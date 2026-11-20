@@ -113,7 +113,8 @@ export class ServerProcess {
     db.hostname = '127.0.0.1';
     db.port = String(this.#dbProxyPort);
     // LOOPS_PUBLIC_URL is empty unless the test sets it: the server loads the developer's .env, which can hold one (task N3).
-    const env: NodeJS.ProcessEnv = { ...process.env, LOOPS_PUBLIC_URL: '', ...this.#env, LOOPS_PORT: String(this.port), LOOPS_TEST_MODE: '1', DATABASE_URL: db.toString() };
+    // LOOPS_CLOUDFLARE and LOOPS_CLOUDFLARED too (task R6a): a token in that .env would start the real tunnel from a test.
+    const env: NodeJS.ProcessEnv = { ...process.env, LOOPS_PUBLIC_URL: '', LOOPS_CLOUDFLARE: '', LOOPS_CLOUDFLARED: '', ...this.#env, LOOPS_PORT: String(this.port), LOOPS_TEST_MODE: '1', DATABASE_URL: db.toString() };
     const child = spawn(process.execPath, ['--import', 'tsx', 'server/main.ts', ...this.#args], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
     child.stdout?.on('data', (b) => this.logs.push(String(b)));
     child.stderr?.on('data', (b) => this.logs.push(String(b)));

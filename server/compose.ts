@@ -32,9 +32,11 @@ import { PgDbProbe } from './adapters/postgres/db-probe';
 import { acquireInstanceLock, type InstanceLock } from './adapters/postgres/instance-lock';
 import { createPgRepositories } from './adapters/postgres/repositories';
 import { ClaudeJsonlTranscriptSource } from './adapters/transcripts/claude-jsonl/claude-jsonl-transcript-source';
+import { CloudflaredRunner } from './adapters/tunnel/cloudflared-runner';
 import { defaultEpicScript } from './config';
 import { buildHttpApp, type HttpApp, type TestHooks } from './http/app';
 import type { Notifier } from './ports/notifier';
+import type { TunnelRunner } from './ports/tunnel';
 import { startBackgroundTicker, type BackgroundTicker } from './scheduler/background-ticker';
 import { startTicker, type Ticker } from './scheduler/ticker';
 import type { BackgroundService, RecoveryReport } from './services/contracts';
@@ -100,6 +102,11 @@ export type ComposeOptions = {
    * session; unset = no sign-in, the console behaves as before.
    */
   auth?: { username: string; password: string };
+  /**
+   * `--cloudflare` (remote-access spec D7 to D10): the token and the command of `cloudflared`. Set = `startTunnel()` starts the
+   * connector as a child process, health reports its state, and shutdown stops it first. Unset = health says `tunnel: off`.
+   */
+  tunnel?: { token: string; command: string[] };
 };
 
 export type ComposedServer = {
@@ -110,6 +117,11 @@ export type ComposedServer = {
   recovery: RecoveryReport;
   /** Starts the 1-second tickers (main.ts calls it right before `listen`). */
   startTicker(): void;
+  /**
+   * Starts the tunnel connector (main.ts calls it after `listen`). Does nothing without the `tunnel` option. Rejects when the
+   * program cannot start, with the install command in the message.
+   */
+  startTunnel(): Promise<void>;
   /**
    * Graceful shutdown: stop the ticker → close HTTP (abort SSE streams) → abort the signals of running runs WITHOUT recording a result, wait for them
    * to exit → write the last heartbeat (= the execution's `endedAt` after restart) → release the lock → close the DB. Unfinished runs stay `running`
@@ -264,8 +276,12 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
   // Sessions live in memory (spec D3). In test mode the clock is the offset clock, so API tests wind session expiry and the limit.
   const auth = new DefaultAuthService({ credentials: opts.auth, sessions: new MemorySessionStore(), secrets: new NodeSecrets(), clock });
 
+  const tunnel: TunnelRunner | null = opts.tunnel
+    ? new CloudflaredRunner({ token: opts.tunnel.token, command: opts.tunnel.command, log: (line) => opts.log?.(line) })
+    : null;
+
   const app = await buildHttpApp({
-    health: new DefaultHealthService({ db: new PgDbProbe(db.pool) }),
+    health: new DefaultHealthService({ db: new PgDbProbe(db.pool), ...(tunnel ? { tunnel } : {}) }),
     api: {
       loops: loopService,
       repos: repoService,
@@ -297,8 +313,12 @@ export async function composeServer(opts: ComposeOptions): Promise<ComposedServe
     startTicker() {
       if (!ticker) tick();
     },
+    async startTunnel() {
+      await tunnel?.start();
+    },
     shutdown() {
       closing ??= (async () => {
+        await tunnel?.stop(); // first: no request arrives through the tunnel after this (spec D9)
         await gateService.stop();
         await stopTickers();
         await app.close();

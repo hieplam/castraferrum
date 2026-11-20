@@ -39,6 +39,8 @@ export default defineConfig({
       // 4-item transcript pages: even the small transcript of a haiku turn must scroll up and load several pages (UC-27)
       LOOPS_TRANSCRIPT_PAGE: '4',
       DATABASE_URL: databaseUrl(process.env, 'test'),
+      // A tunnel token in the developer's .env must never start the real tunnel from the e2e server (task R6a).
+      LOOPS_CLOUDFLARE: '',
     },
   },
 });

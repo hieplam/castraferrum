@@ -31,6 +31,7 @@ const server: ComposedServer = await composeServer({
   ghBin: cfg.ghBin,
   epicScript: cfg.epicScript,
   ...(cfg.auth ? { auth: cfg.auth } : {}),
+  ...(cfg.tunnel ? { tunnel: cfg.tunnel } : {}),
   log,
 }).catch((err: Error) => {
   console.error(`Could not start (DB ${redactUrl(cfg.databaseUrl)}): ${err.message}`);
@@ -58,6 +59,16 @@ log(`Castraferrum: http://127.0.0.1:${cfg.port}  (DB ${redactUrl(cfg.databaseUrl
 for (const line of networkLines(cfg.host, cfg.port, networkInterfaces())) log(line);
 for (const line of signInLines(cfg.host, cfg.auth)) log(line);
 if (cfg.publicUrl) log(`Open: ${cfg.publicUrl}`);
+if (cfg.tunnel) {
+  // Spec D9: a program that cannot start (ENOENT) stops startup with exit code 1 and the install command.
+  try {
+    await server.startTunnel();
+  } catch (err) {
+    console.error(`Cannot start the tunnel: ${(err as Error).message}`);
+    await server.shutdown();
+    process.exit(1);
+  }
+}
 
 let closing = false;
 async function shutdown(reason: string): Promise<void> {
