@@ -236,21 +236,22 @@ loop, watches the live log, and signs out.
 
 ---
 
-## Update 2026-11-20: R6 and R7 for a named tunnel on the owner's domain
+## Update 2026-11-20: R6 and R7 for the console name through a tunnel that Castraferrum starts
 
-Status: proposed. The owner reviews it in the docs pull request before any build task starts.
+Status: proposed. The owner chose the direction on 2026-11-20 and reviews this text in the docs pull request before
+any build task starts.
 
 Spec: the section "Update 2026-11-20" of [the remote-access spec](../specs/2026-10-21-remote-access.md) (decisions
-D7 to D10 and D14 to D21, goals G5 to G11). Decision record:
-[ADR 0006](../adr/0006-internet-access-through-a-named-tunnel.md).
+D7 to D19, goals G5 to G10). Decision record: [ADR 0006](../adr/0006-internet-access-through-a-named-tunnel.md).
 
 Rules for these tasks, from phase 3:
 
-- The repository, its issues and its pull requests show only the sample names `castra.example.com` and
-  `castra-remote.example.com`, and `<pc-ip>` for the address of the PC.
+- The repository, its issues and its pull requests show only the sample name `castra.example.com`, and `<pc-ip>` for
+  the address of the PC.
 - An administrator step on the PC is one script, started through `Start-Process -Verb RunAs`, with a log file. A
-  secret comes from the clipboard, never from `Read-Host`. The owner clicks one prompt. The agent never sees a secret.
-- A program that runs as SYSTEM needs SYSTEM for its signals (`nginx -s reload` works only as SYSTEM).
+  secret comes from the clipboard, never from `Read-Host`. The agent never sees a secret.
+- A program that runs as SYSTEM needs SYSTEM for its signals (`nginx -s reload` and `nginx -s stop` work only as
+  SYSTEM).
 - Repository files have LF line endings. Never write them with PowerShell `Set-Content`. Before each commit, run
   `git ls-files --eol | grep -E "^i/(crlf|mixed)"`, and expect no output.
 - Run each goal manifest from the main checkout too, because a lane worktree hides the effects of `.env`.
@@ -263,188 +264,177 @@ on) with its before and after numbers.
 
 | Task | What | Goals | Waits for | Model |
 |---|---|---|---|---|
-| R6a | nginx deletes `CF-Connecting-IP` on the home path (D21) | G8 | - | Sonnet |
-| R6b | The console refuses tunnel requests when sign-in is off (D8); the tunnel mode of the fake proxy; UC-41 | G5 | - | Sonnet |
-| R6c | The check tool `scripts/tunnel-check.mjs`, the real-tunnel test, the deploy scripts, the README section, `goals/tunnel.json` | G6, G9, G10, G11 (the oracles) | - | Opus |
-| R6d | **Machine setup on the owner's PC** (needs a person: the Cloudflare login, the Zero Trust sign-up, the tokens, the administrator prompt) | G6, G8 to G11 | R6a, R6c | Opus |
-| R7 | Verify every goal and do the agent acceptance | G5 to G11 | R6b, R6d | Opus |
+| R6a | The tunnel in the console: `--cloudflare`, the `cloudflared` runner, health `tunnel`, UC-41 | G5, G9 (unit) | - | Opus |
+| R6b | The check tool `scripts/tunnel-check.mjs`, the real-tunnel test, `goals/tunnel.json`, the README section | G6, G8 to G10 (the oracles) | - | Sonnet |
+| R6c | Retire the home path in the repository: the nginx line, the retired manifest, the README and the phase 3 documents | G10 (D18, D19) | - | Sonnet |
+| R6d | **Machine setup on the owner's PC** (needs a person: the Cloudflare login, the tunnel token, the administrator prompt) | G6, G9, G10 | R6a, R6b, R6c | Opus |
+| R7 | Verify every goal and do the agent acceptance | G5 to G10 | R6d | Opus |
 
 R6a, R6b and R6c touch different files and can run at the same time. Only R6d carries `loop:needs-human`. R7 loses
 `loop:needs-human`: it is the agent acceptance, as N4 was in phase 3. The owner's use of a real phone on mobile data
 is a follow-up outside the epic, and no goal waits for it.
 
-### R6a - nginx deletes `CF-Connecting-IP` on the home path
+### R6a - The tunnel in the console
 
-**Files:** `deploy/local-name/nginx.conf` (the line `proxy_set_header CF-Connecting-IP "";` next to `X-Real-IP`, with
-a comment that gives the reason), `tests/tools/nginx-config.test.ts` (the new directive),
-`tests/support/fake-reverse-proxy.mjs` (nginx mode deletes `cf-connecting-ip`, as nginx now does),
-`tests/api/auth-api.test.ts` or a new api test (6 failures with 6 values), `scripts/local-name-check.mjs` (check
-`nginx-test` also finds the line in the deployed file; the count of checks stays 10), its unit test,
-`docs/plans/2026-10-21-remote-access-evidence.md` (section `## R6a`).
+**Files:** the file list of the first R6 section above, with these changes: the flag `--cloudflare` (`LOOPS_CLOUDFLARE`,
+`npm_config_cloudflare`) in place of `--tunnel-token`; no new `--public-url` (phase 3 made it); `README.md` gets only a
+short "Configuration" row for `--cloudflare` and `--cloudflared` (R6b writes the section "Reach it from outside");
+`tests/e2e/tunnel-real.spec.ts` is not part of this task (R6b); `docs/USE-CASES.md` UC-41 "Reach the console through a
+Cloudflare tunnel"; `package.json` `uc-coverage --min 41`; `.env.example` (a commented `LOOPS_CLOUDFLARE=` line).
 
-**Verify**
-- **Goal:** G8.
-- **Red:** write the tests first. `npx vitest run --project unit tests/tools/nginx-config.test.ts` fails: the file
-  has no `CF-Connecting-IP` directive. The api test fails: through the fake proxy, the sixth failed sign-in with a new
-  `CF-Connecting-IP` value answers 401, not 429.
-- **Green:** (1) the unit command passes. (2) The api test passes: the sixth attempt answers 429
-  `TOO_MANY_ATTEMPTS`. (3) The unit test of `local-name-check.mjs` passes: a deployed file without the line gives
-  `FAIL nginx-test` with a reason that names `CF-Connecting-IP`. (4) `npm run verify` exits 0.
-- **Stub check:** a configuration without the line fails (1). A fake proxy that keeps the header fails (2).
-- **Ratchet:** unit and api counts above the main baseline.
-
-The deployed copy on the PC changes in R6d, step 3, because the reload needs SYSTEM.
-
-### R6b - The console refuses tunnel requests when sign-in is off; UC-41
-
-**Files:** `server/http/app.ts` (an `onRequest` hook before the auth guard: no credentials and a `cf-connecting-ip` or
-`cf-ray` header give 403 `SIGN_IN_REQUIRED`), `server/http/errors.ts` (`SIGN_IN_REQUIRED` 403),
-`docs/API.md` (the code and one sentence on the rule), `tests/api/tunnel-guard.test.ts`,
-`tests/support/fake-reverse-proxy.mjs` (a `mode: 'tunnel'` option: it sets `CF-Connecting-IP` from `x-test-client`,
-adds `Cf-Ray: test-<n>` and `X-Forwarded-Proto: https`, and sets no `X-Real-IP`), `tests/e2e/tunnel.spec.ts`
-(`@UC-41`), `docs/USE-CASES.md` (UC-41: "Reach the console through a tunnel"), `package.json` (`uc-coverage --min 41`),
-`docs/ARCHITECTURE.md` (the hook), the evidence section `## R6b`.
-
-If R6a is merged first, rebase and keep both changes to `fake-reverse-proxy.mjs`.
+The fake `cloudflared` and the e2e follow the first R6 section above, including the note on `http://localhost:<proxy
+port>` and the `Secure` cookie.
 
 **Verify**
-- **Goal:** G5.
-- **Red:** write the tests first. `npx vitest run --project api tests/api/tunnel-guard.test.ts` fails: a server
-  without credentials answers 200 to `GET /api/health` with `Cf-Ray: x`. `npm run build` then
-  `npx playwright test --project chromium tests/e2e/tunnel.spec.ts` fails: the fake proxy has no tunnel mode.
-- **Green:** (1) the api command passes: without credentials, `GET /`, `GET /api/health` and `GET /api/loops` answer
-  403 `SIGN_IN_REQUIRED` with `Cf-Ray`, and also with `CF-Connecting-IP` only; without either header they answer 200;
-  with credentials, the same requests with `Cf-Ray` answer as before (200, 200, 401). (2) The e2e command passes:
-  in a 390x844 touch context through the tunnel mode, device A fails 5 times and sees the too-many-attempts text;
-  device B signs in, gets a `castra_session` cookie with `Secure`, starts a loop, and sees Running and a live log line
-  in 2 seconds. (3) `tests/api/api-surface.test.ts` passes with the new code. (4) `npm run verify` exits 0, and
-  `uc-coverage` prints one more UC with a green e2e than on `main`.
-- **Stub check:** without the hook, (1) gets 200. A hook that checks only `CF-Connecting-IP` fails the `Cf-Ray`
-  case. Without the tunnel mode, device B shares the count of device A and sees 429.
-- **Ratchet:** `uc-coverage` up by one; api and e2e counts above the main baseline.
+- **Goal:** G5, and the unit part of G9.
+- **Red:** write the tests first. `npx vitest run --project unit server/adapters/tunnel` fails on the missing module.
+  `npx vitest run --project unit server/config.test.ts -t cloudflare` fails: `loadConfig({}, ['--cloudflare=t'])` has
+  no tunnel. `npm run build` then `npx playwright test --project chromium tests/e2e/tunnel.spec.ts` fails: nothing
+  answers on the proxy port, and `/api/health` has no `tunnel` field.
+- **Green:** (1) the runner unit command passes: the token is in the child's `TUNNEL_TOKEN` and absent from its
+  arguments and from every forwarded log line; states `connecting` then `connected` (fake `/ready`); an exit leads to
+  `down`, then restarts at 1, 2 and 4 wound seconds; `stop()` ends the child in 5 seconds; `ENOENT` gives the
+  `winget install --id Cloudflare.cloudflared` message. (2) The config unit cases: `--cloudflare`,
+  `npm_config_cloudflare` and `LOOPS_CLOUDFLARE` each set the token; `--cloudflare` without credentials throws
+  `a tunnel needs --username and --password`; the `.mjs` rule for `--cloudflared`. (3) The e2e command passes: the
+  `@UC-41` test in a 390x844 touch context through the fake is sent to sign-in, signs in, starts a loop, and sees
+  Running and a live log line in 2 seconds; health through the fake says `tunnel: connected`; after `shutdown()`
+  the fake's process has exited. A second test: startup with the token and no credentials exits 2 with the D8
+  message. A third: the token `bad` makes startup report the tunnel `down` and print `[cloudflared] ` with the fake's
+  error line. (4) `npm run verify` exits 0, and `uc-coverage` prints one more UC with a green e2e than on `main`.
+- **Stub check:** a runner that never spawns leaves the proxy port closed. Passing the token as an argument fails the
+  argv check. No restart logic fails the backoff case.
+- **Ratchet:** `uc-coverage` up by one; unit and e2e counts above the main baseline.
 
-### R6c - The check tool, the real-tunnel test, the deploy scripts, the README
+### R6b - The check tool, the real-tunnel test, the manifest, the README
 
 **Files:**
 - `scripts/tunnel-check.mjs` and `package.json` (`"tunnel:check": "node scripts/tunnel-check.mjs"`). It reads
-  `TUNNEL_NAME`, `LOCAL_NAME`, `LOOPS_USERNAME`, `LOOPS_PASSWORD`, `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET`
-  from the main `.env`. It prints one line per check (`PASS <id>` or `FAIL <id>: <reason>`), then
-  `tunnel: <passed>/11 checks pass`, and exits 0 only when all pass. It never prints a secret, and a unit test proves
-  it. It runs as the normal user.
+  `LOOPS_PUBLIC_URL`, `LOOPS_USERNAME`, `LOOPS_PASSWORD`, `LOOPS_CLOUDFLARE` and the optional `CF_ACCESS_CLIENT_ID`
+  and `CF_ACCESS_CLIENT_SECRET` from the main `.env`. It prints one line per check (`PASS <id>` or
+  `FAIL <id>: <reason>`), then `tunnel: <passed>/9 checks pass`, and exits 0 only when all pass. It never prints a
+  secret. It runs as the normal user.
 - `scripts/cloudflare-ips.json`: a copy of the Cloudflare address ranges (IPv4 and IPv6) with the date of the copy.
-- Unit tests `tests/tools/tunnel-check.test.ts`, with fake DNS, fake HTTP and a fake process list.
+- `tests/tools/tunnel-check.test.ts`, with fake DNS, fake HTTP and a fake process list.
 - `tests/e2e/tunnel-real.spec.ts` (spec G6; skipped with a printed reason unless `LC_REAL_TUNNEL=1`).
-- `goals/tunnel.json` (goals G5 to G11, each with its command and expected output) and the line
+- `goals/tunnel.json` (goals G5, G6, G8, G9 and G10, each with its command and expected output) and the line
   `Goal manifest: goals/tunnel.json` in the phase 2 issue body (#55).
-- `deploy/tunnel/setup-tunnel.ps1` (administrator: the token file from the clipboard, the folder ACL, the task
-  `Castraferrum cloudflared`, a log file in `%TEMP%`; spec D9 and D18 (A) and (B)),
-  `deploy/tunnel/set-access-token.ps1` (normal user: D18 (C)), `deploy/tunnel/README.md`.
-- `README.md`: the section "Reach it from outside" is written again for D15 to D20: install `cloudflared`; in the
-  Cloudflare dashboard, make the tunnel, the public host name with the service `http://127.0.0.1:7070` and "require a
-  valid Access token", the Access application and its two policies, and the service token; run the two scripts; set
-  `TUNNEL_NAME` in `.env`; run `npm run tunnel:check`. The section names every place in the dashboard as "not
-  verified" until R6d confirms it.
-- The evidence section `## R6c`.
+- `README.md`: the section "Reach it from outside", written for D15 to D17: install `cloudflared`; in the Cloudflare
+  dashboard, make the tunnel, delete the A record of the console name, and add the name as the public host name with
+  the service `http://127.0.0.1:7070`; put `LOOPS_CLOUDFLARE` in `.env` (the README says that every program of the
+  user can read it, and how to rotate the token); start with `npm start` or `npm start -- --cloudflare=<token>`; run
+  `npm run tunnel:check`; how to run the real-tunnel test.
+- The evidence section `## R6b`.
 
 The checks, in this order:
 
 | Check | What it proves | How |
 |---|---|---|
-| `dns-tunnel` | The tunnel name is public and points to Cloudflare | `1.1.1.1` answers the tunnel name. Every address is in `cloudflare-ips.json`, and none is private. |
-| `dns-home` | The home name did not change (G11) | `1.1.1.1` answers the home name with the address of the PC (the same rule as `dns-public` of `local-name-check.mjs`). |
-| `connector` | `cloudflared` is connected (G9) | `GET http://127.0.0.1:20241/ready` answers 200 with `readyConnections` of 1 or more. |
-| `runner` | The tunnel runs without the console (G9) | A `cloudflared` process exists (`Get-CimInstance Win32_Process`), and its parent process is not `node.exe`. |
-| `token-guarded` | Only SYSTEM and Administrators read the token (G10) | Opening `C:\ProgramData\castraferrum\tunnel\token` fails with `EPERM` or `EACCES`. The `CommandLine` of `cloudflared` is empty or has no `eyJhIjoi`. `.env` and `git grep` of the tracked files have no `eyJhIjoi`. |
-| `edge-path` | A request takes the path of a phone on mobile data (G6) | TLS to an address from `dns-tunnel`, with the tunnel name as SNI, verified against Node's default roots. The certificate is not the certificate that nginx serves for the home name (another serial number). The response has a `cf-ray` header. |
-| `access-wall` | A stranger gets only Access (G6) | `GET https://<tunnel name>/api/health` without Access headers answers 302 or 403, a `Location` (if any) on `*.cloudflareaccess.com`, and the body is not the console's health JSON. |
-| `access-pass` | The service token passes Access (G6) | The same request with `CF-Access-Client-Id` and `CF-Access-Client-Secret` answers 200 with the console's health JSON. |
-| `sign-in-wall` | Behind Access, the console still asks for sign-in (G6) | With the Access headers, `GET /api/loops` answers 401 `UNAUTHENTICATED`. |
-| `secure-cookie` | The console sees HTTPS through the tunnel (G6, D16) | With the Access headers, `POST /api/auth/login` with `LOOPS_USERNAME` and `LOOPS_PASSWORD` answers 204 with a `castra_session` cookie that has `Secure`. Then `POST /api/auth/logout`. |
-| `sse` | Live updates pass the tunnel and Access (G6) | With the Access headers and the session cookie, `GET /api/events` delivers `:ok` and then `:ping` in 20 seconds. |
+| `dns-edge` | The name points to Cloudflare, not to the PC | `1.1.1.1` answers the name. Every address is in `cloudflare-ips.json`, and none is private. |
+| `connector` | The tunnel is connected (G5 on the machine) | `GET http://127.0.0.1:7070/api/health` gives `tunnel: connected`. |
+| `runner` | Castraferrum is the parent (G8) | A `cloudflared` process exists (`Get-CimInstance Win32_Process`), and its parent is the `node.exe` that listens on port 7070. |
+| `token-hidden` | No token in a command line or a log (G9) | The `CommandLine` of `cloudflared` and of the console process hold no part of `LOOPS_CLOUDFLARE` longer than 8 characters; `reports/restart-console.log` holds none. |
+| `edge-path` | A request takes the path of a phone on mobile data (G6) | TLS to an address from `dns-edge`, with the name as SNI, verified against Node's default roots. The certificate issuer is not Let's Encrypt's `R` or `E` series that nginx served, and the response has a `cf-ray` header. |
+| `sign-in-wall` | The console asks for sign-in through the tunnel (G6) | `GET <public URL>/api/loops` gives 401 `UNAUTHENTICATED`. |
+| `secure-cookie` | The console sees HTTPS through the tunnel (G6, D16) | `POST /api/auth/login` with `LOOPS_USERNAME` and `LOOPS_PASSWORD` gives 204 with a `castra_session` cookie that has `Secure`. Then `POST /api/auth/logout`. |
+| `sse` | Live updates pass the tunnel (G6) | With the session cookie, `GET /api/events` delivers `:ok` and then `:ping` in 20 seconds. |
+| `ports-closed` | The home path is closed (G10) | TCP to `<pc-ip>` on 80, 443 and 7070 is refused or times out in 3 seconds. TCP to `127.0.0.1:7070` succeeds. |
 
 **Verify**
-- **Goal:** the oracles of G6, G9, G10 and G11 exist and fail on a PC without a tunnel.
+- **Goal:** the oracles of G6 and G8 to G10 exist and fail on a PC without a tunnel.
 - **Red:** before the tool exists, `npm run tunnel:check` fails with `Missing script: "tunnel:check"`. Write the unit
   tests first: `npx vitest run --project unit tests/tools/tunnel-check.test.ts` fails on the missing module.
-- **Green:** (1) the unit command passes, with one passing and one failing case for each of the 11 checks, and a case
-  that proves that no output line holds the value of `LOOPS_PASSWORD`, `CF_ACCESS_CLIENT_SECRET` or a token. (2) On
-  the PC, from the main checkout, after the merge: `npm run tunnel:check` prints 11 lines, ends with
-  `tunnel: 1/11 checks pass` (only `dns-home`), and exits 1. Record the output in the evidence. (3)
-  `npx playwright test --project chromium tests/e2e/tunnel-real.spec.ts` without `LC_REAL_TUNNEL` reports 2 skipped
-  with the reason. (4) `npm run goal:check -- goals/tunnel.json` prints a result below 7/7 and names the failing goals.
-  (5) `npm run verify` exits 0.
-- **Stub check:** a check that always passes fails its failing unit case. Before the setup, the real PC gives 1/11,
-  not 11/11.
-- **Ratchet:** `tunnel: 1/11` is the baseline that R6d moves to 11/11.
+- **Green:** (1) the unit command passes, with one passing and one failing case for each of the 9 checks, and a case
+  that proves that no output line holds the value of `LOOPS_PASSWORD` or `LOOPS_CLOUDFLARE`. (2) On the PC, from the
+  main checkout, after the merge: `npm run tunnel:check` prints 9 lines and `tunnel: 0/9 checks pass`, and exits 1.
+  Record the output in the evidence. (3) `npx playwright test --project chromium tests/e2e/tunnel-real.spec.ts`
+  without `LC_REAL_TUNNEL` reports 1 skipped with the reason. (4) `npm run goal:check -- goals/tunnel.json` prints a
+  result below 5/5 and names the failing goals. Record it. (5) `npm run verify` exits 0.
+- **Stub check:** a check that always passes fails its failing unit case. Before the setup, the real PC gives 0/9.
+- **Ratchet:** `tunnel: 0/9` is the baseline that R6d moves to 9/9.
+
+### R6c - Retire the home path in the repository
+
+**Files:** `deploy/local-name/nginx.conf` (the line `proxy_set_header CF-Connecting-IP "";` with its reason),
+`tests/tools/nginx-config.test.ts` (the new directive), `goals/local-name.json` moved to
+`goals/retired/local-name.json` with a `"retired"` note that names ADR 0006, `scripts/local-name-goal-run.mjs` (its
+comment names the new path), `README.md` (the section "Open with a name on your network" starts with one paragraph:
+ADR 0006 replaced it, and the steps to stop nginx and win-acme), `docs/specs/2026-11-19-local-name.md` and
+`docs/adr/0005-local-name-through-dns-and-reverse-proxy.md` (status line: the name moved to the tunnel, ADR 0006),
+the evidence section `## R6c`.
+
+**Verify**
+- **Goal:** G10 in the repository (D18, D19).
+- **Red:** write the test first. `npx vitest run --project unit tests/tools/nginx-config.test.ts` fails: the file has
+  no `CF-Connecting-IP` directive.
+- **Green:** (1) the unit command passes. (2) `ls goals/local-name.json` fails, and `goals/retired/local-name.json`
+  exists. (3) `grep -c "ADR 0006" README.md docs/specs/2026-11-19-local-name.md docs/adr/0005-local-name-through-dns-and-reverse-proxy.md`
+  prints 1 or more for each file. (4) `npm run verify` exits 0.
+- **Stub check:** a configuration without the line fails (1). A manifest left in place fails (2).
+- **Ratchet:** unit count above the main baseline.
 
 ### R6d - Machine setup on the owner's PC
 
 **Who:** an agent and the owner. The issue carries `loop:needs-human`, because these steps need what only the owner
-has: the Cloudflare login, the Zero Trust sign-up, the tunnel token, the service token and the administrator prompt.
-The agent prepares each step, runs each administrator step as one script through `Start-Process -Verb RunAs` with a
-log file, and never sees a secret.
+has: the Cloudflare login, the tunnel token and the administrator prompt. The agent prepares each step and never sees
+the token.
 
-**Files:** `docs/plans/2026-10-21-remote-access-evidence.md` (section `## R6d`), and a fix to the README or to
-`deploy/tunnel/` for each step that differs from R6c. No other code.
+**Files:** `docs/plans/2026-10-21-remote-access-evidence.md` (section `## R6d`), and a fix to the README for each step
+that differs from R6b. No other code.
 
-**Steps,** in the order of the README section of R6c:
-1. Red: `npm run tunnel:check` prints `tunnel: 1/11 checks pass`. `npm run local-name:check` prints 10/10.
-2. The agent installs `cloudflared` (`winget install --id Cloudflare.cloudflared`), records its version and the
-   output of `cloudflared tunnel run --help`. If `--token-file` is missing, the script uses the D18 (B) wrapper.
-3. The administrator script deploys the nginx configuration of R6a and reloads nginx as SYSTEM. Then
-   `npm run local-name:check` prints 10/10.
-4. The owner signs up for Zero Trust (free plan). If Cloudflare asks for a payment card, the owner decides, and the
-   task records the answer.
-5. The owner makes the tunnel in the dashboard and its public host name: the tunnel name, the service
-   `http://127.0.0.1:7070`.
-6. The owner makes the Access application for the tunnel name with the policies "owner" and "check", makes the
-   service token, and turns on "require a valid Access token" for the public host name.
-7. The owner copies the tunnel token. The agent starts `setup-tunnel.ps1`, and the owner clicks the prompt. The log
-   shows the length of the token, the ACL of the folder and the task.
-8. The owner copies the client ID and then the client secret. The agent runs `set-access-token.ps1`. The agent sets
-   `TUNNEL_NAME` in the main `.env`.
-9. `npm run tunnel:check` runs to 11/11.
-10. Goal G9, one time: an administrator script stops the `cloudflared` process and writes the task state into its log.
-    In 2 minutes, `npm run tunnel:check` prints `PASS connector` again.
-11. The evidence records each fact of the spec update ("Facts") as measured or as different. A fact that is different
-    becomes a fix issue that blocks R7.
+**Steps,** in the order of the README section of R6b:
+1. Red: `npm run tunnel:check` prints `tunnel: 0/9 checks pass`.
+2. The agent installs `cloudflared` (`winget install --id Cloudflare.cloudflared`) and records its version.
+3. The owner makes the tunnel in the dashboard, deletes the A record of the console name, and adds the name as the
+   public host name with the service `http://127.0.0.1:7070`. The evidence records whether the dashboard refused the
+   name while the A record existed.
+4. The owner copies the tunnel token. The agent runs a normal-user script that reads the clipboard into the main
+   `.env` as `LOOPS_CLOUDFLARE`, empties the clipboard, and logs only the length.
+5. The agent restarts the console with `scripts/restart-console.ps1`. The startup log shows `Tunnel: connected`.
+6. One administrator script (D17): `nginx -s stop` as SYSTEM, the task `Castraferrum nginx` disabled, the win-acme
+   renewal task deleted, the firewall rule for TCP 80 and 443 removed. Its log lists each state before and after.
+7. The owner deletes the win-acme API token in Cloudflare.
+8. `npm run tunnel:check` runs to 9/9.
+9. The evidence records each fact of the spec update ("Facts") as measured or as different. A fact that is different
+   becomes a fix issue that blocks R7.
 
 **Verify**
-- **Goal:** G6 and G8 to G11 on the real machine.
+- **Goal:** G6, G9 and G10 on the real machine.
 - **Red:** step 1.
-- **Green:** (1) `npm run tunnel:check` prints 11 `PASS` lines and `tunnel: 11/11 checks pass`, and exits 0. (2)
-  `npm run local-name:check` prints `local name: 10/10 checks pass`. (3) After step 10, `PASS connector` and
-  `PASS runner` again, with a new process ID in the `runner` line.
+- **Green:** `npm run tunnel:check` prints 9 `PASS` lines and `tunnel: 9/9 checks pass`, and exits 0. The log of
+  step 6 shows nginx stopped, the two tasks gone or disabled, and no firewall rule for 80 and 443.
 - **Stub check:** each check talks to the real program, the real DNS and the real Cloudflare edge. A step that is not
   done leaves its check at `FAIL`.
-- **Ratchet:** `tunnel: 1/11` to 11/11; `local name` stays at 10/10.
+- **Ratchet:** `tunnel: 0/9` to 9/9.
 
 ### R7 - Verify every goal and do the agent acceptance
 
 **Who:** an agent. The label `loop:needs-human` is removed when this task is written again.
 
-**Files:** `goals/tunnel.json` (fixes only, if R6d found a difference), the evidence section `## R7`, screenshots
-of the real-tunnel test attached to the pull request (they show the sample name only if the page shows no real name;
-otherwise they stay out of the pull request, and the evidence says so).
+**Files:** `goals/tunnel.json` (fixes only, if R6d found a difference), the evidence section `## R7`.
 
 The agent does what the owner does, from the PC:
 - `npm run goal:check -- goals/tunnel.json`, from the main checkout and from the lane worktree;
 - `LC_REAL_TUNNEL=1 npx playwright test --project chromium tests/e2e/tunnel-real.spec.ts`, and it opens and reads
-  each screenshot: the Access page without the service token; the sign-in screen, the loop at Running and the live log
-  line with it;
+  each screenshot (the sign-in screen, the loop at Running, the live log line);
+- goal G8 one time: it stops the console through `restart-console.ps1` (the stop part), checks that no `cloudflared`
+  process is left and that `<public URL>/api/health` gives no console JSON, starts the console again, and runs
+  `npm run tunnel:check` again;
 - `E check --dry-run` on R6a, R6b, R6c and R6d.
 
+The screenshots stay out of the pull request when they show the real name.
+
 **Verify**
-- **Goal:** G5 to G11 hold together on `main` and on the real machine (G7).
-- **Red:** not applicable as a new failure: the R6c run of `goal:check` (below 7/7) is the before number.
-- **Green:** (1) `npm run goal:check -- goals/tunnel.json` prints `goals passed: 7/7` from both folders. (2) The real
-  test reports `2 passed`. (3) `E check --dry-run` gives PASS for R6a to R6d. (4) `npm run local-name:check` prints
-  10/10.
+- **Goal:** G5 to G10 hold together on `main` and on the real machine (G7).
+- **Red:** not applicable as a new failure: the R6b run of `goal:check` (below 5/5) is the before number.
+- **Green:** (1) `npm run goal:check -- goals/tunnel.json` prints `goals passed: 5/5` from both folders. (2) The real
+  test reports `1 passed`. (3) The G8 run records the process list and the health answer while stopped, and then
+  `tunnel: 9/9 checks pass`. (4) `E check --dry-run` gives PASS for R6a to R6d.
 - **Stub check:** each manifest row runs an oracle of the spec update. A failing row becomes a fix issue that blocks
   this task.
-- **Ratchet:** goals passed from the R6c number to 7/7.
+- **Ratchet:** goals passed from the R6b number to 5/5.
 
 ### Follow-up outside the epic
 
-- The owner opens the tunnel name on a real phone with Wi-Fi off, passes Access with the email PIN, signs in, and uses
-  a loop. No goal waits for it.
+- The owner opens the console name on a real phone with Wi-Fi off, signs in, and uses a loop. No goal waits for it.
+- Cloudflare Access in front of the console, if the owner wants it later (a dashboard setting).

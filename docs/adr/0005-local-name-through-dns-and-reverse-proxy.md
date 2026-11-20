@@ -2,8 +2,8 @@
 
 - Status: accepted (2026-11-19). Amended 2026-11-19: the name and the certificate issuer. Amended 2026-11-20: a bought
   domain replaces the DNS server on the PC and the own issuer.
-- Related: [ADR 0006](0006-internet-access-through-a-named-tunnel.md) (proposed 2026-11-20), the tunnel for access from
-  the internet.
+- Related: [ADR 0006](0006-internet-access-through-a-named-tunnel.md) (proposed 2026-11-20): the console name moves to a
+  Cloudflare tunnel.
 - Spec: [../specs/2026-11-19-local-name.md](../specs/2026-11-19-local-name.md)
 
 ## Context
@@ -103,9 +103,8 @@ nginx and Castraferrum stay the same.
 - **The Cloudflare named tunnel (task R6) in this phase:** not chosen. The name then points to Cloudflare, so the
   router keeps the answer and no device needs a setting. But each request leaves the home, and the console becomes
   reachable from the internet. The owner takes R6 off hold after this phase (2026-11-20).
-  [ADR 0006](0006-internet-access-through-a-named-tunnel.md) (proposed 2026-11-20) adds the tunnel on a separate
-  name and keeps every decision of this ADR. It adds one line to the nginx configuration of this ADR: nginx deletes
-  `CF-Connecting-IP` on the home path (ADR 0006, decision 3).
+  [ADR 0006](0006-internet-access-through-a-named-tunnel.md) (proposed 2026-11-20) moves the console name to the
+  tunnel, so nginx, win-acme and the device DNS setting of this ADR retire.
 - **The HTTP-01 challenge:** not possible. Let's Encrypt then connects to port 80 of the name from the internet, and
   the internet cannot reach a private address.
 - **A wildcard certificate for every name of the domain:** not chosen. One key then serves every name of the domain.

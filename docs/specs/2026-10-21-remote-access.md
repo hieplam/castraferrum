@@ -5,9 +5,10 @@
 - Plan: [../plans/2026-10-21-remote-access.md](../plans/2026-10-21-remote-access.md)
 - Previous phase: [2026-10-21-lan-access.md](2026-10-21-lan-access.md) (`--host`, the flag parser, phone layout).
   This phase starts only after phase 1 is accepted.
-- **Update 2026-11-20 (tasks R6 and R7, proposed for the owner's review):** see the section "Update 2026-11-20: a named
-  tunnel on the owner's domain" at the end of this file. It replaces D7 to D10 and goals G5 to G7, changes D8 and D14,
-  and adds D15 to D21 and goals G8 to G11. Decision record: [ADR 0006](../adr/0006-internet-access-through-a-named-tunnel.md).
+- **Update 2026-11-20 (tasks R6 and R7, proposed for the owner's review):** see the section "Update 2026-11-20: the
+  console name through a tunnel that Castraferrum starts" at the end of this file. It renames the flag of D7, changes
+  D14, adds D15 to D19, replaces goals G6 and G7, and adds goals G8 to G10. Decision record:
+  [ADR 0006](../adr/0006-internet-access-through-a-named-tunnel.md).
 
 ## 1. Context
 
@@ -101,108 +102,105 @@ login and logout routes when no credentials are set. `GET /health` gains `tunnel
 
 `npm run verify` raises `uc-coverage --min` from 34 to 36 over the phase.
 
-## Update 2026-11-20: a named tunnel on the owner's domain
+## Update 2026-11-20: the console name through a tunnel that Castraferrum starts
 
-Status: proposed. The owner reviews it in the docs pull request before any build task starts.
+Status: proposed. The owner chose the direction on 2026-11-20 (the same name, one start flag) and reviews this text in
+the docs pull request before any build task starts.
 
-Tasks R1 to R5 are merged, and phase 3 ([2026-11-19-local-name.md](2026-11-19-local-name.md)) is closed. The owner
-now has a Cloudflare account and a domain on it. The home name (sample `castra.example.com`) is a "DNS only" record to
-`<pc-ip>`, and nginx serves it with a Let's Encrypt certificate. The console listens on `127.0.0.1:7070`.
+Tasks R1 to R5 are merged, and phase 3 ([2026-11-19-local-name.md](2026-11-19-local-name.md)) is closed. The console
+name (sample `castra.example.com`) is a "DNS only" record to `<pc-ip>`, nginx serves it with a Let's Encrypt
+certificate, and the console listens on `127.0.0.1:7070`.
 
-This update writes R6 and R7 again for that setup. [ADR 0006](../adr/0006-internet-access-through-a-named-tunnel.md)
-gives the reasons and the alternatives. In short:
+This update writes R6 and R7 again. [ADR 0006](../adr/0006-internet-access-through-a-named-tunnel.md) gives the reasons
+and the alternatives. In short:
 
-- The tunnel uses a separate name, sample `castra-remote.example.com`. The home name does not change.
-- The tunnel ends at `http://127.0.0.1:7070`, not at nginx.
-- A SYSTEM Task Scheduler task runs `cloudflared`. The console does not run it.
-- Cloudflare Access stands in front of the tunnel name. The console sign-in stays.
-- The tunnel token is in a folder that only SYSTEM and Administrators can read.
+- The tunnel uses the console name itself. The "DNS only" record goes away.
+- `npm start -- --cloudflare=<tunnel token>` (or `LOOPS_CLOUDFLARE` in `.env`) makes Castraferrum start
+  `cloudflared` as a child process. The tunnel stops when Castraferrum stops.
+- The tunnel ends at `http://127.0.0.1:7070`.
+- nginx, win-acme, the firewall rule for 80 and 443, and the DNS setting of each device retire.
+- Cloudflare Access is optional and needs no code.
 
-### The order of one request from outside
+This is close to the first R6 design (D7 to D10). The changes: the flag is `--cloudflare`, not `--tunnel-token`;
+the public URL is the console name of phase 3; the home path retires.
+
+### The order of one run
 
 ```text
-Phone (mobile data)    Cloudflare edge           cloudflared (PC, SYSTEM)     Castraferrum (127.0.0.1:7070)
-  | -- castra-remote.example.com? (any DNS) -> answer: a Cloudflare address
-  | -- TLS, edge certificate --> |
-  |                              | Access: no CF_Authorization cookie
-  | <-- 302 to the Access page --|
-  | -- email + one-time PIN ---> |
-  | <-- CF_Authorization cookie -|
-  | -- GET / ------------------> |
-  |                              | -- through the tunnel connection -> |
-  |                              |    Cf-Access-Jwt-Assertion           | checks the Access token (D17)
-  |                              |                                      | -- GET / --------------------------> |
-  |                              |                                      |    CF-Connecting-IP: <phone ip>      |
-  |                              |                                      |    X-Forwarded-Proto: https          |
-  |                              |                                      | <-- sign-in page, then Secure cookie |
-  | <------------------------------------------------------------- page |
+You (terminal)    Castraferrum            cloudflared (child)      Cloudflare edge           Phone (anywhere)
+  | npm start -- --cloudflare=<token> ->|
+  |                 | sign-in set? listen 127.0.0.1:7070
+  |                 | -- start, TUNNEL_TOKEN -> |
+  |                 |                           | -- outbound connection -> |
+  |                 |                           | <- connection registered - |
+  |                 | <- /ready: 200 ---------- |
+  | <- "Tunnel: connected", "Open: https://castra.example.com"
+  |                 |                           |                           | <- GET / ------------- |
+  |                 |                           | <- request in the tunnel - |
+  |                 | <- GET /, CF-Connecting-IP, X-Forwarded-Proto: https |
+  |                 | -- page, Secure cookie ----------------------------------------------------> |
+  | Ctrl+C -------->|
+  |                 | -- stop (kill after 5 s) ->|  exits
+  |                 |                           |                           | <- next request ------ |
+  |                 |                           |                           | -- Cloudflare error -> |
 ```
-
-The home path of phase 3 stays as it is: the device asks Cloudflare DNS, gets `<pc-ip>`, and connects to nginx.
 
 ### Facts this update depends on
 
-Each fact comes from the Cloudflare documentation unless marked "measured". None is verified on this PC yet. Task
-R6d records each one in the evidence log.
+Each fact comes from the Cloudflare documentation unless marked "measured". Task R6d records each one in the evidence
+log as measured or as different.
 
-- A dashboard-managed tunnel needs only its token to run. A person who has the token can run the tunnel
+- A dashboard-managed tunnel needs only its token to run, and a person who has the token can run the tunnel
   ([tunnel tokens](https://developers.cloudflare.com/tunnel/advanced/tunnel-tokens)).
-- The public host name of a tunnel can require a valid Access token: `cloudflared` then checks the
-  `Cf-Access-Jwt-Assertion` header and refuses a request without one
-  ([origin parameters](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/cloudflared-parameters/origin-parameters/)).
-- `cloudflared tunnel run` accepts `--token-file <path>`. Only a third-party reading of the source code says this. The
-  official run parameters page shows only `--token`. R6d runs `cloudflared tunnel run --help` first. If the flag is
-  missing, the task runs a wrapper (D18).
-- The free Zero Trust plan covers up to 50 users. Third-party sources say that it needs no payment card.
-- Universal SSL (the free edge certificate) covers the domain and one level of names under it.
-- The Cloudflare edge adds `CF-Connecting-IP` and `Cf-Ray` to each request to the origin, and replaces a
-  `CF-Connecting-IP` that a device sends.
-- Measured (phase 3, 2026-11-20): a normal user cannot read a Task Scheduler task that runs as SYSTEM
-  (`schtasks /query` gives `ERROR: Access is denied.`).
+- `cloudflared tunnel run` reads the token from `TUNNEL_TOKEN`, and `--metrics <addr>` serves `GET /ready` (checked
+  on 2026-10-21, section 1 of this spec).
+- The Cloudflare edge adds `CF-Connecting-IP` to each request to the origin and replaces a value that a device sends.
+  `cloudflared` passes `X-Forwarded-Proto: https`. Not verified on this PC.
+- One name cannot hold a "DNS only" A record and the tunnel record together. The dashboard can refuse the public host
+  name while the A record exists. Not verified.
+- When the tunnel has no connection, the edge answers with a Cloudflare error page. The error number is not verified.
 - Measured (2026-11-20): `cloudflared` is not installed on the PC (`where cloudflared` finds no file).
+- Measured (2026-11-20): `scripts/restart-console.ps1` starts the console with `npm start`, so `.env` carries the
+  flag across restarts.
 
 ### Decisions changed by this update
 
 | # | Decision | Why |
 |---|---|---|
-| D7 (replaced) | **No tunnel flags in the console.** `--tunnel-token` and `--cloudflared` are not built. `--public-url` stays as phase 3 made it: the home address. Each machine sets `TUNNEL_NAME` (the tunnel name, without `https://`) in `.env`. Only the check tool and the real-tunnel test read it. | The console does not run the tunnel (D9). |
-| D8 (replaced) | **With sign-in off, the console refuses tunnel requests.** When no credentials are set, every request that carries `CF-Connecting-IP` or `Cf-Ray` gets 403 `SIGN_IN_REQUIRED`, on every route, the static bundle and `/api/health` included. With credentials set, nothing changes. | The console cannot refuse to start, because it does not start the tunnel. A request through the tunnel always carries both headers (Facts). A request from the PC or through nginx carries neither (D21). |
-| D9 (replaced) | **A SYSTEM Task Scheduler task runs `cloudflared`.** The task `Castraferrum cloudflared` runs as SYSTEM at startup, starts the program again 1 minute after a failure, and has no time limit. It runs `cloudflared.exe tunnel --no-autoupdate --metrics 127.0.0.1:20241 run --token-file C:\ProgramData\castraferrum\tunnel\token`. | Every loop agent can read `.env`, and a stolen token gives a stranger the tunnel name and the owner's password. The tunnel then also runs when the console restarts. nginx and win-acme run the same way (ADR 0005). ADR 0006, decision 4. |
-| D10 (replaced) | **`GET /api/health` gets no `tunnel` field.** The check tool reads `GET http://127.0.0.1:20241/ready` of `cloudflared`. | The console does not own the tunnel. |
+| D7 (changed) | **Tunnel flags:** `--cloudflare=<token>` (`LOOPS_CLOUDFLARE`, also `npm_config_cloudflare`), `--cloudflared=<path>` (`LOOPS_CLOUDFLARED`, default `cloudflared` on `PATH`; a path ending in `.mjs` runs with the current Node binary, which is how tests plug in a fake). `--public-url` stays as phase 3 made it. The README uses the `=` form, because with a space npm can read the token as a separate word. On the machine the token is in `.env`. | The owner chose the name `--cloudflare` (2026-11-20). `.env` keeps the token out of the shell history and keeps the tunnel across `restart-console.ps1`. |
+| D8 | Unchanged in meaning, with the new flag: `--cloudflare` without `--username` and `--password` stops startup with exit code 2: `a tunnel needs --username and --password`. | A tunnel without sign-in puts an agent runner on the internet. |
+| D9 | Unchanged: `cloudflared tunnel --no-autoupdate --metrics 127.0.0.1:<free port> run`, the token only in `TUNNEL_TOKEN`, output forwarded with the prefix `[cloudflared] ` and the token redacted, states `connecting`, `connected`, `down`, restart after 1, 2, 4, 8, 16, then every 30 seconds, stop before the database closes (kill after 5 seconds), and the `ENOENT` message with `winget install --id Cloudflare.cloudflared`. | As in the first design. |
+| D10 | Unchanged: `GET /api/health` gains `tunnel`: `off`, `connecting`, `connected` or `down`. | The check tool and the startup log read it. |
 | D11 | Unchanged: named tunnels only. | |
-| D14 (changed) | Cloudflare Access is now in scope (D17). The other items stay out of scope. | The console becomes reachable from the internet. |
-| D15 | **The tunnel uses a separate name with one label under the domain.** Sample: `castra-remote.example.com`. The dashboard makes its proxied CNAME when the owner adds the public host name. The home record does not change. | Two answers for one name need split DNS, and the owner removed the DNS server from the PC. The phase 3 checks stay at 10/10. Universal SSL covers one level. ADR 0006, decision 1. |
-| D16 | **The tunnel ends at the console.** The public host name has the service `http://127.0.0.1:7070`. The console gets `CF-Connecting-IP` and `X-Forwarded-Proto: https`, and no `X-Real-IP`. `clientKey` already reads `CF-Connecting-IP` first, from a loopback socket only. | One hop fewer. nginx adds nothing for the tunnel. ADR 0006, decision 2. |
-| D17 | **Cloudflare Access protects the tunnel name.** One self-hosted application for the tunnel name, with two policies: "owner" (Allow, the owner's email address, one-time PIN by email, session 24 hours) and "check" (Service Auth, one service token named `castraferrum check`). The public host name requires a valid Access token. The console sign-in stays. | The password and the limit for each address are the only wall today. Access stops a stranger at the Cloudflare edge. The service token lets the agent run the G6 checks without a person. ADR 0006, decision 5. |
-| D18 | **Secrets, typed by the owner only.** (A) The tunnel token: the owner copies it in the dashboard. An administrator script, `deploy/tunnel/setup-tunnel.ps1`, reads it from the clipboard, writes it to `C:\ProgramData\castraferrum\tunnel\token`, sets the folder ACL to SYSTEM and Administrators only (no inheritance), empties the clipboard, and logs only the length of the token. (B) If `--token-file` does not exist, the script also writes `run-tunnel.cmd` in the same folder, which sets `TUNNEL_TOKEN` from the file and starts `cloudflared`, and the task runs that file. (C) The Access service token: a normal-user script, `deploy/tunnel/set-access-token.ps1`, reads the client ID and then the client secret from the clipboard into the main `.env` as `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET`. No secret enters a chat, the repository, a log or an issue. To change the tunnel token, the owner refreshes it in the dashboard and runs (A) again. | The phase 3 rule: read a secret from the clipboard, never from `Read-Host`. The service token passes Access only, and the console password stays a second wall. `.env` already holds `LOOPS_PASSWORD` at the same level of protection. |
-| D19 | **Install:** `winget install --id Cloudflare.cloudflared`, machine scope. `--no-autoupdate`, because a program that SYSTEM runs must not change itself. The owner updates it with `winget upgrade`. | A known version, as for nginx and win-acme. |
-| D20 | **No firewall rule and no router change.** `cloudflared` makes outbound connections only. | Nothing on the PC listens for the internet. |
-| D21 | **nginx deletes `CF-Connecting-IP` on the home path:** `proxy_set_header CF-Connecting-IP "";` in `deploy/local-name/nginx.conf`. | Today a device on the Wi-Fi can send that header through nginx. The console sees a loopback socket, trusts the header, and counts each new value as a new client. As a result, the limit of 5 failures never stops that device. Found while writing this update, from `server/services/auth-service.ts:87-93` and `deploy/local-name/nginx.conf`. Not verified by a run. ADR 0006, decision 3. |
+| D14 (changed) | Cloudflare Access stays out of the code. The owner can add it in the dashboard. The real-tunnel test sends `CF-Access-Client-Id` and `CF-Access-Client-Secret` when `.env` has them. | The owner wants the simple setup first (2026-11-20). |
+| D15 | **The tunnel uses the console name.** The owner deletes the A record of the console name and adds the name as the public host name of the tunnel, with the service `http://127.0.0.1:7070`. | One address at home and outside, and no DNS setting on any device. ADR 0006, decision 1. |
+| D16 | **The tunnel ends at the console.** The console gets `CF-Connecting-IP` and `X-Forwarded-Proto: https`. `clientKey` already reads `CF-Connecting-IP` first, from a loopback socket only. | nginx adds nothing for the tunnel. ADR 0006, decision 2. |
+| D17 | **The home path of phase 3 retires on the machine:** the task `Castraferrum nginx` is stopped and disabled, the win-acme renewal task is deleted, the firewall rule for TCP 80 and 443 is removed, and the owner deletes the win-acme API token in Cloudflare. The phone DNS settings can go back to automatic. | No device connects to `<pc-ip>:443` any more. A program without a job is one more thing to attack and to keep up to date. |
+| D18 | **`deploy/local-name/nginx.conf` gets `proxy_set_header CF-Connecting-IP "";`.** | Today a device on the Wi-Fi can send that header through nginx, and the console trusts it from the loopback socket of nginx. As a result, the limit of 5 failures never stops that device. The defect ends when nginx stops. The line keeps it closed if nginx returns. Found from `server/services/auth-service.ts:87-93`, not verified by a run. |
+| D19 | **`goals/local-name.json` and `npm run local-name:check` stop being goals.** The manifest moves to `goals/retired/local-name.json` with a note, and the README section "Open with a name on your network" says that ADR 0006 replaced it. The tool stays in the repository. | Its checks `dns-public`, `tls`, `redirect`, `sse`, `nginx-test` and `cert-issuer` fail by design after D15 and D17. |
 
 ### Goals changed by this update
 
-G1 to G4 stay as they are (R1 to R5 are merged). G5 to G7 are replaced. G8 to G11 are new.
+G1 to G4 stay (R1 to R5 are merged). G5 stays with the new flag name. G6 and G7 are replaced. G8 to G10 are new.
 
 | # | Goal (outcome) | Oracle | Why a stub fails |
 |---|---|---|---|
-| G5 (replaced) | Behind a tunnel, the console asks for sign-in, gives a `Secure` cookie, counts failed sign-ins for each device, and shows live updates on a phone. With sign-in off, the console refuses every request through a tunnel. | e2e `@UC-41` (`tests/e2e/tunnel.spec.ts`): a real `server/main.ts` on `127.0.0.1`, behind `tests/support/fake-reverse-proxy.mjs` in a tunnel mode that adds `CF-Connecting-IP` (from `x-test-client`), `Cf-Ray` and `X-Forwarded-Proto: https`. A 390x844 touch context: device A fails 5 times and gets 429; device B signs in, gets a `Secure` cookie, starts a loop and sees Running and a live log line in 2 seconds. An api test: a server without credentials answers 403 `SIGN_IN_REQUIRED` to `GET /`, `GET /api/health` and `GET /api/loops` with `Cf-Ray`, and 200 without it. | Without the D8 guard, the requests without sign-in get 200. Without the tunnel mode, device B shares the count of device A. |
-| G6 (replaced) | From outside the home, a stranger gets only the Access page, and the owner's phone passes Access, signs in, starts a loop and sees live updates. | `npm run tunnel:check` (`scripts/tunnel-check.mjs`), checks `edge-path`, `access-wall`, `access-pass`, `sign-in-wall`, `secure-cookie` and `sse` (list in plan task R6c). Also `tests/e2e/tunnel-real.spec.ts` (only with `LC_REAL_TUNNEL=1`): Chromium in a 390x844 touch context, certificate errors not ignored, the home name mapped to "not found", the Access service token in the headers. It opens `https://<tunnel name>`, signs in, starts the loop "tunnel acceptance", sees Running in 2 seconds and a live log line, then stops and archives the loop. A second test without the service token sees a page on `*.cloudflareaccess.com`. | Without a tunnel the name does not answer. Without Access, `access-wall` gets the console's JSON. Through the home path, `edge-path` sees the nginx certificate. |
-| G7 (replaced) | The agent accepts the result as the owner does, on `main`, from the main checkout. | Task R7: `npm run goal:check -- goals/tunnel.json` prints `goals passed: 7/7`, from the main checkout and from the lane worktree. The agent reads each screenshot of the real-tunnel test. `E check --dry-run` passes for R6a to R6d. | A manifest row that always exits 0 is not allowed. Each row runs an oracle of this table. |
-| G8 | On the home path, a device cannot pick its own client address. | `tests/tools/nginx-config.test.ts` finds `proxy_set_header CF-Connecting-IP "";`. An api test through `fake-reverse-proxy.mjs` (nginx mode, which now deletes the header as D21 says): 6 failed sign-ins with 6 different `CF-Connecting-IP` values from one device give 429 on the sixth. On the machine, the check `nginx-test` of `local-name-check.mjs` also finds the line in the deployed file. | Without the line, the test does not find it, and the sixth attempt gets 401. |
-| G9 | The tunnel runs without the console and without a person. | Checks `connector` (`/ready` on `127.0.0.1:20241` answers 200 with at least 1 connection) and `runner` (a `cloudflared` process exists, and its parent process is not `node.exe`). Task R6d, one time: an administrator script stops the `cloudflared` process, and in 2 minutes `connector` passes again. | Without the task, `/ready` does not answer. A `cloudflared` that the console starts has `node.exe` as its parent. |
-| G10 | Only SYSTEM and Administrators can read the tunnel token. | Check `token-guarded`: as the normal user, opening the token file fails with `EPERM` or `EACCES` (not `ENOENT`); the command line of the `cloudflared` process is empty for the normal user or holds no token; `.env` holds no value that starts with `eyJhIjoi` (the start of a tunnel token); `git grep` finds no such value in the tracked files. | A token in `.env` or in a file that the user can read fails the check. |
-| G11 | The home path of phase 3 keeps working. | `npm run local-name:check` prints `local name: 10/10 checks pass`, and check `dns-home` of the tunnel tool: `1.1.1.1` still answers the home name with `<pc-ip>`. | The same name for both (ADR 0006, decision 1) fails `dns-public` and `dns-home`. |
+| G5 (flag renamed) | With `--cloudflare`, the console runs the tunnel itself: it starts `cloudflared`, reports `connecting` then `connected`, starts it again when it stops, stops it on shutdown, and refuses to start without credentials. Through the tunnel a phone signs in, starts a loop and sees it update live. | The oracle of G5 above, with `--cloudflare` for `--tunnel-token`: unit tests of the runner with `tests/support/fake-cloudflared.mjs`, and e2e `@UC-41` (`tests/e2e/tunnel.spec.ts`; UC-41 is the number that phase 3 kept for the tunnel) in a 390x844 touch context. | As above. |
+| G6 (replaced) | From outside the home, a phone opens the console name, signs in, starts a loop and sees live updates. | `npm run tunnel:check` (`scripts/tunnel-check.mjs`), checks `dns-edge`, `connector`, `runner`, `edge-path`, `sign-in-wall`, `secure-cookie` and `sse` (plan task R6b). Also `tests/e2e/tunnel-real.spec.ts` (only with `LC_REAL_TUNNEL=1`): Chromium in a 390x844 touch context, certificate errors not ignored. It opens `LOOPS_PUBLIC_URL`, signs in, starts the loop "tunnel acceptance", sees Running in 2 seconds and a live log line, then stops and archives the loop. | Without a tunnel the name does not answer. Through nginx, `edge-path` sees the Let's Encrypt certificate and no `cf-ray`. |
+| G7 (replaced) | The agent accepts the result as the owner does, on `main`, from the main checkout. | Task R7: `npm run goal:check -- goals/tunnel.json` prints `goals passed: 5/5` from the main checkout and from the lane worktree. The agent reads each screenshot of the real-tunnel test. `E check --dry-run` passes for R6a to R6d. | A manifest row that always exits 0 is not allowed. |
+| G8 | The tunnel lives only while Castraferrum runs. | Task R7, one time, on the machine: after `restart-console.ps1` stops the console, no `cloudflared` process is left, and `GET <public URL>/api/health` gives no console JSON. After the restart, `npm run tunnel:check` passes again. | A tunnel that the console does not stop leaves a `cloudflared` process, and the edge still answers. |
+| G9 | The token never shows in a command line or a log of Castraferrum. | Unit tests of the runner (token only in `TUNNEL_TOKEN`, redacted in every forwarded line). Check `token-hidden` of the tunnel tool: the `CommandLine` of `cloudflared` holds no part of `LOOPS_CLOUDFLARE`, and `reports/restart-console.log` and the console output file hold none. | Passing the token as an argument fails both. |
+| G10 | The home path is closed: nothing on the PC answers on ports 80, 443 or 7070 from the network. | Check `ports-closed`: TCP connections to `<pc-ip>` on 80, 443 and 7070 are refused or time out, and one to `127.0.0.1:7070` succeeds. | A running nginx accepts the connection on 443. |
 
 ### Ratchets
 
-- `tunnel: <passed>/11 checks pass` (new tool, `npm run tunnel:check`). Before R6c the tool does not exist. After
-  R6c, on the PC before the setup, it prints its baseline (expected 1/11: only `dns-home`). After R6d: 11/11.
-- `local name: 10/10 checks pass` stays at 10/10.
-- `uc-coverage`: UC-41 (reserved by phase 3 for the tunnel) gets a green e2e, so the count goes up by one, and the
-  verify floor `--min` goes from 40 to 41.
-- `goals passed: <n>/7` for `goals/tunnel.json` (goals G5 to G11): 0/7 at R6c, 7/7 at R7.
+- `tunnel: <passed>/9 checks pass` (new tool, `npm run tunnel:check`; the 7 checks of G6 plus `token-hidden` and
+  `ports-closed`). After R6b, on the PC before the setup, it prints its baseline (expected 0/9). After R6d: 9/9.
+- `uc-coverage`: UC-41 gets a green e2e, so the count goes up by one, and the verify floor `--min` goes from 40 to 41.
+- `goals passed: <n>/5` for `goals/tunnel.json` (goals G5, G6, G8, G9, G10): measured at R6b, 5/5 at R7.
 
 ### Out of scope of this update
 
-The real phone on mobile data (a follow-up outside the epic, as in phase 3), more than one Access user, an identity
-provider other than the one-time PIN, a tunnel for other apps of the domain, and Cloudflare WAF rules.
+The real phone on mobile data (a follow-up outside the epic, as in phase 3), Cloudflare Access, a tunnel that runs
+without Castraferrum, a tunnel for other apps of the domain, and the removal of nginx and win-acme programs from the
+disk (D17 only stops them).
