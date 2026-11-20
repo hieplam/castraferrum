@@ -533,7 +533,7 @@ G9). Lane R6a, test database `loops_r6a_test`, e2e port 7191.
 
 ### Red
 
-The tests were written first (the first commit of the branch, `f9799b5` after the rebase) and run before the code. The e2e Red ran in a second worktree at that
+The tests were written first (the first commit of the branch, `90b944a` after the rebase) and run before the code. The e2e Red ran in a second worktree at that
 commit, so the code of the next commits could not change it.
 
 ```text
@@ -643,6 +643,9 @@ Made by the standing rules of the epic; the spec leaves them open.
 - **Test servers.** `ServerProcess`, the Playwright web server and `api-smoke` set `LOOPS_CLOUDFLARE` to empty, because the
   server loads the developer's `.env`. After task R6d that file holds the real token, and a test must never start the
   real tunnel.
+- **The sample token.** The unit tests use `fake-tunnel-token-for-tests-not-a-secret`. A first sample, a base64 string,
+  made the GitGuardian check of the pull request fail (`Generic High Entropy Secret`), so the branch was written again
+  with the new value before the merge. The value was never a real token.
 - **The fake leaves with its parent.** `tests/support/fake-cloudflared.mjs` exits when its parent process is gone, so a test
   that kills the console leaves no process. The real `cloudflared` does not do this (see the finding below).
 
