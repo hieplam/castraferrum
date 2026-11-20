@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.17.0](https://github.com/hieplam/castraferrum/compare/v0.16.0...v0.17.0) (2026-11-20)
+
+
+### Features
+
+* **tunnel:** R6a the tunnel in the console, --cloudflare, the cloudflared runner, UC-41 ([#511](https://github.com/hieplam/castraferrum/issues/511)) ([d4127ca](https://github.com/hieplam/castraferrum/commit/d4127cad26db0343765725668162ee20534bff63))
+
+
+### Bug Fixes
+
+* **tests:** the fake gh writes its world file atomically ([#513](https://github.com/hieplam/castraferrum/issues/513)) ([4f6be9e](https://github.com/hieplam/castraferrum/commit/4f6be9e69cf506a30d351235655a73b0362d227f))
+
 ## [0.16.0](https://github.com/hieplam/castraferrum/compare/v0.15.2...v0.16.0) (2026-11-20)
 
 
