@@ -21,6 +21,7 @@
     "test:api": "vitest run --project api",
     "api-smoke": "node scripts/api-smoke.mjs",
     "local-name:check": "node scripts/local-name-check.mjs",
+    "tunnel:check": "node scripts/tunnel-check.mjs",
     "test:e2e": "playwright test",
     "uc-coverage": "node scripts/uc-coverage.mjs",
     "bench:transcript": "node --import tsx scripts/bench-transcript.mjs",

@@ -1,0 +1,41 @@
+{
+  "setup": [],
+  "goals": [
+    {
+      "id": "G5",
+      "outcome": "With --cloudflare the console runs the tunnel itself and reports the tunnel as connected on the machine.",
+      "checks": [
+        { "run": "npx vitest run --project unit server/adapters/tunnel", "expect": ["passed"] },
+        { "run": "node scripts/tunnel-check.mjs", "expect": ["PASS connector"] }
+      ]
+    },
+    {
+      "id": "G6",
+      "outcome": "From outside the home a phone opens the console name through the Cloudflare edge, meets the sign-in wall, signs in with a Secure cookie and gets live updates.",
+      "checks": [
+        { "run": "node scripts/tunnel-check.mjs", "expect": ["PASS dns-edge", "PASS edge-path", "PASS sign-in-wall", "PASS secure-cookie", "PASS sse"] }
+      ]
+    },
+    {
+      "id": "G8",
+      "outcome": "The tunnel lives only while Castraferrum runs: cloudflared is a child of the console process.",
+      "checks": [
+        { "run": "node scripts/tunnel-check.mjs", "expect": ["PASS runner"] }
+      ]
+    },
+    {
+      "id": "G9",
+      "outcome": "The token never shows in a command line or a log of Castraferrum.",
+      "checks": [
+        { "run": "node scripts/tunnel-check.mjs", "expect": ["PASS token-hidden"] }
+      ]
+    },
+    {
+      "id": "G10",
+      "outcome": "The home path is closed: nothing on the PC answers on ports 80, 443 or 7070 from the network.",
+      "checks": [
+        { "run": "node scripts/tunnel-check.mjs", "expect": ["PASS ports-closed"] }
+      ]
+    }
+  ]
+}
