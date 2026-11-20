@@ -388,3 +388,101 @@ local name: 10/10 checks pass
 ### Ratchet
 
 `local name: 7/10` (issue baseline) to `local name: 10/10`.
+
+## N3
+
+Machine setup on the owner's PC, 2026-11-20. Commands and literal output only. `<name>` is the console name and
+`<pc-ip>` the address of the PC.
+
+### Red
+
+After task N6, with the new name in `.env` and before any machine step:
+
+```text
+$ npm run local-name:check
+local name: 2/10 checks pass      (PASS dns-public, PASS nginx-test)
+```
+
+### Steps and their output
+
+1. DNS record (owner, Cloudflare, "DNS only"): `Resolve-DnsName <name> -Server 1.1.1.1` gives `<pc-ip>`. The router
+   gives an empty answer, as spec section 1 measured. The PC address comes from DHCP (`PrefixOrigin Dhcp`).
+2. DNS of the PC (administrator script, spec D14):
+
+   ```text
+   == before   2 {<router-ip>}   23 {<router-ipv6>, <router-ipv6>}
+   == after    2 {1.1.1.1, 1.0.0.1}   23 {2606:4700:4700::1111, 2606:4700:4700::1001}
+   ```
+3. Certificate folder: `C:\ProgramData\castraferrum\tls  BUILTIN\Administrators:(OI)(CI)(F)  NT AUTHORITY\SYSTEM:(OI)(CI)(F)`.
+4. win-acme v2.4.1 (`win-acme.v2.4.1.2444.x64.pluggable.zip` sha256 `2faa095e...`, Cloudflare plugin sha256
+   `a077c435...`, both equal to the digests of the GitHub release; `wacs.exe` signed by SignPath Foundation).
+   - First run without `--baseuri`: `[EROR] ZeroSSL requires an account to use.` The default authority of v2.4.1 is
+     ZeroSSL, so the README command now passes `--baseuri https://acme-v02.api.letsencrypt.org/`.
+   - Token (owner, typed into the administrator window): `token verify: success=True status=active`,
+     `zones that the token sees: <the one zone of <name>>`. Permissions DNS Edit and Zone Read, all zones of the account (issue 489).
+   - Run with Let's Encrypt: `wacs exit code: 0`. Files: `<name>-chain.pem`, `<name>-key.pem`, `<name>-crt.pem`,
+     `<name>-chain-only.pem`, `<name>-chain-full.pem`, `<name>-chain-only-full.pem`.
+   - Its script step: `nginx: [error] OpenEvent("Global\ngx_reload_14380") failed (5: Access is denied)`, because the
+     administrator window is not SYSTEM. The README step 8 now gives the reload as SYSTEM.
+5. nginx: the deployed file gets the new name and `CERT_DIR`; `nginx -t`: `syntax is ok`, `test is successful`.
+6. Own issuer removed (spec D16): the folder `%LOCALAPPDATA%\castraferrum\tls` is deleted, and
+   `certutil -user -delstore Root "local home issuer"` printed `Deleting Certificate 0: CN=local home issuer`.
+   Left in `CurrentUser\Root`: 0. Left in `LocalMachine\Root`: 0.
+7. Console started with `scripts/restart-console.ps1`, without `--remote`: `step 7: health ok (db = up)`.
+8. The check found two defects of the tool (`sse` expected 200, `nginx-test` could not read the key folder). They
+   were fixed in pull request 495; see the section "N3 fix" above.
+
+### Goal G9 (b) and (c): a renewal without a person
+
+An administrator script made one Task Scheduler task as SYSTEM that ran `nginx -s reload`, and one that ran
+`wacs.exe --renew --force --baseuri "https://acme-v02.api.letsencrypt.org/"`:
+
+```text
+Castraferrum tmp reload -> state Ready, last result 0
+Castraferrum tmp renew -> state Ready, last result 0
+task: win-acme renew (acme-v02.api.letsencrypt.org) | state Ready | user SYSTEM
+  trigger: MSFT_TaskDailyTrigger start 2026-11-20T09:00:00 daysInterval 1
+  action: "C:\Program Files\win-acme\wacs.exe" --renew --baseuri "https://acme-v02.api.letsencrypt.org/"
+```
+
+The win-acme log names each certificate by its serial number (the last part of its download address):
+
+```text
+18:05:37 Downloading certificate ... acme/cert/0669b10302a7e357f73034d8623fcaac7c77   (first run)
+18:07:52 Downloading certificate ... acme/cert/054ae97fc8af29941fcf2c4ffb5e32e60a5b   (forced renewal, as SYSTEM)
+18:07:53 Script C:\nginx\nginx.exe starting with parameters -p C:/nginx/ -c C:/nginx/conf/castra.conf -s reload
+18:07:53 Script finished
+18:07:55 Renewal for [Manual] <name> succeeded
+```
+
+nginx serves the serial of the forced renewal, and nobody restarted nginx by hand:
+
+```text
+PASS cert-issuer serial 054AE97FC8AF29941FCF2C4FFB5E32E60A5B, valid Nov 20 10:09:22 2026 GMT to Feb 18 10:09:21 2027 GMT
+```
+
+Let's Encrypt certificates used for this name in 7 days: 2 of 5.
+
+### Green
+
+From the main checkout at `ffde09e`:
+
+```text
+$ npm run local-name:check
+PASS dns-public
+PASS dns-pc-servers
+PASS dns-system
+PASS nginx-test
+PASS tls
+PASS cert-issuer serial 054AE97FC8AF29941FCF2C4FFB5E32E60A5B, valid Nov 20 10:09:22 2026 GMT to Feb 18 10:09:21 2027 GMT
+PASS own-issuer-absent
+PASS redirect
+PASS sse
+PASS port-closed
+local name: 10/10 checks pass
+EXIT=0
+```
+
+### Ratchet
+
+`local name: 2/10` to `local name: 10/10`.
