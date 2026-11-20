@@ -513,3 +513,15 @@ machine: stopping nginx and win-acme is task R6d.
   - `docs/plans/2026-11-01-goal-driven-loop-evidence.md`, line 2837, found by a search of the whole tree: now `<device-ip>`.
   - Every other `192.168.` address in the tree is a sample (`192.168.1.x` in tests, the README, the design preview and
     the nip.io facts of the local-name spec) and stays.
+- **Green.**
+  1. `npx vitest run --project unit tests/tools/nginx-config.test.ts`: `Tests  17 passed (17)`.
+  2. `ls goals/local-name.json` fails (`No such file or directory`), and `goals/retired/local-name.json` exists.
+  3. `grep -c "ADR 0006"` prints 1 for `README.md`, 1 for the local-name spec and 3 for ADR 0005.
+  4. `npm run verify`: unit `1475 passed | 3 skipped`, api `276 passed`, tool tests `472 passed | 2 skipped`, e2e
+     `199 passed`, `1 failed`, `1 skipped`. The failed case was `goal-number.spec.ts:102` (G11), with
+     `SyntaxError: Unexpected end of JSON input` at `tests/support/fake-gh-kit.ts:125`: the test read the fake `gh`
+     world file while another process wrote it. Other lanes ran on the machine at the same time. Run two of the
+     same spec alone: `3 passed`. Both runs are recorded here, as the standing rule asks. The cause is a race of the
+     test against its own fake, so it is filed as a follow-up outside this epic if it comes back.
+- **Ratchet.** Unit count: 1475 passed with this task, 1474 on `main` (the task adds exactly one case, the new
+  directive, and removes none).
