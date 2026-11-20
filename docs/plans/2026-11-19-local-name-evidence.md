@@ -209,3 +209,134 @@ Unit step: `Tests  1468 passed | 3 skipped (1471)`. Contract: 276 passed. Api: `
 
 **Ratchet** - unit tests: before 1451 passed, after 1468 passed (+13 cases in `local-name-check.test.ts`, 19 to 32; +4 in the new `ca-name-limit.test.ts`).
 Checks of the tool: 8 to 10.
+
+## N6
+
+Base: `main` 1dcd581. Commands and literal output only. The real name of the console and the home addresses are replaced by `<name>`, `<pc-ip>`, `<router-ip>` and `<router-ipv6>`. Run from the main checkout, which holds the real `.env`.
+
+### Red (0): `npm run local-name:check` on the owner PC, before the change (old tool)
+
+```text
+FAIL dns-direct: queryA ECONNREFUSED <name>
+FAIL dns-system: 20 of 20 answers were not <pc-ip> (first: error getaddrinfo ENOTFOUND <name>)
+FAIL dns-only-pc: DNS servers are [<pc-ip>, <router-ipv6>, <router-ipv6>], expected only <pc-ip>
+PASS nginx-test
+FAIL tls: certificate not trusted: getaddrinfo ENOTFOUND <name>
+PASS ca-name-limit
+PASS ca-key-absent
+FAIL redirect: getaddrinfo ENOTFOUND <name>
+FAIL sse: getaddrinfo ENOTFOUND <name>
+FAIL port-closed: <pc-ip>:7070 refuses connections, expected open
+local name: 3/10 checks pass
+```
+
+### Red (1) and (2): the new tests against the old tool
+
+`npx vitest run --project unit tests/tools/local-name-check.test.ts tests/tools/nginx-config.test.ts` with the old `scripts/local-name-check.mjs`:
+
+```text
+ Test Files  2 failed (2)
+      Tests  31 failed | 23 passed (54)
+EXIT=1
+```
+
+The failing cases include every case of `dns-public`, `dns-pc-servers`, `cert-issuer` and `own-issuer-absent`, and `has the two certificate placeholders that the machine setup fills in` of `nginx-config.test.ts`.
+
+### Green (1)
+
+```text
+ Test Files  4 passed (4)
+      Tests  108 passed (108)
+EXIT=0
+```
+
+(4 files: the check tool test, `nginx-config.test.ts`, `test-addresses.test.ts`, `server/config.test.ts`.) The real TLS function against a local TLS server with a self-signed certificate gives `FAIL tls: certificate not trusted: DEPTH_ZERO_SELF_SIGNED_CERT`.
+
+### Green (2) and (3) and (4)
+
+```text
+$ git ls-files deploy/local-name/ca.cnf tests/tools/ca-name-limit.test.ts
+$ git grep -n -e "home.arpa" -e "Technitium" -e "mkcert" -e "LOCAL_NAME_LIMIT" -- . ":!docs"
+README.md:231:An earlier design of this section used Technitium DNS Server and an own issu
+README.md:240:Uninstall Technitium DNS Server in Windows Settings, Apps. Then set the DNS 
+README.md:241:Technitium installer set them to `127.0.0.1` and `::1`. Also remove the DNS 
+$ node scripts/lang-scan.mjs --check-baseline
+baseline check: ok
+```
+
+The three `git grep` lines are in the README part "If you set up the first design".
+
+### Green (5): `npm run verify`
+
+First run, log ends `EXIT=1`. The unit, contract and api steps are green:
+
+```text
+      Tests  1470 passed | 3 skipped (1473)
+      Tests  276 passed (276)
+      Tests  472 passed | 2 skipped (474)
+  3 failed
+    [chromium] > tests/e2e/claude.spec.ts:35:1 > UC-22 ...
+    [chromium] > tests/e2e/claude.spec.ts:98:1 > UC-30 ...
+    [chromium] > tests/e2e/transcript.spec.ts:30:3 > ... UC-26 ...
+  1 skipped
+  1 did not run
+  196 passed (23.6m)
+EXIT=1
+```
+
+The cause of the 3 failures is the usage limit of the Claude account, which the real-Claude tests use. The run error in the log:
+
+```text
+    +   "error": "You've hit your session limit · resets 7:30am (Asia/Ho_Chi_Minh)",
+```
+
+Second run, once, after the limit reset, only the two real-Claude files (the test that did not run also ran):
+
+```text
+  ok 1 claude.spec.ts UC-22
+  ok 2 claude.spec.ts UC-30
+  ok 3 transcript.spec.ts UC-26
+  ok 4 transcript.spec.ts UC-27
+  ok 5 transcript.spec.ts UC-28
+  5 passed (1.1m)
+EXIT=0
+```
+
+### Green (6): `npm run local-name:check` on the owner PC, after the change (baseline of task N3)
+
+```text
+FAIL dns-public: 1.1.1.1 answered an empty answer, expected <pc-ip>
+FAIL dns-pc-servers: expected <pc-ip> from each DNS server of the PC, but <pc-ip> gave an empty answer; <router-ipv6> gave an empty answer
+FAIL dns-system: 20 of 20 answers were not <pc-ip> (first: error getaddrinfo ENOTFOUND <name>)
+PASS nginx-test
+FAIL tls: certificate not trusted: getaddrinfo ENOTFOUND <name>
+FAIL cert-issuer: cannot read the certificate of <name>:443: getaddrinfo ENOTFOUND <name>
+FAIL own-issuer-absent: CN=local home issuer is trusted (CurrentUser\Root A77F15F7AA29742E9D4BA58EB1E2BBEA12D8BC6B): run certutil -user -delstore Root "local home issuer"; %LOCALAPPDATA%\castraferrum\tls holds local-ca.pem, <name>-key.pem, <name>.pem: delete the folder
+FAIL redirect: getaddrinfo ENOTFOUND <name>
+FAIL sse: getaddrinfo ENOTFOUND <name>
+FAIL port-closed: 127.0.0.1:7070 refuses connections, expected open
+local name: 1/10 checks pass
+```
+
+### Stub check
+
+A `cert-issuer` without the age rule:
+
+```text
+     × fails at 80 % of the lifetime and passes at 50 %, with the serial number in both lines 6ms
+     × fails a certificate that is expired or not valid yet 1ms
+      Tests  2 failed | 36 passed (38)
+```
+
+A `tls` check that gives a `ca` option:
+
+```text
+     × gives no ca option to any TLS or HTTPS connection 6ms
+      Tests  1 failed | 37 passed (38)
+```
+
+The old tool against the new tests: see Red (1).
+
+### Ratchet
+
+Unit tests (`npx vitest run --project unit`): before 1469 passed, 3 skipped (main 1dcd581); after 1470 passed, 3 skipped. The 4 cases of the deleted `ca-name-limit.test.ts` are gone. Checks of the tool: 10 to 10, with new ids. `local name: 1/10 checks pass` on the owner PC is the baseline of task N3.
