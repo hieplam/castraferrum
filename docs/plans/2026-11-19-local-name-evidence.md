@@ -486,3 +486,81 @@ EXIT=0
 ### Ratchet
 
 `local name: 2/10` to `local name: 10/10`.
+
+## N4
+
+Task N4 proves goals G1 to G9 together, from the PC, with one committed tool: `npm run goal:check -- goals/local-name.json`.
+The real values (console name, sign-in) stay in the `.env` of the main checkout. `scripts/local-name-goal-run.mjs` runs the check
+tool with that folder as the current folder (`check`), and gives the three values to Playwright (`e2e`). It prints no value of that file.
+In this text the console name is `<name>`.
+
+### Red
+
+```
+$ npm run goal:check -- goals/local-name.json
+Error: ENOENT: no such file or directory, open '.../goals/local-name.json'
+EXIT=1
+```
+
+### First Green run: 7/9, a real defect found
+
+```
+G1 pass
+G2 FAIL: run `node scripts/local-name-goal-run.mjs e2e`: exit 1, expected 0; missing "1 passed"
+G3 FAIL: (same command)
+G4 pass ... G9 pass
+goals passed: 7/9
+```
+
+The real e2e signed in over HTTPS, then `POST /api/loops` gave 400 instead of 201. The cause: the test created a loop with the Mock
+executor, and the real console has no Mock executor (`server/config.ts`: Claude only outside test mode). The test never ran against the real console
+before. Decision (standing rule: a plan command that no longer fits the tree gets the equivalent that proves the same goal): the test now
+creates the loop with the Claude executor (model haiku, effort low, a prompt that asks for one word and no tool) and stops and archives
+it right after it shows Running. The assertions are the same.
+
+### Green (1): the manifest
+
+```
+G1 pass
+G2 pass
+G3 pass
+G4 pass
+G5 pass
+G6 pass
+G7 pass
+G8 pass
+G9 pass
+goals passed: 9/9
+EXIT=0
+```
+
+### Green (2): the real e2e (Chromium, certificate errors not ignored)
+
+```
+  ✓  1 [chromium] › tests\e2e\local-name-real.spec.ts:13:1 › the console opens at the local name with a trusted certificate, signs in, and a started loop shows Running in 2 seconds (3.0s)
+  1 passed (7.3s)
+EXIT=0
+```
+
+### Green (3): `E check --dry-run` on N0, N1, N2, N3, N5, N6
+
+```
+PASS task N0 (pull request 480)
+PASS task N1 (pull request 482)
+PASS task N2 (pull request 476)
+PASS task N3 (pull request 497)
+PASS task N5 (pull request 483)
+PASS task N6 (pull request 490)
+```
+
+### Agent acceptance
+
+The tool run from the main checkout, with the real `.env` (nginx serving the Let's Encrypt certificate): `local name: 10/10 checks pass`.
+G9 parts (b) and (c) need an administrator and are in the section "Goal G9 (b) and (c)" of N3 above; the manifest checks that the section exists.
+Findings that need a fix: none open. The one defect (the Mock executor in the real e2e) is fixed in this task.
+
+### Ratchet
+
+Goals passed `0/9` (no manifest) to `9/9`.
+
+Decision: the plan names `goals/verify/local-name.json`, but `goals/verify/` holds the verify entries of the merge gate (`tests/tools/gate-data.test.ts` parses each file there as `{"v":1,"tasks":{}}`). The manifest of `goal:check` lives next to the other goal files, so the file is `goals/local-name.json`. The goals and checks are the same.
