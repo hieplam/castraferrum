@@ -57,12 +57,13 @@ The local name is a machine setup outside the console. The console only learns t
   Encrypt reads it. Let's Encrypt never connects to the PC, so no port opens to the internet. The ACME client is
   win-acme, a Windows program. It gets the certificate, renews it through its own Task Scheduler task, writes the PEM
   files for nginx, and then runs `nginx -s reload`. win-acme writes the TXT records through a Cloudflare API token.
-  The token has two permissions, Zone DNS Edit and Zone Zone Read, for this one zone only. The owner creates the
+  The token has two permissions, Zone DNS Edit and Zone Zone Read, for all zones of the account (owner decision of 2026-11-20 in issue 489: the win-acme plugin needs that scope). The owner creates the
   token and types it into win-acme. The token never enters a chat, the repository, `.env` or a log.
 
   The risks are smaller than with the own issuer of the first design:
-  1. A stolen token can change the DNS records of this one zone. It cannot change another zone or the Cloudflare
-     account, and the owner can delete the token in Cloudflare at any time.
+  1. A stolen token can change the DNS records of every zone of the account. It cannot change the Cloudflare
+     account itself, and the owner can delete the token in Cloudflare at any time. The owner accepted this on
+     2026-11-20.
   2. A stolen server key can pretend to be the console name only. No device trusts another website because of it.
   3. Let's Encrypt publishes each certificate in Certificate Transparency logs, so the console name becomes public.
      The record shows a private address, which the internet cannot reach.
