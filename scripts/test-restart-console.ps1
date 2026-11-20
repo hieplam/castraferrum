@@ -8,6 +8,9 @@
     1. first call -WaitForIdle; the later call comes 10 s after          -> later call merges (exit 0, no step 5-6)
     2. later call comes when the first one logs 'step 5: npm run build'  -> later call queues, full restart, new PID
     3. later call comes when the first one logs 'step 7: health ok'      -> later call queues, full restart
+  4. step 4 kills the whole process tree (goal G8: no cloudflared is left after a restart). A fake console (a node
+     process that listens on a free port) has a child process (stand-in for cloudflared); 'restart-console.ps1 -StopOnly'
+     must kill both and log one line for each PID. It needs no database and no console: -StopTreeOnly runs only this one.
   then counts the 'Castraferrum <port>' windows (must be exactly 1).
   Prints one PASS/FAIL line per check and 'PASS k/4'; exit 1 when any check FAILs.
   At the end it closes every window / process of the test console and drops the test DB (unless -Keep).
@@ -21,7 +24,8 @@ param(
     [int]$Port = 7093,
     [string]$ConsoleDir = '',
     [string]$Db = 'loops_restart_test',
-    [switch]$Keep
+    [switch]$Keep,
+    [switch]$StopTreeOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -156,6 +160,57 @@ function Add-Result([bool]$Ok, [string]$Text, [string[]]$Why) {
     Write-Host $line
 }
 
+# ---------------------------------------------------------------------------- scenario 4: step 4 kills the tree
+function Test-StopTree {
+    $dir = Join-Path $Work 's4'
+    New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    $fake = Join-Path $dir 'fake-console.cjs'
+    $childFile = Join-Path $dir 'child.pid'
+    $log = Join-Path $dir 's4.log'
+    Remove-Item -Force $childFile, $log -ErrorAction SilentlyContinue
+    $js = "const { spawn } = require('child_process'); const net = require('net'); " +
+        "const c = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore', detached: true }); " +
+        "require('fs').writeFileSync(process.argv[2], String(c.pid)); " +
+        "net.createServer((s) => s.destroy()).listen(Number(process.argv[3]), '127.0.0.1');"
+    [System.IO.File]::WriteAllText($fake, $js)
+    $tl = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Loopback, 0)
+    $tl.Start(); $fp = $tl.LocalEndpoint.Port; $tl.Stop()
+    if ($fp -eq 7070) { $fp = $fp + 1 }
+    $parent = Start-Process node -ArgumentList @($fake, $childFile, "$fp") -WindowStyle Hidden -PassThru
+    $null = $parent.Handle
+    $deadline = (Get-Date).AddSeconds(20)
+    while (-not (Test-Path $childFile) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 200 }
+    $childPid = 0
+    if (Test-Path $childFile) { $childPid = [int](Get-Content $childFile) }
+    $why = @()
+    if ($childPid -eq 0) { $why += 'the fake console did not start its child' }
+    Start-Sleep -Seconds 1
+    $a = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $Script, '-Port', "$fp", '-ConsoleDir', $ConsoleDir, '-NoBuild', '-StopOnly', '-LogFile', $log)
+    $p = Start-Process powershell -ArgumentList $a -WindowStyle Hidden -PassThru
+    $null = $p.Handle
+    $code = Wait-Exit $p 3
+    $parentAlive = $null -ne (Get-Process -Id $parent.Id -ErrorAction SilentlyContinue)
+    $childAlive = ($childPid -ne 0) -and ($null -ne (Get-Process -Id $childPid -ErrorAction SilentlyContinue))
+    $lines = Read-Log $log
+    if ($code -ne 0) { $why += "script exit $code" }
+    if ($parentAlive) { $why += "the fake console (PID $($parent.Id)) is still alive" }
+    if ($childAlive) { $why += "the child (PID $childPid, stand-in for cloudflared) is still alive" }
+    if (@($lines | Where-Object { $_ -match "step 4: killed child PID $childPid " }).Count -ne 1) { $why += "the log has no single line 'killed child PID $childPid'" }
+    if (@($lines | Where-Object { $_ -match "step 4: killed PID $($parent.Id) " }).Count -ne 1) { $why += "the log has no single line 'killed PID $($parent.Id)'" }
+    Add-Result ($why.Count -eq 0) 'scenario 4: step 4 kills the console and its child (G8), one log line for each PID' $why
+    if ($why.Count -gt 0) { $lines | ForEach-Object { Write-Host "  S4 | $_" } }
+    foreach ($id in @($parent.Id, $childPid)) { if ($id -and (Get-Process -Id $id -ErrorAction SilentlyContinue)) { & taskkill /T /F /PID $id 2>&1 | Out-Null } }
+}
+
+if ($StopTreeOnly) {
+    New-Item -ItemType Directory -Force -Path $Work | Out-Null
+    Test-StopTree
+    $ok = @($results | Where-Object { $_.StartsWith('PASS') }).Count
+    Write-Host ("PASS {0}/{1}" -f $ok, $results.Count)
+    if ($ok -ne $results.Count) { exit 1 }
+    exit 0
+}
+
 # ---------------------------------------------------------------------------- setup
 if (Test-Path $Work) { Remove-Item -Recurse -Force $Work }
 New-Item -ItemType Directory -Force -Path $Work | Out-Null
@@ -260,6 +315,8 @@ $st = Get-Loop $L
 if ($null -eq $st -or $st.status -ne 'active') { $why += 'L is not active at the end' }
 Add-Result ($why.Count -eq 0) 'scenario 3: the later call queues, does a full restart, loop active at the end' $why
 if ($why.Count -gt 0) { Show-Logs $a3 $b3 }
+
+Test-StopTree
 
 # ---------------------------------------------------------------------------- windows
 $wins = @(Get-ConsoleWindows)

@@ -654,3 +654,22 @@ Made by the standing rules of the epic; the spec leaves them open.
 - Issue 507 (sub-issue of issue 55, blocks R6d and R7): `scripts/restart-console.ps1` stops the console with
   `Stop-Process -Force`, so the console cannot stop its `cloudflared` child, and goal G8 fails after a restart. Read from
   the code, not verified on the machine.
+
+## Issue 507
+
+Task: `scripts/restart-console.ps1` step 4 kills the console without its children (goal G8).
+
+- **Fix.** Step 4 now reads the process tree of the listener (`Get-ProcessTree`, one `Win32_Process` snapshot taken before
+  any kill) and kills each descendant first, deepest first, then the console. Each PID gets one log line:
+  `step 4: killed child PID <pid> (<name>) of PID <console>` and `step 4: killed PID <console> (<n> child(ren) killed first)`.
+  Decision: kill the tree, not a name filter on `cloudflared.exe`, because it needs no knowledge of what the console starts
+  (standing rule: the simplest option that keeps the behaviour). A graceful stop was not chosen: step 4 must work when the
+  console does not answer.
+- **Decision: `-StopOnly`.** A new switch ends the script after step 4. It lets the test run step 4 on a fake tree with no
+  database, no build and no new console. The default behaviour is unchanged.
+- **Decision: harness.** `scripts/test-restart-console.ps1` got scenario 4 (a fake console that has a child process, on a
+  free port) and the switch `-StopTreeOnly` that runs only that scenario. The fake child is started with `detached: true`,
+  because in this environment a plain child dies with its parent and the Red could not be seen.
+- **Red.** With the tree kill disabled: `FAIL scenario 4 ... the child (PID 16976, stand-in for cloudflared) is still alive`.
+- **Green.** `test-restart-console.ps1 -StopTreeOnly`: `PASS scenario 4: step 4 kills the console and its child (G8), one log line for each PID`, `PASS 1/1`.
+- **Not verified.** The run against the real `cloudflared` on the machine belongs to task R7.
