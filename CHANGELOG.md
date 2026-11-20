@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.18.0](https://github.com/hieplam/castraferrum/compare/v0.17.0...v0.18.0) (2026-11-20)
+
+
+### Features
+
+* **tunnel:** check tool for the Cloudflare tunnel, real-tunnel test, goal manifest, README section ([#518](https://github.com/hieplam/castraferrum/issues/518)) ([77b0922](https://github.com/hieplam/castraferrum/commit/77b0922a564198d6ddfb65e3abc0fc2ab525e699))
+
+
+### Bug Fixes
+
+* **restart:** step 4 kills the console process tree so cloudflared does not outlive it ([#515](https://github.com/hieplam/castraferrum/issues/515)) ([88c2e56](https://github.com/hieplam/castraferrum/commit/88c2e56ab314715dc3b5eb7a4b39496328261b39))
+* **tests:** seed the gate workspace test repository once and copy it per test ([#517](https://github.com/hieplam/castraferrum/issues/517)) ([e1c82c9](https://github.com/hieplam/castraferrum/commit/e1c82c9ee3a8bf08b6f0cb3ad392a97c3e206ddd))
+
 ## [0.17.0](https://github.com/hieplam/castraferrum/compare/v0.16.0...v0.17.0) (2026-11-20)
 
 
