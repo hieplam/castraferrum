@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Runs one real-machine oracle of the local-name goals (goals/local-name.json) from any worktree.
+// Runs one real-machine oracle of the local-name goals (goals/retired/local-name.json, retired by ADR 0006) from any worktree.
 //
 //   node scripts/local-name-goal-run.mjs check [<local-name-check args>]   the check tool, with the .env of the main checkout
 //   node scripts/local-name-goal-run.mjs e2e                                the real e2e (tests/e2e/local-name-real.spec.ts)

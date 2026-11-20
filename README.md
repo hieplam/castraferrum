@@ -110,6 +110,16 @@ If the phone cannot connect, check that the phone and the machine are on the sam
 
 ## Open with a name on your network
 
+**Retired.** [ADR 0006](docs/adr/0006-internet-access-through-a-named-tunnel.md) replaced this path: the console name now
+goes through a Cloudflare tunnel that Castraferrum starts (see "Reach it from outside"). The steps below stay as a
+record. To retire the home path on a machine that ran it, do these steps in this order, as an administrator:
+
+1. Stop nginx: `nginx -s stop` works only as SYSTEM, so stop it through the Scheduled Task or service that starts it.
+2. Remove the win-acme scheduled task, so that it no longer renews the certificate.
+3. Delete the public A record that points `<name>` to `<pc-ip>`.
+
+The manifest of this path moved to `goals/retired/local-name.json`. The tool `npm run local-name:check` stays in the repository.
+
 This section gives the console the address `https://castra.example.com` on your home network. It needs a domain that
 you own. Three parts do the work: a public DNS record (the name), nginx (HTTPS) and win-acme (a free Let's Encrypt
 certificate that renews itself). The design is in [ADR 0005](docs/adr/0005-local-name-through-dns-and-reverse-proxy.md)

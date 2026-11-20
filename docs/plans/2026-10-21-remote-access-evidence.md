@@ -490,3 +490,38 @@ Made by the standing rules of the epic; the spec leaves them open.
   `(commit message):3  [coupling/issue-ref]` on commit `a37516efeb9ecce2eb85f1c9379864f573f4a8ee`, the squash commit of
   R4, whose body closes issue 59 and issue 459 on one line (the second issue reference is the hit). The same command fails on `main` itself. Filed as issue 466 (sub-issue of issue 55) with its
   evidence and Verify block; it blocks the merge of this task.
+
+## R6c
+
+Task R6c retires the home path in the repository (decisions D18 and D19, ADR 0006). It changes nothing on the real
+machine: stopping nginx and win-acme is task R6d.
+
+- **Red.** After the new case `proxy_set_header CF-Connecting-IP ""` was added to `tests/tools/nginx-config.test.ts`:
+  `npx vitest run --project unit tests/tools/nginx-config.test.ts` printed `Tests  1 failed | 16 passed (17)`.
+- **Readers of `goals/local-name.json`.** A search of the whole tree (scripts, tests, workflows, docs) found these.
+  - `scripts/local-name-goal-run.mjs` (a comment): updated to the new path.
+  - `docs/plans/2026-11-19-local-name-evidence.md` and the plan of phase 3: records of what ran on 2026-11-19. They
+    stay as written.
+  - No test and no script parses the file. `goal:check` reads only the manifest that its argument names, and
+    `goals/verify/` is the only folder that the merge gate lists.
+- **Decision (standing rule: the system has no rule for the case).** The file keeps its checks and gets a `"retired"`
+  key that names ADR 0006. The key is a record for a reader. No tool reads it.
+- **Privacy of the home address (same lane).** Real addresses of the owner's network were in three committed evidence
+  logs. Each is replaced; git history is not rewritten.
+  - `docs/plans/2026-10-21-lan-access-evidence.md`, lines 62 and 69: now `<pc-ip>`.
+  - `docs/plans/2026-10-21-ui-uplift-evidence.md`, line 2358: now `<device-ip>`.
+  - `docs/plans/2026-11-01-goal-driven-loop-evidence.md`, line 2837, found by a search of the whole tree: now `<device-ip>`.
+  - Every other `192.168.` address in the tree is a sample (`192.168.1.x` in tests, the README, the design preview and
+    the nip.io facts of the local-name spec) and stays.
+- **Green.**
+  1. `npx vitest run --project unit tests/tools/nginx-config.test.ts`: `Tests  17 passed (17)`.
+  2. `ls goals/local-name.json` fails (`No such file or directory`), and `goals/retired/local-name.json` exists.
+  3. `grep -c "ADR 0006"` prints 1 for `README.md`, 1 for the local-name spec and 3 for ADR 0005.
+  4. `npm run verify`: unit `1475 passed | 3 skipped`, api `276 passed`, tool tests `472 passed | 2 skipped`, e2e
+     `199 passed`, `1 failed`, `1 skipped`. The failed case was `goal-number.spec.ts:102` (G11), with
+     `SyntaxError: Unexpected end of JSON input` at `tests/support/fake-gh-kit.ts:125`: the test read the fake `gh`
+     world file while another process wrote it. Other lanes ran on the machine at the same time. Run two of the
+     same spec alone: `3 passed`. Both runs are recorded here, as the standing rule asks. The cause is a race of the
+     test against its own fake, so it is filed as a follow-up outside this epic if it comes back.
+- **Ratchet.** Unit count: 1475 passed with this task, 1474 on `main` (the task adds exactly one case, the new
+  directive, and removes none).
