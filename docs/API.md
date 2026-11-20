@@ -29,7 +29,7 @@ prefix of the first path.
 | GET | `/runs/:id/logs/stream` | SSE: replay the stored log, then follow live | - |
 | GET | `/schedule/preview?cron=&tz=&lang=` | schedule sentence plus the next five runs (the UI computes the same with the shared domain function) | `INVALID_CRON` |
 | GET | `/executors` | executor list with configuration schemas | - |
-| GET | `/health` | `{ ok, db }` | - |
+| GET | `/health` | `{ ok, db, tunnel }`; `tunnel` is `off` (no `--cloudflare`), `connecting`, `connected` or `down`, and does not change `ok`; public | - |
 | GET | `/auth/session` | sign-in state `{ required, signedIn, username? }` (`username` only while signed in); public | - |
 | POST | `/auth/login` | sign in `{ username, password }`, answers 204 and sets the session cookie; public. After 5 failed attempts of one client within 15 minutes it answers 429 with `Retry-After` and `details.retryAfterSec` | `VALIDATION_FAILED`, `INVALID_CREDENTIALS`, `TOO_MANY_ATTEMPTS`, `AUTH_NOT_CONFIGURED` |
 | POST | `/auth/logout` | sign out: ends the session, answers 204 and clears the cookie | `AUTH_NOT_CONFIGURED` |

@@ -25,7 +25,7 @@ describe('GET /api/health', () => {
     cleanups.push(() => db.close());
     const res = await (await appOn(db.pool)).inject('/api/health');
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ ok: true, db: 'up' });
+    expect(res.json()).toEqual({ ok: true, db: 'up', tunnel: 'off' });
   });
 
   it('nobody listening on the DB port -> 503 {"ok":false,"db":"down"}', async () => {
@@ -33,7 +33,7 @@ describe('GET /api/health', () => {
     cleanups.push(() => pool.end());
     const res = await (await appOn(pool)).inject('/api/health');
     expect(res.statusCode).toBe(503);
-    expect(res.json()).toEqual({ ok: false, db: 'down' });
+    expect(res.json()).toEqual({ ok: false, db: 'down', tunnel: 'off' });
   });
 
   it('Postgres goes down midway -> 503, the process does not die; back up -> 200', async () => {
@@ -55,12 +55,12 @@ describe('GET /api/health', () => {
     await vi.waitFor(() => expect(pool.totalCount).toBe(0));
     const down = await app.inject('/api/health');
     expect(down.statusCode).toBe(503);
-    expect(down.json()).toEqual({ ok: false, db: 'down' });
+    expect(down.json()).toEqual({ ok: false, db: 'down', tunnel: 'off' });
 
     await proxy.start(port);
     const up = await app.inject('/api/health');
     expect(up.statusCode).toBe(200);
-    expect(up.json()).toEqual({ ok: true, db: 'up' });
+    expect(up.json()).toEqual({ ok: true, db: 'up', tunnel: 'off' });
   });
 
   it('unknown /api path -> 404 in the standard error shape {error:{code}}', async () => {

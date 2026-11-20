@@ -41,6 +41,12 @@ export type Config = {
   notifyWebhook?: string;
   /** `--public-url`, `LOOPS_PUBLIC_URL`: the https address that people open (a reverse proxy in front). Startup prints it. */
   publicUrl?: string;
+  /**
+   * `--cloudflare=<token>` (`npm_config_cloudflare`, `LOOPS_CLOUDFLARE`): the console starts the tunnel connector with this token
+   * (remote-access spec D7). `command` comes from `--cloudflared` (default `cloudflared` on PATH; a `.mjs` path runs with this
+   * Node binary). Needs `auth` (D8). Kept in memory only; never printed.
+   */
+  tunnel?: { token: string; command: string[] };
 };
 
 /** Where the epic-loop skill keeps its script. */
@@ -84,11 +90,14 @@ Flags (a value is written --name=value or --name value):
   --username=<name>  LOOPS_USERNAME=<name>  turns sign-in on (needs --password)
   --password=<text>  LOOPS_PASSWORD=<text>  at least 8 characters (needs --username)
   --public-url=<url> LOOPS_PUBLIC_URL=<url> the https address people open behind a reverse proxy; startup prints it
+  --cloudflare=<token>  LOOPS_CLOUDFLARE=<token>  starts a named Cloudflare tunnel with this token (needs --username and --password)
+  --cloudflared=<path>  LOOPS_CLOUDFLARED=<path>  the cloudflared program (default cloudflared on PATH)
   --help             -                      print this text and exit 0
 
 Order of precedence: argument, then npm_config_<name> (npm start --host=...), then LOOPS_<NAME> (environment or .env), then the default.
 --remote beats npm_config_host and LOOPS_HOST. --remote and --host as arguments together are an error.
-A command line is visible to other processes and to shell history: put LOOPS_PASSWORD in .env instead of using --password.`;
+A command line is visible to other processes and to shell history: put LOOPS_PASSWORD and LOOPS_CLOUDFLARE in .env instead of using
+--password and --cloudflare.`;
 
 /** A bad command line. main.ts prints the message and the usage, then exits 2. */
 export class UsageError extends Error {
@@ -99,10 +108,20 @@ export class UsageError extends Error {
   }
 }
 
-export type ParsedArgs = { host?: string; port?: string; username?: string; password?: string; publicUrl?: string; remote: boolean; help: boolean };
+export type ParsedArgs = {
+  host?: string;
+  port?: string;
+  username?: string;
+  password?: string;
+  publicUrl?: string;
+  cloudflare?: string;
+  cloudflared?: string;
+  remote: boolean;
+  help: boolean;
+};
 
-type ValueFlag = 'host' | 'port' | 'username' | 'password' | 'public-url';
-const VALUE_FLAGS = new Set<string>(['host', 'port', 'username', 'password', 'public-url']);
+type ValueFlag = 'host' | 'port' | 'username' | 'password' | 'public-url' | 'cloudflare' | 'cloudflared';
+const VALUE_FLAGS = new Set<string>(['host', 'port', 'username', 'password', 'public-url', 'cloudflare', 'cloudflared']);
 const SWITCH_FLAGS = new Set(['remote', 'help']);
 
 /** Parses --name=value, --name value and the switches --remote and --help. Throws UsageError for anything else. */
@@ -163,6 +182,8 @@ export function loadConfig(env: Env = process.env, argv: readonly string[] = [])
         : readPort(env, 'LOOPS_PORT', 7070);
   const auth = credentials(env, args);
   const publicUrl = readPublicUrl(env, args);
+  const tunnel = readTunnel(env, args);
+  if (tunnel && !auth) throw new UsageError('a tunnel needs --username and --password');
   const testMode = env.LOOPS_TEST_MODE === '1';
   const url = env.DATABASE_URL ?? databaseUrl(env, testMode ? 'test' : 'main');
   const dbName = new URL(url).pathname.slice(1);
@@ -182,6 +203,7 @@ export function loadConfig(env: Env = process.env, argv: readonly string[] = [])
     host,
     ...(auth ? { auth } : {}),
     ...(publicUrl ? { publicUrl } : {}),
+    ...(tunnel ? { tunnel } : {}),
     help: args.help,
     databaseUrl: url,
     testMode,
@@ -217,6 +239,14 @@ function readPublicUrl(env: Env, args: ParsedArgs): string | undefined {
   }
   if (!ok) throw new UsageError('--public-url must start with https://');
   return raw;
+}
+
+/** Spec D7: the token and the command of the tunnel connector, or undefined without `--cloudflare`. */
+function readTunnel(env: Env, args: ParsedArgs): { token: string; command: string[] } | undefined {
+  const token = args.cloudflare ?? npmValue(env, 'cloudflare') ?? (env.LOOPS_CLOUDFLARE || undefined);
+  if (token === undefined) return undefined;
+  const bin = args.cloudflared ?? npmValue(env, 'cloudflared') ?? (env.LOOPS_CLOUDFLARED || 'cloudflared');
+  return { token, command: /\.mjs$/i.test(bin) ? [process.execPath, bin] : [bin] };
 }
 
 function webhookUrl(raw: string): string {

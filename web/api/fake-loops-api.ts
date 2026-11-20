@@ -44,7 +44,7 @@ export class FakeLoopsApi implements LoopsApi {
   readonly probes = new Map<string, ProbeDto>();
   holds: HoldDto[] = [];
   notices: NoticeDto[] = [];
-  healthState: HealthResponse | 'unreachable' = { ok: true, db: 'up' };
+  healthState: HealthResponse | 'unreachable' = { ok: true, db: 'up', tunnel: 'off' };
   /** Sign-in (remote-access spec D1): `null` = the console asks for none (the default); otherwise the one user and password. */
   credentials: { username: string; password: string } | null = null;
   /** The user signed in on this "browser", or `null`. */
