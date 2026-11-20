@@ -29,17 +29,18 @@ test('the console opens at the local name with a trusted certificate, signs in, 
     await page.getByTestId('signin-submit').click();
     await expect(page.getByTestId('topbar-user')).toHaveText(t('signin.signedInAs', { name: username }));
 
-    // One loop on the first registered repo, with the Mock executor: it never starts a real agent.
+    // One loop on the first registered repo, with the Claude executor (the real console has no Mock executor); the test stops the loop right after it shows Running, so the agent does almost nothing.
     const repos = (await (await page.request.get('/api/repos')).json()) as { items: { id: string }[] };
     expect(repos.items.length, 'the console needs one registered repo').toBeGreaterThan(0);
     const created = await page.request.post('/api/loops', {
       data: {
         repoId: repos.items[0]!.id,
         name: LOOP_NAME,
-        prompt: 'Job',
+        prompt: 'Reply with the single word ok. Use no tool and change no file.',
+        timezone: 'UTC',
         cron: '0 0 1 1 *',
         timeoutSec: 1800,
-        executor: { kind: 'mock', config: { durationSec: 600, failRate: 0 } },
+        executor: { kind: 'claude', config: { model: 'haiku', effort: 'low' } },
       },
     });
     expect(created.status()).toBe(201);

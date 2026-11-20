@@ -1,0 +1,76 @@
+{
+  "setup": [],
+  "goals": [
+    {
+      "id": "G1",
+      "outcome": "A device that asks Cloudflare DNS gets the PC address for the console name, and the PC asks no DNS server that deletes the answer.",
+      "checks": [
+        { "run": "node scripts/local-name-goal-run.mjs check", "expect": ["PASS dns-public", "PASS dns-pc-servers", "PASS dns-system", "local name: 10/10 checks pass"] }
+      ]
+    },
+    {
+      "id": "G2",
+      "outcome": "https://<name> opens the console with a certificate that every device trusts, and http://<name> goes to the HTTPS address.",
+      "checks": [
+        { "run": "node scripts/local-name-goal-run.mjs check", "expect": ["PASS tls", "PASS redirect"] },
+        { "run": "node scripts/local-name-goal-run.mjs e2e", "expect": ["1 passed"] }
+      ]
+    },
+    {
+      "id": "G3",
+      "outcome": "Live updates work through nginx: the events stream delivers its first lines, and a started loop shows Running in 2 seconds.",
+      "checks": [
+        { "run": "node scripts/local-name-goal-run.mjs check", "expect": ["PASS sse"] },
+        { "run": "node scripts/local-name-goal-run.mjs e2e", "expect": ["1 passed"] }
+      ]
+    },
+    {
+      "id": "G4",
+      "outcome": "Port 7070 is closed to the network, and the console still works on the PC.",
+      "checks": [
+        { "run": "node scripts/local-name-goal-run.mjs check", "expect": ["PASS port-closed"] }
+      ]
+    },
+    {
+      "id": "G5",
+      "outcome": "Behind a reverse proxy the sign-in works over HTTPS with a Secure cookie, live updates arrive, and each device has its own count of failed sign-ins.",
+      "checks": [
+        { "run": "npx playwright test tests/e2e/reverse-proxy.spec.ts --project=chromium", "expect": ["1 passed"] },
+        { "run": "npx vitest run --project unit server/services/auth-service.test.ts -t \"X-Real-IP\"", "expect": ["1 passed"] },
+        { "run": "npx vitest run --project api tests/api/auth-api.test.ts -t \"X-Real-IP\"", "expect": ["1 passed"] }
+      ]
+    },
+    {
+      "id": "G6",
+      "outcome": "Startup shows the address to open.",
+      "checks": [
+        { "run": "npx vitest run --project unit server/config.test.ts -t \"public-url\"", "expect": ["passed"] },
+        { "run": "npx vitest run --project api tests/api/sign-in-startup.test.ts tests/api/cli.test.ts -t \"public-url\"", "expect": ["passed"] }
+      ]
+    },
+    {
+      "id": "G7",
+      "outcome": "The nginx configuration in the repository holds every proxy rule and the file names that win-acme writes, and nginx accepts it.",
+      "checks": [
+        { "run": "npx vitest run --project unit tests/tools/nginx-config.test.ts", "expect": ["passed"] },
+        { "run": "node scripts/local-name-goal-run.mjs check", "expect": ["PASS nginx-test"] }
+      ]
+    },
+    {
+      "id": "G8",
+      "outcome": "No own issuer is trusted on the PC, and none of its files is on the PC.",
+      "checks": [
+        { "run": "node scripts/local-name-goal-run.mjs check", "expect": ["PASS own-issuer-absent"] }
+      ]
+    },
+    {
+      "id": "G9",
+      "outcome": "The certificate comes from Let's Encrypt and is renewed without a person (parts b and c need an administrator and are recorded in the N3 evidence).",
+      "checks": [
+        { "run": "node scripts/local-name-goal-run.mjs check", "expect": ["PASS cert-issuer"] },
+        { "file": "docs/plans/2026-11-19-local-name-evidence.md", "contains": "### Goal G9 (b) and (c): a renewal without a person" },
+        { "file": "docs/plans/2026-11-19-local-name-evidence.md", "contains": "nobody restarted nginx by hand" }
+      ]
+    }
+  ]
+}
