@@ -163,34 +163,50 @@ Two limits to know first:
    ```
 
    - win-acme: download the release ZIP from <https://www.win-acme.com/> (its Download menu links to the GitHub
-     releases). Take the **pluggable** x64 ZIP, because the trimmed build does not load plugins. Unzip it to a folder that stays, for example
-     `C:\Program Files\win-acme`.
-   - The Cloudflare DNS plugin: <https://www.win-acme.com/reference/plugins/validation/dns/cloudflare>. Unzip it into
-     the folder of `wacs.exe` and unblock the `.dll` files (file Properties, General, Unblock).
-6. Make the Cloudflare API token with two permissions, Zone DNS Edit and Zone Zone Read, for the one zone of your
-   domain (Cloudflare, My Profile, API Tokens, Create Token). The token goes only into win-acme. Never put it in a chat,
-   in `.env`, in the repository or in a log. The plugin page of win-acme says that it lists "All zones" for the
-   resources. Not verified: whether the plugin accepts a token for one zone. Task N3 checks it.
+     releases). Measured with v2.4.1: take the asset `win-acme.v2.4.1.2444.x64.pluggable.zip`, because the trimmed
+     build does not load plugins. `wacs.exe` is signed (SignPath Foundation). Unzip it to a folder that stays, for
+     example `C:\Program Files\win-acme`.
+   - The Cloudflare DNS plugin: the asset `plugin.validation.dns.cloudflare.v2.4.1.2444.zip` of the same release
+     (<https://www.win-acme.com/reference/plugins/validation/dns/cloudflare>). Unzip it into the folder of
+     `wacs.exe` and unblock the `.dll` files (file Properties, General, Unblock).
+6. Make the Cloudflare API token (Cloudflare, My Profile, API Tokens, Create Token; checked on 2026-11-20). Use
+   "Start from scratch", then add Policies with two permissions, Zone DNS Edit and Zone Zone Read. In the zone
+   resources choose "All zones from an account". The win-acme plugin needs that scope: the owner accepted it on
+   2026-11-20, and a token for a single zone is not supported. A stolen token can change the records of every zone of
+   the account, so keep it only in win-acme. Set Token expiration to "No expiration". The default "1 year" stops the
+   renewals after one year. The token goes only into win-acme. Never put it in a chat, in `.env`, in the repository
+   or in a log.
 7. Make the folder for the certificate files and limit it to SYSTEM and Administrators, in an administrator PowerShell:
 
    ```powershell
    New-Item -ItemType Directory -Force C:\ProgramData\castraferrum\tls
    icacls C:\ProgramData\castraferrum\tls /inheritance:r /grant:r "SYSTEM:(OI)(CI)F" "Administrators:(OI)(CI)F"
    ```
-8. In the same administrator PowerShell, run win-acme with full options: a manual name, DNS validation through
-   Cloudflare, the PEM store in that folder, and a script step that reloads nginx after each renewal. The option
-   names come from the win-acme documentation. The menu texts and the whole command are not verified on this PC. Task
-   N3 corrects them.
+8. In the same administrator PowerShell, in the win-acme folder, run win-acme with full options. This command ran
+   on the owner PC on 2026-11-20 with win-acme v2.4.1. Replace `<token>` with your token and `<name>` with your
+   name. The options are: Let's Encrypt as the certificate authority (win-acme v2.4.1 uses ZeroSSL by default, and
+   the first run then stops with `ZeroSSL requires an account to use`), `--source manual` (the old option `--target` is not accepted),
+   DNS validation through Cloudflare, the PEM store in that folder, a script step that reloads nginx, and the
+   renewal task. `--emailaddress` is not needed for Let's Encrypt.
 
    ```powershell
-   .\wacs.exe --target manual --host <name> --validation cloudflare --cloudflareapitoken <token> `
-     --store pemfiles --pemfilespath C:\ProgramData\castraferrum\tls `
-     --installation script --script C:\nginx\nginx.exe --scriptparameters "-p C:/nginx/ -c C:/nginx/conf/castra.conf -s reload" `
-     --accepttos --emailaddress <your email>
+   .\wacs.exe --baseuri https://acme-v02.api.letsencrypt.org/ --source manual --host <name> --validation cloudflare --cloudflareapitoken <token> --store pemfiles --pemfilespath C:\ProgramData\castraferrum\tls --installation script --script C:\nginx\nginx.exe --scriptparameters "-p C:/nginx/ -c C:/nginx/conf/castra.conf -s reload" --accepttos --setuptaskscheduler
    ```
 
    win-acme writes `<name>-chain.pem` (the certificate and its intermediate certificates) and `<name>-key.pem` into
-   the folder, and makes its own Task Scheduler task for the renewal.
+   the folder. nginx uses these two files. win-acme also writes `<name>-crt.pem`, `<name>-chain-only.pem`,
+   `<name>-chain-full.pem` and `<name>-chain-only-full.pem`, which nginx does not use. With `--setuptaskscheduler`
+   win-acme makes its own Task Scheduler task for the renewal.
+
+   The script step of this first run fails with `OpenEvent("Global\ngx_reload_<pid>") failed (5: Access is
+   denied)`. The reason: this window runs as your user, and nginx runs as SYSTEM, so only SYSTEM can signal it. The
+   renewal task runs as SYSTEM, so its reload works (measured: a forced renewal through a SYSTEM task gave `Script
+   finished`, and nginx served the new certificate). To load the first certificate, run this reload once as
+   SYSTEM, in the same administrator PowerShell (alternative: restart the task `Castraferrum nginx` of step 10):
+
+   ```powershell
+   $a = New-ScheduledTaskAction -Execute C:\nginx\nginx.exe -Argument "-p C:/nginx/ -c C:/nginx/conf/castra.conf -s reload" -WorkingDirectory C:\nginx; Register-ScheduledTask -TaskName "Castraferrum reload once" -Action $a -User SYSTEM -RunLevel Highest -Force; Start-ScheduledTask "Castraferrum reload once"; Unregister-ScheduledTask "Castraferrum reload once" -Confirm:$false
+   ```
 9. Copy `deploy/local-name/nginx.conf` into the nginx folder, for example `C:\nginx\conf\castra.conf`. In the copy,
    replace `LOCAL_NAME` with your name, and replace `CERT_DIR` with `C:/ProgramData/castraferrum/tls` (forward
    slashes). Then check the copy:

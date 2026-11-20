@@ -6,19 +6,20 @@
 //
 // nginx is C:/nginx/nginx.exe when that file exists, else `nginx` on PATH; --nginx replaces it. A given program runs with
 // its own folder as the prefix (-p), so `nginx -t` finds logs/ there. The config is C:/nginx/conf/castra.conf (the README
-// example); --nginx-conf replaces it.
+// example); --nginx-conf replaces it. nginx-test runs on a temporary copy of that file with a throwaway certificate pair
+// (the real key folder is not readable by this user); the temporary folder is deleted afterwards.
 // The name is the host of LOOPS_PUBLIC_URL (.env or the environment); --name replaces it. The public DNS server is 1.1.1.1;
 // --public-dns replaces it. Every TLS and HTTPS connection uses the trusted roots of Node, never a file of this machine.
 // One line per check (`PASS <id>` or `FAIL <id>: <reason>`), then `local name: <passed>/10 checks pass`.
-// Exit 0 only when all 10 checks pass. The tool only reads: it changes no system setting.
+// Exit 0 only when all 10 checks pass. The tool changes no system setting (its only writes are a temporary folder that it deletes).
 // `runChecks(deps)` takes every outside effect as a function, so the unit test runs it with fakes.
 import { spawn } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import dns from 'node:dns';
 import http from 'node:http';
 import https from 'node:https';
 import net from 'node:net';
-import { homedir, networkInterfaces } from 'node:os';
+import { homedir, networkInterfaces, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import tls from 'node:tls';
 import { pathToFileURL } from 'node:url';
@@ -30,6 +31,7 @@ const MAX_AGE = 0.75; // a certificate older than this part of its lifetime was 
 const CHECK_LIMIT_MS = 25_000;
 const SSE_WAIT_MS = 20_000;
 const SYSTEM_QUERIES = 20;
+const WIN_OPENSSL = 'C:/Program Files/Git/usr/bin/openssl.exe'; // Git for Windows ships openssl
 const COOKIE_NAME = 'castra_session'; // SESSION_COOKIE of shared/contracts/auth.ts (a .mjs script cannot import the .ts file)
 
 export const CHECK_IDS = ['dns-public', 'dns-pc-servers', 'dns-system', 'nginx-test', 'tls', 'cert-issuer', 'own-issuer-absent', 'redirect', 'sse', 'port-closed'];
@@ -140,13 +142,41 @@ function checks(d) {
       if (bad.length) throw new Error(`${bad.length} of ${SYSTEM_QUERIES} answers were not ${ip} (first: ${bad[0]})`);
     },
     async 'nginx-test'() {
+      // The key folder is readable only by SYSTEM and Administrators (spec D6 A), so nginx -t runs on a temporary copy of the
+      // deployed file whose two ssl lines point to a throwaway self-signed pair. The real files are proven by `tls` and `cert-issuer`.
       const program = d.nginx ?? 'nginx';
       const prefix = program === 'nginx' ? [] : ['-p', `${dirname(program).replace(/\\/g, '/')}/`];
-      const r = await d.exec(program, ['-t', ...prefix, '-c', d.nginxConf]);
-      if (r.notFound) throw new Error('nginx not found');
-      const out = `${r.stdout}\n${r.stderr}`;
-      if (!/syntax is ok/.test(out) || !/test is successful/.test(out)) {
-        throw new Error(`nginx -t said: ${out.trim().split('\n').slice(-2).join(' | ')}`);
+      let text;
+      try {
+        text = await d.readText(d.nginxConf);
+      } catch (e) {
+        throw new Error(`cannot read ${d.nginxConf}: ${msg(e)}`);
+      }
+      const dir = mkdtempSync(join(tmpdir(), 'castra-nginx-test-'));
+      try {
+        const slash = dir.replace(/\\/g, '/');
+        const crt = `${slash}/test-chain.pem`;
+        const key = `${slash}/test-key.pem`;
+        let openssl = 'openssl';
+        let probe = await d.exec(openssl, ['version']);
+        if (probe.notFound) {
+          openssl = WIN_OPENSSL;
+          probe = await d.exec(openssl, ['version']);
+        }
+        if (probe.notFound) throw new Error(`openssl not found (on PATH or at ${WIN_OPENSSL}): it makes the throwaway pair for nginx -t`);
+        const made = await d.exec(openssl, ['req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256', '-nodes', '-keyout', key, '-out', crt, '-days', '1', '-subj', '/CN=nginx-test']);
+        if (made.code !== 0) throw new Error(`openssl could not make the throwaway pair: ${(made.stderr || made.stdout).trim().split('\n').slice(-1)[0]}`);
+        const copy = `${slash}/castra.conf`;
+        const rewritten = text.replace(/^(\s*ssl_certificate_key\s+)[^;]+;/gm, `$1${key};`).replace(/^(\s*ssl_certificate\s+)[^;]+;/gm, `$1${crt};`);
+        writeFileSync(copy, rewritten);
+        const r = await d.exec(program, [...prefix, '-t', '-c', copy]);
+        if (r.notFound) throw new Error('nginx not found');
+        const out = `${r.stdout}\n${r.stderr}`;
+        if (!/syntax is ok/.test(out) || !/test is successful/.test(out)) {
+          throw new Error(`nginx -t said: ${out.trim().split('\n').slice(-2).join(' | ')}`);
+        }
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
       }
     },
     async tls() {
@@ -203,7 +233,7 @@ function checks(d) {
       if (!username || !password) throw new Error('LOOPS_USERNAME or LOOPS_PASSWORD missing in .env');
       const name = needName();
       const login = await d.http({ url: `https://${name}/api/auth/login`, method: 'POST', body: { username, password } });
-      if (login.status !== 200) throw new Error(`sign-in gave ${login.status}, expected 200`);
+      if (login.status !== 204 && login.status !== 200) throw new Error(`sign-in gave ${login.status}, expected 204`);
       const setCookie = [].concat(login.headers['set-cookie'] ?? []).find((c) => c.startsWith(`${COOKIE_NAME}=`));
       if (!setCookie) throw new Error(`sign-in set no ${COOKIE_NAME} cookie`);
       const lines = await d.sseLines({ url: `https://${name}/api/events`, cookie: setCookie.split(';')[0], waitMs: SSE_WAIT_MS });
@@ -410,6 +440,7 @@ export async function main(argv) {
     dnsQuery,
     dnsServers,
     exec,
+    readText: async (file) => readFileSync(file, 'utf8'),
     tlsVerify,
     peerCert,
     http: request,
