@@ -334,7 +334,7 @@ The checks, in this order:
 | `connector` | The tunnel is connected (G5 on the machine) | `GET http://127.0.0.1:7070/api/health` gives `tunnel: connected`. |
 | `runner` | Castraferrum is the parent (G8) | A `cloudflared` process exists (`Get-CimInstance Win32_Process`), and its parent is the `node.exe` that listens on port 7070. |
 | `token-hidden` | No token in a command line or a log (G9) | The `CommandLine` of `cloudflared` and of the console process hold no part of `LOOPS_CLOUDFLARE` longer than 8 characters; `reports/restart-console.log` holds none. |
-| `edge-path` | A request takes the path of a phone on mobile data (G6) | TLS to an address from `dns-edge`, with the name as SNI, verified against Node's default roots. The certificate issuer is not Let's Encrypt's `R` or `E` series that nginx served, and the response has a `cf-ray` header. |
+| `edge-path` | A request takes the path of a phone on mobile data (G6) | TLS to an address from `dns-edge`, with the name as SNI, verified against Node's default roots. The TCP peer address is in `scripts/cloudflare-ips.json`, and the response has a `cf-ray` header and `server: cloudflare`. The certificate issuer is not checked: Cloudflare can sign its edge certificate with Let's Encrypt. |
 | `sign-in-wall` | The console asks for sign-in through the tunnel (G6) | `GET <public URL>/api/loops` gives 401 `UNAUTHENTICATED`. |
 | `secure-cookie` | The console sees HTTPS through the tunnel (G6, D16) | `POST /api/auth/login` with `LOOPS_USERNAME` and `LOOPS_PASSWORD` gives 204 with a `castra_session` cookie that has `Secure`. Then `POST /api/auth/logout`. |
 | `sse` | Live updates pass the tunnel (G6) | With the session cookie, `GET /api/events` delivers `:ok` and then `:ping` in 20 seconds. |
