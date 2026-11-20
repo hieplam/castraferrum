@@ -7,7 +7,8 @@
     1. reads GET /api/loops and remembers the loops that are 'active' (unless -StartLoop is given)
     2. -WaitForIdle: waits until no loop has an activeRun (poll every 5 s, at most -WaitMaxMinutes)
     3. POST /api/loops/<id>/stop for every active loop (closes the execution cleanly)
-    4. kills the process listening on -Port
+    4. kills the process listening on -Port and its whole process tree (children first, each PID logged), so a
+       child such as cloudflared (the tunnel) does not outlive the console. -StopOnly ends after this step (tests)
     5. npm install + npm run build in -ConsoleDir (skip with -NoBuild)
     6. opens a new, independent PowerShell window running 'npm start' (left open, like the manual way)
     7. waits for GET /api/health -> ok:true (at most 90 s)
@@ -42,6 +43,7 @@ param(
     [switch]$WaitForIdle,
     [int]$WaitMaxMinutes = 360,
     [switch]$NoBuild,
+    [switch]$StopOnly,
     [string]$LogFile = ''
 )
 
@@ -87,6 +89,26 @@ function Get-ListenerPid {
         if ($c) { return [int]$c.OwningProcess }
     } catch { }
     return $null
+}
+
+# Every descendant of $RootPid, deepest first (a child comes before its parent). Taken before anything is killed,
+# because a child loses its link to the parent when the parent dies.
+function Get-ProcessTree([int]$RootPid) {
+    $all = @(Get-CimInstance Win32_Process)
+    $order = New-Object System.Collections.Generic.List[object]
+    $queue = New-Object System.Collections.Generic.Queue[int]
+    $seen = New-Object System.Collections.Generic.HashSet[int]
+    [void]$seen.Add($RootPid)
+    $queue.Enqueue($RootPid)
+    while ($queue.Count -gt 0) {
+        $cur = $queue.Dequeue()
+        foreach ($p in @($all | Where-Object { $_.ParentProcessId -eq $cur -and $_.ProcessId -ne $cur })) {
+            if ($seen.Add([int]$p.ProcessId)) { $order.Add([pscustomobject]@{ Id = [int]$p.ProcessId; Name = $p.Name }); $queue.Enqueue([int]$p.ProcessId) }
+        }
+    }
+    $arr = $order.ToArray()
+    [array]::Reverse($arr)
+    return $arr
 }
 
 function Invoke-LoopAction([string]$Id, [string]$Action) {
@@ -248,9 +270,22 @@ if ($null -eq $oldPid) {
     $cmdLine = ''
     try { $cmdLine = (Get-CimInstance Win32_Process -Filter "ProcessId=$oldPid").CommandLine } catch { }
     Write-Log "step 4: killing PID $oldPid ($cmdLine)"
+    # The console cannot stop its own children when it is killed (TerminateProcess gives no shutdown), so kill the
+    # tree: children first, then the console. A cloudflared child would otherwise keep the tunnel open.
+    $tree = @(Get-ProcessTree $oldPid)
+    foreach ($c in $tree) {
+        try {
+            Stop-Process -Id $c.Id -Force -ErrorAction Stop
+            Write-Log ("step 4: killed child PID {0} ({1}) of PID {2}" -f $c.Id, $c.Name, $oldPid)
+        } catch {
+            if (Get-Process -Id $c.Id -ErrorAction SilentlyContinue) { Write-Log ("step 4: cannot kill child PID {0} ({1}): {2}" -f $c.Id, $c.Name, $_.Exception.Message) }
+            else { Write-Log ("step 4: child PID {0} ({1}) was already gone" -f $c.Id, $c.Name) }
+        }
+    }
     try {
         Stop-Process -Id $oldPid -Force -ErrorAction Stop
         Wait-Process -Id $oldPid -Timeout 30 -ErrorAction SilentlyContinue
+        Write-Log ("step 4: killed PID {0} ({1} child(ren) killed first)" -f $oldPid, $tree.Count)
     } catch {
         Write-Log ("step 4: Stop-Process failed: " + $_.Exception.Message)
     }
@@ -281,6 +316,8 @@ foreach ($w in @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" |
         Write-Log ("step 4: window PID {0} kept, still runs: {1}" -f $w.ProcessId, (($kids | ForEach-Object { '{0} {1}' -f $_.Name, $_.ProcessId }) -join ', '))
     }
 }
+
+if ($StopOnly) { Write-Log "step 4: -StopOnly, stopping here"; Exit-Script 0 }
 
 # 5. npm install + build
 Set-Phase 'build'
