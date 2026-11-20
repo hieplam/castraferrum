@@ -747,3 +747,14 @@ In this section `castra.example.com` is the console name and `<pc-ip>` is the ad
 - First run: exit 1, two failures in `server/adapters/git/git-gate-workspace.test.ts` (`fetch and fetchMain ... round after round`, `never overlap for one folder`), a file that this task does not touch. The file took 422 s on a machine that also ran Docker containers of another session and a verify of another lane.
 - The same file alone: `Tests  35 passed (35)`, 232 s.
 - Second full run, after the load dropped: exit 0, `UCs with a green e2e: 41/41`, `phone overflow: 0/12`.
+
+## Issue 519
+
+The check `edge-path` of `scripts/tunnel-check.mjs` failed when the edge certificate came from Let's Encrypt. Cloudflare can sign its edge certificate with Let's Encrypt, so the issuer rule gave a false failure.
+
+Decisions (made by the standing rules of phase issue 55, no owner question):
+- **Drop the issuer rule.** The edge is proved by what only the edge gives: the TCP peer address (`socket.remoteAddress`) is in `scripts/cloudflare-ips.json`, the certificate verifies against Node's default roots, and the response has a `cf-ray` header and `server: cloudflare`. The nginx path fails because its peer address is `<pc-ip>`, a private address, and it sends no `cf-ray`.
+- **Peer address, not the dns-edge address.** The check reads the peer address from the socket, so a request that did not reach an edge address fails even when DNS looked right.
+- **Plan updated.** The `edge-path` row of the R6b check table in the section "Update 2026-11-20" of `docs/plans/2026-10-21-remote-access.md` now matches the tool.
+
+Ratchet: test count in `tests/tools/tunnel-check.test.ts` 21 -> 22 (the Let's Encrypt case is new; the edge-path failure case now holds the private-peer, cf-ray and server cases).
