@@ -1,6 +1,7 @@
 # ADR 0005: a local name and HTTPS through public DNS and a reverse proxy
 
-- Status: accepted (2026-11-19). Amended 2026-11-19: the name and the certificate issuer. Amended 2026-11-20: a bought
+- Status: superseded by [ADR 0006](0006-internet-access-through-a-named-tunnel.md) on 2026-11-20: the name moved to the
+  tunnel. Before that: accepted (2026-11-19). Amended 2026-11-19: the name and the certificate issuer. Amended 2026-11-20: a bought
   domain replaces the DNS server on the PC and the own issuer.
 - Related: [ADR 0006](0006-internet-access-through-a-named-tunnel.md) (proposed 2026-11-20): the console name moves to a
   Cloudflare tunnel.

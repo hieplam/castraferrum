@@ -1,7 +1,8 @@
 # Spec: a local name and HTTPS on the home network (phase 3)
 
 - Date: 2026-11-19
-- Status: approved by the owner (pull request 468, 2026-11-19). Updated 2026-11-19 (pull request 478) and 2026-11-20
+- Status: superseded by [ADR 0006](../adr/0006-internet-access-through-a-named-tunnel.md) on 2026-11-20: the console name
+  moved to a Cloudflare tunnel, and this path is retired. Before that: approved by the owner (pull request 468, 2026-11-19). Updated 2026-11-19 (pull request 478) and 2026-11-20
   (pull request 487, approved and merged by the owner on 2026-11-20).
 - **Update 2026-11-20, after N0, N1, N2 and N5 were merged:** the owner bought a domain at Cloudflare and removed the
   DNS server from the PC. Four changes follow:

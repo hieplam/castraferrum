@@ -59,14 +59,14 @@ days failed with `integer out of range`). Pull request 444 fixed it. This sectio
 - The README no longer says that `LOOPS_HOST` and `LOOPS_REMOTE` are unused. `tests/tools/uc-coverage.test.ts` counts 39 use cases now.
 - Red (before the listen change): `npx vitest run --project unit server/config.test.ts` exit 1, `4 failed | 28 passed`,
   `TypeError: networkUrls is not a function`. `npx playwright test --project=chromium tests/e2e/network.spec.ts` exit 1, the `@UC-33`
-  test: `page.goto: net::ERR_CONNECTION_REFUSED at http://192.168.100.94:61639/`; the second test passed.
+  test: `page.goto: net::ERR_CONNECTION_REFUSED at http://<pc-ip>:61639/`; the second test passed.
 - Green: unit `Tests  32 passed (32)`; e2e `2 passed (14.3s)`.
 - Stub check: with the listen host hard-coded to `0.0.0.0`, the second e2e test failed: `Expected: "ECONNREFUSED"`, `Received: null`.
 - Green (4), `LOOPS_TEST_MODE=1 LOOPS_PORT=7173 npm start --remote` on `loops_lanl2_test` (the listener was `0.0.0.0:7173`, health 200, stopped by PID):
 
 ```text
 Castraferrum: http://127.0.0.1:7173  (DB postgres://loops:***@127.0.0.1:55432/loops_lanl2_test, test mode)
-On your network: http://192.168.100.94:7173
+On your network: http://<pc-ip>:7173
 On your network: http://172.20.80.1:7173
 Warning: anyone on this network can open the console and run agents on this machine.
 ```
