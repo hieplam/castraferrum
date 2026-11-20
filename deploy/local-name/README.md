@@ -33,8 +33,13 @@ Replace `CERT_DIR` in the copy that nginx runs, never in this file. The certific
 
 ## Check the file
 
+Run this in an administrator PowerShell, because only SYSTEM and Administrators can read `CERT_DIR`:
+
 ```powershell
-nginx -t -c <path to the copy>
+C:
+ginx
+ginx.exe -p C:/nginx/ -t -c <path to the copy>
 ```
 
-Expected output: `syntax is ok` and `test is successful`.
+Expected output: `syntax is ok` and `test is successful`. As a normal user, run `npm run local-name:check` instead.
+Its `nginx-test` check runs nginx on a temporary copy that uses a throwaway key pair.
