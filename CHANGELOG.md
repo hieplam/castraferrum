@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.1](https://github.com/hieplam/castraferrum/compare/v0.15.0...v0.15.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **local-name:** check tool accepts the 204 sign-in and runs nginx -t on a temporary copy; README from the real setup ([#495](https://github.com/hieplam/castraferrum/issues/495)) ([ffde09e](https://github.com/hieplam/castraferrum/commit/ffde09ea8d5d0228c059e96669076ad914eb3987))
+
 ## [0.15.0](https://github.com/hieplam/castraferrum/compare/v0.14.0...v0.15.0) (2026-11-20)
 
 
