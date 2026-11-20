@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { isRealRed } from '../../../shared/domain/gate-commands';
 import { createBareRepo, type BareRepo } from '../../../tests/support/bare-repo';
 import type { CommandRunner } from '../../ports/command-runner';
@@ -15,6 +15,7 @@ import { GitGateWorkspace } from './git-gate-workspace';
 const JOB = 'job-1';
 const RUN_MS = 30_000;
 
+let seed: BareRepo;
 let bare: BareRepo;
 let root: string;
 let repoPath: string;
@@ -69,11 +70,20 @@ function worktreeCount(): number {
   return git(repoPath, ['worktree', 'list', '--porcelain']).split('\n').filter((l) => l.startsWith('worktree ')).length;
 }
 
+// One seeded bare repository for the whole file. Each test gets a cheap copy of it: building a repository
+// from scratch in every hook took about ten git processes, which passed the 10 s hook timeout under load.
+beforeAll(() => {
+  seed = createBareRepo();
+});
+
+afterAll(() => {
+  seed.dispose();
+});
+
 beforeEach(() => {
-  bare = createBareRepo();
+  bare = seed.copy();
   root = mkdtempSync(join(tmpdir(), 'lc-gate-ws-'));
   dev = bare.clone();
-  git(dev, ['checkout', '-q', 'main']);
   repoPath = bare.clone();
   ws = new GitGateWorkspace({ runner: new NodeCommandRunner(), root });
 });
