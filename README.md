@@ -271,6 +271,34 @@ Uninstall Technitium DNS Server in Windows Settings, Apps. Then set the DNS serv
 Technitium installer set them to `127.0.0.1` and `::1`. Also remove the DNS server that you gave in the DHCP settings of
 the router.
 
+## Reach it from outside
+
+This section opens the console from anywhere through a Cloudflare tunnel, with the same name as at home
+(`castra.example.com` is the sample; use your own). Castraferrum starts `cloudflared` as a child process, so the tunnel
+runs only while the console runs. The tunnel ends at `http://127.0.0.1:7070`: nothing on the PC listens for the network.
+The design is in [ADR 0006](docs/adr/0006-internet-access-through-a-named-tunnel.md). The console needs sign-in
+(`LOOPS_USERNAME` and `LOOPS_PASSWORD`) before it starts a tunnel.
+
+1. Install `cloudflared`: `winget install --id Cloudflare.cloudflared`.
+2. In the Cloudflare dashboard, make a tunnel (Zero Trust, Networks, Tunnels, Create a tunnel, Cloudflared). Copy its
+   token.
+3. Delete the A record of the console name. One name cannot hold that record and the tunnel together.
+4. In the tunnel, add the console name as a public host name with the service `http://127.0.0.1:7070`.
+5. Put the token in `.env` as `LOOPS_CLOUDFLARE=<token>`. Every program that runs as your user can read that file, and
+   so can anybody who has the token: they can run your tunnel. To rotate the token, open the tunnel in the dashboard,
+   refresh the token, replace the value in `.env` and restart the console.
+6. Start the console with `npm start`. The flag form is `npm start -- --cloudflare=<token>` (write the `=`: with a
+   space, npm can read the token as a separate word). Startup prints `Tunnel: connected` and the address to open.
+7. Run `npm run tunnel:check`. It reads the `.env` of the main checkout, prints one line for each of 9 checks (`PASS <id>`
+   or `FAIL <id>: <reason>`) and `tunnel: <n>/9 checks pass`, and exits 0 only when all 9 pass. Each check sends its
+   request along the path of a phone on mobile data: to a Cloudflare address, never to your PC.
+8. The real-tunnel test opens the console name in a phone-sized Chromium, signs in, starts the loop
+   "tunnel acceptance" and sees it run. Run it with
+   `LC_REAL_TUNNEL=1 npx playwright test --project chromium tests/e2e/tunnel-real.spec.ts`, with `LOOPS_PUBLIC_URL`,
+   `LOOPS_USERNAME` and `LOOPS_PASSWORD` in the environment. Without `LC_REAL_TUNNEL=1` the test is skipped. If you
+   put Cloudflare Access in front of the name, add `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET` (a service token)
+   to `.env`; the check tool and the test send them.
+
 ## Configuration
 
 Defaults work with no configuration. To change ports copy `.env.example` to `.env`; compose, the server, Vitest
@@ -303,6 +331,7 @@ parallel on one container if each one sets its own `LOOPS_TEST_DATABASE_URL` and
 | `node scripts/logon-task.mjs [--console-dir <abs>] [--port 7070] [--task-name Castraferrum] [--out <file>]` | Prints Windows Task Scheduler XML that starts the console at log-on. With `--out` it writes the XML file and prints the one `schtasks /Create` line for you to run. The script never installs the task. |
 | `node scripts/merge-audit.mjs -R <owner/name> --since <ISO date> [--json]` | Lists each PR merged since the date whose head commit has no `castraferrum/gate` status of `success`. Writes nothing to GitHub. Exit 0: none. Exit 1: incidents. Exit 2: a bad argument or a failed `gh` call. |
 | `npm run local-name:check -- [--pc-ip=<address>] [--nginx=<path>] [--nginx-conf=<path>] [--name=<name>] [--public-dns=<address>]` | Tests the local name chain on this PC: the public DNS record, the DNS servers of the PC, nginx, TLS, the Let's Encrypt certificate and its age, the absence of the old own issuer, redirect, live updates, port 7070. The name is the host of `LOOPS_PUBLIC_URL` (`--name` replaces it); the public DNS server is `1.1.1.1` (`--public-dns` replaces it). Prints `PASS` or `FAIL <id>: <reason>` for 10 checks and `local name: <n>/10 checks pass`. Exit 0 only when all 10 pass. It only reads; it changes no setting. |
+| `npm run tunnel:check -- [--pc-ip=<address>] [--name=<name>] [--public-dns=<address>]` | Tests the Cloudflare tunnel on this PC: the DNS answer of the name, the tunnel state, the parent of `cloudflared`, the token in command lines and logs, the Cloudflare edge path, the sign-in wall, the Secure cookie, live updates, and the closed home ports. Prints `PASS` or `FAIL <id>: <reason>` for 9 checks and `tunnel: <n>/9 checks pass`. Exit 0 only when all 9 pass. It only reads; it prints no secret. |
 
 ## Documentation
 

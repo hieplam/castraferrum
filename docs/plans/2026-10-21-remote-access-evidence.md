@@ -673,3 +673,77 @@ Task: `scripts/restart-console.ps1` step 4 kills the console without its childre
 - **Red.** With the tree kill disabled: `FAIL scenario 4 ... the child (PID 16976, stand-in for cloudflared) is still alive`.
 - **Green.** `test-restart-console.ps1 -StopTreeOnly`: `PASS scenario 4: step 4 kills the console and its child (G8), one log line for each PID`, `PASS 1/1`.
 - **Not verified.** The run against the real `cloudflared` on the machine belongs to task R7.
+
+## R6b
+
+Task R6b: the check tool `scripts/tunnel-check.mjs` (`npm run tunnel:check`), the real-tunnel test
+`tests/e2e/tunnel-real.spec.ts`, the goal manifest `goals/tunnel.json`, the README section "Reach it from outside".
+In this section `castra.example.com` is the console name and `<pc-ip>` is the address of the PC.
+
+### Red
+
+- `npm run tunnel:check` before the script existed: `npm error Missing script: "tunnel:check"`.
+- `npx vitest run --project unit tests/tools/tunnel-check.test.ts` before the module existed: fails on the missing
+  module `scripts/tunnel-check.mjs`.
+
+### Green
+
+1. Unit command: `npx vitest run --project unit tests/tools/tunnel-check.test.ts` gives `Tests  21 passed (21)`. It has a
+   passing and a failing case for each of the 9 checks, a case that sends the three sign-in checks to the Cloudflare
+   address, and a case that proves that no output line holds `LOOPS_PASSWORD`, `LOOPS_CLOUDFLARE` or the Access secret
+   (also when an error text carries them).
+2. On the PC, from the main checkout (`.env` of the main checkout, run through `node .worktrees/feat-tunnel-check/scripts/tunnel-check.mjs`;
+   the tool reads the `.env` of the main checkout also from a worktree). Output with the name and addresses replaced:
+
+   ```text
+   FAIL dns-edge: <pc-ip> is not a Cloudflare address (copy of 2026-11-20): the name does not point to the edge
+   FAIL connector: /api/health says tunnel: missing, expected connected
+   FAIL runner: no cloudflared process is running
+   FAIL token-hidden: LOOPS_CLOUDFLARE missing in .env: nothing to look for
+   FAIL edge-path: the response has no cf-ray header: it did not pass the Cloudflare edge
+   FAIL sign-in-wall: 1.1.1.1 gave <pc-ip> for the name, no Cloudflare address: a request would not take the path of a phone
+   FAIL secure-cookie: 1.1.1.1 gave <pc-ip> for the name, no Cloudflare address: a request would not take the path of a phone
+   FAIL sse: 1.1.1.1 gave <pc-ip> for the name, no Cloudflare address: a request would not take the path of a phone
+   FAIL ports-closed: <pc-ip> accepts connections on port 80, 443, expected refused or no answer
+   tunnel: 0/9 checks pass
+   ```
+
+   Exit code 1. The run happened from the lane worktree, before the merge; the coordinator repeats it from the main
+   checkout after the merge.
+3. `npx playwright test --project=chromium tests/e2e/tunnel-real.spec.ts` without `LC_REAL_TUNNEL`: `1 skipped`. The
+   reason is `needs the machine setup of the tunnel (task R6d); run with LC_REAL_TUNNEL=1` (visible in the JSON reporter
+   and the HTML report; the list reporter does not print it).
+4. `npm run goal:check -- goals/tunnel.json`: `goals passed: 0/5` (G5, G6, G8, G9, G10 all FAIL; G5 also needs the
+   runner unit tests of task R6a).
+
+### Decisions
+
+- **The baseline is 0/9 only if the sign-in checks take the path of a phone.** The plan says that the home PC gives
+  0/9, but my first version sent `sign-in-wall`, `secure-cookie` and `sse` through the system resolver. Through nginx
+  they passed, and the tool printed 3/9. Equivalent that proves the same goal (G6): these three checks connect to the
+  first Cloudflare address of the name (answered by `1.1.1.1`) with the name as TLS name and Host header, and fail when
+  the name has no Cloudflare address. The unit test `sends sign-in-wall, secure-cookie and sse to the Cloudflare address`
+  keeps it.
+- **Where the tool reads `.env`.** From the main checkout, found through the common git folder, so that a lane worktree
+  and a goal manifest run read the real settings (the standing rule: run each manifest from the main checkout too). The
+  log `reports/restart-console.log` is read from there too; a missing log passes `token-hidden`.
+- **`token-hidden` needs a running `cloudflared`** and `LOOPS_CLOUDFLARE` in `.env`: without them it has nothing to
+  look at, so it fails instead of passing on nothing.
+- **Error texts are cleaned.** Any value of `LOOPS_PASSWORD`, `LOOPS_CLOUDFLARE` or the Access secret that reaches an
+  error text becomes `<secret>`.
+- **Not verified (for R6d to record as measured):** that the Cloudflare edge certificate is not a Let's Encrypt `R` or
+  `E` series certificate. If it is, `edge-path` fails although `cf-ray` is present; R6d must file that as a defect of the
+  check.
+- **`Goal manifest: goals/tunnel.json`** is not added to the phase 2 issue body by this task: the coordinator adds the
+  line at R7, because the line makes the epic tool refuse the other build tasks.
+- The Cloudflare address ranges in `scripts/cloudflare-ips.json` were copied on 2026-11-20 from the two published lists.
+
+### Ratchet
+
+`tunnel: 0/9 checks pass` (before the setup of the PC). R6d moves it to 9/9. `goals passed: 0/5` for `goals/tunnel.json`.
+
+### Green 5: `npm run verify`
+
+- First run: exit 1, two failures in `server/adapters/git/git-gate-workspace.test.ts` (`fetch and fetchMain ... round after round`, `never overlap for one folder`), a file that this task does not touch. The file took 422 s on a machine that also ran Docker containers of another session and a verify of another lane.
+- The same file alone: `Tests  35 passed (35)`, 232 s.
+- Second full run, after the load dropped: exit 0, `UCs with a green e2e: 41/41`, `phone overflow: 0/12`.
