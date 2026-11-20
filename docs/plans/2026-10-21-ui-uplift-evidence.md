@@ -2355,7 +2355,7 @@ follow-up outside the epic.
   DB, port 7071, one heavy slot held per run.
 - LAN: the server still listens on `127.0.0.1` only (`--host` is castraferrum#47 L1/L2), so the `iphone-lan` project
   reaches it through a TCP relay on `0.0.0.0` at the machine's LAN IPv4. The run printed
-  `iPhone 13 (webkit) served from http://192.168.100.25:50617`, and every step asserts that origin.
+  `iPhone 13 (webkit) served from http://<device-ip>:50617`, and every step asserts that origin.
 - `npm run goal:check` without the manifest exits 2 (usage line), so it needs no change.
 
 ### Red
