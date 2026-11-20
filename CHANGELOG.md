@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.2](https://github.com/hieplam/castraferrum/compare/v0.15.1...v0.15.2) (2026-11-20)
+
+
+### Bug Fixes
+
+* **tests:** server-process tests no longer read LOOPS_PUBLIC_URL from the developer's .env ([#500](https://github.com/hieplam/castraferrum/issues/500)) ([83a781a](https://github.com/hieplam/castraferrum/commit/83a781a515ceb041a447d9964d5371eacab28582))
+
 ## [0.15.1](https://github.com/hieplam/castraferrum/compare/v0.15.0...v0.15.1) (2026-11-20)
 
 
