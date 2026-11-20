@@ -32,9 +32,10 @@
 // `--json` takes comma-separated GitHub field names. Every call, a failed one too, is appended to `calls`.
 // Calls can run at the same time (the background tick of the server runs the gate and the goal-card ingest together):
 // each call holds the file `<world>.lock` from its read of the world to its write, so no call reads a half-written
-// world or loses the change of another (issue 456).
+// world or loses the change of another (issue 456). The write is atomic (a temporary file, then a rename), so a reader
+// that takes no lock never reads half of the world either.
 import { execFileSync } from 'node:child_process';
-import { closeSync, mkdtempSync, openSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { closeSync, mkdtempSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -353,7 +354,10 @@ try {
 try {
   if (world) {
     world.calls.push({ args, exit });
-    writeFileSync(worldPath, JSON.stringify(world, null, 2));
+    // Write a temporary file, then rename it over the world: a reader that takes no lock (a test) never sees half of it.
+    const tmpPath = `${worldPath}.${process.pid}.tmp`;
+    writeFileSync(tmpPath, JSON.stringify(world, null, 2));
+    renameSync(tmpPath, worldPath);
   }
 } finally {
   unlock();
