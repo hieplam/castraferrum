@@ -52,7 +52,7 @@ describe('deploy/local-name/nginx.conf', () => {
   });
 
   it('has the two certificate placeholders that the machine setup fills in', () => {
-    expect(directives).toContain('ssl_certificate CERT_DIR/LOCAL_NAME.pem');
+    expect(directives).toContain('ssl_certificate CERT_DIR/LOCAL_NAME-chain.pem');
     expect(directives).toContain('ssl_certificate_key CERT_DIR/LOCAL_NAME-key.pem');
   });
 });
