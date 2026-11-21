@@ -15,6 +15,9 @@
     8. POST /api/loops/<id>/start for every loop to restart
     9. prints a summary (old PID -> new PID, loops started)
   Every step is logged with a timestamp to the screen and to -LogFile.
+  Sign-in: when LOOPS_USERNAME and LOOPS_PASSWORD are set (the environment first, then <ConsoleDir>\.env), the script
+  signs in with POST /api/auth/login before it reads the loops, and again after step 7. Only a refused connection
+  means "server not answering"; a 401 that a sign-in does not fix exits 1 before step 4. The password is never logged.
 
   Two calls at the same time: a named mutex 'Local\LoopConsoleRestart-<Port>' is taken BEFORE step 1, and
   the holder writes its phase (wait, stop, build, start, done) to reports\restart-console-<Port>.phase. A later call
@@ -97,15 +100,98 @@ function Get-HttpError($err) {
     return $msg
 }
 
-# GET /api/loops -> items, or $null when the server does not answer
-function Get-Loops {
-    try {
-        $r = Invoke-RestMethod -Uri "$Base/api/loops" -Method Get -TimeoutSec 10
-        return , @($r.items)
-    } catch {
-        Write-Log ("GET /api/loops failed: " + (Get-HttpError $_))
-        return $null
+# ---- sign-in
+# A console that runs with LOOPS_USERNAME and LOOPS_PASSWORD answers 401 to every /api/loops call without a session
+# cookie. The script reads the same two values as the server (the environment first, then <ConsoleDir>\.env, each
+# variable on its own), signs in with POST /api/auth/login and keeps the cookie in $WebSession. The password is never
+# logged: the log says only where the credentials came from.
+function Read-SignIn {
+    $vals = @{ LOOPS_USERNAME = $env:LOOPS_USERNAME; LOOPS_PASSWORD = $env:LOOPS_PASSWORD }
+    $from = @{ LOOPS_USERNAME = 'environment'; LOOPS_PASSWORD = 'environment' }
+    $envFile = Join-Path $ConsoleDir '.env'
+    if (Test-Path $envFile) {
+        foreach ($raw in [System.IO.File]::ReadAllLines($envFile)) {
+            if ($raw.Trim() -notmatch '^(?:export\s+)?(LOOPS_USERNAME|LOOPS_PASSWORD)\s*=\s*(.*)$') { continue }
+            $name = $Matches[1]; $v = $Matches[2].Trim()
+            if ($v.Length -ge 2 -and (($v[0] -eq '"' -and $v[-1] -eq '"') -or ($v[0] -eq "'" -and $v[-1] -eq "'"))) { $v = $v.Substring(1, $v.Length - 2) }
+            elseif ($v -match '^(.*?)\s+#') { $v = $Matches[1] }
+            if (-not $vals[$name]) { $vals[$name] = $v; $from[$name] = '.env' }
+        }
     }
+    if (-not $vals.LOOPS_USERNAME -or -not $vals.LOOPS_PASSWORD) { return $null }
+    $source = $from.LOOPS_USERNAME
+    if ($from.LOOPS_PASSWORD -ne $source) { $source = 'environment and .env' }
+    return [pscustomobject]@{ User = $vals.LOOPS_USERNAME; Password = $vals.LOOPS_PASSWORD; From = $source }
+}
+$SignIn = Read-SignIn
+$WebSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+
+# The result of one call: Kind = ok | down (the connection was refused: the server does not answer) | unauthorized (401)
+# | error (any other HTTP error or a timeout: the server answers, but not with what the script needs).
+function ConvertTo-CallResult($err) {
+    $ex = $err.Exception
+    $status = 0
+    if ($ex -is [System.Net.WebException]) {
+        if ($null -ne $ex.Response) { $status = [int]$ex.Response.StatusCode }
+        elseif ($ex.Status -eq [System.Net.WebExceptionStatus]::ConnectFailure) {
+            return [pscustomobject]@{ Kind = 'down'; Status = 0; Body = $null; Message = (Get-HttpError $err) }
+        }
+    }
+    $kind = 'error'
+    if ($status -eq 401) { $kind = 'unauthorized' }
+    return [pscustomobject]@{ Kind = $kind; Status = $status; Body = $null; Message = (Get-HttpError $err) }
+}
+
+function Invoke-Console([string]$Method, [string]$Path, [int]$TimeoutSec) {
+    try {
+        if ($Method -eq 'GET') {
+            $r = Invoke-RestMethod -Uri "$Base$Path" -Method Get -TimeoutSec $TimeoutSec -WebSession $script:WebSession
+        } else {
+            # PowerShell 5.1 sends a form content type when there is no body -> server answers 415; send JSON '{}'
+            $r = Invoke-RestMethod -Uri "$Base$Path" -Method $Method -ContentType 'application/json' -Body '{}' -TimeoutSec $TimeoutSec -WebSession $script:WebSession
+        }
+        return [pscustomobject]@{ Kind = 'ok'; Status = 200; Body = $r; Message = '' }
+    } catch {
+        return ConvertTo-CallResult $_
+    }
+}
+
+# POST /api/auth/login -> ok | off (sign-in is off on the console: 404) | no-credentials | down | failed
+function Connect-Console {
+    if ($null -eq $SignIn) { return 'no-credentials' }
+    $json = @{ username = $SignIn.User; password = $SignIn.Password } | ConvertTo-Json -Compress
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+    try {
+        Invoke-WebRequest -UseBasicParsing -Uri "$Base/api/auth/login" -Method Post -ContentType 'application/json; charset=utf-8' -Body $bytes -TimeoutSec 10 -WebSession $script:WebSession | Out-Null
+        Write-Log "sign-in: signed in (credentials from $($SignIn.From))"
+        return 'ok'
+    } catch {
+        $r = ConvertTo-CallResult $_
+        if ($r.Kind -eq 'down') { return 'down' }
+        if ($r.Status -eq 404) { Write-Log 'sign-in: sign-in is off on the console (404) -> no session needed'; return 'off' }
+        Write-Log ("sign-in: failed (credentials from {0}): {1}" -f $SignIn.From, $r.Message)
+        return 'failed'
+    }
+}
+
+# One call that signs in and asks again once when the answer is 401.
+function Invoke-SignedIn([string]$Method, [string]$Path, [int]$TimeoutSec) {
+    $r = Invoke-Console $Method $Path $TimeoutSec
+    if ($r.Kind -ne 'unauthorized') { return $r }
+    $c = Connect-Console
+    if ($c -eq 'ok') { return (Invoke-Console $Method $Path $TimeoutSec) }
+    if ($c -eq 'no-credentials') {
+        Write-Log "$Method $Path -> 401, and LOOPS_USERNAME / LOOPS_PASSWORD are not in the environment or in $ConsoleDir\.env"
+    }
+    return $r
+}
+
+# GET /api/loops -> a call result; .Items holds the loops when .Kind is 'ok'
+function Get-Loops {
+    $r = Invoke-SignedIn 'GET' '/api/loops' 10
+    $items = @()
+    if ($r.Kind -eq 'ok') { $items = @($r.Body.items) } else { Write-Log ("GET /api/loops failed ({0}): {1}" -f $r.Kind, $r.Message) }
+    return [pscustomobject]@{ Kind = $r.Kind; Items = $items; Message = $r.Message }
 }
 
 function Get-ListenerPid {
@@ -137,15 +223,13 @@ function Get-ProcessTree([int]$RootPid) {
 }
 
 function Invoke-LoopAction([string]$Id, [string]$Action) {
-    try {
-        # PowerShell 5.1 sends a form content type when there is no body -> server answers 415; send JSON '{}'
-        $r = Invoke-RestMethod -Uri "$Base/api/loops/$Id/$Action" -Method Post -ContentType 'application/json' -Body '{}' -TimeoutSec 30
-        Write-Log ("POST /api/loops/{0}/{1} -> 200, status = {2}" -f $Id, $Action, $r.status)
+    $r = Invoke-SignedIn 'POST' "/api/loops/$Id/$Action" 30
+    if ($r.Kind -eq 'ok') {
+        Write-Log ("POST /api/loops/{0}/{1} -> 200, status = {2}" -f $Id, $Action, $r.Body.status)
         return $true
-    } catch {
-        Write-Log ("POST /api/loops/{0}/{1} failed: {2}" -f $Id, $Action, (Get-HttpError $_))
-        return $false
     }
+    Write-Log ("POST /api/loops/{0}/{1} failed ({2}): {3}" -f $Id, $Action, $r.Kind, $r.Message)
+    return $false
 }
 
 # ---- lock + phase file
@@ -204,7 +288,7 @@ if (-not $owned) {
     # Another restart of this port is running. Merge into it when its build is still to come, else queue.
     $mine = @()
     $cur = Get-Loops
-    if ($null -ne $cur) { $mine = @($cur | Where-Object { $_.status -eq 'active' } | ForEach-Object { $_.id }) }
+    if ($cur.Kind -eq 'ok') { $mine = @($cur.Items | Where-Object { $_.status -eq 'active' } | ForEach-Object { $_.id }) }
     $verdict = Use-PhaseFile {
         $s = Read-PhaseFile
         if ($null -eq $s) { return 'queue|?|?|no phase file' }
@@ -239,11 +323,17 @@ if ($explicitStart) {
     foreach ($id in $StartLoop) { if ($id -and -not $toStart.Contains($id)) { $toStart.Add($id) } }
 }
 $loops = Get-Loops
-if ($null -eq $loops) {
-    Write-Log "step 1: server not answering on $Base -> no active loop"
+if ($loops.Kind -eq 'unauthorized') {
+    # the script cannot see the loops, so it must not kill a console that may run one
+    Write-Log "step 1: the console answers 401 and a sign-in does not fix it -> exit 1, nothing stopped"
+    Exit-Script 1
+} elseif ($loops.Kind -eq 'down') {
+    Write-Log "step 1: server not answering on $Base (connection refused) -> no active loop"
+} elseif ($loops.Kind -ne 'ok') {
+    Write-Log "step 1: cannot read the loops on $Base ($($loops.Message)) -> no active loop known"
 } else {
-    $active = @($loops | Where-Object { $_.status -eq 'active' })
-    Write-Log ("step 1: {0} loop(s), active: [{1}]" -f $loops.Count, (($active | ForEach-Object { $_.id }) -join ', '))
+    $active = @($loops.Items | Where-Object { $_.status -eq 'active' })
+    Write-Log ("step 1: {0} loop(s), active: [{1}]" -f $loops.Items.Count, (($active | ForEach-Object { $_.id }) -join ', '))
     if (-not $explicitStart) {
         foreach ($l in $active) { if (-not $toStart.Contains($l.id)) { $toStart.Add($l.id) } }
     }
@@ -254,17 +344,22 @@ if ($explicitStart) {
     Write-Log ("step 1: loops to start (active now): [" + ($toStart -join ', ') + "]")
 }
 
-# 2. wait until no loop has a run in progress
+# 2. wait until no loop has a run in progress. Only a refused connection counts as idle: a 401 that a sign-in does
+# not fix ends the script, and another HTTP error or a timeout is polled again until the deadline.
 if ($WaitForIdle) {
     $deadline = (Get-Date).AddMinutes($WaitMaxMinutes)
     Write-Log "step 2: waiting until no loop has an activeRun (max $WaitMaxMinutes min, poll 5 s)"
     while ($true) {
         $cur = Get-Loops
-        if ($null -eq $cur) { Write-Log "step 2: server not answering -> treated as idle"; break }
-        $busy = @($cur | Where-Object { $null -ne $_.activeRun })
-        if ($busy.Count -eq 0) { Write-Log "step 2: idle (no activeRun)"; break }
+        if ($cur.Kind -eq 'down') { Write-Log "step 2: server not answering (connection refused) -> treated as idle"; break }
+        if ($cur.Kind -eq 'unauthorized') { Write-Log "step 2: the console answers 401 and a sign-in does not fix it -> exit 1, nothing stopped"; Exit-Script 1 }
+        $busy = @()
+        if ($cur.Kind -eq 'ok') {
+            $busy = @($cur.Items | Where-Object { $null -ne $_.activeRun })
+            if ($busy.Count -eq 0) { Write-Log "step 2: idle (no activeRun)"; break }
+        }
         if ((Get-Date) -gt $deadline) {
-            Write-Log ("step 2: still busy after $WaitMaxMinutes min [" + (($busy | ForEach-Object { $_.id }) -join ', ') + "] -> exit 1, nothing restarted")
+            Write-Log ("step 2: still busy or not readable after $WaitMaxMinutes min [" + (($busy | ForEach-Object { $_.id }) -join ', ') + "] -> exit 1, nothing restarted")
             Exit-Script 1
         }
         Start-Sleep -Seconds 5
@@ -278,8 +373,12 @@ Set-Phase 'stop'
 # 3. stop every loop that is active right now (closes the execution cleanly instead of startup recovery)
 $now = Get-Loops
 $stopped = 0
-if ($null -ne $now) {
-    foreach ($l in @($now | Where-Object { $_.status -eq 'active' })) {
+if ($now.Kind -eq 'unauthorized') {
+    Write-Log "step 3: the console answers 401 and a sign-in does not fix it -> exit 1, nothing stopped"
+    Exit-Script 1
+}
+if ($now.Kind -eq 'ok') {
+    foreach ($l in @($now.Items | Where-Object { $_.status -eq 'active' })) {
         # a loop Started while we waited is Started again too, unless -StartLoop was given
         if (-not $explicitStart -and -not $toStart.Contains($l.id)) { $toStart.Add($l.id) }
         if (Invoke-LoopAction $l.id 'stop') { $stopped++ }
@@ -400,6 +499,11 @@ while ((Get-Date) -lt $deadline) {
 }
 if (-not $ok) { Write-Log "step 7: /api/health not ok after 90 s -> exit 1"; Exit-Script 1 }
 $newPid = Get-ListenerPid
+# The sessions of the old console lived in its memory: sign in again on the new one before step 8.
+if ($null -ne $SignIn) {
+    $WebSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+    [void](Connect-Console)
+}
 if ($TestHold) {
     Write-Log "step 7: test hold: waiting on event $TestHold (at most 10 min)"
     $released = $false
