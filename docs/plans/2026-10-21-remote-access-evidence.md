@@ -903,3 +903,46 @@ Green:
   (console code page) with the log line (UTF-8). The check now compares both lines in their ASCII form.
 
 Ratchet: consecutive `PASS 5/5` runs of the harness, 0 -> 3.
+
+
+## Issue 523
+
+Goal row G8. Task: with sign-in on, `scripts/restart-console.ps1 -WaitForIdle` waits for a run in progress, stops the
+active loops and starts them again after the restart.
+
+Decisions by the standing rules (no owner question):
+
+- The script reads `LOOPS_USERNAME` and `LOOPS_PASSWORD` as the server does: the environment first, then
+  `<ConsoleDir>\.env`, each variable on its own (`process.loadEnvFile` leaves a set variable untouched). The `.env`
+  reader accepts `KEY=value`, `export KEY=value`, a quoted value and a `#` comment after an unquoted value.
+- The script signs in only when a call answers 401, keeps the cookie in one `WebRequestSession` for steps 1, 2, 3 and
+  8, and signs in again after step 7, because the sessions of the old console lived in its memory. A sign-in that
+  answers 404 (`AUTH_NOT_CONFIGURED`) means that sign-in is off, and the script goes on without a session.
+- The log never holds the password. It says only where the credentials came from (`environment`, `.env`, or both).
+  The username is not logged either. A failed sign-in logs the answer of the server, which never echoes the values.
+- Each call has one of four results. `down` is a refused connection (`WebExceptionStatus.ConnectFailure`), and only
+  `down` means "server not answering". `unauthorized` is a 401 that a sign-in did not fix. `error` is another HTTP
+  error or a timeout.
+- A 401 that a sign-in does not fix exits 1 at step 1, 2 or 3, so always before step 4: the script never kills a
+  console whose loops it cannot see.
+- Another HTTP error or a timeout at step 1 keeps the old behaviour (no active loop known, go on), so that a console
+  with a broken `/api/loops` can still be restarted with new code. At step 2 the same result is not idle: the script
+  polls again until the deadline of `-WaitMaxMinutes`.
+- The harness got scenario 5. The test console gets fake credentials (user `restart-test-user`, a random password that
+  starts with `fake-pass-`), through a restart with `-NoBuild` that has the variables set. That setup restart is
+  itself a case: the old console has sign-in off, so step 1 reads the loops with no sign-in, and the script signs in
+  on the new console after step 7.
+  The harness API calls sign in the same way. The variables are removed before scenario 4.
+
+Red: the harness with scenario 5 against the script before this change (`git show` of the previous version into the
+work tree): `PASS 5/6`. Scenario 5 printed:
+`the restart that turns sign-in on exit 1` (its step 8 logged `POST /api/loops/<L>/start failed: ... (401) Unauthorized`),
+`the call took the console for "not answering": [pid 792] step 1: server not answering on http://127.0.0.1:7093 -> no active loop`,
+`the run in progress (...) ended as interrupted, not succeeded: the restart cut it`, `L is not active at the end`.
+
+Green: `powershell -File scripts/test-restart-console.ps1`: `PASS 6/6` (12:28). Scenario 5 log of the `-WaitForIdle`
+call: `sign-in: signed in (credentials from environment)`, `step 2: waiting ...` at 12:32:39, `step 2: idle (no
+activeRun)` at 12:33:09 (the 30 s mock run ended), `step 3: stopped 1 loop(s)`, a second `sign-in: signed in` after
+step 7, `POST /api/loops/<L>/start -> 200, status = active`. No file of the run holds the password.
+
+Ratchet: checks of the harness, 5 -> 6 (`PASS 6/6`).
