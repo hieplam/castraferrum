@@ -857,3 +857,30 @@ Decisions by the standing rules (no owner question):
 Red: `npx vitest run --project unit server/config.test.ts` failed 2 cases (message held `eyJfaketoken-not-...`), and
 `npx vitest run --project api tests/api/usage-error-no-secret.test.ts` failed 1 case.
 Green: unit 56 passed (was 55), the process test passes (exit code 2, no output line holds the token).
+
+
+## Issue 524
+
+Goal row G8 (the tunnel lives only while Castraferrum runs). Task: `scripts/test-restart-console.ps1` proves
+`scripts/restart-console.ps1` on every run: no log collision, and scenario 3 does not race step 9.
+
+Decisions by the standing rules (no owner question):
+
+- Root cause of the log collision: `Write-Log` appended with `Add-Content`, which denies a reader that does not share
+  the file for writing, and the harness read with `Get-Content`, which threw when it met the writer. The writer now
+  opens the log with `AppendData` rights only and `FileShare` `ReadWrite` + `Delete`. With `AppendData` only, Windows
+  writes each line at the end of the file, also when two calls of the script append to the same log. A write that
+  still meets a lock is tried again, at most 10 times with 50 ms between tries, and then the screen says
+  `(lost a log line after 10 tries: ...)`. The harness reads the log with the same sharing.
+- The restart log of 2026-11-21 10:46 (section R6d) lost every line after step 2 because `tail -f` (Git Bash) held
+  the file. Measured with the same `tail -f` on a test file and 20 calls of `Write-Log`: the old function wrote 0 of 20
+  lines and printed 20 `(cannot write log: ...)` lines; the new function wrote 20 of 20 and printed none.
+- Scenario 3 waits on a condition, not on time. The script has a test-only hook: when `LOOPS_RESTART_TEST_HOLD` names
+  an event, the script waits on it after step 7 (at most 10 minutes, then goes on), and removes the variable before
+  step 6, so the console does not get it. The harness sets the variable only for the first call, opens the gate of the
+  later call when the log shows `step 7: test hold: waiting`, and releases the hold when the later call logs
+  `waiting for the lock`. No sleep was made longer.
+- The harness checks that every line a call printed on its screen is in its log, inside each scenario check (the
+  screen output goes to `<log>.out`). So the number of checks stays 5.
+- The new committed tool `scripts/test-restart-log.ps1` takes `Write-Log` and `Read-Log` from the two scripts with the
+  PowerShell parser and runs them against each other: 500 lines written while the reader reads at least 100 times.

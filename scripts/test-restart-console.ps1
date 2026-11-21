@@ -163,16 +163,18 @@ function Show-Logs([string]$A, [string]$B) {
 }
 
 # Every line that a call printed on its screen (captured in <log>.out) must be in its log: a reader must never make
-# the writer lose a line. Returns the reasons to fail, or nothing.
+# the writer lose a line. Returns the reasons to fail, or nothing. The screen output is in the console code page and the
+# log is UTF-8, so each run of characters outside printable ASCII (a check mark of the build, a colour code) counts as '?'.
+function Get-AsciiForm([string]$Line) { return ($Line.TrimStart([char]0xFEFF) -replace '[^ -~]+', '?') }
 function Test-LogComplete([string]$Log) {
     $why = @()
     $out = $Log + '.out'
     if (-not (Test-Path $out)) { return @("no screen output $out") }
     $screen = @(Read-Log $out)
     $inLog = New-Object System.Collections.Generic.HashSet[string]
-    foreach ($l in (Read-Log $Log)) { [void]$inLog.Add($l.TrimStart([char]0xFEFF)) }
+    foreach ($l in (Read-Log $Log)) { [void]$inLog.Add((Get-AsciiForm $l)) }
     $printed = @($screen | Where-Object { $_ -match '^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d \[pid \d+\] ' })
-    $missing = @($printed | Where-Object { -not $inLog.Contains($_) })
+    $missing = @($printed | Where-Object { -not $inLog.Contains((Get-AsciiForm $_)) })
     if ($printed.Count -eq 0) { $why += "$(Split-Path $Log -Leaf): the screen output holds no log line" }
     if ($missing.Count -gt 0) { $why += ("{0}: {1} of {2} printed line(s) are not in the log, first: {3}" -f (Split-Path $Log -Leaf), $missing.Count, $printed.Count, $missing[0]) }
     $lost = @($screen | Where-Object { $_ -match 'lost a log line|cannot write log' })
