@@ -279,11 +279,18 @@ runs only while the console runs. The tunnel ends at `http://127.0.0.1:7070`: no
 The design is in [ADR 0006](docs/adr/0006-internet-access-through-a-named-tunnel.md). The console needs sign-in
 (`LOOPS_USERNAME` and `LOOPS_PASSWORD`) before it starts a tunnel.
 
-1. Install `cloudflared`: `winget install --id Cloudflare.cloudflared`.
+1. Install `cloudflared`: `winget install --id Cloudflare.cloudflared`. A program that was already running does not see
+   the new `PATH`, so also set `LOOPS_CLOUDFLARED` in `.env` to the full path of `cloudflared.exe` (winget installs it in
+   `C:\Program Files (x86)\cloudflared\`).
 2. In the Cloudflare dashboard, make a tunnel (Zero Trust, Networks, Tunnels, Create a tunnel, Cloudflared). Copy its
    token.
-3. Delete the A record of the console name. One name cannot hold that record and the tunnel together.
-4. In the tunnel, add the console name as a public host name with the service `http://127.0.0.1:7070`.
+3. Delete the A record of the console name first. One name cannot hold that record and the tunnel together. If the
+   record still exists in step 4, the dashboard saves the route but makes no DNS record, and the name then has no
+   answer: delete the route and add it again.
+4. In the tunnel, open Routes, then "Add published application": subdomain and domain of the console name, path empty,
+   service URL `http://127.0.0.1:7070`. Write `http://`: the console speaks plain HTTP, so `https://` gives error 502 on
+   every page. The dashboard makes a proxied DNS record for the name. A resolver that answered "no such name" before
+   keeps that answer for up to 30 minutes.
 5. Put the token in `.env` as `LOOPS_CLOUDFLARE=<token>`. Every program that runs as your user can read that file, and
    so can anybody who has the token: they can run your tunnel. To rotate the token, open the tunnel in the dashboard,
    refresh the token, replace the value in `.env` and restart the console.
