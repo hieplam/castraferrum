@@ -896,7 +896,7 @@ Red:
 
 Green:
 - `powershell -File scripts/test-restart-log.ps1`: `PASS 3/3`, three runs (867 to 911 reads, 500 of 500 lines).
-- `powershell -File scripts/test-restart-console.ps1`: `PASS 5/5` three runs in a row (12:10, 12:15 and 12:19). In
+- `powershell -File scripts/test-restart-console.ps1`: `PASS 5/5` three runs in a row (started 12:09, 12:13 and 12:17). In
   each scenario 3 the later call logged `lock: restart of pid <n> (step start: already built), waiting for the lock`
   while the first call was held, and each check found every printed line in its log.
 - The first Green attempt printed `PASS 2/5` because the new log check compared the screen line `✓ built in 496ms`
