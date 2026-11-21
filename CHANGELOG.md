@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.1](https://github.com/hieplam/castraferrum/compare/v0.18.0...v0.18.1) (2026-11-21)
+
+
+### Bug Fixes
+
+* **config:** a usage error never echoes an unexpected argument, so a token is not printed ([#526](https://github.com/hieplam/castraferrum/issues/526)) ([c1a057e](https://github.com/hieplam/castraferrum/commit/c1a057ef46d61951ac7022715590316403b3cc91))
+
 ## [0.18.0](https://github.com/hieplam/castraferrum/compare/v0.17.0...v0.18.0) (2026-11-20)
 
 
