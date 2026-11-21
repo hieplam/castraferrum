@@ -758,3 +758,81 @@ Decisions (made by the standing rules of phase issue 55, no owner question):
 - **Plan updated.** The `edge-path` row of the R6b check table in the section "Update 2026-11-20" of `docs/plans/2026-10-21-remote-access.md` now matches the tool.
 
 Ratchet: test count in `tests/tools/tunnel-check.test.ts` 21 -> 22 (the Let's Encrypt case is new; the edge-path failure case now holds the private-peer, cf-ray and server cases).
+
+## R6d
+
+Machine setup on the owner's PC, 2026-11-21. The agent ran each step except the dashboard steps, which the owner did.
+The real console name and the addresses of the PC are written as `castra.example.com` and `<pc-ip>`.
+
+Ratchet (`npm run tunnel:check`, main checkout): 0/9 (Red, before the setup) -> 4/9 (tunnel connected, no DNS record)
+-> 6/9 (DNS record, route with the wrong scheme) -> 9/9.
+
+Red, before the setup:
+
+```text
+tunnel: 0/9 checks pass
+```
+
+Green, after the setup:
+
+```text
+PASS dns-edge
+PASS connector
+PASS runner
+PASS token-hidden
+PASS edge-path
+PASS sign-in-wall
+PASS secure-cookie
+PASS sse
+PASS ports-closed
+tunnel: 9/9 checks pass
+```
+
+Steps and what each one showed:
+
+1. `cloudflared` 2026.11.1, installed by the owner with `winget install --id Cloudflare.cloudflared`, in
+   `C:\Program Files (x86)\cloudflared\cloudflared.exe`. The shells that were already open did not have it on `PATH`, so
+   `.env` sets `LOOPS_CLOUDFLARED` to the full path (README step 1 now says so).
+2. Dashboard (owner): the tunnel `castraferrum`, type Cloudflared. The dialog for a public host name is now called
+   "Add published application", under the tab Routes (README step 4 now uses these names).
+3. The route was added while the A record of the name still existed. The dashboard showed no error and saved the route,
+   but made no DNS record. After the A record was deleted, the name had no record at all (`DNS name does not exist` from
+   the Cloudflare name server and from `1.1.1.1`). Deleting the route and adding it again made the proxied record: the
+   Cloudflare name server then answered two A and two AAAA Cloudflare addresses. `1.1.1.1` kept its negative answer for
+   a few minutes (the zone's SOA minimum is 1800 s).
+4. The re-added route had the service `https://localhost:7070`. `cloudflared` showed it on its local `/config` page.
+   Every request through the edge then answered 502 (`sign-in-wall`, `secure-cookie` and `sse` failed), because the
+   console speaks plain HTTP. After the owner set `http://`, `/config` showed `http://localhost:7070`, and every check
+   passed. README step 4 now warns about the scheme.
+5. The token: a normal-user script read it from the clipboard (the bare token or a whole copied command), wrote
+   `LOOPS_CLOUDFLARE` into the main `.env`, emptied the clipboard and logged only the length (184 characters). The
+   script lives outside the repository. The token is in no file of the repository, no log and no chat.
+6. The console was restarted with `scripts/restart-console.ps1 -WaitForIdle` (no loop was running). Health answered
+   `tunnel: connected`. `cloudflared` runs with the console's `node.exe` as its parent process (check `runner`).
+7. One administrator script (spec D17), log before -> after:
+
+   | Item | Before | After |
+   |---|---|---|
+   | Task `Castraferrum nginx` | Running | Disabled |
+   | win-acme renewal task | Ready | deleted |
+   | nginx processes | 2 | 0 |
+   | Firewall rule `Castraferrum nginx` (TCP 80, 443) | 1 | 0 |
+   | Listeners on port 80 or 443 | 2 | 0 |
+
+8. The owner deleted the win-acme API token in the Cloudflare dashboard.
+
+Facts of the spec update ("Facts this update depends on"), as measured:
+
+- `cloudflared` reads the token from `TUNNEL_TOKEN` and serves `/ready` on the metrics address: measured (check
+  `connector` reads the console's health, which reads `/ready`).
+- `X-Forwarded-Proto: https` reaches the console: measured, check `secure-cookie` passes (the cookie has `Secure`).
+- `CF-Connecting-IP` reaches the console: not measured directly. The console reads it only for the sign-in limit, which
+  a unit test covers (R6a).
+- The dashboard refuses the name while the A record exists: different. It saves the route without a DNS record and shows
+  no error (step 3).
+- The edge's error page when the tunnel has no connection: not measured yet. Task R7 measures it (goal G8).
+
+Found, not filed: the lines of the restart log for 2026-11-21 stop at step 2, although the console started at 10:46:58.
+The coordinator had `tail -f` open on that log at the time, which probably blocked the writes of the script (not
+verified). The next restart in R7 checks that the log is complete.
+
