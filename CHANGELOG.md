@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.18.2](https://github.com/hieplam/castraferrum/compare/v0.18.1...v0.18.2) (2026-11-21)
+
+
+### Bug Fixes
+
+* **restart:** log writer and harness reader share the file; scenario 3 waits on a hold, not a race ([#528](https://github.com/hieplam/castraferrum/issues/528)) ([c1eef91](https://github.com/hieplam/castraferrum/commit/c1eef91727d745dcd2789464ed40a30154f7edb0))
+* **restart:** sign in with LOOPS_USERNAME and LOOPS_PASSWORD; only a refused connection means not answering ([#530](https://github.com/hieplam/castraferrum/issues/530)) ([c78391b](https://github.com/hieplam/castraferrum/commit/c78391ba06b2f01502a43d505a88e879c53c83e9))
+
 ## [0.18.1](https://github.com/hieplam/castraferrum/compare/v0.18.0...v0.18.1) (2026-11-21)
 
 
