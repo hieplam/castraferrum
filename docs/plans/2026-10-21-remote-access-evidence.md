@@ -952,7 +952,7 @@ Ratchet: checks of the harness, 5 -> 6 (`PASS 6/6`).
 Verify every goal and the agent acceptance, 2026-11-21, attempt 1. The real console name and the addresses of the PC are
 written as `castra.example.com` and `<pc-ip>`. Main was at the R6d merge commit (`2158c6a`). No other lane ran.
 
-Result: every Green item of R7 passes, but the agent acceptance found two defects, so the acceptance bar ("finds no open
+Result of attempt 1 (see "Attempt 2" at the end of this section for the final result): every Green item of R7 passes, but the agent acceptance found two defects, so the acceptance bar ("finds no open
 defect") is not met yet. Each defect is an issue under phase 2 that blocks R7:
 
 - https://github.com/hieplam/castraferrum/issues/523: `scripts/restart-console.ps1` does not sign in. With sign-in on
@@ -1129,3 +1129,120 @@ that PR 526 changed is covered by `npx vitest run --project unit server/config.t
   plain body `error code: 502`. Measured, no defect: no console JSON reaches the caller.
 - **R7 does not fix the two defects.** They are in scripts that R7 does not own; each has its own Verify block and
   blocks R7. R7 runs again after they are closed.
+
+### Attempt 2 (final)
+
+Main at `c78391b`: the fixes of issue 524 (PR 528, the log writer and the harness reader share the file) and issue 523
+(PR 530, `restart-console.ps1` signs in) are merged. The branch of R7 is rebased on it.
+
+Result: every Green item passes, and the agent acceptance has no open defect that threatens a goal row. The acceptance
+bar of phase 2 is met.
+
+#### The restart harness
+
+`powershell -File scripts/test-restart-console.ps1`, heavy-run slot held, from the lane worktree:
+
+- Run 1 (12:39 to 12:46): `PASS 4/6`. Scenario 5 failed: the console that the `-WaitForIdle` call opened at 12:44:40
+  (`step 6: opened window PID 24700`) did not answer `/api/health` in 90 s (`step 7: /api/health not ok after 90 s ->
+  exit 1`), and at the end the harness counted `0 windows` (the window process had ended).
+- Run 2 (12:46 to 12:51), the standing rule for an outside event (run once more, record both):
+
+```text
+PASS scenario 1: the later call merges (exit 0), skips steps 5-6, loop active at the end
+PASS scenario 2: the later call queues, does a full restart, the PID listening on port 7093 changes, loop active
+PASS scenario 3: the later call queues, does a full restart, loop active at the end
+PASS scenario 5: sign-in on: the call signs in, waits for the run, stops L and starts it again, no password in the log
+PASS scenario 4: step 4 kills the console and its child (G8), one log line for each PID
+PASS windows: exactly 1 'Castraferrum 7093' window is left after scenarios 1, 2, 3 and 5
+PASS 6/6
+```
+
+At 12:52:04 the real console was also down: no `node` of `server/main.ts`, no `cloudflared`, no `Castraferrum 7070`
+window, no entry in `reports/restart-console.log` after 11:23:09, and no crash event in the Application event log. A
+crash of `node` leaves its `-NoExit` window open, so in both cases the window process itself ended. The cause is not
+found. It threatens no goal row (all rows pass after the start), so it is a follow-up outside the epic:
+https://github.com/hieplam/castraferrum/issues/531.
+
+#### Green 3 again: goal G8 with the signed-in script
+
+R7 started the console with `restart-console.ps1 -WaitForIdle` (12:52:47, step 1: connection refused, no loop to start)
+and started the three loops that were `active` before through the API (200 each). Each start began a run at once.
+
+Then the G8 run, `restart-console.ps1 -WaitForIdle` at 12:53:32, while those three runs were in progress. Nobody read
+the log while it ran. The log, complete from the first line to step 9 (`npm` output lines left out here):
+
+```text
+12:53:32 [pid 13088] === restart-console: port 7070, ..., WaitForIdle=True, NoBuild=False
+12:53:32 [pid 13088] sign-in: signed in (credentials from .env)
+12:53:32 [pid 13088] step 1: 5 loop(s), active: [874f3692-..., 9088e489-..., ff985e39-...]
+12:53:32 [pid 13088] step 1: loops to start (active now): [874f3692-..., 9088e489-..., ff985e39-...]
+12:53:32 [pid 13088] step 2: waiting until no loop has an activeRun (max 360 min, poll 5 s)
+12:56:18 [pid 13088] step 2: idle (no activeRun)
+12:56:18 [pid 13088] POST /api/loops/874f3692-.../stop -> 200, status = stopped
+12:56:18 [pid 13088] POST /api/loops/9088e489-.../stop -> 200, status = stopped
+12:56:18 [pid 13088] POST /api/loops/ff985e39-.../stop -> 200, status = stopped
+12:56:18 [pid 13088] step 3: stopped 3 loop(s)
+12:56:19 [pid 13088] step 4: killing PID 27600 (node  --import tsx server/main.ts)
+12:56:19 [pid 13088] step 4: killed child PID 7172 (conhost.exe) of PID 27600
+12:56:19 [pid 13088] step 4: killed child PID 21856 (cloudflared.exe) of PID 27600
+12:56:19 [pid 13088] step 4: killed child PID 6604 (esbuild.exe) of PID 27600
+12:56:19 [pid 13088] step 4: killed PID 27600 (3 child(ren) killed first)
+12:56:20 [pid 13088] step 4: port 7070 is free
+12:56:20 [pid 13088] step 4: closed old window PID 3060 (no child process left)
+12:56:20 [pid 13088] step 5: npm install --no-audit --no-fund
+12:56:24 [pid 13088] step 5: npm run build
+12:56:26 [pid 13088] step 6: opened window PID 3884: npm start in <main checkout>
+12:56:30 [pid 13088] step 7: health ok (db = up)
+12:56:30 [pid 13088] sign-in: signed in (credentials from .env)
+12:56:30 [pid 13088] POST /api/loops/874f3692-.../start -> 200, status = active
+12:56:30 [pid 13088] POST /api/loops/9088e489-.../start -> 200, status = active
+12:56:30 [pid 13088] POST /api/loops/ff985e39-.../start -> 200, status = active
+12:56:30 [pid 13088] step 9: done. PID 27600 -> 9712; loops started 3/3 [...]
+```
+
+Step 2 waited 2 min 46 s for the three runs. The log holds neither the password nor any 20-character part of the
+token (`grep -cF` counts 0 and 0).
+
+A sampler (one check every 0.7 s, outside the repository) recorded the tunnel state during the run:
+
+| Time | `cloudflared` processes | Listener on 7070 | `GET https://castra.example.com/api/health` |
+|---|---|---|---|
+| 12:53:33 | 1 | the old console | (not asked while the console ran) |
+| 12:56:24 | 0 | none | HTTP 502, `server: cloudflare` |
+| 12:56:31 | 1 | the new console | (not asked while the console ran) |
+
+Then, from the main checkout:
+
+```text
+PASS dns-edge
+PASS connector
+PASS runner
+PASS token-hidden
+PASS edge-path
+PASS sign-in-wall
+PASS secure-cookie
+PASS sse
+PASS ports-closed
+tunnel: 9/9 checks pass
+```
+
+and `npm run goal:check -- goals/tunnel.json`:
+
+```text
+G5 pass
+G6 pass
+G8 pass
+G9 pass
+G10 pass
+goals passed: 5/5
+```
+
+Both exit 0.
+
+#### Decisions of attempt 2
+
+- **Harness run 1 failed, run 2 passed.** The failure in run 1 was a console window that ended with no trace, in the
+  same minutes as the real console window. Code of this repository did not end it (no restart log entry, no `step 4`
+  line), so R7 counts it as an outside event: run once more, record both, and file the event as a follow-up (issue
+  531). If the follow-up finds a cause in the repository, it becomes a defect of its own.
+- **Ratchet:** goals passed 0/5 (R6b) -> 5/5; harness checks `PASS 4/5` (attempt 1, run 2) -> `PASS 6/6`.
