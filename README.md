@@ -295,7 +295,9 @@ The design is in [ADR 0006](docs/adr/0006-internet-access-through-a-named-tunnel
    so can anybody who has the token: they can run your tunnel. To rotate the token, open the tunnel in the dashboard,
    refresh the token, replace the value in `.env` and restart the console.
 6. Start the console with `npm start`. The flag form is `npm start -- --cloudflare=<token>` (write the `=`: with a
-   space, npm can read the token as a separate word). Startup prints `Tunnel: connected` and the address to open.
+   space, npm can read the token as a separate word). The space form `npm start --cloudflare <token>` does not work:
+   startup exits with a usage error that shows only the length of the word. Use `npm start -- --cloudflare=<token>` or
+   `LOOPS_CLOUDFLARE` in `.env`. Startup prints `Tunnel: connected` and the address to open.
 7. Run `npm run tunnel:check`. It reads the `.env` of the main checkout, prints one line for each of 9 checks (`PASS <id>`
    or `FAIL <id>: <reason>`) and `tunnel: <n>/9 checks pass`, and exits 0 only when all 9 pass. Each check sends its
    request along the path of a phone on mobile data: to a Cloudflare address, never to your PC.

@@ -130,7 +130,10 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
     if (!arg.startsWith('--')) {
-      throw new UsageError(`unexpected argument ${arg} (write a value as --name=value)`);
+      // Never echo the word: it can be a secret, for example the token of `npm start --cloudflare <token>` (goal G9).
+      throw new UsageError(
+        `unexpected argument (${arg.length} characters): write a value as --name=value; for the tunnel token use --cloudflare=<token> or LOOPS_CLOUDFLARE in .env`,
+      );
     }
     const eq = arg.indexOf('=');
     const name = arg.slice(2, eq === -1 ? undefined : eq);

@@ -836,3 +836,24 @@ Found, not filed: the lines of the restart log for 2026-11-21 stop at step 2, al
 The coordinator had `tail -f` open on that log at the time, which probably blocked the writes of the script (not
 verified). The next restart in R7 checks that the log is complete.
 
+
+## Issue 525
+
+Goal row G9 (the token never shows in a command line or a log of Castraferrum). Task: a usage error must not echo a secret.
+
+Decisions by the standing rules (no owner question):
+
+- The unexpected-argument error prints the length of the word and the two working forms, never the word. Reason: the
+  word can be the token of `npm start --cloudflare <token>`, and startup output goes to terminals and logs.
+- Other usage errors were checked. `--password is missing`, `the password needs at least 8 characters`,
+  `--public-url must start with https://` and `--<name> needs a value` print no input. `unknown flag --<name>` prints
+  a flag name that the user wrote with `--`, which is not a value, so it stays. `readPort` prints the port value, which
+  is not a secret.
+- The existing unit case for a bare word expected the word in the message. It now expects the length. This changes the
+  behaviour that the goal forbids, so it is not a weakened test.
+- The space form is not made to work: npm consumes `--cloudflare` itself. The README states that it fails and gives
+  the two forms that work.
+
+Red: `npx vitest run --project unit server/config.test.ts` failed 2 cases (message held `eyJfaketoken-not-...`), and
+`npx vitest run --project api tests/api/usage-error-no-secret.test.ts` failed 1 case.
+Green: unit 56 passed (was 55), the process test passes (exit code 2, no output line holds the token).

@@ -124,7 +124,21 @@ describe('config', () => {
     });
 
     it('a bare word throws (npm start --host 0.0.0.0 hands the word over as an argument)', () => {
-      expect(() => loadConfig({ npm_config_host: 'true' }, ['0.0.0.0'])).toThrow(/unexpected argument 0\.0\.0\.0/);
+      expect(() => loadConfig({ npm_config_host: 'true' }, ['0.0.0.0'])).toThrow(/unexpected argument \(7 characters\)/);
+    });
+
+    it('a bare word never appears in the message: it can be a token (npm start --cloudflare <token>, goal G9)', () => {
+      const token = 'eyJfaketoken-not-a-secret-0123456789';
+      let message = '';
+      try {
+        loadConfig({ npm_config_cloudflare: 'true' }, [token]);
+      } catch (err) {
+        message = (err as Error).message;
+      }
+      expect(message).toContain(`unexpected argument (${token.length} characters)`);
+      expect(message).toContain('--cloudflare=<token>');
+      expect(message).not.toContain('eyJfaketoken');
+      expect(message).not.toContain(token);
     });
 
     it('npm_config_host=true (a bare --host through npm) is not a host', () => {
