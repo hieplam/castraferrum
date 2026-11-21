@@ -60,10 +60,35 @@ if ($logDir -and -not (Test-Path $logDir)) { New-Item -ItemType Directory -Force
 
 $Base = "http://127.0.0.1:$Port"
 
+# Test-only hook (scripts/test-restart-console.ps1, scenario 3): when LOOPS_RESTART_TEST_HOLD names an event, the
+# script waits on that event after step 7, so a later call meets a holder that has not finished. The variable is read
+# here and removed, so the console window of step 6 does not get it.
+$TestHold = $env:LOOPS_RESTART_TEST_HOLD
+if ($TestHold) { Remove-Item -Path Env:LOOPS_RESTART_TEST_HOLD -ErrorAction SilentlyContinue }
+
+# Appends one line to -LogFile. The file is opened with AppendData rights only (Windows then writes at the end of the
+# file, also when another call of this script appends to the same log) and FileShare ReadWrite + Delete, so a reader
+# (the test harness, a person running Get-Content -Wait) does not block the writer. Add-Content denied that sharing,
+# and a line was lost each time a reader held the file. A writer that still meets a lock retries a bounded number of
+# times (10 x 50 ms) and then says on the screen that the line is lost.
 function Write-Log([string]$Message) {
     $line = '{0} [pid {1}] {2}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $PID, $Message
     Write-Host $line
-    try { Add-Content -Path $LogFile -Value $line -Encoding UTF8 } catch { Write-Host "(cannot write log: $($_.Exception.Message))" }
+    $bytes = (New-Object System.Text.UTF8Encoding($false)).GetBytes($line + "`r`n")
+    $lastError = ''
+    for ($try = 1; $try -le 10; $try++) {
+        try {
+            $fs = New-Object System.IO.FileStream($LogFile, [System.IO.FileMode]::Append, [System.Security.AccessControl.FileSystemRights]::AppendData,
+                ([System.IO.FileShare]::ReadWrite -bor [System.IO.FileShare]::Delete), 4096, [System.IO.FileOptions]::None)
+            try { $fs.Write($bytes, 0, $bytes.Length) } finally { $fs.Dispose() }
+            if ($try -gt 1) { Write-Host "(log line written at try $try)" }
+            return
+        } catch {
+            $lastError = $_.Exception.Message
+            Start-Sleep -Milliseconds 50
+        }
+    }
+    Write-Host "(lost a log line after 10 tries: $lastError)"
 }
 
 function Get-HttpError($err) {
@@ -375,6 +400,15 @@ while ((Get-Date) -lt $deadline) {
 }
 if (-not $ok) { Write-Log "step 7: /api/health not ok after 90 s -> exit 1"; Exit-Script 1 }
 $newPid = Get-ListenerPid
+if ($TestHold) {
+    Write-Log "step 7: test hold: waiting on event $TestHold (at most 10 min)"
+    $released = $false
+    try {
+        $ev = [System.Threading.EventWaitHandle]::OpenExisting($TestHold)
+        try { $released = $ev.WaitOne([TimeSpan]::FromMinutes(10)) } finally { $ev.Dispose() }
+    } catch { Write-Log ("step 7: test hold: cannot open the event: " + $_.Exception.Message) }
+    if ($released) { Write-Log "step 7: test hold released" } else { Write-Log "step 7: test hold not released -> go on" }
+}
 
 # 8. Start the loops again, plus the active loops of the later calls that merged into this one
 $mergedIn = @(Use-PhaseFile {

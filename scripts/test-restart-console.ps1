@@ -8,11 +8,13 @@
     1. first call -WaitForIdle; the later call comes 10 s after          -> later call merges (exit 0, no step 5-6)
     2. later call comes when the first one logs 'step 5: npm run build'  -> later call queues, full restart, new PID
     3. later call comes when the first one logs 'step 7: health ok'      -> later call queues, full restart
+       (LOOPS_RESTART_TEST_HOLD holds the first call after step 7 until the later call logs that it waits for the lock)
+  Each check also needs every line that a call printed on its screen to be in its log (no line lost to a reader).
   4. step 4 kills the whole process tree (goal G8: no cloudflared is left after a restart). A fake console (a node
      process that listens on a free port) has a child process (stand-in for cloudflared); 'restart-console.ps1 -StopOnly'
      must kill both and log one line for each PID. It needs no database and no console: -StopTreeOnly runs only this one.
   then counts the 'Castraferrum <port>' windows (must be exactly 1).
-  Prints one PASS/FAIL line per check and 'PASS k/4'; exit 1 when any check FAILs.
+  Prints one PASS/FAIL line per check and 'PASS k/5'; exit 1 when any check FAILs.
   At the end it closes every window / process of the test console and drops the test DB (unless -Keep).
 
   Every call of restart-console.ps1 here carries -Port and -ConsoleDir: without -Port it would kill the real console.
@@ -100,7 +102,7 @@ function Wait-Running([string]$Id) {
 
 function Start-Restart([string]$Log) {
     $a = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $Script, '-Port', "$Port", '-ConsoleDir', $ConsoleDir, '-WaitForIdle', '-LogFile', $Log)
-    $p = Start-Process powershell -ArgumentList $a -WindowStyle Hidden -PassThru
+    $p = Start-Process powershell -ArgumentList $a -WindowStyle Hidden -PassThru -RedirectStandardOutput ($Log + ".out")
     $null = $p.Handle # keep the handle so ExitCode is readable after exit
     return $p
 }
@@ -111,7 +113,7 @@ function New-Gate([string]$Name) { return New-Object System.Threading.EventWaitH
 function Start-GatedRestart([string]$Log, [string]$GateName) {
     $cmd = "`$g = [System.Threading.EventWaitHandle]::OpenExisting('$GateName'); [void]`$g.WaitOne(3600000); " +
         "& '$Script' -Port $Port -ConsoleDir '$ConsoleDir' -WaitForIdle -LogFile '$Log'; exit `$LASTEXITCODE"
-    $p = Start-Process powershell -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', $cmd) -WindowStyle Hidden -PassThru
+    $p = Start-Process powershell -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', $cmd) -WindowStyle Hidden -PassThru -RedirectStandardOutput ($Log + ".out")
     $null = $p.Handle
     return $p
 }
@@ -121,9 +123,17 @@ function Wait-Exit($Proc, [int]$Minutes) {
     return $Proc.ExitCode
 }
 
+# Reads the log while restart-console.ps1 can append to it: FileShare ReadWrite + Delete, so the read never blocks the
+# writer and never throws because the writer holds the file (Get-Content did both, and the harness stopped).
 function Read-Log([string]$Log) {
-    if (Test-Path $Log) { return @(Get-Content $Log) }
-    return @()
+    if (-not (Test-Path $Log)) { return @() }
+    $fs = New-Object System.IO.FileStream($Log, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read,
+        ([System.IO.FileShare]::ReadWrite -bor [System.IO.FileShare]::Delete))
+    try {
+        $sr = New-Object System.IO.StreamReader($fs, (New-Object System.Text.UTF8Encoding($false)), $true)
+        $text = $sr.ReadToEnd()
+    } finally { $fs.Dispose() }
+    return @($text -split "`r?`n" | Where-Object { $_ -ne '' })
 }
 
 function Wait-LogLine([string]$Log, [string]$Pattern, [int]$Minutes) {
@@ -150,6 +160,24 @@ function Get-DonePid([string[]]$Lines) {
 function Show-Logs([string]$A, [string]$B) {
     Say "--- log of the first call ($A)"; Read-Log $A | ForEach-Object { Write-Host "  A | $_" }
     Say "--- log of the later call ($B)"; Read-Log $B | ForEach-Object { Write-Host "  B | $_" }
+}
+
+# Every line that a call printed on its screen (captured in <log>.out) must be in its log: a reader must never make
+# the writer lose a line. Returns the reasons to fail, or nothing.
+function Test-LogComplete([string]$Log) {
+    $why = @()
+    $out = $Log + '.out'
+    if (-not (Test-Path $out)) { return @("no screen output $out") }
+    $screen = @(Read-Log $out)
+    $inLog = New-Object System.Collections.Generic.HashSet[string]
+    foreach ($l in (Read-Log $Log)) { [void]$inLog.Add($l.TrimStart([char]0xFEFF)) }
+    $printed = @($screen | Where-Object { $_ -match '^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d \[pid \d+\] ' })
+    $missing = @($printed | Where-Object { -not $inLog.Contains($_) })
+    if ($printed.Count -eq 0) { $why += "$(Split-Path $Log -Leaf): the screen output holds no log line" }
+    if ($missing.Count -gt 0) { $why += ("{0}: {1} of {2} printed line(s) are not in the log, first: {3}" -f (Split-Path $Log -Leaf), $missing.Count, $printed.Count, $missing[0]) }
+    $lost = @($screen | Where-Object { $_ -match 'lost a log line|cannot write log' })
+    if ($lost.Count -gt 0) { $why += ("{0}: the writer says it lost a line: {1}" -f (Split-Path $Log -Leaf), $lost[0]) }
+    return $why
 }
 
 $results = New-Object System.Collections.Generic.List[string]
@@ -186,7 +214,7 @@ function Test-StopTree {
     if ($childPid -eq 0) { $why += 'the fake console did not start its child' }
     Start-Sleep -Seconds 1
     $a = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $Script, '-Port', "$fp", '-ConsoleDir', $ConsoleDir, '-NoBuild', '-StopOnly', '-LogFile', $log)
-    $p = Start-Process powershell -ArgumentList $a -WindowStyle Hidden -PassThru
+    $p = Start-Process powershell -ArgumentList $a -WindowStyle Hidden -PassThru -RedirectStandardOutput ($log + ".out")
     $null = $p.Handle
     $code = Wait-Exit $p 3
     $parentAlive = $null -ne (Get-Process -Id $parent.Id -ErrorAction SilentlyContinue)
@@ -197,6 +225,7 @@ function Test-StopTree {
     if ($childAlive) { $why += "the child (PID $childPid, stand-in for cloudflared) is still alive" }
     if (@($lines | Where-Object { $_ -match "step 4: killed child PID $childPid " }).Count -ne 1) { $why += "the log has no single line 'killed child PID $childPid'" }
     if (@($lines | Where-Object { $_ -match "step 4: killed PID $($parent.Id) " }).Count -ne 1) { $why += "the log has no single line 'killed PID $($parent.Id)'" }
+    $why += @(Test-LogComplete $log)
     Add-Result ($why.Count -eq 0) 'scenario 4: step 4 kills the console and its child (G8), one log line for each PID' $why
     if ($why.Count -gt 0) { $lines | ForEach-Object { Write-Host "  S4 | $_" } }
     foreach ($id in @($parent.Id, $childPid)) { if ($id -and (Get-Process -Id $id -ErrorAction SilentlyContinue)) { & taskkill /T /F /PID $id 2>&1 | Out-Null } }
@@ -258,6 +287,7 @@ if ($par.Count -gt 0) { $why += ('later call ran step 5-6: ' + ($par[0] -replace
 $st = Get-Loop $L
 if ($null -eq $st -or $st.status -ne 'active') { $why += 'L is not active at the end' }
 if (-not (Test-Health)) { $why += '/api/health not ok' }
+$why += @(Test-LogComplete $a1) + @(Test-LogComplete $b1)
 Add-Result ($why.Count -eq 0) 'scenario 1: the later call merges (exit 0), skips steps 5-6, loop active at the end' $why
 if ($why.Count -gt 0) { Show-Logs $a1 $b1 }
 
@@ -287,6 +317,7 @@ if ($null -eq $pidA -or $null -eq $pidNow -or $pidNow -eq $pidA) { $why += "PID 
 if ($null -ne $pidB -and $pidNow -ne $pidB) { $why += "PID listening now ($pidNow) is not the one the later call opened ($pidB)" }
 $st = Get-Loop $L
 if ($null -eq $st -or $st.status -ne 'active') { $why += 'L is not active at the end' }
+$why += @(Test-LogComplete $a2) + @(Test-LogComplete $b2)
 Add-Result ($why.Count -eq 0) "scenario 2: the later call queues, does a full restart, the PID listening on port $Port changes, loop active" $why
 if ($why.Count -gt 0) { Show-Logs $a2 $b2 }
 
@@ -296,14 +327,25 @@ if (-not (Wait-Running $L)) { Say 'scenario 3: L has no run in progress' }
 Say 'scenario 3: later call when the first one logs step 7: health ok'
 $gateName = 'Local\LcRestartTestGate-' + [guid]::NewGuid().ToString('N')
 $gate = New-Gate $gateName
+# The first call goes from 'step 7: health ok' to 'step 9: done' in less than one poll of the log, so the later call
+# can come after the lock is free and never queue. The test hold keeps the first call after step 7 until the later
+# call has logged that it waits for the lock: the scenario waits on log lines, not on time.
+$holdName = 'Local\LcRestartTestHold-' + [guid]::NewGuid().ToString('N')
+$hold = New-Gate $holdName
 $pb = Start-GatedRestart $b3 $gateName
-$pa = Start-Restart $a3
-$seen = Wait-LogLine $a3 'step 7: health ok' 15
+$env:LOOPS_RESTART_TEST_HOLD = $holdName
+try { $pa = Start-Restart $a3 } finally { Remove-Item -Path Env:LOOPS_RESTART_TEST_HOLD -ErrorAction SilentlyContinue }
+$seen = Wait-LogLine $a3 'step 7: test hold: waiting' 15
 [void]$gate.Set()
+$queued = $false
+if ($seen) { $queued = Wait-LogLine $b3 'lock: .*waiting for the lock' 2 }
+[void]$hold.Set()
 $ca = Wait-Exit $pa 20; $cb = Wait-Exit $pb 20
 $la = Read-Log $a3; $lb = Read-Log $b3
 $why = @()
-if (-not $seen) { $why += 'first call never logged "step 7: health ok"' }
+if (-not $seen) { $why += 'first call never logged "step 7: health ok" and "step 7: test hold: waiting"' }
+if ($seen -and -not $queued) { $why += 'later call did not log "waiting for the lock" in 2 min while the first call was held after step 7' }
+if (@($la | Where-Object { $_ -match 'step 7: test hold released' }).Count -eq 0) { $why += 'first call has no "step 7: test hold released" line' }
 if ($ca -ne 0) { $why += "first call exit $ca" }
 if ($cb -ne 0) { $why += "later call exit $cb" }
 if (@($lb | Where-Object { $_ -match 'lock: .*waiting for the lock' }).Count -eq 0) { $why += 'later call has no "lock: ... waiting for the lock" (queued) line' }
@@ -313,6 +355,7 @@ $bInstall = Get-LineTime $lb 'step 5: npm install'
 if ($null -ne $aDone -and $null -ne $bInstall -and $bInstall -lt $aDone) { $why += 'later call step 5 ran before the first call finished' }
 $st = Get-Loop $L
 if ($null -eq $st -or $st.status -ne 'active') { $why += 'L is not active at the end' }
+$why += @(Test-LogComplete $a3) + @(Test-LogComplete $b3)
 Add-Result ($why.Count -eq 0) 'scenario 3: the later call queues, does a full restart, loop active at the end' $why
 if ($why.Count -gt 0) { Show-Logs $a3 $b3 }
 
