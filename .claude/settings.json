@@ -1,4 +1,26 @@
 {
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(**/.env)",
+      "Edit(./.env)",
+      "Edit(**/.env)",
+      "Bash(cat .env)",
+      "Bash(cat ./.env)",
+      "Bash(less .env)",
+      "Bash(more .env)",
+      "Bash(head .env)",
+      "Bash(tail .env)",
+      "Bash(nano .env)",
+      "Bash(vi .env)",
+      "Bash(vim .env)",
+      "Bash(type .env)",
+      "Bash(Get-Content .env)",
+      "PowerShell(Get-Content .env)",
+      "PowerShell(cat .env)",
+      "PowerShell(type .env)"
+    ]
+  },
   "hooks": {
     "SessionStart": [
       {
