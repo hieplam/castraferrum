@@ -884,3 +884,22 @@ Decisions by the standing rules (no owner question):
   screen output goes to `<log>.out`). So the number of checks stays 5.
 - The new committed tool `scripts/test-restart-log.ps1` takes `Write-Log` and `Read-Log` from the two scripts with the
   PowerShell parser and runs them against each other: 500 lines written while the reader reads at least 100 times.
+
+Red:
+- `powershell -File scripts/test-restart-log.ps1` before the fix: `PASS 0/3`, two runs. Run 1: `953 of 1910 reads threw`
+  (`The process cannot access the file ... because it is being used by another process.`), `403 line(s) on the screen
+  say a line was lost`, `the log holds 97 of 500 lines`. Run 2: 846 of 1868 reads threw, 126 of 500 lines.
+- Scenario 3 without the hold, on this machine at 11:59: it printed PASS, but only by luck. The later call logged
+  `lock: restart of pid 4628 (step done: finished), waiting for the lock`: it came in the few milliseconds between the
+  phase `done` and the release of the mutex. `step 7` and `step 9` of the first call have the same second (12:03:16),
+  as in the failed run of the issue (11:20:19).
+
+Green:
+- `powershell -File scripts/test-restart-log.ps1`: `PASS 3/3`, three runs (867 to 911 reads, 500 of 500 lines).
+- `powershell -File scripts/test-restart-console.ps1`: `PASS 5/5` three runs in a row (12:10, 12:15 and 12:19). In
+  each scenario 3 the later call logged `lock: restart of pid <n> (step start: already built), waiting for the lock`
+  while the first call was held, and each check found every printed line in its log.
+- The first Green attempt printed `PASS 2/5` because the new log check compared the screen line `✓ built in 496ms`
+  (console code page) with the log line (UTF-8). The check now compares both lines in their ASCII form.
+
+Ratchet: consecutive `PASS 5/5` runs of the harness, 0 -> 3.
