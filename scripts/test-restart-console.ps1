@@ -10,11 +10,13 @@
     3. later call comes when the first one logs 'step 7: health ok'      -> later call queues, full restart
        (LOOPS_RESTART_TEST_HOLD holds the first call after step 7 until the later call logs that it waits for the lock)
   Each check also needs every line that a call printed on its screen to be in its log (no line lost to a reader).
+  5. sign-in on (fake LOOPS_USERNAME and LOOPS_PASSWORD): a -WaitForIdle call signs in, waits for the run in progress,
+     stops L and starts it again after the restart; no log holds the password
   4. step 4 kills the whole process tree (goal G8: no cloudflared is left after a restart). A fake console (a node
      process that listens on a free port) has a child process (stand-in for cloudflared); 'restart-console.ps1 -StopOnly'
      must kill both and log one line for each PID. It needs no database and no console: -StopTreeOnly runs only this one.
   then counts the 'Castraferrum <port>' windows (must be exactly 1).
-  Prints one PASS/FAIL line per check and 'PASS k/5'; exit 1 when any check FAILs.
+  Prints one PASS/FAIL line per check and 'PASS k/6'; exit 1 when any check FAILs.
   At the end it closes every window / process of the test console and drops the test DB (unless -Keep).
 
   Every call of restart-console.ps1 here carries -Port and -ConsoleDir: without -Port it would kill the real console.
@@ -67,11 +69,26 @@ function Stop-TestConsole {
     while (($null -ne (Get-ListenerPid)) -and ($n -lt 15)) { Start-Sleep -Seconds 1; $n++ }
 }
 
+# The harness keeps its own session: in scenario 5 the test console runs with sign-in on (LOOPS_USERNAME and
+# LOOPS_PASSWORD of this process, fake values), and a 401 signs in once and asks again.
+$Web = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+function Connect-Api {
+    $json = @{ username = $env:LOOPS_USERNAME; password = $env:LOOPS_PASSWORD } | ConvertTo-Json -Compress
+    Invoke-WebRequest -UseBasicParsing -Uri "$Base/api/auth/login" -Method Post -ContentType 'application/json' -Body $json -TimeoutSec 10 -WebSession $script:Web | Out-Null
+}
+function Send-Api([string]$Method, [string]$Path, [string]$Json) {
+    if ($Method -eq 'GET') { return Invoke-RestMethod -Uri "$Base/api$Path" -Method Get -TimeoutSec 10 -WebSession $script:Web }
+    return Invoke-RestMethod -Uri "$Base/api$Path" -Method $Method -ContentType 'application/json' -Body $Json -TimeoutSec 30 -WebSession $script:Web
+}
 function Invoke-Api([string]$Method, [string]$Path, $Body = $null) {
     $json = '{}'
     if ($null -ne $Body) { $json = ($Body | ConvertTo-Json -Depth 5 -Compress) }
-    if ($Method -eq 'GET') { return Invoke-RestMethod -Uri "$Base/api$Path" -Method Get -TimeoutSec 10 }
-    return Invoke-RestMethod -Uri "$Base/api$Path" -Method $Method -ContentType 'application/json' -Body $json -TimeoutSec 30
+    try { return Send-Api $Method $Path $json } catch {
+        $r = $_.Exception.Response
+        if (-not $env:LOOPS_USERNAME -or $null -eq $r -or [int]$r.StatusCode -ne 401) { throw }
+    }
+    Connect-Api
+    return Send-Api $Method $Path $json
 }
 
 function Get-Loop([string]$Id) {
@@ -361,13 +378,59 @@ $why += @(Test-LogComplete $a3) + @(Test-LogComplete $b3)
 Add-Result ($why.Count -eq 0) 'scenario 3: the later call queues, does a full restart, loop active at the end' $why
 if ($why.Count -gt 0) { Show-Logs $a3 $b3 }
 
+
+# ---------------------------------------------------------------------------- scenario 5: sign-in on
+# The test console gets fake credentials. A restart with -NoBuild turns sign-in on; then a -WaitForIdle call starts while
+# L has a run in progress. The call must sign in, wait for the run, stop L, and start L again on the new console.
+$s5 = Join-Path $Work 's5-sign-in-on.log'; $a5 = Join-Path $Work 's5-first.log'
+$fakePass = 'fake-pass-' + [guid]::NewGuid().ToString('N').Substring(0, 12)
+$env:LOOPS_USERNAME = 'restart-test-user'; $env:LOOPS_PASSWORD = $fakePass
+Say 'scenario 5: sign-in on (fake credentials), a -WaitForIdle call while L has a run in progress'
+$why = @()
+$a = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $Script, '-Port', "$Port", '-ConsoleDir', $ConsoleDir, '-NoBuild', '-LogFile', $s5)
+$p = Start-Process powershell -ArgumentList $a -WindowStyle Hidden -PassThru -RedirectStandardOutput ($s5 + '.out')
+$null = $p.Handle
+$c = Wait-Exit $p 5
+if ($c -ne 0) { $why += "the restart that turns sign-in on exit $c" }
+$guarded = $false
+try { Invoke-RestMethod -Uri "$Base/api/loops" -Method Get -TimeoutSec 10 | Out-Null } catch {
+    $r = $_.Exception.Response
+    if ($null -ne $r -and [int]$r.StatusCode -eq 401) { $guarded = $true }
+}
+if (-not $guarded) { $why += 'GET /api/loops without a session does not answer 401: sign-in is not on' }
+$runId = $null
+if (Wait-Running $L) { $runId = (Get-Loop $L).activeRun.id } else { $why += 'L has no run in progress before the call' }
+$pa = Start-Restart $a5
+$ca = Wait-Exit $pa 20
+$la = Read-Log $a5
+if ($ca -ne 0) { $why += "the -WaitForIdle call exit $ca" }
+$na = @($la | Where-Object { $_ -match 'server not answering' })
+if ($na.Count -gt 0) { $why += ('the call took the console for "not answering": ' + ($na[0] -replace '^\S+ \S+ ', '')) }
+if (@($la | Where-Object { $_ -match 'step 2: idle \(no activeRun\)' }).Count -eq 0) { $why += 'the log has no "step 2: idle (no activeRun)" line' }
+if ($null -ne $runId) {
+    $run = $null
+    try { $run = Invoke-Api 'GET' "/runs/$runId" } catch { }
+    if ($null -eq $run) { $why += "cannot read run $runId" }
+    elseif ($run.status -ne 'succeeded') { $why += "the run in progress ($runId) ended as $($run.status), not succeeded: the restart cut it" }
+}
+if (@($la | Where-Object { $_ -match "step 3: stopped 1 loop" }).Count -eq 0) { $why += 'the log has no "step 3: stopped 1 loop(s)" line' }
+if (@($la | Where-Object { $_ -match "POST /api/loops/$L/start -> 200" }).Count -eq 0) { $why += "the log has no line 'POST /api/loops/$L/start -> 200' (step 8)" }
+$st = Get-Loop $L
+if ($null -eq $st -or $st.status -ne 'active') { $why += 'L is not active at the end' }
+foreach ($file in @($s5, ($s5 + '.out'), $a5, ($a5 + '.out'))) {
+    if ((Test-Path $file) -and (@(Read-Log $file | Where-Object { $_.Contains($fakePass) }).Count -gt 0)) { $why += "$(Split-Path $file -Leaf) holds the password" }
+}
+$why += @(Test-LogComplete $s5) + @(Test-LogComplete $a5)
+Add-Result ($why.Count -eq 0) 'scenario 5: sign-in on: the call signs in, waits for the run, stops L and starts it again, no password in the log' $why
+if ($why.Count -gt 0) { Show-Logs $s5 $a5 }
+Remove-Item -Path Env:LOOPS_USERNAME, Env:LOOPS_PASSWORD -ErrorAction SilentlyContinue
 Test-StopTree
 
 # ---------------------------------------------------------------------------- windows
 $wins = @(Get-ConsoleWindows)
 $why = @()
 if ($wins.Count -ne 1) { $why += ("{0} windows: PID {1}" -f $wins.Count, (($wins | ForEach-Object { $_.ProcessId }) -join ', ')) }
-Add-Result ($wins.Count -eq 1) "windows: exactly 1 'Castraferrum $Port' window is left after 3 scenarios" $why
+Add-Result ($wins.Count -eq 1) "windows: exactly 1 'Castraferrum $Port' window is left after scenarios 1, 2, 3 and 5" $why
 
 # ---------------------------------------------------------------------------- summary + cleanup
 $pass = @($results | Where-Object { $_.StartsWith('PASS') }).Count
